@@ -52,3 +52,9 @@ coverage/
 temp/
 tmp/
 
+# Test/Debug scripts
+test_*.js
+audit_*.js
+check_*.js
+debug_*.js
+
