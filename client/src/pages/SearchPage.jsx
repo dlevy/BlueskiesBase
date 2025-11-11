@@ -171,13 +171,13 @@ export default function SearchPage() {
                     .select(`
                         show_id,
                         song_id,
+                        id,
                         songs (
                             id,
                             is_original
                         )
                     `)
-                    .in('show_id', showIds)
-                    .not('song_id', 'is', null);
+                    .in('show_id', showIds);
 
                 if (error) {
                     console.error('[SearchPage] Error fetching setlist songs for stats:', error);
@@ -192,35 +192,45 @@ export default function SearchPage() {
                 showIds.forEach(showId => {
                     const showSongs = setlistSongs?.filter(item => item.show_id === showId) || [];
 
-                    // Track unique songs by song_id for this show
+                    // Track unique songs - use setlist_songs.id if no song_id
                     const uniqueSongIds = new Set();
+                    const uniqueSetlistIds = new Set();
                     let originals = 0;
                     let covers = 0;
+                    let songsWithoutReference = 0;
 
                     showSongs.forEach(item => {
-                        const songId = item.song_id;
-                        if (!songId || uniqueSongIds.has(songId)) {
-                            return; // Skip if no song_id or already counted for this show
-                        }
+                        // If song has a song_id reference, use it for deduplication
+                        if (item.song_id) {
+                            if (uniqueSongIds.has(item.song_id)) {
+                                return; // Already counted this song
+                            }
+                            uniqueSongIds.add(item.song_id);
 
-                        uniqueSongIds.add(songId);
+                            // Use ONLY the songs table as master source of truth
+                            const isOriginal = item.songs?.is_original === true;
 
-                        // Use ONLY the songs table as master source of truth
-                        const isOriginal = item.songs?.is_original === true;
-
-                        // Debug: Log if songs relation is missing
-                        if (!item.songs) {
-                            console.warn('[SearchPage] Missing songs relation for song_id:', songId, 'in show:', showId);
-                        }
-
-                        if (isOriginal) {
-                            originals++;
+                            if (isOriginal) {
+                                originals++;
+                            } else {
+                                covers++;
+                            }
                         } else {
+                            // Song doesn't have a song_id reference - use setlist_songs.id for deduplication
+                            if (uniqueSetlistIds.has(item.id)) {
+                                return; // Already counted
+                            }
+                            uniqueSetlistIds.add(item.id);
+                            songsWithoutReference++;
+                            // Count as cover since we don't have song data
                             covers++;
                         }
                     });
 
-                    console.log('[SearchPage] Show', showId, 'stats:', { originals, covers, totalSongs: showSongs.length });
+                    if (songsWithoutReference > 0) {
+                        console.warn('[SearchPage] Show', showId, 'has', songsWithoutReference, 'songs without song_id reference');
+                    }
+                    console.log('[SearchPage] Show', showId, 'stats:', { originals, covers, totalSongs: showSongs.length, songsWithoutReference });
                     statsMap[showId] = { originals, covers };
                 });
 
