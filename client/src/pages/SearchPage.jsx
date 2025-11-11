@@ -26,6 +26,12 @@ export default function SearchPage() {
     const [attendanceLoading, setAttendanceLoading] = useState({}); // Track loading state per show
     const [contentMap, setContentMap] = useState({}); // Track notes/photos for each show
 
+    // Pagination state for standalone content filtering
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
+    const ITEMS_PER_PAGE = 50;
+
     // Dropdown options
     const [years, setYears] = useState([]);
     const [venues, setVenues] = useState([]);
@@ -238,10 +244,12 @@ export default function SearchPage() {
         }
     };
 
-    const performSearch = async (params) => {
+    const performSearch = async (params, page = 1) => {
         // Don't search if no filters are selected
         if (!hasActiveFilters(params)) {
             setResults([]);
+            setCurrentPage(1);
+            setTotalPages(1);
             setLoading(false);
             return;
         }
@@ -253,15 +261,22 @@ export default function SearchPage() {
             let data;
 
             // If only content filters are selected (hasNotes, hasPhotos, hasPoster),
-            // we need to fetch ALL shows and filter client-side
+            // we need to fetch shows in pages and filter client-side
             if (hasContentOnlyFilters(params)) {
-                console.log('[SearchPage] Content-only filters detected, fetching all shows...');
-                // Fetch all shows with a high limit (adjust as needed)
-                data = await getShows(1, 10000);
+                console.log('[SearchPage] Content-only filters detected, fetching page', page);
+                // Fetch shows with pagination
+                data = await getShows(page, ITEMS_PER_PAGE);
                 console.log('[SearchPage] Fetched', data.shows?.length || 0, 'shows for content filtering');
+
+                // Calculate total pages
+                const total = Math.ceil((data.total || 0) / ITEMS_PER_PAGE);
+                setTotalPages(total);
+                setCurrentPage(page);
             } else {
                 // Normal search with backend filters
                 data = await searchShows(params);
+                setCurrentPage(1);
+                setTotalPages(1);
             }
 
             setResults(data.shows || []);
@@ -275,7 +290,7 @@ export default function SearchPage() {
 
     const handleSearch = async (e) => {
         e.preventDefault();
-        await performSearch(searchParams);
+        await performSearch(searchParams, 1);
     };
 
     const handleInputChange = (e) => {
@@ -286,8 +301,8 @@ export default function SearchPage() {
         };
         setSearchParams(newParams);
 
-        // Auto-search when filter changes
-        performSearch(newParams);
+        // Auto-search when filter changes (always start from page 1)
+        performSearch(newParams, 1);
     };
 
     const clearFilter = (filterName) => {
@@ -297,8 +312,26 @@ export default function SearchPage() {
         };
         setSearchParams(newParams);
 
-        // Auto-search after clearing filter
-        performSearch(newParams);
+        // Auto-search after clearing filter (always start from page 1)
+        performSearch(newParams, 1);
+    };
+
+    const loadNextPage = async () => {
+        if (currentPage >= totalPages || isLoadingMore) return;
+
+        setIsLoadingMore(true);
+        try {
+            const nextPage = currentPage + 1;
+            const data = await getShows(nextPage, ITEMS_PER_PAGE);
+
+            // Append new results to existing results
+            setResults(prev => [...prev, ...(data.shows || [])]);
+            setCurrentPage(nextPage);
+        } catch (err) {
+            console.error('Error loading more shows:', err);
+        } finally {
+            setIsLoadingMore(false);
+        }
     };
 
     const clearAllFilters = () => {
@@ -651,6 +684,22 @@ export default function SearchPage() {
                             );
                         })}
                     </div>
+
+                    {/* Load More Button for Standalone Content Filtering */}
+                    {hasContentOnlyFilters(searchParams) && currentPage < totalPages && (
+                        <div className="mt-8 text-center">
+                            <button
+                                onClick={loadNextPage}
+                                disabled={isLoadingMore}
+                                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
+                            >
+                                {isLoadingMore ? 'Loading...' : `Load More (Page ${currentPage + 1} of ${totalPages})`}
+                            </button>
+                            <p className="mt-2 text-sm text-gray-400">
+                                Showing {displayResults.length} of {totalPages * ITEMS_PER_PAGE} shows
+                            </p>
+                        </div>
+                    )}
                 )}
             </div>
         </div>
