@@ -127,15 +127,10 @@ router.get('/:id', async (req, res) => {
                 sets[setNum] = [];
             }
 
-            // Smart merge: Use setlist_songs override if set, otherwise fall back to songs table data
-            // This allows per-performance overrides while defaulting to canonical song data
-            const isCover = item.is_cover !== null && item.is_cover !== undefined
-                ? item.is_cover
-                : (item.songs?.is_original === false);
-
-            const originalArtist = item.original_artist
-                || item.songs?.original_artist
-                || null;
+            // Use songs table as SINGLE SOURCE OF TRUTH for is_original
+            // is_cover is the inverse of is_original
+            const isOriginal = item.songs?.is_original === true;
+            const isCover = !isOriginal;
 
             sets[setNum].push({
                 // Include the setlist_songs fields
@@ -144,12 +139,12 @@ router.get('/:id', async (req, res) => {
                 order: item.song_order,
                 notes: item.notes,
                 is_cover: isCover,
-                original_artist: originalArtist,
+                original_artist: item.songs?.original_artist || null,
                 jams_into: item.jams_into || false,
                 // Include the song details from the songs table
                 title: item.songs?.title,
                 written_by: item.songs?.written_by,
-                is_original: item.songs?.is_original,
+                is_original: isOriginal,
                 songs: item.songs  // Keep the full song object for backward compatibility
             });
         });

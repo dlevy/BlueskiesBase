@@ -14,6 +14,7 @@ export default function ShowDetailPage() {
     const [error, setError] = useState(null);
     const [attended, setAttended] = useState(false);
     const [attendanceLoading, setAttendanceLoading] = useState(false);
+    const [songStats, setSongStats] = useState({ originals: 0, covers: 0 });
 
     useEffect(() => {
         const fetchShow = async () => {
@@ -31,6 +32,47 @@ export default function ShowDetailPage() {
 
         fetchShow();
     }, [id]);
+
+    // Calculate song statistics when show data loads
+    useEffect(() => {
+        if (!show || !show.setlist) {
+            setSongStats({ originals: 0, covers: 0 });
+            return;
+        }
+
+        // Collect all songs from all sets
+        const allSongs = [
+            ...(show.setlist.set1 || []),
+            ...(show.setlist.set2 || []),
+            ...(show.setlist.set3 || []),
+            ...(show.setlist.encore || [])
+        ];
+
+        // Track unique songs by song_id
+        const uniqueSongIds = new Set();
+        let originals = 0;
+        let covers = 0;
+
+        allSongs.forEach(song => {
+            const songId = song.song_id;
+            if (!songId || uniqueSongIds.has(songId)) {
+                return; // Skip if no song_id or already counted
+            }
+
+            uniqueSongIds.add(songId);
+
+            // Use ONLY songs.is_original as master source of truth
+            const isOriginal = song.is_original === true;
+
+            if (isOriginal) {
+                originals++;
+            } else {
+                covers++;
+            }
+        });
+
+        setSongStats({ originals, covers });
+    }, [show]);
 
     useEffect(() => {
         const checkAttendance = async () => {
@@ -153,6 +195,22 @@ export default function ShowDetailPage() {
                             Tour: {show.tour_name}
                         </p>
                     )}
+
+                    {/* Song Stats Badges */}
+                    {(songStats.originals > 0 || songStats.covers > 0) && (
+                        <div className="mt-3 flex items-center justify-center gap-2 flex-wrap">
+                            {songStats.originals > 0 && (
+                                <span className="text-xs bg-green-900/50 text-green-300 px-2 py-1 rounded border border-green-700">
+                                    {songStats.originals} Original{songStats.originals !== 1 ? 's' : ''}
+                                </span>
+                            )}
+                            {songStats.covers > 0 && (
+                                <span className="text-xs bg-blue-900/50 text-blue-300 px-2 py-1 rounded border border-blue-700">
+                                    {songStats.covers} Cover{songStats.covers !== 1 ? 's' : ''}
+                                </span>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 {/* Source Types */}
@@ -200,12 +258,12 @@ export default function ShowDetailPage() {
                                     {show.setlist.set1.map((song, index) => (
                                         <li key={index} className="text-lg text-gray-200">
                                             <span className="font-medium">{song.title}</span>
-                                            {song.is_original && !song.is_cover && (
+                                            {song.is_original === true && (
                                                 <span className="ml-2 text-xs bg-green-900/50 text-green-300 px-2 py-0.5 rounded border border-green-700">
                                                     Original
                                                 </span>
                                             )}
-                                            {song.is_cover && (
+                                            {song.is_original === false && (
                                                 <span className="ml-2 text-xs bg-blue-900/50 text-blue-300 px-2 py-0.5 rounded border border-blue-700">
                                                     Cover
                                                 </span>
@@ -244,12 +302,12 @@ export default function ShowDetailPage() {
                                     {show.setlist.set2.map((song, index) => (
                                         <li key={index} className="text-lg text-gray-200">
                                             <span className="font-medium">{song.title}</span>
-                                            {song.is_original && !song.is_cover && (
+                                            {song.is_original === true && (
                                                 <span className="ml-2 text-xs bg-green-900/50 text-green-300 px-2 py-0.5 rounded border border-green-700">
                                                     Original
                                                 </span>
                                             )}
-                                            {song.is_cover && (
+                                            {song.is_original === false && (
                                                 <span className="ml-2 text-xs bg-blue-900/50 text-blue-300 px-2 py-0.5 rounded border border-blue-700">
                                                     Cover
                                                 </span>
@@ -288,12 +346,12 @@ export default function ShowDetailPage() {
                                     {show.setlist.set3.map((song, index) => (
                                         <li key={index} className="text-lg text-gray-200">
                                             <span className="font-medium">{song.title}</span>
-                                            {song.is_original && !song.is_cover && (
+                                            {song.is_original === true && (
                                                 <span className="ml-2 text-xs bg-green-900/50 text-green-300 px-2 py-0.5 rounded border border-green-700">
                                                     Original
                                                 </span>
                                             )}
-                                            {song.is_cover && (
+                                            {song.is_original === false && (
                                                 <span className="ml-2 text-xs bg-blue-900/50 text-blue-300 px-2 py-0.5 rounded border border-blue-700">
                                                     Cover
                                                 </span>
@@ -332,12 +390,12 @@ export default function ShowDetailPage() {
                                     {show.setlist.encore.map((song, index) => (
                                         <li key={index} className="text-lg text-gray-200">
                                             <span className="font-medium">{song.title}</span>
-                                            {song.is_original && !song.is_cover && (
+                                            {song.is_original === true && (
                                                 <span className="ml-2 text-xs bg-green-900/50 text-green-300 px-2 py-0.5 rounded border border-green-700">
                                                     Original
                                                 </span>
                                             )}
-                                            {song.is_cover && (
+                                            {song.is_original === false && (
                                                 <span className="ml-2 text-xs bg-blue-900/50 text-blue-300 px-2 py-0.5 rounded border border-blue-700">
                                                     Cover
                                                 </span>
