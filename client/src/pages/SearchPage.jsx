@@ -25,6 +25,7 @@ export default function SearchPage() {
     const [attendanceMap, setAttendanceMap] = useState({}); // Track attendance for each show
     const [attendanceLoading, setAttendanceLoading] = useState({}); // Track loading state per show
     const [contentMap, setContentMap] = useState({}); // Track notes/photos for each show
+    const [songStats, setSongStats] = useState({ uniqueOriginals: 0, uniqueCovers: 0 }); // Track unique songs in results
 
     // Pagination state for standalone content filtering
     const [currentPage, setCurrentPage] = useState(1);
@@ -152,6 +153,73 @@ export default function SearchPage() {
 
         checkContent();
     }, [results]);
+
+    // Calculate song statistics (unique originals and covers) from filtered results
+    useEffect(() => {
+        const calculateSongStats = async () => {
+            if (filteredResults.length === 0) {
+                setSongStats({ uniqueOriginals: 0, uniqueCovers: 0 });
+                return;
+            }
+
+            try {
+                // Fetch setlist songs for all shows in filtered results
+                const showIds = filteredResults.map(show => show.id);
+
+                const { data: setlistSongs, error } = await supabase
+                    .from('setlist_songs')
+                    .select(`
+                        song_id,
+                        is_cover,
+                        songs (
+                            id,
+                            is_original
+                        )
+                    `)
+                    .in('show_id', showIds);
+
+                if (error) {
+                    console.error('[SearchPage] Error fetching setlist songs for stats:', error);
+                    return;
+                }
+
+                // Track unique songs by song_id
+                const uniqueSongIds = new Set();
+                const originalSongIds = new Set();
+                const coverSongIds = new Set();
+
+                setlistSongs?.forEach(item => {
+                    const songId = item.song_id;
+                    if (!songId || uniqueSongIds.has(songId)) {
+                        return; // Skip if no song_id or already counted
+                    }
+
+                    uniqueSongIds.add(songId);
+
+                    // Determine if it's a cover using smart merge logic (same as backend)
+                    const isCover = item.is_cover !== null && item.is_cover !== undefined
+                        ? item.is_cover
+                        : (item.songs?.is_original === false);
+
+                    if (isCover) {
+                        coverSongIds.add(songId);
+                    } else {
+                        originalSongIds.add(songId);
+                    }
+                });
+
+                setSongStats({
+                    uniqueOriginals: originalSongIds.size,
+                    uniqueCovers: coverSongIds.size
+                });
+
+            } catch (err) {
+                console.error('[SearchPage] Error calculating song stats:', err);
+            }
+        };
+
+        calculateSongStats();
+    }, [filteredResults]);
 
     // Filter results based on content filters (hasNotes, hasPhotos, hasPoster)
     useEffect(() => {
@@ -566,9 +634,25 @@ export default function SearchPage() {
 
             {/* Results */}
             <div className="bg-gray-800 shadow-2xl rounded-lg px-8 pt-6 pb-8 border border-gray-700">
-                <h2 className="text-2xl font-bold mb-6 text-gray-100">
-                    Results {filteredResults.length > 0 && `(${filteredResults.length})`}
-                </h2>
+                <div className="flex flex-wrap items-center gap-3 mb-6">
+                    <h2 className="text-2xl font-bold text-gray-100">
+                        Results {filteredResults.length > 0 && `(${filteredResults.length})`}
+                    </h2>
+                    {filteredResults.length > 0 && (songStats.uniqueOriginals > 0 || songStats.uniqueCovers > 0) && (
+                        <div className="flex gap-2">
+                            {songStats.uniqueOriginals > 0 && (
+                                <span className="text-xs bg-green-900/50 text-green-300 px-2 py-1 rounded border border-green-700">
+                                    {songStats.uniqueOriginals} Original{songStats.uniqueOriginals !== 1 ? 's' : ''}
+                                </span>
+                            )}
+                            {songStats.uniqueCovers > 0 && (
+                                <span className="text-xs bg-blue-900/50 text-blue-300 px-2 py-1 rounded border border-blue-700">
+                                    {songStats.uniqueCovers} Cover{songStats.uniqueCovers !== 1 ? 's' : ''}
+                                </span>
+                            )}
+                        </div>
+                    )}
+                </div>
 
                 {!hasActiveFilters(searchParams) && !loading ? (
                     <div className="text-center py-8">
