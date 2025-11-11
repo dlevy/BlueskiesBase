@@ -60,7 +60,7 @@ router.get('/stats/global', async (req, res) => {
         // Get all shows to get dates
         const { data: shows, error: showsError } = await supabase
             .from('shows')
-            .select('id, date')
+            .select('id, show_date')
             .range(0, 999); // Get up to 1000 shows (we have ~302)
 
         if (showsError) {
@@ -71,10 +71,10 @@ router.get('/stats/global', async (req, res) => {
 
         console.log(`[Song Stats] Fetched ${shows?.length || 0} shows`);
 
-        // Create a map of show_id -> date for quick lookup
+        // Create a map of show_id -> show_date for quick lookup
         const showDates = {};
         shows.forEach(show => {
-            showDates[show.id] = show.date;
+            showDates[show.id] = show.show_date;
         });
 
         // Count unique plays per song (one per show) and track last played date
