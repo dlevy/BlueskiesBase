@@ -170,6 +170,14 @@ export default function SearchPage() {
         // Apply content filters
         if (searchParams.hasNotes) {
             console.log('[SearchPage] Filtering by hasNotes');
+
+            // Count how many shows have notes in the contentMap
+            const showsWithNotes = Object.entries(contentMap).filter(([id, content]) => content.hasNotes);
+            console.log('[SearchPage] Shows with notes in contentMap:', showsWithNotes.length);
+            if (showsWithNotes.length > 0) {
+                console.log('[SearchPage] Sample shows with notes:', showsWithNotes.slice(0, 3).map(([id, content]) => ({ id, ...content })));
+            }
+
             const before = filtered.length;
             filtered = filtered.filter(show => contentMap[show.id]?.hasNotes);
             console.log('[SearchPage] After hasNotes filter:', filtered.length, '(removed', before - filtered.length, ')');
