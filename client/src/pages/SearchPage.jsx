@@ -46,10 +46,11 @@ export default function SearchPage() {
                     `);
 
                 if (showsData) {
-                    // Extract unique years
-                    const uniqueYears = [...new Set(showsData.map(show =>
-                        new Date(show.show_date).getFullYear()
-                    ))].sort((a, b) => b - a);
+                    // Extract unique years - parse as local date to avoid timezone issues
+                    const uniqueYears = [...new Set(showsData.map(show => {
+                        const [year] = show.show_date.split('-');
+                        return parseInt(year);
+                    }))].sort((a, b) => b - a);
                     setYears(uniqueYears);
 
                     // Extract unique venues
@@ -427,11 +428,16 @@ export default function SearchPage() {
                                     {/* Centered content - add padding on mobile to avoid button overlap */}
                                     <div className={user ? 'pr-16 md:pr-0' : ''}>
                                         <h3 className="text-lg md:text-xl font-semibold text-gray-100">
-                                            {new Date(show.show_date).toLocaleDateString('en-US', {
-                                                year: 'numeric',
-                                                month: 'long',
-                                                day: 'numeric'
-                                            })}
+                                            {(() => {
+                                                // Parse date as local date to avoid timezone issues
+                                                const [year, month, day] = show.show_date.split('-');
+                                                const date = new Date(year, month - 1, day);
+                                                return date.toLocaleDateString('en-US', {
+                                                    year: 'numeric',
+                                                    month: 'long',
+                                                    day: 'numeric'
+                                                });
+                                            })()}
                                         </h3>
                                         <p className="text-gray-300 mt-1 text-sm md:text-base">
                                             {show.artist_name}

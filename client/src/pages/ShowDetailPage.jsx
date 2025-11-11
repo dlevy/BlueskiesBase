@@ -91,7 +91,11 @@ export default function ShowDetailPage() {
     }
 
     const formatDate = (dateString) => {
-        return new Date(dateString).toLocaleDateString('en-US', {
+        // Parse date as local date to avoid timezone issues
+        // Date string format: "YYYY-MM-DD"
+        const [year, month, day] = dateString.split('-');
+        const date = new Date(year, month - 1, day);
+        return date.toLocaleDateString('en-US', {
             weekday: 'long',
             year: 'numeric',
             month: 'long',

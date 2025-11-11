@@ -67,7 +67,11 @@ export default function StatsPage() {
     }
 
     const formatDate = (dateString) => {
-        return new Date(dateString).toLocaleDateString('en-US', {
+        // Parse date as local date to avoid timezone issues
+        // Date string format: "YYYY-MM-DD"
+        const [year, month, day] = dateString.split('-');
+        const date = new Date(year, month - 1, day);
+        return date.toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'long',
             day: 'numeric'
@@ -213,7 +217,8 @@ export default function StatsPage() {
                                     .sort((a, b) => {
                                         // Sort by most recent show date
                                         if (!a.mostRecentShow || !b.mostRecentShow) return 0;
-                                        return new Date(b.mostRecentShow.show_date) - new Date(a.mostRecentShow.show_date);
+                                        // Compare date strings directly (YYYY-MM-DD format sorts correctly)
+                                        return b.mostRecentShow.show_date.localeCompare(a.mostRecentShow.show_date);
                                     })
                                     .map((song) => (
                                         <div key={song.id} className="border border-gray-700 rounded-lg p-4 bg-gray-750 text-center">
