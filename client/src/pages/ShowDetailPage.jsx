@@ -200,6 +200,9 @@ export default function ShowDetailPage() {
                                     {show.setlist.set1.map((song, index) => (
                                         <li key={index} className="text-lg text-gray-200">
                                             <span className="font-medium">{song.title}</span>
+                                            {song.jams_into && (
+                                                <span className="ml-1 text-purple-400 font-bold">&gt;</span>
+                                            )}
                                             {!song.is_original && song.original_artist && (
                                                 <span className="text-sm text-gray-500 ml-2">
                                                     ({song.original_artist})
@@ -224,6 +227,9 @@ export default function ShowDetailPage() {
                                     {show.setlist.set2.map((song, index) => (
                                         <li key={index} className="text-lg text-gray-200">
                                             <span className="font-medium">{song.title}</span>
+                                            {song.jams_into && (
+                                                <span className="ml-1 text-purple-400 font-bold">&gt;</span>
+                                            )}
                                             {!song.is_original && song.original_artist && (
                                                 <span className="text-sm text-gray-500 ml-2">
                                                     ({song.original_artist})
@@ -248,6 +254,9 @@ export default function ShowDetailPage() {
                                     {show.setlist.set3.map((song, index) => (
                                         <li key={index} className="text-lg text-gray-200">
                                             <span className="font-medium">{song.title}</span>
+                                            {song.jams_into && (
+                                                <span className="ml-1 text-purple-400 font-bold">&gt;</span>
+                                            )}
                                             {!song.is_original && song.original_artist && (
                                                 <span className="text-sm text-gray-500 ml-2">
                                                     ({song.original_artist})
@@ -272,6 +281,9 @@ export default function ShowDetailPage() {
                                     {show.setlist.encore.map((song, index) => (
                                         <li key={index} className="text-lg text-gray-200">
                                             <span className="font-medium">{song.title}</span>
+                                            {song.jams_into && (
+                                                <span className="ml-1 text-purple-400 font-bold">&gt;</span>
+                                            )}
                                             {!song.is_original && song.original_artist && (
                                                 <span className="text-sm text-gray-500 ml-2">
                                                     ({song.original_artist})

@@ -46,6 +46,7 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
                     is_cover: song.is_cover || false,
                     original_artist: song.original_artist || null,
                     notes: song.notes || '',
+                    jams_into: song.jams_into || false,
                     order: index
                 }));
             }
@@ -62,6 +63,7 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
             is_cover: false,
             original_artist: null,
             notes: '',
+            jams_into: false,
             order: setlist[selectedSet].length
         };
 
@@ -135,7 +137,8 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
                         is_encore: isEncore,
                         notes: song.notes || null,
                         is_cover: song.is_cover || false,
-                        original_artist: song.original_artist || null
+                        original_artist: song.original_artist || null,
+                        jams_into: song.jams_into || false
                     });
                 });
             });
@@ -284,6 +287,11 @@ function SetlistSongItem({ song, index, setKey, isFirst, isLast, onRemove, onMov
                             Cover
                         </span>
                     )}
+                    {song.jams_into && (
+                        <span className="text-xs bg-purple-900/50 text-purple-300 px-1.5 py-0.5 rounded border border-purple-700 font-bold">
+                            &gt;
+                        </span>
+                    )}
                 </div>
                 <div className="flex gap-1">
                     <button
@@ -344,6 +352,16 @@ function SetlistSongItem({ song, index, setKey, isFirst, isLast, onRemove, onMov
                             className="border border-gray-600 bg-gray-700 text-gray-100 placeholder-gray-400 rounded px-2 py-1 text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                     )}
+
+                    <label className="flex items-center text-sm text-gray-300">
+                        <input
+                            type="checkbox"
+                            checked={song.jams_into}
+                            onChange={(e) => onUpdate('jams_into', e.target.checked)}
+                            className="mr-2"
+                        />
+                        Jams into next song <span className="ml-1 text-purple-400 font-bold">&gt;</span>
+                    </label>
 
                     <input
                         type="text"

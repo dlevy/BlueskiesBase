@@ -230,12 +230,15 @@ router.delete('/:id', async (req, res) => {
 /**
  * PUT /api/shows/:id/setlist
  * Update the entire setlist for a show (admin only)
- * Body: { setlist: [{ song_id, set_number, song_order, is_encore, notes, is_cover, original_artist }] }
+ * Body: { setlist: [{ song_id, set_number, song_order, is_encore, notes, is_cover, original_artist, jams_into }] }
  */
 router.put('/:id/setlist', async (req, res) => {
     try {
         const { id } = req.params;
         const { setlist } = req.body;
+
+        console.log('[PUT /setlist] Updating setlist for show:', id);
+        console.log('[PUT /setlist] Setlist data:', JSON.stringify(setlist, null, 2));
 
         // TODO: Add authentication middleware to verify admin status
 
@@ -246,12 +249,17 @@ router.put('/:id/setlist', async (req, res) => {
             .eq('show_id', id);
 
         if (deleteError) {
-            console.error('Error deleting old setlist:', deleteError);
-            return res.status(500).json({ error: 'Failed to update setlist' });
+            console.error('[PUT /setlist] Error deleting old setlist:', deleteError);
+            return res.status(500).json({
+                error: 'Failed to update setlist',
+                details: deleteError.message,
+                code: deleteError.code
+            });
         }
 
         // If setlist is empty, just return success
         if (!setlist || setlist.length === 0) {
+            console.log('[PUT /setlist] Empty setlist, returning success');
             return res.json({ message: 'Setlist updated successfully', setlist: [] });
         }
 
@@ -264,8 +272,11 @@ router.put('/:id/setlist', async (req, res) => {
             is_encore: item.is_encore || false,
             notes: item.notes || null,
             is_cover: item.is_cover || false,
-            original_artist: item.original_artist || null
+            original_artist: item.original_artist || null,
+            jams_into: item.jams_into || false
         }));
+
+        console.log('[PUT /setlist] Inserting entries:', JSON.stringify(setlistEntries, null, 2));
 
         const { data: newSetlist, error: insertError } = await supabase
             .from('setlist_songs')
@@ -273,15 +284,28 @@ router.put('/:id/setlist', async (req, res) => {
             .select();
 
         if (insertError) {
-            console.error('Error inserting new setlist:', insertError);
-            return res.status(500).json({ error: 'Failed to update setlist' });
+            console.error('[PUT /setlist] Error inserting new setlist:', insertError);
+            console.error('[PUT /setlist] Error details:', {
+                message: insertError.message,
+                details: insertError.details,
+                hint: insertError.hint,
+                code: insertError.code
+            });
+            return res.status(500).json({
+                error: 'Failed to update setlist',
+                message: insertError.message,
+                details: insertError.details,
+                hint: insertError.hint,
+                code: insertError.code
+            });
         }
 
+        console.log('[PUT /setlist] Successfully updated setlist');
         res.json({ message: 'Setlist updated successfully', setlist: newSetlist });
 
     } catch (error) {
-        console.error('Error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        console.error('[PUT /setlist] Unexpected error:', error);
+        res.status(500).json({ error: 'Internal server error', message: error.message });
     }
 });
 
@@ -292,7 +316,7 @@ router.put('/:id/setlist', async (req, res) => {
 router.post('/:id/setlist/song', async (req, res) => {
     try {
         const { id } = req.params;
-        const { song_id, set_number, song_order, is_encore, notes, is_cover, original_artist } = req.body;
+        const { song_id, set_number, song_order, is_encore, notes, is_cover, original_artist, jams_into } = req.body;
 
         // TODO: Add authentication middleware to verify admin status
 
@@ -306,7 +330,8 @@ router.post('/:id/setlist/song', async (req, res) => {
                 is_encore: is_encore || false,
                 notes: notes || null,
                 is_cover: is_cover || false,
-                original_artist: original_artist || null
+                original_artist: original_artist || null,
+                jams_into: jams_into || false
             }])
             .select()
             .single();
