@@ -159,24 +159,37 @@ export default function SearchPage() {
 
         // If we need content filtering but contentMap is empty, wait for it to be populated
         if (needsContentFiltering && Object.keys(contentMap).length === 0) {
+            console.log('[SearchPage] Waiting for contentMap to populate...');
             return;
         }
 
         let filtered = [...results];
 
+        console.log('[SearchPage] Starting content filtering. Results:', results.length, 'ContentMap size:', Object.keys(contentMap).length);
+
         // Apply content filters
         if (searchParams.hasNotes) {
+            console.log('[SearchPage] Filtering by hasNotes');
+            const before = filtered.length;
             filtered = filtered.filter(show => contentMap[show.id]?.hasNotes);
+            console.log('[SearchPage] After hasNotes filter:', filtered.length, '(removed', before - filtered.length, ')');
         }
 
         if (searchParams.hasPhotos) {
+            console.log('[SearchPage] Filtering by hasPhotos');
+            const before = filtered.length;
             filtered = filtered.filter(show => contentMap[show.id]?.hasPhotos);
+            console.log('[SearchPage] After hasPhotos filter:', filtered.length, '(removed', before - filtered.length, ')');
         }
 
         if (searchParams.hasPoster) {
+            console.log('[SearchPage] Filtering by hasPoster');
+            const before = filtered.length;
             filtered = filtered.filter(show => contentMap[show.id]?.hasPoster);
+            console.log('[SearchPage] After hasPoster filter:', filtered.length, '(removed', before - filtered.length, ')');
         }
 
+        console.log('[SearchPage] Final filtered results:', filtered.length);
         setFilteredResults(filtered);
     }, [results, contentMap, searchParams.hasNotes, searchParams.hasPhotos, searchParams.hasPoster]);
 
@@ -234,8 +247,10 @@ export default function SearchPage() {
             // If only content filters are selected (hasNotes, hasPhotos, hasPoster),
             // we need to fetch ALL shows and filter client-side
             if (hasContentOnlyFilters(params)) {
+                console.log('[SearchPage] Content-only filters detected, fetching all shows...');
                 // Fetch all shows with a high limit (adjust as needed)
                 data = await getShows(1, 10000);
+                console.log('[SearchPage] Fetched', data.shows?.length || 0, 'shows for content filtering');
             } else {
                 // Normal search with backend filters
                 data = await searchShows(params);
