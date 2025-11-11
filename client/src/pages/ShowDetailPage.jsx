@@ -254,40 +254,53 @@ export default function ShowDetailPage() {
                         {show.setlist.set1 && (
                             <div>
                                 <h3 className="text-xl font-semibold mb-3 text-blue-400">Set 1</h3>
-                                <ol className="list-decimal list-inside space-y-2">
+                                <ol className="space-y-3">
                                     {show.setlist.set1.map((song, index) => (
-                                        <li key={index} className="text-lg text-gray-200">
-                                            <span className="font-medium">{song.title}</span>
-                                            {song.is_original === true && (
-                                                <span className="ml-2 text-xs bg-green-900/50 text-green-300 px-2 py-0.5 rounded border border-green-700">
-                                                    Original
-                                                </span>
-                                            )}
-                                            {song.is_original === false && (
-                                                <span className="ml-2 text-xs bg-blue-900/50 text-blue-300 px-2 py-0.5 rounded border border-blue-700">
-                                                    Cover
-                                                </span>
-                                            )}
-                                            {song.jams_into && (
-                                                <span className="ml-2 text-xs bg-purple-900/50 text-purple-300 px-1.5 py-0.5 rounded border border-purple-700 font-bold">
-                                                    &gt;
-                                                </span>
-                                            )}
-                                            {song.original_artist && (
-                                                <span className="text-sm text-gray-500 ml-2">
-                                                    ({song.original_artist})
-                                                </span>
-                                            )}
-                                            {song.written_by && (
-                                                <span className="text-sm text-gray-500 ml-2">
-                                                    [Written by: {song.written_by}]
-                                                </span>
-                                            )}
-                                            {song.notes && (
-                                                <span className="text-sm text-gray-400 italic ml-2">
-                                                    - {song.notes}
-                                                </span>
-                                            )}
+                                        <li key={index} className="flex gap-3 text-gray-200">
+                                            {/* Song Number */}
+                                            <span className="text-gray-500 font-mono text-sm mt-0.5 min-w-[2rem]">
+                                                {index + 1}.
+                                            </span>
+
+                                            {/* Song Content */}
+                                            <div className="flex-1">
+                                                {/* First Line: Title + Badges */}
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <span className="font-medium text-lg">{song.title}</span>
+
+                                                    {song.is_original === true && (
+                                                        <span className="text-xs bg-green-900/50 text-green-300 px-2 py-0.5 rounded border border-green-700 whitespace-nowrap">
+                                                            Original
+                                                        </span>
+                                                    )}
+                                                    {song.is_original === false && (
+                                                        <span className="text-xs bg-blue-900/50 text-blue-300 px-2 py-0.5 rounded border border-blue-700 whitespace-nowrap">
+                                                            Cover
+                                                        </span>
+                                                    )}
+                                                    {song.jams_into && (
+                                                        <span className="text-xs bg-purple-900/50 text-purple-300 px-1.5 py-0.5 rounded border border-purple-700 font-bold whitespace-nowrap">
+                                                            &gt;
+                                                        </span>
+                                                    )}
+                                                </div>
+
+                                                {/* Second Line: Metadata (if any) */}
+                                                {(song.original_artist || song.notes) && (
+                                                    <div className="mt-1 text-sm space-x-2">
+                                                        {song.original_artist && (
+                                                            <span className="text-gray-400">
+                                                                ({song.original_artist})
+                                                            </span>
+                                                        )}
+                                                        {song.notes && (
+                                                            <span className="text-gray-400 italic">
+                                                                {song.notes}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
                                         </li>
                                     ))}
                                 </ol>
@@ -298,40 +311,53 @@ export default function ShowDetailPage() {
                         {show.setlist.set2 && (
                             <div>
                                 <h3 className="text-xl font-semibold mb-3 text-blue-400">Set 2</h3>
-                                <ol className="list-decimal list-inside space-y-2">
+                                <ol className="space-y-3">
                                     {show.setlist.set2.map((song, index) => (
-                                        <li key={index} className="text-lg text-gray-200">
-                                            <span className="font-medium">{song.title}</span>
-                                            {song.is_original === true && (
-                                                <span className="ml-2 text-xs bg-green-900/50 text-green-300 px-2 py-0.5 rounded border border-green-700">
-                                                    Original
-                                                </span>
-                                            )}
-                                            {song.is_original === false && (
-                                                <span className="ml-2 text-xs bg-blue-900/50 text-blue-300 px-2 py-0.5 rounded border border-blue-700">
-                                                    Cover
-                                                </span>
-                                            )}
-                                            {song.jams_into && (
-                                                <span className="ml-2 text-xs bg-purple-900/50 text-purple-300 px-1.5 py-0.5 rounded border border-purple-700 font-bold">
-                                                    &gt;
-                                                </span>
-                                            )}
-                                            {song.original_artist && (
-                                                <span className="text-sm text-gray-500 ml-2">
-                                                    ({song.original_artist})
-                                                </span>
-                                            )}
-                                            {song.written_by && (
-                                                <span className="text-sm text-gray-500 ml-2">
-                                                    [Written by: {song.written_by}]
-                                                </span>
-                                            )}
-                                            {song.notes && (
-                                                <span className="text-sm text-gray-400 italic ml-2">
-                                                    - {song.notes}
-                                                </span>
-                                            )}
+                                        <li key={index} className="flex gap-3 text-gray-200">
+                                            {/* Song Number */}
+                                            <span className="text-gray-500 font-mono text-sm mt-0.5 min-w-[2rem]">
+                                                {index + 1}.
+                                            </span>
+
+                                            {/* Song Content */}
+                                            <div className="flex-1">
+                                                {/* First Line: Title + Badges */}
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <span className="font-medium text-lg">{song.title}</span>
+
+                                                    {song.is_original === true && (
+                                                        <span className="text-xs bg-green-900/50 text-green-300 px-2 py-0.5 rounded border border-green-700 whitespace-nowrap">
+                                                            Original
+                                                        </span>
+                                                    )}
+                                                    {song.is_original === false && (
+                                                        <span className="text-xs bg-blue-900/50 text-blue-300 px-2 py-0.5 rounded border border-blue-700 whitespace-nowrap">
+                                                            Cover
+                                                        </span>
+                                                    )}
+                                                    {song.jams_into && (
+                                                        <span className="text-xs bg-purple-900/50 text-purple-300 px-1.5 py-0.5 rounded border border-purple-700 font-bold whitespace-nowrap">
+                                                            &gt;
+                                                        </span>
+                                                    )}
+                                                </div>
+
+                                                {/* Second Line: Metadata (if any) */}
+                                                {(song.original_artist || song.notes) && (
+                                                    <div className="mt-1 text-sm space-x-2">
+                                                        {song.original_artist && (
+                                                            <span className="text-gray-400">
+                                                                ({song.original_artist})
+                                                            </span>
+                                                        )}
+                                                        {song.notes && (
+                                                            <span className="text-gray-400 italic">
+                                                                {song.notes}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
                                         </li>
                                     ))}
                                 </ol>
@@ -342,40 +368,53 @@ export default function ShowDetailPage() {
                         {show.setlist.set3 && (
                             <div>
                                 <h3 className="text-xl font-semibold mb-3 text-blue-400">Set 3</h3>
-                                <ol className="list-decimal list-inside space-y-2">
+                                <ol className="space-y-3">
                                     {show.setlist.set3.map((song, index) => (
-                                        <li key={index} className="text-lg text-gray-200">
-                                            <span className="font-medium">{song.title}</span>
-                                            {song.is_original === true && (
-                                                <span className="ml-2 text-xs bg-green-900/50 text-green-300 px-2 py-0.5 rounded border border-green-700">
-                                                    Original
-                                                </span>
-                                            )}
-                                            {song.is_original === false && (
-                                                <span className="ml-2 text-xs bg-blue-900/50 text-blue-300 px-2 py-0.5 rounded border border-blue-700">
-                                                    Cover
-                                                </span>
-                                            )}
-                                            {song.jams_into && (
-                                                <span className="ml-2 text-xs bg-purple-900/50 text-purple-300 px-1.5 py-0.5 rounded border border-purple-700 font-bold">
-                                                    &gt;
-                                                </span>
-                                            )}
-                                            {song.original_artist && (
-                                                <span className="text-sm text-gray-500 ml-2">
-                                                    ({song.original_artist})
-                                                </span>
-                                            )}
-                                            {song.written_by && (
-                                                <span className="text-sm text-gray-500 ml-2">
-                                                    [Written by: {song.written_by}]
-                                                </span>
-                                            )}
-                                            {song.notes && (
-                                                <span className="text-sm text-gray-400 italic ml-2">
-                                                    - {song.notes}
-                                                </span>
-                                            )}
+                                        <li key={index} className="flex gap-3 text-gray-200">
+                                            {/* Song Number */}
+                                            <span className="text-gray-500 font-mono text-sm mt-0.5 min-w-[2rem]">
+                                                {index + 1}.
+                                            </span>
+
+                                            {/* Song Content */}
+                                            <div className="flex-1">
+                                                {/* First Line: Title + Badges */}
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <span className="font-medium text-lg">{song.title}</span>
+
+                                                    {song.is_original === true && (
+                                                        <span className="text-xs bg-green-900/50 text-green-300 px-2 py-0.5 rounded border border-green-700 whitespace-nowrap">
+                                                            Original
+                                                        </span>
+                                                    )}
+                                                    {song.is_original === false && (
+                                                        <span className="text-xs bg-blue-900/50 text-blue-300 px-2 py-0.5 rounded border border-blue-700 whitespace-nowrap">
+                                                            Cover
+                                                        </span>
+                                                    )}
+                                                    {song.jams_into && (
+                                                        <span className="text-xs bg-purple-900/50 text-purple-300 px-1.5 py-0.5 rounded border border-purple-700 font-bold whitespace-nowrap">
+                                                            &gt;
+                                                        </span>
+                                                    )}
+                                                </div>
+
+                                                {/* Second Line: Metadata (if any) */}
+                                                {(song.original_artist || song.notes) && (
+                                                    <div className="mt-1 text-sm space-x-2">
+                                                        {song.original_artist && (
+                                                            <span className="text-gray-400">
+                                                                ({song.original_artist})
+                                                            </span>
+                                                        )}
+                                                        {song.notes && (
+                                                            <span className="text-gray-400 italic">
+                                                                {song.notes}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
                                         </li>
                                     ))}
                                 </ol>
@@ -386,40 +425,53 @@ export default function ShowDetailPage() {
                         {show.setlist.encore && (
                             <div>
                                 <h3 className="text-xl font-semibold mb-3 text-purple-400">Encore</h3>
-                                <ol className="list-decimal list-inside space-y-2">
+                                <ol className="space-y-3">
                                     {show.setlist.encore.map((song, index) => (
-                                        <li key={index} className="text-lg text-gray-200">
-                                            <span className="font-medium">{song.title}</span>
-                                            {song.is_original === true && (
-                                                <span className="ml-2 text-xs bg-green-900/50 text-green-300 px-2 py-0.5 rounded border border-green-700">
-                                                    Original
-                                                </span>
-                                            )}
-                                            {song.is_original === false && (
-                                                <span className="ml-2 text-xs bg-blue-900/50 text-blue-300 px-2 py-0.5 rounded border border-blue-700">
-                                                    Cover
-                                                </span>
-                                            )}
-                                            {song.jams_into && (
-                                                <span className="ml-2 text-xs bg-purple-900/50 text-purple-300 px-1.5 py-0.5 rounded border border-purple-700 font-bold">
-                                                    &gt;
-                                                </span>
-                                            )}
-                                            {song.original_artist && (
-                                                <span className="text-sm text-gray-500 ml-2">
-                                                    ({song.original_artist})
-                                                </span>
-                                            )}
-                                            {song.written_by && (
-                                                <span className="text-sm text-gray-500 ml-2">
-                                                    [Written by: {song.written_by}]
-                                                </span>
-                                            )}
-                                            {song.notes && (
-                                                <span className="text-sm text-gray-400 italic ml-2">
-                                                    - {song.notes}
-                                                </span>
-                                            )}
+                                        <li key={index} className="flex gap-3 text-gray-200">
+                                            {/* Song Number */}
+                                            <span className="text-gray-500 font-mono text-sm mt-0.5 min-w-[2rem]">
+                                                {index + 1}.
+                                            </span>
+
+                                            {/* Song Content */}
+                                            <div className="flex-1">
+                                                {/* First Line: Title + Badges */}
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <span className="font-medium text-lg">{song.title}</span>
+
+                                                    {song.is_original === true && (
+                                                        <span className="text-xs bg-green-900/50 text-green-300 px-2 py-0.5 rounded border border-green-700 whitespace-nowrap">
+                                                            Original
+                                                        </span>
+                                                    )}
+                                                    {song.is_original === false && (
+                                                        <span className="text-xs bg-blue-900/50 text-blue-300 px-2 py-0.5 rounded border border-blue-700 whitespace-nowrap">
+                                                            Cover
+                                                        </span>
+                                                    )}
+                                                    {song.jams_into && (
+                                                        <span className="text-xs bg-purple-900/50 text-purple-300 px-1.5 py-0.5 rounded border border-purple-700 font-bold whitespace-nowrap">
+                                                            &gt;
+                                                        </span>
+                                                    )}
+                                                </div>
+
+                                                {/* Second Line: Metadata (if any) */}
+                                                {(song.original_artist || song.notes) && (
+                                                    <div className="mt-1 text-sm space-x-2">
+                                                        {song.original_artist && (
+                                                            <span className="text-gray-400">
+                                                                ({song.original_artist})
+                                                            </span>
+                                                        )}
+                                                        {song.notes && (
+                                                            <span className="text-gray-400 italic">
+                                                                {song.notes}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
                                         </li>
                                     ))}
                                 </ol>
