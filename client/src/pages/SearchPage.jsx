@@ -165,30 +165,46 @@ export default function SearchPage() {
             try {
                 // Fetch setlist songs for all shows in filtered results
                 const showIds = filteredResults.map(show => show.id);
+                console.log('[SearchPage] Calculating song stats for', showIds.length, 'shows');
 
-                const { data: setlistSongs, error } = await supabase
-                    .from('setlist_songs')
-                    .select(`
-                        show_id,
-                        song_id,
-                        id,
-                        songs (
+                // Batch the queries if there are too many shows (Supabase has limits on IN clause)
+                const BATCH_SIZE = 100;
+                let allSetlistSongs = [];
+
+                for (let i = 0; i < showIds.length; i += BATCH_SIZE) {
+                    const batchIds = showIds.slice(i, i + BATCH_SIZE);
+                    console.log('[SearchPage] Fetching batch', Math.floor(i / BATCH_SIZE) + 1, 'of', Math.ceil(showIds.length / BATCH_SIZE), '(', batchIds.length, 'shows)');
+
+                    const { data: setlistSongs, error } = await supabase
+                        .from('setlist_songs')
+                        .select(`
+                            show_id,
+                            song_id,
                             id,
-                            is_original
-                        )
-                    `)
-                    .in('show_id', showIds);
+                            songs (
+                                id,
+                                is_original
+                            )
+                        `)
+                        .in('show_id', batchIds);
 
-                if (error) {
-                    console.error('[SearchPage] Error fetching setlist songs for stats:', error);
-                    return;
+                    if (error) {
+                        console.error('[SearchPage] Error fetching setlist songs batch:', error);
+                        continue; // Skip this batch but continue with others
+                    }
+
+                    if (setlistSongs) {
+                        allSetlistSongs = allSetlistSongs.concat(setlistSongs);
+                    }
                 }
+
+                console.log('[SearchPage] Fetched total of', allSetlistSongs.length, 'setlist songs');
 
                 // Calculate stats per show
                 const statsMap = {};
 
                 showIds.forEach(showId => {
-                    const showSongs = setlistSongs?.filter(item => item.show_id === showId) || [];
+                    const showSongs = allSetlistSongs?.filter(item => item.show_id === showId) || [];
 
                     // Track unique songs by song_id
                     const uniqueSongIds = new Set();
@@ -222,6 +238,7 @@ export default function SearchPage() {
                     statsMap[showId] = { originals, covers };
                 });
 
+                console.log('[SearchPage] Calculated stats for', Object.keys(statsMap).length, 'shows');
                 setSongStatsMap(statsMap);
 
             } catch (err) {
