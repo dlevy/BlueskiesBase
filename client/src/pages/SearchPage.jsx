@@ -13,9 +13,12 @@ export default function SearchPage() {
         city: '',
         song: '',
         source: '',
-        hasImages: false
+        hasImages: false,
+        hasNotes: false,
+        hasPhotos: false
     });
     const [results, setResults] = useState([]);
+    const [filteredResults, setFilteredResults] = useState([]); // Results after content filtering
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [attendanceMap, setAttendanceMap] = useState({}); // Track attendance for each show
@@ -126,6 +129,7 @@ export default function SearchPage() {
         const checkContent = async () => {
             if (results.length === 0) {
                 setContentMap({});
+                setFilteredResults([]);
                 return;
             }
 
@@ -142,8 +146,29 @@ export default function SearchPage() {
         checkContent();
     }, [results]);
 
+    // Filter results based on content filters (hasNotes, hasPhotos)
+    useEffect(() => {
+        if (results.length === 0) {
+            setFilteredResults([]);
+            return;
+        }
+
+        let filtered = [...results];
+
+        // Apply content filters
+        if (searchParams.hasNotes) {
+            filtered = filtered.filter(show => contentMap[show.id]?.hasNotes);
+        }
+
+        if (searchParams.hasPhotos) {
+            filtered = filtered.filter(show => contentMap[show.id]?.hasPhotos);
+        }
+
+        setFilteredResults(filtered);
+    }, [results, contentMap, searchParams.hasNotes, searchParams.hasPhotos]);
+
     const hasActiveFilters = (params) => {
-        return params.year || params.month || params.venue || params.city || params.song || params.source || params.hasImages;
+        return params.year || params.month || params.venue || params.city || params.song || params.source || params.hasImages || params.hasNotes || params.hasPhotos;
     };
 
     const handleAttendanceToggle = async (showId, e) => {
@@ -215,7 +240,7 @@ export default function SearchPage() {
     const clearFilter = (filterName) => {
         const newParams = {
             ...searchParams,
-            [filterName]: filterName === 'hasImages' ? false : ''
+            [filterName]: ['hasImages', 'hasNotes', 'hasPhotos'].includes(filterName) ? false : ''
         };
         setSearchParams(newParams);
 
@@ -231,7 +256,9 @@ export default function SearchPage() {
             city: '',
             song: '',
             source: '',
-            hasImages: false
+            hasImages: false,
+            hasNotes: false,
+            hasPhotos: false
         };
         setSearchParams(newParams);
         setResults([]);
@@ -249,6 +276,8 @@ export default function SearchPage() {
         if (searchParams.song) filters.push({ name: 'song', label: 'Song', value: searchParams.song });
         if (searchParams.source) filters.push({ name: 'source', label: 'Source', value: searchParams.source });
         if (searchParams.hasImages) filters.push({ name: 'hasImages', label: 'Has Images', value: 'Yes' });
+        if (searchParams.hasNotes) filters.push({ name: 'hasNotes', label: 'Has Notes', value: 'Yes' });
+        if (searchParams.hasPhotos) filters.push({ name: 'hasPhotos', label: 'Has Photos', value: 'Yes' });
         return filters;
     };
 
@@ -352,6 +381,35 @@ export default function SearchPage() {
                     </div>
                 </div>
 
+                {/* Content Filter Checkboxes */}
+                <div className="mb-4">
+                    <label className="block text-gray-300 text-sm font-bold mb-3">
+                        Filter by Content
+                    </label>
+                    <div className="flex flex-wrap gap-4">
+                        <label className="inline-flex items-center cursor-pointer">
+                            <input
+                                type="checkbox"
+                                name="hasNotes"
+                                checked={searchParams.hasNotes}
+                                onChange={handleInputChange}
+                                className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500 focus:ring-2"
+                            />
+                            <span className="ml-2 text-gray-300 text-sm">Has Notes</span>
+                        </label>
+                        <label className="inline-flex items-center cursor-pointer">
+                            <input
+                                type="checkbox"
+                                name="hasPhotos"
+                                checked={searchParams.hasPhotos}
+                                onChange={handleInputChange}
+                                className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500 focus:ring-2"
+                            />
+                            <span className="ml-2 text-gray-300 text-sm">Has Photos</span>
+                        </label>
+                    </div>
+                </div>
+
                 <div className="flex items-center justify-between">
                     <div className="text-sm text-gray-400 italic">
                         {loading ? '🔍 Searching...' : '✨ Results update automatically as you select filters'}
@@ -411,7 +469,7 @@ export default function SearchPage() {
             {/* Results */}
             <div className="bg-gray-800 shadow-2xl rounded-lg px-8 pt-6 pb-8 border border-gray-700">
                 <h2 className="text-2xl font-bold mb-6 text-gray-100">
-                    Results {results.length > 0 && `(${results.length})`}
+                    Results {filteredResults.length > 0 && `(${filteredResults.length})`}
                 </h2>
 
                 {!hasActiveFilters(searchParams) && !loading ? (
@@ -419,11 +477,11 @@ export default function SearchPage() {
                         <p className="text-gray-400 text-lg mb-2">🔍 Select a filter to search for shows</p>
                         <p className="text-gray-500 text-sm">Choose a year, venue, city, song, or other filter to get started</p>
                     </div>
-                ) : results.length === 0 && !loading ? (
+                ) : filteredResults.length === 0 && !loading ? (
                     <p className="text-gray-400">No shows found. Try adjusting your search criteria.</p>
                 ) : (
                     <div className="space-y-4">
-                        {results.map(show => {
+                        {filteredResults.map(show => {
                             const isAttended = attendanceMap[show.id] || false;
                             const isLoading = attendanceLoading[show.id] || false;
                             const hasNotes = contentMap[show.id]?.hasNotes || false;
