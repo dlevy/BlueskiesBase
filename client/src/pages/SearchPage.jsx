@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { searchShows, checkShowAttendanceBatch, markShowAttended, unmarkShowAttended, checkShowsHaveContent } from '../services/api';
+import { searchShows, getShows, checkShowAttendanceBatch, markShowAttended, unmarkShowAttended, checkShowsHaveContent } from '../services/api';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -15,7 +15,8 @@ export default function SearchPage() {
         source: '',
         hasImages: false,
         hasNotes: false,
-        hasPhotos: false
+        hasPhotos: false,
+        hasPoster: false
     });
     const [results, setResults] = useState([]);
     const [filteredResults, setFilteredResults] = useState([]); // Results after content filtering
@@ -146,7 +147,7 @@ export default function SearchPage() {
         checkContent();
     }, [results]);
 
-    // Filter results based on content filters (hasNotes, hasPhotos)
+    // Filter results based on content filters (hasNotes, hasPhotos, hasPoster)
     useEffect(() => {
         if (results.length === 0) {
             setFilteredResults([]);
@@ -164,11 +165,21 @@ export default function SearchPage() {
             filtered = filtered.filter(show => contentMap[show.id]?.hasPhotos);
         }
 
+        if (searchParams.hasPoster) {
+            filtered = filtered.filter(show => contentMap[show.id]?.hasPoster);
+        }
+
         setFilteredResults(filtered);
-    }, [results, contentMap, searchParams.hasNotes, searchParams.hasPhotos]);
+    }, [results, contentMap, searchParams.hasNotes, searchParams.hasPhotos, searchParams.hasPoster]);
 
     const hasActiveFilters = (params) => {
-        return params.year || params.month || params.venue || params.city || params.song || params.source || params.hasImages || params.hasNotes || params.hasPhotos;
+        return params.year || params.month || params.venue || params.city || params.song || params.source || params.hasImages || params.hasNotes || params.hasPhotos || params.hasPoster;
+    };
+
+    const hasContentOnlyFilters = (params) => {
+        const hasContentFilters = params.hasNotes || params.hasPhotos || params.hasPoster;
+        const hasOtherFilters = params.year || params.month || params.venue || params.city || params.song || params.source || params.hasImages;
+        return hasContentFilters && !hasOtherFilters;
     };
 
     const handleAttendanceToggle = async (showId, e) => {
@@ -210,7 +221,18 @@ export default function SearchPage() {
         setError(null);
 
         try {
-            const data = await searchShows(params);
+            let data;
+
+            // If only content filters are selected (hasNotes, hasPhotos, hasPoster),
+            // we need to fetch ALL shows and filter client-side
+            if (hasContentOnlyFilters(params)) {
+                // Fetch all shows with a high limit (adjust as needed)
+                data = await getShows(1, 10000);
+            } else {
+                // Normal search with backend filters
+                data = await searchShows(params);
+            }
+
             setResults(data.shows || []);
         } catch (err) {
             console.error('Search error:', err);
@@ -240,7 +262,7 @@ export default function SearchPage() {
     const clearFilter = (filterName) => {
         const newParams = {
             ...searchParams,
-            [filterName]: ['hasImages', 'hasNotes', 'hasPhotos'].includes(filterName) ? false : ''
+            [filterName]: ['hasImages', 'hasNotes', 'hasPhotos', 'hasPoster'].includes(filterName) ? false : ''
         };
         setSearchParams(newParams);
 
@@ -258,7 +280,8 @@ export default function SearchPage() {
             source: '',
             hasImages: false,
             hasNotes: false,
-            hasPhotos: false
+            hasPhotos: false,
+            hasPoster: false
         };
         setSearchParams(newParams);
         setResults([]);
@@ -278,6 +301,7 @@ export default function SearchPage() {
         if (searchParams.hasImages) filters.push({ name: 'hasImages', label: 'Has Images', value: 'Yes' });
         if (searchParams.hasNotes) filters.push({ name: 'hasNotes', label: 'Has Notes', value: 'Yes' });
         if (searchParams.hasPhotos) filters.push({ name: 'hasPhotos', label: 'Has Photos', value: 'Yes' });
+        if (searchParams.hasPoster) filters.push({ name: 'hasPoster', label: 'Has Poster', value: 'Yes' });
         return filters;
     };
 
@@ -406,6 +430,16 @@ export default function SearchPage() {
                                 className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500 focus:ring-2"
                             />
                             <span className="ml-2 text-gray-300 text-sm">Has Photos</span>
+                        </label>
+                        <label className="inline-flex items-center cursor-pointer">
+                            <input
+                                type="checkbox"
+                                name="hasPoster"
+                                checked={searchParams.hasPoster}
+                                onChange={handleInputChange}
+                                className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500 focus:ring-2"
+                            />
+                            <span className="ml-2 text-gray-300 text-sm">Has Poster</span>
                         </label>
                     </div>
                 </div>
