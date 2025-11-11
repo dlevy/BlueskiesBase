@@ -209,13 +209,14 @@ export default function SearchPage() {
                         uniqueSongIds.add(item.song_id);
 
                         // Use ONLY the songs table as single source of truth
-                        const isOriginal = item.songs?.is_original === true;
+                        const isOriginal = item.songs?.is_original;
 
-                        if (isOriginal) {
+                        if (isOriginal === true) {
                             originals++;
-                        } else {
+                        } else if (isOriginal === false) {
                             covers++;
                         }
+                        // If isOriginal is NULL/undefined, don't count it (needs to be fixed in DB)
                     });
 
                     statsMap[showId] = { originals, covers };
