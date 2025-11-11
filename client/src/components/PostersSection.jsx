@@ -178,14 +178,16 @@ export default function PostersSection({ showId }) {
             {/* Poster Display */}
             {poster ? (
                 <div className="space-y-4">
-                    <div className="relative group">
+                    <div
+                        className="relative group cursor-pointer"
+                        onClick={openLightbox}
+                    >
                         <img
                             src={poster.poster_url}
                             alt={poster.caption || 'Show poster'}
-                            className="w-full max-w-md mx-auto rounded-lg shadow-lg cursor-pointer hover:opacity-90 transition-opacity"
-                            onClick={openLightbox}
+                            className="w-full max-w-md mx-auto rounded-lg shadow-lg hover:opacity-90 transition-opacity"
                         />
-                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 rounded-lg cursor-pointer max-w-md mx-auto">
+                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 rounded-lg pointer-events-none">
                             <span className="text-white text-lg font-semibold">Click to view full size</span>
                         </div>
                     </div>
