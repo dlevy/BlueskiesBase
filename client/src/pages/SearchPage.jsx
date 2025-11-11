@@ -154,6 +154,14 @@ export default function SearchPage() {
             return;
         }
 
+        // Check if we need to apply content filters
+        const needsContentFiltering = searchParams.hasNotes || searchParams.hasPhotos || searchParams.hasPoster;
+
+        // If we need content filtering but contentMap is empty, wait for it to be populated
+        if (needsContentFiltering && Object.keys(contentMap).length === 0) {
+            return;
+        }
+
         let filtered = [...results];
 
         // Apply content filters
