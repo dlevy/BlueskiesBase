@@ -171,7 +171,6 @@ export default function SearchPage() {
                     .select(`
                         show_id,
                         song_id,
-                        is_cover,
                         songs (
                             id,
                             is_original
@@ -203,15 +202,13 @@ export default function SearchPage() {
 
                         uniqueSongIds.add(songId);
 
-                        // Determine if it's a cover using smart merge logic (same as backend)
-                        const isCover = item.is_cover !== null && item.is_cover !== undefined
-                            ? item.is_cover
-                            : (item.songs?.is_original === false);
+                        // Use ONLY the songs table as master source of truth
+                        const isOriginal = item.songs?.is_original === true;
 
-                        if (isCover) {
-                            covers++;
-                        } else {
+                        if (isOriginal) {
                             originals++;
+                        } else {
+                            covers++;
                         }
                     });
 
