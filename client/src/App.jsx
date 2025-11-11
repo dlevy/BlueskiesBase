@@ -170,6 +170,13 @@ function PublicLayout() {
         <footer className="bg-gray-950 text-gray-400 py-6 border-t border-gray-800 rounded-b-2xl mb-4">
           <div className="px-4 text-center">
             <p className="text-sm">blueskiesbase - your concert setlist archive</p>
+            {isAdmin && (
+              <p className="text-xs mt-2">
+                <Link to="/admin" className="text-blue-400 hover:text-blue-300 transition-colors">
+                  Admin Panel
+                </Link>
+              </p>
+            )}
           </div>
         </footer>
       </div>
