@@ -90,32 +90,39 @@ export default function SongStatsWidget() {
                     {/* Top 5 Covers */}
                     <div>
                         <h3 className="text-sm font-semibold text-gray-200 mb-2">
-                            🔥 Top 5
+                            🔥 Top 5 Most Played
                         </h3>
                         <div className="space-y-1.5">
                             {stats.covers.top5.map((song, index) => (
                                 <div
                                     key={song.id}
-                                    className="flex items-start justify-between p-2 bg-gray-750 rounded border border-gray-600"
+                                    className="flex flex-col p-2 bg-gray-750 rounded border border-gray-600"
                                 >
-                                    <div className="flex items-start gap-2 flex-1 min-w-0">
-                                        <div className="text-lg font-bold text-blue-400 w-5 flex-shrink-0">
-                                            {index + 1}
-                                        </div>
-                                        <div className="min-w-0 flex-1">
-                                            <div className="font-medium text-gray-100 text-sm truncate">
-                                                {song.title}
+                                    <div className="flex items-start justify-between">
+                                        <div className="flex items-start gap-2 flex-1 min-w-0">
+                                            <div className="text-lg font-bold text-blue-400 w-5 flex-shrink-0">
+                                                {index + 1}
                                             </div>
-                                            {song.original_artist && (
-                                                <div className="text-xs text-gray-400 truncate">
-                                                    {song.original_artist}
+                                            <div className="min-w-0 flex-1">
+                                                <div className="font-medium text-gray-100 text-sm truncate">
+                                                    {song.title}
                                                 </div>
-                                            )}
+                                                {song.original_artist && (
+                                                    <div className="text-xs text-gray-400 truncate">
+                                                        {song.original_artist}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="text-sm font-semibold text-blue-300 ml-2 flex-shrink-0">
+                                            {song.playCount}x
                                         </div>
                                     </div>
-                                    <div className="text-sm font-semibold text-blue-300 ml-2 flex-shrink-0">
-                                        {song.playCount}x
-                                    </div>
+                                    {song.lastPlayed && (
+                                        <div className="text-xs text-gray-500 mt-1 ml-7">
+                                            Last played: {new Date(song.lastPlayed).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>
@@ -127,24 +134,36 @@ export default function SongStatsWidget() {
                             💎 Rarest 5
                         </h3>
                         <div className="space-y-1.5">
-                            {stats.covers.rarest5.map((song) => (
+                            {stats.covers.rarest5.map((song, index) => (
                                 <div
                                     key={song.id}
-                                    className="flex items-start justify-between p-2 bg-gray-750 rounded border border-gray-600"
+                                    className="flex flex-col p-2 bg-gray-750 rounded border border-gray-600"
                                 >
-                                    <div className="min-w-0 flex-1">
-                                        <div className="font-medium text-gray-100 text-sm truncate">
-                                            {song.title}
-                                        </div>
-                                        {song.original_artist && (
-                                            <div className="text-xs text-gray-400 truncate">
-                                                {song.original_artist}
+                                    <div className="flex items-start justify-between">
+                                        <div className="flex items-start gap-2 flex-1 min-w-0">
+                                            <div className="text-lg font-bold text-purple-400 w-5 flex-shrink-0">
+                                                {index + 1}
                                             </div>
-                                        )}
+                                            <div className="min-w-0 flex-1">
+                                                <div className="font-medium text-gray-100 text-sm truncate">
+                                                    {song.title}
+                                                </div>
+                                                {song.original_artist && (
+                                                    <div className="text-xs text-gray-400 truncate">
+                                                        {song.original_artist}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="text-sm font-semibold text-purple-300 ml-2 flex-shrink-0">
+                                            {song.playCount}x
+                                        </div>
                                     </div>
-                                    <div className="text-sm font-semibold text-purple-300 ml-2 flex-shrink-0">
-                                        {song.playCount}x
-                                    </div>
+                                    {song.lastPlayed && (
+                                        <div className="text-xs text-gray-500 mt-1 ml-7">
+                                            Last played: {new Date(song.lastPlayed).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>
@@ -166,25 +185,32 @@ export default function SongStatsWidget() {
                     {/* Top 5 Originals */}
                     <div>
                         <h3 className="text-sm font-semibold text-gray-200 mb-2">
-                            🔥 Top 5
+                            🔥 Top 5 Most Played
                         </h3>
                         <div className="space-y-1.5">
                             {stats.originals.top5.map((song, index) => (
                                 <div
                                     key={song.id}
-                                    className="flex items-center justify-between p-2 bg-gray-750 rounded border border-gray-600"
+                                    className="flex flex-col p-2 bg-gray-750 rounded border border-gray-600"
                                 >
-                                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                                        <div className="text-lg font-bold text-green-400 w-5 flex-shrink-0">
-                                            {index + 1}
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                                            <div className="text-lg font-bold text-green-400 w-5 flex-shrink-0">
+                                                {index + 1}
+                                            </div>
+                                            <div className="font-medium text-gray-100 text-sm truncate">
+                                                {song.title}
+                                            </div>
                                         </div>
-                                        <div className="font-medium text-gray-100 text-sm truncate">
-                                            {song.title}
+                                        <div className="text-sm font-semibold text-green-300 ml-2 flex-shrink-0">
+                                            {song.playCount}x
                                         </div>
                                     </div>
-                                    <div className="text-sm font-semibold text-green-300 ml-2 flex-shrink-0">
-                                        {song.playCount}x
-                                    </div>
+                                    {song.lastPlayed && (
+                                        <div className="text-xs text-gray-500 mt-1 ml-7">
+                                            Last played: {new Date(song.lastPlayed).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>
@@ -196,17 +222,29 @@ export default function SongStatsWidget() {
                             💎 Rarest 5
                         </h3>
                         <div className="space-y-1.5">
-                            {stats.originals.rarest5.map((song) => (
+                            {stats.originals.rarest5.map((song, index) => (
                                 <div
                                     key={song.id}
-                                    className="flex items-center justify-between p-2 bg-gray-750 rounded border border-gray-600"
+                                    className="flex flex-col p-2 bg-gray-750 rounded border border-gray-600"
                                 >
-                                    <div className="font-medium text-gray-100 text-sm truncate flex-1 min-w-0">
-                                        {song.title}
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                                            <div className="text-lg font-bold text-purple-400 w-5 flex-shrink-0">
+                                                {index + 1}
+                                            </div>
+                                            <div className="font-medium text-gray-100 text-sm truncate">
+                                                {song.title}
+                                            </div>
+                                        </div>
+                                        <div className="text-sm font-semibold text-purple-300 ml-2 flex-shrink-0">
+                                            {song.playCount}x
+                                        </div>
                                     </div>
-                                    <div className="text-sm font-semibold text-purple-300 ml-2 flex-shrink-0">
-                                        {song.playCount}x
-                                    </div>
+                                    {song.lastPlayed && (
+                                        <div className="text-xs text-gray-500 mt-1 ml-7">
+                                            Last played: {new Date(song.lastPlayed).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>

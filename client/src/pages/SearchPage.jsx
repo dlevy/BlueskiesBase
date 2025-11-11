@@ -7,6 +7,10 @@ import SongStatsWidget from '../components/SongStatsWidget';
 
 export default function SearchPage() {
     const { user } = useAuth();
+
+    // Tab state
+    const [activeTab, setActiveTab] = useState('search'); // 'search' or 'stats'
+
     const [searchParams, setSearchParams] = useState({
         year: '',
         month: '',
@@ -474,16 +478,39 @@ export default function SearchPage() {
     };
 
     return (
-        <div className="px-4 py-4 md:py-6 max-w-7xl mx-auto">
+        <div className="px-4 py-4 md:py-6 max-w-6xl mx-auto">
             <h1 className="text-2xl md:text-3xl font-bold mb-4 text-center bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
-                Search Setlists
+                Johnny Blue Skies Setlists
             </h1>
 
-            {/* Two-column layout: Filters on left, Stats on right */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-                {/* Left Column: Search Filters (2/3 width on desktop) */}
-                <div className="lg:col-span-2">
-                    <form onSubmit={handleSearch} className="bg-gray-800 shadow-2xl rounded-lg px-4 md:px-5 pt-4 pb-4 border border-gray-700">
+            {/* Tab Navigation */}
+            <div className="flex gap-2 mb-6">
+                <button
+                    onClick={() => setActiveTab('search')}
+                    className={`flex-1 px-6 py-3 rounded-lg font-semibold transition-colors ${
+                        activeTab === 'search'
+                            ? 'bg-blue-600 text-white shadow-lg'
+                            : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700'
+                    }`}
+                >
+                    🔍 Search Setlists
+                </button>
+                <button
+                    onClick={() => setActiveTab('stats')}
+                    className={`flex-1 px-6 py-3 rounded-lg font-semibold transition-colors ${
+                        activeTab === 'stats'
+                            ? 'bg-blue-600 text-white shadow-lg'
+                            : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700'
+                    }`}
+                >
+                    📊 Song Statistics
+                </button>
+            </div>
+
+            {/* Search Tab Content */}
+            {activeTab === 'search' && (
+                <>
+                    <form onSubmit={handleSearch} className="bg-gray-800 shadow-2xl rounded-lg px-4 md:px-6 pt-5 pb-5 mb-6 border border-gray-700">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
                             {/* Date Search */}
                             <div>
@@ -631,69 +658,62 @@ export default function SearchPage() {
                             )}
                         </div>
                     </form>
-                </div>
 
-                {/* Right Column: Song Statistics (1/3 width on desktop) */}
-                <div className="lg:col-span-1">
-                    <SongStatsWidget />
-                </div>
-            </div>
-
-            {/* Active Filters */}
-            {getActiveFilters().length > 0 && (
-                <div className="bg-gray-800 border border-gray-700 rounded-lg px-6 py-4 mb-6 shadow-lg">
-                    <div className="flex items-center justify-between mb-3">
-                        <h3 className="text-sm font-semibold text-gray-300">Active Filters:</h3>
-                        <button
-                            onClick={clearAllFilters}
-                            className="text-sm text-red-400 hover:text-red-300 font-medium transition-colors"
-                        >
-                            Clear All
-                        </button>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                        {getActiveFilters().map(filter => (
-                            <div
-                                key={filter.name}
-                                className="inline-flex items-center bg-blue-900/50 text-blue-200 px-3 py-1 rounded-full text-sm border border-blue-700"
-                            >
-                                <span className="font-medium mr-1">{filter.label}:</span>
-                                <span className="mr-2">{filter.value}</span>
+                    {/* Active Filters */}
+                    {getActiveFilters().length > 0 && (
+                        <div className="bg-gray-800 border border-gray-700 rounded-lg px-6 py-4 mb-6 shadow-lg">
+                            <div className="flex items-center justify-between mb-3">
+                                <h3 className="text-sm font-semibold text-gray-300">Active Filters:</h3>
                                 <button
-                                    onClick={() => clearFilter(filter.name)}
-                                    className="text-blue-300 hover:text-blue-100 font-bold transition-colors"
-                                    aria-label={`Remove ${filter.label} filter`}
+                                    onClick={clearAllFilters}
+                                    className="text-sm text-red-400 hover:text-red-300 font-medium transition-colors"
                                 >
-                                    ×
+                                    Clear All
                                 </button>
                             </div>
-                        ))}
-                    </div>
-                </div>
-            )}
+                            <div className="flex flex-wrap gap-2">
+                                {getActiveFilters().map(filter => (
+                                    <div
+                                        key={filter.name}
+                                        className="inline-flex items-center bg-blue-900/50 text-blue-200 px-3 py-1 rounded-full text-sm border border-blue-700"
+                                    >
+                                        <span className="font-medium mr-1">{filter.label}:</span>
+                                        <span className="mr-2">{filter.value}</span>
+                                        <button
+                                            onClick={() => clearFilter(filter.name)}
+                                            className="text-blue-300 hover:text-blue-100 font-bold transition-colors"
+                                            aria-label={`Remove ${filter.label} filter`}
+                                        >
+                                            ×
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
-            {/* Error Message */}
-            {error && (
-                <div className="bg-red-900/50 border border-red-700 text-red-200 px-4 py-3 rounded-lg mb-4">
-                    {error}
-                </div>
-            )}
+                    {/* Error Message */}
+                    {error && (
+                        <div className="bg-red-900/50 border border-red-700 text-red-200 px-4 py-3 rounded-lg mb-4">
+                            {error}
+                        </div>
+                    )}
 
-            {/* Results */}
-            <div className="bg-gray-800 shadow-2xl rounded-lg px-8 pt-6 pb-8 border border-gray-700">
-                <h2 className="text-2xl font-bold mb-6 text-gray-100">
-                    Results {filteredResults.length > 0 && `(${filteredResults.length})`}
-                </h2>
+                    {/* Results */}
+                    <div className="bg-gray-800 shadow-2xl rounded-lg px-8 pt-6 pb-8 border border-gray-700">
+                        <h2 className="text-2xl font-bold mb-6 text-gray-100">
+                            Results {filteredResults.length > 0 && `(${filteredResults.length})`}
+                        </h2>
 
-                {!hasActiveFilters(searchParams) && !loading ? (
-                    <div className="text-center py-8">
-                        <p className="text-gray-400 text-lg mb-2">🔍 Select a filter to search for shows</p>
-                        <p className="text-gray-500 text-sm">Choose a year, venue, city, song, or other filter to get started</p>
-                    </div>
-                ) : filteredResults.length === 0 && !loading ? (
-                    <p className="text-gray-400">No shows found. Try adjusting your search criteria.</p>
-                ) : (
-                    <div className="space-y-4">
+                        {!hasActiveFilters(searchParams) && !loading ? (
+                            <div className="text-center py-8">
+                                <p className="text-gray-400 text-lg mb-2">🔍 Select a filter to search for shows</p>
+                                <p className="text-gray-500 text-sm">Choose a year, venue, city, song, or other filter to get started</p>
+                            </div>
+                        ) : filteredResults.length === 0 && !loading ? (
+                            <p className="text-gray-400">No shows found. Try adjusting your search criteria.</p>
+                        ) : (
+                            <div className="space-y-4">
                         {filteredResults.map(show => {
                             const isAttended = attendanceMap[show.id] || false;
                             const isLoading = attendanceLoading[show.id] || false;
@@ -807,26 +827,35 @@ export default function SearchPage() {
                                     </div>
                                 </div>
                             );
-                        })}
-                    </div>
-                )}
+                                })}
+                            </div>
+                        )}
 
-                {/* Load More Button for Standalone Content Filtering */}
-                {hasContentOnlyFilters(searchParams) && currentPage < totalPages && (
-                    <div className="mt-8 text-center">
-                        <button
-                            onClick={loadNextPage}
-                            disabled={isLoadingMore}
-                            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
-                        >
-                            {isLoadingMore ? 'Loading...' : `Load More (Page ${currentPage + 1} of ${totalPages})`}
-                        </button>
-                        <p className="mt-2 text-sm text-gray-400">
-                            Showing {results.length} shows loaded
-                        </p>
+                        {/* Load More Button for Standalone Content Filtering */}
+                        {hasContentOnlyFilters(searchParams) && currentPage < totalPages && (
+                            <div className="mt-8 text-center">
+                                <button
+                                    onClick={loadNextPage}
+                                    disabled={isLoadingMore}
+                                    className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
+                                >
+                                    {isLoadingMore ? 'Loading...' : `Load More (Page ${currentPage + 1} of ${totalPages})`}
+                                </button>
+                                <p className="mt-2 text-sm text-gray-400">
+                                    Showing {results.length} shows loaded
+                                </p>
+                            </div>
+                        )}
                     </div>
-                )}
-            </div>
+                </>
+            )}
+
+            {/* Stats Tab Content */}
+            {activeTab === 'stats' && (
+                <div className="max-w-4xl mx-auto">
+                    <SongStatsWidget />
+                </div>
+            )}
         </div>
     );
 }

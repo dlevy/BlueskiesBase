@@ -34,12 +34,16 @@ router.get('/stats/global', async (req, res) => {
     try {
         console.log('[Song Stats] Fetching global song statistics...');
 
-        // Get all setlist_songs with song info
+        // Get all setlist_songs with song info and show date
         const { data: setlistSongs, error } = await supabase
             .from('setlist_songs')
             .select(`
                 show_id,
                 song_id,
+                shows!inner (
+                    id,
+                    date
+                ),
                 songs (
                     id,
                     title,
@@ -53,14 +57,15 @@ router.get('/stats/global', async (req, res) => {
             return res.status(500).json({ error: 'Failed to fetch song statistics' });
         }
 
-        // Count unique plays per song (one per show)
+        // Count unique plays per song (one per show) and track last played date
         const songPlayCounts = {};
 
         setlistSongs.forEach(ss => {
-            if (!ss.songs) return;
+            if (!ss.songs || !ss.shows) return;
 
             const songId = ss.songs.id;
             const showId = ss.show_id;
+            const showDate = ss.shows.date;
 
             if (!songPlayCounts[songId]) {
                 songPlayCounts[songId] = {
@@ -68,20 +73,27 @@ router.get('/stats/global', async (req, res) => {
                     title: ss.songs.title,
                     is_original: ss.songs.is_original,
                     original_artist: ss.songs.original_artist,
-                    shows: new Set()
+                    shows: new Set(),
+                    lastPlayed: showDate
                 };
             }
 
             songPlayCounts[songId].shows.add(showId);
+
+            // Update last played date if this show is more recent
+            if (new Date(showDate) > new Date(songPlayCounts[songId].lastPlayed)) {
+                songPlayCounts[songId].lastPlayed = showDate;
+            }
         });
 
-        // Convert to array with play counts
+        // Convert to array with play counts and last played date
         const songsWithCounts = Object.values(songPlayCounts).map(song => ({
             id: song.id,
             title: song.title,
             is_original: song.is_original,
             original_artist: song.original_artist,
-            playCount: song.shows.size
+            playCount: song.shows.size,
+            lastPlayed: song.lastPlayed
         }));
 
         // Separate covers and originals
