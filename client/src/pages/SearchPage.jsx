@@ -684,22 +684,22 @@ export default function SearchPage() {
                             );
                         })}
                     </div>
+                )}
 
-                    {/* Load More Button for Standalone Content Filtering */}
-                    {hasContentOnlyFilters(searchParams) && currentPage < totalPages && (
-                        <div className="mt-8 text-center">
-                            <button
-                                onClick={loadNextPage}
-                                disabled={isLoadingMore}
-                                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
-                            >
-                                {isLoadingMore ? 'Loading...' : `Load More (Page ${currentPage + 1} of ${totalPages})`}
-                            </button>
-                            <p className="mt-2 text-sm text-gray-400">
-                                Showing {displayResults.length} of {totalPages * ITEMS_PER_PAGE} shows
-                            </p>
-                        </div>
-                    )}
+                {/* Load More Button for Standalone Content Filtering */}
+                {hasContentOnlyFilters(searchParams) && currentPage < totalPages && (
+                    <div className="mt-8 text-center">
+                        <button
+                            onClick={loadNextPage}
+                            disabled={isLoadingMore}
+                            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
+                        >
+                            {isLoadingMore ? 'Loading...' : `Load More (Page ${currentPage + 1} of ${totalPages})`}
+                        </button>
+                        <p className="mt-2 text-sm text-gray-400">
+                            Showing {results.length} shows loaded
+                        </p>
+                    </div>
                 )}
             </div>
         </div>
