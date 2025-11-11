@@ -34,7 +34,7 @@ router.get('/stats/global', async (req, res) => {
     try {
         console.log('[Song Stats] Fetching global song statistics...');
 
-        // Get all setlist_songs with song info (with count limit removed)
+        // Get all setlist_songs with song info (remove default 1000 row limit)
         const { data: setlistSongs, error: setlistError, count: setlistCount } = await supabase
             .from('setlist_songs')
             .select(`
@@ -46,7 +46,8 @@ router.get('/stats/global', async (req, res) => {
                     is_original,
                     original_artist
                 )
-            `, { count: 'exact' });
+            `, { count: 'exact' })
+            .limit(10000); // Increase limit to handle all setlist songs
 
         if (setlistError) {
             console.error('[Song Stats] Error fetching setlist songs:', setlistError);
@@ -59,7 +60,8 @@ router.get('/stats/global', async (req, res) => {
         // Get all shows to get dates
         const { data: shows, error: showsError, count: showsCount } = await supabase
             .from('shows')
-            .select('id, date', { count: 'exact' });
+            .select('id, date', { count: 'exact' })
+            .limit(1000); // Should be enough for shows
 
         if (showsError) {
             console.error('[Song Stats] Error fetching shows:', showsError);
