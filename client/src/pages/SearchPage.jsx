@@ -242,8 +242,15 @@ export default function SearchPage() {
         // Check if we need to apply content filters
         const needsContentFiltering = searchParams.hasNotes || searchParams.hasPhotos || searchParams.hasPoster;
 
+        // If NO content filtering needed, just pass through all results immediately
+        if (!needsContentFiltering) {
+            console.log('[SearchPage] No content filtering needed, setting filteredResults =', results.length);
+            setFilteredResults(results);
+            return;
+        }
+
         // If we need content filtering but contentMap is empty, wait for it to be populated
-        if (needsContentFiltering && Object.keys(contentMap).length === 0) {
+        if (Object.keys(contentMap).length === 0) {
             console.log('[SearchPage] Waiting for contentMap to populate...');
             return;
         }
