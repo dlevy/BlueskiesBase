@@ -12,7 +12,12 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: true,
-        flowType: 'pkce'
+        flowType: 'pkce',
+        storage: window.localStorage,
+        storageKey: 'blueskiesbase-auth',
+        // Keep session alive indefinitely
+        // Supabase default is 1 hour, we'll refresh before expiry
+        // The autoRefreshToken will handle this automatically
     }
 });
 

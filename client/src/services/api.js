@@ -216,8 +216,37 @@ export const removeSongFromSetlist = async (showId, setlistId) => {
  * Get authentication token from Supabase
  */
 const getAuthToken = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    return session?.access_token;
+    try {
+        console.log('[API] getAuthToken: Fetching session...');
+
+        // Add timeout to prevent hanging
+        const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Session fetch timeout')), 5000)
+        );
+
+        const sessionPromise = supabase.auth.getSession();
+
+        const { data: { session }, error } = await Promise.race([
+            sessionPromise,
+            timeoutPromise
+        ]);
+
+        if (error) {
+            console.error('[API] getAuthToken: Error getting session:', error);
+            return null;
+        }
+
+        if (!session) {
+            console.log('[API] getAuthToken: No active session');
+            return null;
+        }
+
+        console.log('[API] getAuthToken: Session found, token valid');
+        return session.access_token;
+    } catch (err) {
+        console.error('[API] getAuthToken: Exception:', err);
+        return null;
+    }
 };
 
 /**

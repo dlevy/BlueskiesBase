@@ -17,8 +17,11 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        console.log('[AuthContext] Initializing auth...');
+
         // Check active sessions and sets the user
         supabase.auth.getSession().then(async ({ data: { session } }) => {
+            console.log('[AuthContext] Initial session check:', session ? 'Session found' : 'No session');
             setUser(session?.user ?? null);
 
             // Fetch user profile to get admin status
@@ -31,13 +34,14 @@ export const AuthProvider = ({ children }) => {
                         .single();
 
                     if (error) {
-                        console.error('Error fetching profile:', error);
+                        console.error('[AuthContext] Error fetching profile:', error);
                         setProfile(null);
                     } else {
+                        console.log('[AuthContext] Initial profile loaded:', profileData.username);
                         setProfile(profileData);
                     }
                 } catch (err) {
-                    console.error('Error fetching profile:', err);
+                    console.error('[AuthContext] Error fetching profile:', err);
                     setProfile(null);
                 }
             } else {
@@ -46,7 +50,7 @@ export const AuthProvider = ({ children }) => {
 
             setLoading(false);
         }).catch(err => {
-            console.error('Error getting session:', err);
+            console.error('[AuthContext] Error getting session:', err);
             setLoading(false);
         });
 
@@ -85,7 +89,24 @@ export const AuthProvider = ({ children }) => {
             setLoading(false);
         });
 
-        return () => subscription.unsubscribe();
+        // Refresh session every 30 minutes to keep it alive
+        const refreshInterval = setInterval(async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                console.log('[AuthContext] Refreshing session...');
+                const { error } = await supabase.auth.refreshSession();
+                if (error) {
+                    console.error('[AuthContext] Error refreshing session:', error);
+                } else {
+                    console.log('[AuthContext] Session refreshed successfully');
+                }
+            }
+        }, 30 * 60 * 1000); // 30 minutes
+
+        return () => {
+            subscription.unsubscribe();
+            clearInterval(refreshInterval);
+        };
     }, []);
 
     const signIn = async (email, password) => {
