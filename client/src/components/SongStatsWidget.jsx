@@ -47,16 +47,16 @@ export default function SongStatsWidget() {
     }
 
     return (
-        <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-            <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
-                Song Statistics
+        <div className="bg-gray-800 border border-gray-700 rounded-lg p-4 lg:p-5 sticky top-4">
+            <h2 className="text-xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
+                Song Stats
             </h2>
 
             {/* Tab Buttons */}
-            <div className="flex gap-2 mb-6">
+            <div className="flex gap-2 mb-4">
                 <button
                     onClick={() => setActiveTab('covers')}
-                    className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
+                    className={`flex-1 px-3 py-1.5 rounded-lg font-medium text-sm transition-colors ${
                         activeTab === 'covers'
                             ? 'bg-blue-600 text-white'
                             : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
@@ -66,7 +66,7 @@ export default function SongStatsWidget() {
                 </button>
                 <button
                     onClick={() => setActiveTab('originals')}
-                    className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
+                    className={`flex-1 px-3 py-1.5 rounded-lg font-medium text-sm transition-colors ${
                         activeTab === 'originals'
                             ? 'bg-green-600 text-white'
                             : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
@@ -78,42 +78,42 @@ export default function SongStatsWidget() {
 
             {/* Covers Tab */}
             {activeTab === 'covers' && (
-                <div className="space-y-6">
+                <div className="space-y-4">
                     {/* Total Covers */}
-                    <div className="text-center p-4 bg-gray-750 rounded-lg border border-gray-600">
-                        <div className="text-4xl font-bold text-blue-400 mb-1">
+                    <div className="text-center p-3 bg-gray-750 rounded-lg border border-gray-600">
+                        <div className="text-3xl font-bold text-blue-400 mb-0.5">
                             {stats.covers.total}
                         </div>
-                        <div className="text-gray-300">Unique Covers Played</div>
+                        <div className="text-sm text-gray-300">Unique Covers</div>
                     </div>
 
                     {/* Top 5 Covers */}
                     <div>
-                        <h3 className="text-lg font-semibold text-gray-200 mb-3">
-                            🔥 Top 5 Most Played Covers
+                        <h3 className="text-sm font-semibold text-gray-200 mb-2">
+                            🔥 Top 5
                         </h3>
-                        <div className="space-y-2">
+                        <div className="space-y-1.5">
                             {stats.covers.top5.map((song, index) => (
                                 <div
                                     key={song.id}
-                                    className="flex items-center justify-between p-3 bg-gray-750 rounded-lg border border-gray-600"
+                                    className="flex items-start justify-between p-2 bg-gray-750 rounded border border-gray-600"
                                 >
-                                    <div className="flex items-center gap-3">
-                                        <div className="text-2xl font-bold text-blue-400 w-8">
+                                    <div className="flex items-start gap-2 flex-1 min-w-0">
+                                        <div className="text-lg font-bold text-blue-400 w-5 flex-shrink-0">
                                             {index + 1}
                                         </div>
-                                        <div>
-                                            <div className="font-medium text-gray-100">
+                                        <div className="min-w-0 flex-1">
+                                            <div className="font-medium text-gray-100 text-sm truncate">
                                                 {song.title}
                                             </div>
                                             {song.original_artist && (
-                                                <div className="text-sm text-gray-400">
+                                                <div className="text-xs text-gray-400 truncate">
                                                     {song.original_artist}
                                                 </div>
                                             )}
                                         </div>
                                     </div>
-                                    <div className="text-lg font-semibold text-blue-300">
+                                    <div className="text-sm font-semibold text-blue-300 ml-2 flex-shrink-0">
                                         {song.playCount}x
                                     </div>
                                 </div>
@@ -123,26 +123,26 @@ export default function SongStatsWidget() {
 
                     {/* Rarest 5 Covers */}
                     <div>
-                        <h3 className="text-lg font-semibold text-gray-200 mb-3">
-                            💎 Rarest 5 Covers
+                        <h3 className="text-sm font-semibold text-gray-200 mb-2">
+                            💎 Rarest 5
                         </h3>
-                        <div className="space-y-2">
+                        <div className="space-y-1.5">
                             {stats.covers.rarest5.map((song) => (
                                 <div
                                     key={song.id}
-                                    className="flex items-center justify-between p-3 bg-gray-750 rounded-lg border border-gray-600"
+                                    className="flex items-start justify-between p-2 bg-gray-750 rounded border border-gray-600"
                                 >
-                                    <div>
-                                        <div className="font-medium text-gray-100">
+                                    <div className="min-w-0 flex-1">
+                                        <div className="font-medium text-gray-100 text-sm truncate">
                                             {song.title}
                                         </div>
                                         {song.original_artist && (
-                                            <div className="text-sm text-gray-400">
+                                            <div className="text-xs text-gray-400 truncate">
                                                 {song.original_artist}
                                             </div>
                                         )}
                                     </div>
-                                    <div className="text-lg font-semibold text-purple-300">
+                                    <div className="text-sm font-semibold text-purple-300 ml-2 flex-shrink-0">
                                         {song.playCount}x
                                     </div>
                                 </div>
@@ -154,35 +154,35 @@ export default function SongStatsWidget() {
 
             {/* Originals Tab */}
             {activeTab === 'originals' && (
-                <div className="space-y-6">
+                <div className="space-y-4">
                     {/* Total Originals */}
-                    <div className="text-center p-4 bg-gray-750 rounded-lg border border-gray-600">
-                        <div className="text-4xl font-bold text-green-400 mb-1">
+                    <div className="text-center p-3 bg-gray-750 rounded-lg border border-gray-600">
+                        <div className="text-3xl font-bold text-green-400 mb-0.5">
                             {stats.originals.total}
                         </div>
-                        <div className="text-gray-300">Unique Originals Played</div>
+                        <div className="text-sm text-gray-300">Unique Originals</div>
                     </div>
 
                     {/* Top 5 Originals */}
                     <div>
-                        <h3 className="text-lg font-semibold text-gray-200 mb-3">
-                            🔥 Top 5 Most Played Originals
+                        <h3 className="text-sm font-semibold text-gray-200 mb-2">
+                            🔥 Top 5
                         </h3>
-                        <div className="space-y-2">
+                        <div className="space-y-1.5">
                             {stats.originals.top5.map((song, index) => (
                                 <div
                                     key={song.id}
-                                    className="flex items-center justify-between p-3 bg-gray-750 rounded-lg border border-gray-600"
+                                    className="flex items-center justify-between p-2 bg-gray-750 rounded border border-gray-600"
                                 >
-                                    <div className="flex items-center gap-3">
-                                        <div className="text-2xl font-bold text-green-400 w-8">
+                                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                                        <div className="text-lg font-bold text-green-400 w-5 flex-shrink-0">
                                             {index + 1}
                                         </div>
-                                        <div className="font-medium text-gray-100">
+                                        <div className="font-medium text-gray-100 text-sm truncate">
                                             {song.title}
                                         </div>
                                     </div>
-                                    <div className="text-lg font-semibold text-green-300">
+                                    <div className="text-sm font-semibold text-green-300 ml-2 flex-shrink-0">
                                         {song.playCount}x
                                     </div>
                                 </div>
@@ -192,19 +192,19 @@ export default function SongStatsWidget() {
 
                     {/* Rarest 5 Originals */}
                     <div>
-                        <h3 className="text-lg font-semibold text-gray-200 mb-3">
-                            💎 Rarest 5 Originals
+                        <h3 className="text-sm font-semibold text-gray-200 mb-2">
+                            💎 Rarest 5
                         </h3>
-                        <div className="space-y-2">
+                        <div className="space-y-1.5">
                             {stats.originals.rarest5.map((song) => (
                                 <div
                                     key={song.id}
-                                    className="flex items-center justify-between p-3 bg-gray-750 rounded-lg border border-gray-600"
+                                    className="flex items-center justify-between p-2 bg-gray-750 rounded border border-gray-600"
                                 >
-                                    <div className="font-medium text-gray-100">
+                                    <div className="font-medium text-gray-100 text-sm truncate flex-1 min-w-0">
                                         {song.title}
                                     </div>
-                                    <div className="text-lg font-semibold text-purple-300">
+                                    <div className="text-sm font-semibold text-purple-300 ml-2 flex-shrink-0">
                                         {song.playCount}x
                                     </div>
                                 </div>

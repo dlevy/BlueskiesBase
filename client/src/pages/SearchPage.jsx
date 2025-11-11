@@ -474,164 +474,170 @@ export default function SearchPage() {
     };
 
     return (
-        <div className="px-4 py-8 max-w-6xl mx-auto">
-            <h1 className="text-4xl font-bold mb-8 text-center bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
+        <div className="px-4 py-4 md:py-6 max-w-7xl mx-auto">
+            <h1 className="text-2xl md:text-3xl font-bold mb-4 text-center bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
                 Search Setlists
             </h1>
 
-            {/* Song Statistics Widget */}
-            <div className="mb-8">
-                <SongStatsWidget />
+            {/* Two-column layout: Filters on left, Stats on right */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+                {/* Left Column: Search Filters (2/3 width on desktop) */}
+                <div className="lg:col-span-2">
+                    <form onSubmit={handleSearch} className="bg-gray-800 shadow-2xl rounded-lg px-4 md:px-5 pt-4 pb-4 border border-gray-700">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                            {/* Date Search */}
+                            <div>
+                                <label className="block text-gray-300 text-xs font-semibold mb-1">
+                                    Year
+                                </label>
+                                <select
+                                    name="year"
+                                    value={searchParams.year}
+                                    onChange={handleInputChange}
+                                    className="bg-gray-700 border border-gray-600 rounded w-full py-1.5 px-2 text-sm text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                >
+                                    <option value="">All Years</option>
+                                    {years.map(year => (
+                                        <option key={year} value={year}>{year}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-gray-300 text-xs font-semibold mb-1">
+                                    Month
+                                </label>
+                                <select
+                                    name="month"
+                                    value={searchParams.month}
+                                    onChange={handleInputChange}
+                                    className="bg-gray-700 border border-gray-600 rounded w-full py-1.5 px-2 text-sm text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                >
+                                    <option value="">All Months</option>
+                                    {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
+                                        <option key={month} value={month}>
+                                            {new Date(2000, month - 1).toLocaleString('default', { month: 'long' })}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                            {/* Location and Song Search */}
+                            <div>
+                                <label className="block text-gray-300 text-xs font-semibold mb-1">
+                                    Venue
+                                </label>
+                                <select
+                                    name="venue"
+                                    value={searchParams.venue}
+                                    onChange={handleInputChange}
+                                    className="bg-gray-700 border border-gray-600 rounded w-full py-1.5 px-2 text-sm text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                >
+                                    <option value="">All Venues</option>
+                                    {venues.map(venue => (
+                                        <option key={venue} value={venue}>{venue}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-gray-300 text-xs font-semibold mb-1">
+                                    City
+                                </label>
+                                <select
+                                    name="city"
+                                    value={searchParams.city}
+                                    onChange={handleInputChange}
+                                    className="bg-gray-700 border border-gray-600 rounded w-full py-1.5 px-2 text-sm text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                >
+                                    <option value="">All Cities</option>
+                                    {cities.map(city => (
+                                        <option key={city} value={city}>{city}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-gray-300 text-xs font-semibold mb-1">
+                                    Song
+                                </label>
+                                <select
+                                    name="song"
+                                    value={searchParams.song}
+                                    onChange={handleInputChange}
+                                    className="bg-gray-700 border border-gray-600 rounded w-full py-1.5 px-2 text-sm text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                >
+                                    <option value="">All Songs</option>
+                                    {songs.map(song => (
+                                        <option key={song} value={song}>{song}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* Content Filter Checkboxes */}
+                        <div className="mb-3">
+                            <label className="block text-gray-300 text-xs font-semibold mb-2">
+                                Filter by Content
+                            </label>
+                            <div className="flex flex-wrap gap-3">
+                                <label className="inline-flex items-center cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        name="hasNotes"
+                                        checked={searchParams.hasNotes}
+                                        onChange={handleInputChange}
+                                        className="w-3.5 h-3.5 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500 focus:ring-2"
+                                    />
+                                    <span className="ml-1.5 text-gray-300 text-xs">Has Notes</span>
+                                </label>
+                                <label className="inline-flex items-center cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        name="hasPhotos"
+                                        checked={searchParams.hasPhotos}
+                                        onChange={handleInputChange}
+                                        className="w-3.5 h-3.5 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500 focus:ring-2"
+                                    />
+                                    <span className="ml-1.5 text-gray-300 text-xs">Has Photos</span>
+                                </label>
+                                <label className="inline-flex items-center cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        name="hasPoster"
+                                        checked={searchParams.hasPoster}
+                                        onChange={handleInputChange}
+                                        className="w-3.5 h-3.5 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500 focus:ring-2"
+                                    />
+                                    <span className="ml-1.5 text-gray-300 text-xs">Has Poster</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                            <div className="text-sm text-gray-400 italic">
+                                {loading ? '🔍 Searching...' : '✨ Results update automatically'}
+                            </div>
+                            {getActiveFilters().length > 0 && (
+                                <button
+                                    type="button"
+                                    onClick={clearAllFilters}
+                                    className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors text-sm"
+                                >
+                                    Clear All
+                                </button>
+                            )}
+                        </div>
+                    </form>
+                </div>
+
+                {/* Right Column: Song Statistics (1/3 width on desktop) */}
+                <div className="lg:col-span-1">
+                    <SongStatsWidget />
+                </div>
             </div>
-
-            <form onSubmit={handleSearch} className="bg-gray-800 shadow-2xl rounded-lg px-8 pt-6 pb-8 mb-8 border border-gray-700">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    {/* Date Search */}
-                    <div>
-                        <label className="block text-gray-300 text-sm font-bold mb-2">
-                            Year
-                        </label>
-                        <select
-                            name="year"
-                            value={searchParams.year}
-                            onChange={handleInputChange}
-                            className="bg-gray-700 border border-gray-600 rounded w-full py-2 px-3 text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        >
-                            <option value="">All Years</option>
-                            {years.map(year => (
-                                <option key={year} value={year}>{year}</option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div>
-                        <label className="block text-gray-300 text-sm font-bold mb-2">
-                            Month
-                        </label>
-                        <select
-                            name="month"
-                            value={searchParams.month}
-                            onChange={handleInputChange}
-                            className="bg-gray-700 border border-gray-600 rounded w-full py-2 px-3 text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        >
-                            <option value="">All Months</option>
-                            {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
-                                <option key={month} value={month}>
-                                    {new Date(2000, month - 1).toLocaleString('default', { month: 'long' })}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                    {/* Location and Song Search */}
-                    <div>
-                        <label className="block text-gray-300 text-sm font-bold mb-2">
-                            Venue
-                        </label>
-                        <select
-                            name="venue"
-                            value={searchParams.venue}
-                            onChange={handleInputChange}
-                            className="bg-gray-700 border border-gray-600 rounded w-full py-2 px-3 text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        >
-                            <option value="">All Venues</option>
-                            {venues.map(venue => (
-                                <option key={venue} value={venue}>{venue}</option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div>
-                        <label className="block text-gray-300 text-sm font-bold mb-2">
-                            City
-                        </label>
-                        <select
-                            name="city"
-                            value={searchParams.city}
-                            onChange={handleInputChange}
-                            className="bg-gray-700 border border-gray-600 rounded w-full py-2 px-3 text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        >
-                            <option value="">All Cities</option>
-                            {cities.map(city => (
-                                <option key={city} value={city}>{city}</option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div>
-                        <label className="block text-gray-300 text-sm font-bold mb-2">
-                            Song
-                        </label>
-                        <select
-                            name="song"
-                            value={searchParams.song}
-                            onChange={handleInputChange}
-                            className="bg-gray-700 border border-gray-600 rounded w-full py-2 px-3 text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        >
-                            <option value="">All Songs</option>
-                            {songs.map(song => (
-                                <option key={song} value={song}>{song}</option>
-                            ))}
-                        </select>
-                    </div>
-                </div>
-
-                {/* Content Filter Checkboxes */}
-                <div className="mb-4">
-                    <label className="block text-gray-300 text-sm font-bold mb-3">
-                        Filter by Content
-                    </label>
-                    <div className="flex flex-wrap gap-4">
-                        <label className="inline-flex items-center cursor-pointer">
-                            <input
-                                type="checkbox"
-                                name="hasNotes"
-                                checked={searchParams.hasNotes}
-                                onChange={handleInputChange}
-                                className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500 focus:ring-2"
-                            />
-                            <span className="ml-2 text-gray-300 text-sm">Has Notes</span>
-                        </label>
-                        <label className="inline-flex items-center cursor-pointer">
-                            <input
-                                type="checkbox"
-                                name="hasPhotos"
-                                checked={searchParams.hasPhotos}
-                                onChange={handleInputChange}
-                                className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500 focus:ring-2"
-                            />
-                            <span className="ml-2 text-gray-300 text-sm">Has Photos</span>
-                        </label>
-                        <label className="inline-flex items-center cursor-pointer">
-                            <input
-                                type="checkbox"
-                                name="hasPoster"
-                                checked={searchParams.hasPoster}
-                                onChange={handleInputChange}
-                                className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500 focus:ring-2"
-                            />
-                            <span className="ml-2 text-gray-300 text-sm">Has Poster</span>
-                        </label>
-                    </div>
-                </div>
-
-                <div className="flex items-center justify-between">
-                    <div className="text-sm text-gray-400 italic">
-                        {loading ? '🔍 Searching...' : '✨ Results update automatically as you select filters'}
-                    </div>
-                    {getActiveFilters().length > 0 && (
-                        <button
-                            type="button"
-                            onClick={clearAllFilters}
-                            className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors"
-                        >
-                            Clear All Filters
-                        </button>
-                    )}
-                </div>
-            </form>
 
             {/* Active Filters */}
             {getActiveFilters().length > 0 && (
