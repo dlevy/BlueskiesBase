@@ -29,21 +29,11 @@ export const AuthProvider = ({ children }) => {
             // Fetch user profile to get admin status
             if (session?.user) {
                 try {
-                    // Add timeout to prevent hanging
-                    const timeoutPromise = new Promise((_, reject) =>
-                        setTimeout(() => reject(new Error('Profile fetch timeout')), 5000)
-                    );
-
-                    const profilePromise = supabase
+                    const { data: profileData, error } = await supabase
                         .from('profiles')
                         .select('*')
                         .eq('id', session.user.id)
                         .single();
-
-                    const { data: profileData, error } = await Promise.race([
-                        profilePromise,
-                        timeoutPromise
-                    ]);
 
                     if (error) {
                         console.error('[AuthContext] Error fetching profile:', error);
@@ -78,21 +68,11 @@ export const AuthProvider = ({ children }) => {
                 try {
                     console.log('[AuthContext] Fetching profile for user:', session.user.email);
 
-                    // Add timeout to prevent hanging
-                    const timeoutPromise = new Promise((_, reject) =>
-                        setTimeout(() => reject(new Error('Profile fetch timeout')), 5000)
-                    );
-
-                    const profilePromise = supabase
+                    const { data: profileData, error } = await supabase
                         .from('profiles')
                         .select('*')
                         .eq('id', session.user.id)
                         .single();
-
-                    const { data: profileData, error } = await Promise.race([
-                        profilePromise,
-                        timeoutPromise
-                    ]);
 
                     if (error) {
                         console.error('[AuthContext] Error fetching profile:', error);
