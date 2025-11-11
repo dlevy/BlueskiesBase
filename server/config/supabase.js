@@ -21,5 +21,8 @@ const supabase = createClient(
     }
 );
 
-module.exports = supabase;
+// Create admin client (same as supabase for service role)
+const supabaseAdmin = supabase;
+
+module.exports = { supabase, supabaseAdmin };
 
