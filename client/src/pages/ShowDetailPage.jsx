@@ -200,6 +200,11 @@ export default function ShowDetailPage() {
                                     {show.setlist.set1.map((song, index) => (
                                         <li key={index} className="text-lg text-gray-200">
                                             <span className="font-medium">{song.title}</span>
+                                            {song.is_original && !song.is_cover && (
+                                                <span className="ml-2 text-xs bg-green-900/50 text-green-300 px-2 py-0.5 rounded border border-green-700">
+                                                    Original
+                                                </span>
+                                            )}
                                             {song.is_cover && (
                                                 <span className="ml-2 text-xs bg-blue-900/50 text-blue-300 px-2 py-0.5 rounded border border-blue-700">
                                                     Cover
@@ -213,6 +218,11 @@ export default function ShowDetailPage() {
                                             {song.original_artist && (
                                                 <span className="text-sm text-gray-500 ml-2">
                                                     ({song.original_artist})
+                                                </span>
+                                            )}
+                                            {song.written_by && (
+                                                <span className="text-sm text-gray-500 ml-2">
+                                                    [Written by: {song.written_by}]
                                                 </span>
                                             )}
                                             {song.notes && (
@@ -234,6 +244,11 @@ export default function ShowDetailPage() {
                                     {show.setlist.set2.map((song, index) => (
                                         <li key={index} className="text-lg text-gray-200">
                                             <span className="font-medium">{song.title}</span>
+                                            {song.is_original && !song.is_cover && (
+                                                <span className="ml-2 text-xs bg-green-900/50 text-green-300 px-2 py-0.5 rounded border border-green-700">
+                                                    Original
+                                                </span>
+                                            )}
                                             {song.is_cover && (
                                                 <span className="ml-2 text-xs bg-blue-900/50 text-blue-300 px-2 py-0.5 rounded border border-blue-700">
                                                     Cover
@@ -247,6 +262,11 @@ export default function ShowDetailPage() {
                                             {song.original_artist && (
                                                 <span className="text-sm text-gray-500 ml-2">
                                                     ({song.original_artist})
+                                                </span>
+                                            )}
+                                            {song.written_by && (
+                                                <span className="text-sm text-gray-500 ml-2">
+                                                    [Written by: {song.written_by}]
                                                 </span>
                                             )}
                                             {song.notes && (
@@ -268,6 +288,11 @@ export default function ShowDetailPage() {
                                     {show.setlist.set3.map((song, index) => (
                                         <li key={index} className="text-lg text-gray-200">
                                             <span className="font-medium">{song.title}</span>
+                                            {song.is_original && !song.is_cover && (
+                                                <span className="ml-2 text-xs bg-green-900/50 text-green-300 px-2 py-0.5 rounded border border-green-700">
+                                                    Original
+                                                </span>
+                                            )}
                                             {song.is_cover && (
                                                 <span className="ml-2 text-xs bg-blue-900/50 text-blue-300 px-2 py-0.5 rounded border border-blue-700">
                                                     Cover
@@ -281,6 +306,11 @@ export default function ShowDetailPage() {
                                             {song.original_artist && (
                                                 <span className="text-sm text-gray-500 ml-2">
                                                     ({song.original_artist})
+                                                </span>
+                                            )}
+                                            {song.written_by && (
+                                                <span className="text-sm text-gray-500 ml-2">
+                                                    [Written by: {song.written_by}]
                                                 </span>
                                             )}
                                             {song.notes && (
@@ -302,6 +332,11 @@ export default function ShowDetailPage() {
                                     {show.setlist.encore.map((song, index) => (
                                         <li key={index} className="text-lg text-gray-200">
                                             <span className="font-medium">{song.title}</span>
+                                            {song.is_original && !song.is_cover && (
+                                                <span className="ml-2 text-xs bg-green-900/50 text-green-300 px-2 py-0.5 rounded border border-green-700">
+                                                    Original
+                                                </span>
+                                            )}
                                             {song.is_cover && (
                                                 <span className="ml-2 text-xs bg-blue-900/50 text-blue-300 px-2 py-0.5 rounded border border-blue-700">
                                                     Cover
@@ -315,6 +350,11 @@ export default function ShowDetailPage() {
                                             {song.original_artist && (
                                                 <span className="text-sm text-gray-500 ml-2">
                                                     ({song.original_artist})
+                                                </span>
+                                            )}
+                                            {song.written_by && (
+                                                <span className="text-sm text-gray-500 ml-2">
+                                                    [Written by: {song.written_by}]
                                                 </span>
                                             )}
                                             {song.notes && (
