@@ -467,31 +467,31 @@ export default function SearchPage() {
                                             {show.artist_name}
                                         </p>
                                         {show.venues && (
-                                            <p className="text-gray-400 mt-1 text-xs md:text-sm flex items-center justify-center gap-2">
-                                                <span>{show.venues.name} - {show.venues.city}, {show.venues.state_country}</span>
-                                                {(hasNotes || hasPhotos) && (
-                                                    <span className="flex items-center gap-1">
-                                                        {hasNotes && (
-                                                            <span
-                                                                className="text-yellow-400"
-                                                                title="Has user notes"
-                                                                aria-label="Has user notes"
-                                                            >
-                                                                📝
-                                                            </span>
-                                                        )}
-                                                        {hasPhotos && (
-                                                            <span
-                                                                className="text-blue-400"
-                                                                title="Has user photos"
-                                                                aria-label="Has user photos"
-                                                            >
-                                                                📸
-                                                            </span>
-                                                        )}
+                                            <p className="text-gray-400 mt-1 text-xs md:text-sm">
+                                                {show.venues.name} - {show.venues.city}, {show.venues.state_country}
+                                            </p>
+                                        )}
+
+                                        {/* Content Badges - Notes and Photos */}
+                                        {(hasNotes || hasPhotos) && (
+                                            <div className="mt-2 flex items-center justify-center gap-2">
+                                                {hasNotes && (
+                                                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-yellow-900/30 border border-yellow-700/50 text-yellow-300 text-xs font-medium">
+                                                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                                            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                                                        </svg>
+                                                        <span>Notes</span>
                                                     </span>
                                                 )}
-                                            </p>
+                                                {hasPhotos && (
+                                                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-blue-900/30 border border-blue-700/50 text-blue-300 text-xs font-medium">
+                                                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                                            <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                                                        </svg>
+                                                        <span>Photos</span>
+                                                    </span>
+                                                )}
+                                            </div>
                                         )}
                                         {show.tour_name && (
                                             <p className="text-xs md:text-sm text-gray-500 italic mt-1">{show.tour_name}</p>
