@@ -320,20 +320,49 @@ export const checkShowAttendance = async (showId) => {
  * Get user statistics
  */
 export const getUserStats = async () => {
+    console.log('[API] getUserStats: Starting...');
+
     const token = await getAuthToken();
     if (!token) {
+        console.log('[API] getUserStats: No auth token');
         throw new Error('Not authenticated');
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/users/stats`, {
-        headers: {
-            'Authorization': `Bearer ${token}`,
-        },
-    });
-    if (!response.ok) {
-        throw new Error('Failed to fetch user statistics');
+    console.log('[API] getUserStats: Fetching from backend...');
+
+    // Add timeout to prevent hanging
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/users/stats`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            },
+            signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('[API] getUserStats: Error response:', response.status, errorText);
+            throw new Error(`Failed to fetch user statistics: ${response.status}`);
+        }
+
+        console.log('[API] getUserStats: Parsing response...');
+        const data = await response.json();
+        console.log('[API] getUserStats: Success');
+        return data;
+    } catch (error) {
+        clearTimeout(timeoutId);
+        if (error.name === 'AbortError') {
+            console.error('[API] getUserStats: Request timeout');
+            throw new Error('Request timed out. Please try again.');
+        }
+        console.error('[API] getUserStats: Error:', error);
+        throw error;
     }
-    return response.json();
 };
 
 /**

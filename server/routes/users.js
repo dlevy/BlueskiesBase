@@ -209,19 +209,24 @@ router.get('/stats', async (req, res) => {
 
         const authHeader = req.headers.authorization;
         if (!authHeader) {
+            console.log('[Stats] No authorization header');
             return res.status(401).json({ error: 'No authorization header' });
         }
 
         const token = authHeader.replace('Bearer ', '');
+
+        console.log('[Stats] Authenticating user...');
         const { data: { user }, error: authError } = await supabase.auth.getUser(token);
 
         if (authError || !user) {
+            console.log('[Stats] Authentication failed:', authError?.message);
             return res.status(401).json({ error: 'Unauthorized' });
         }
 
         console.log(`[Stats] User authenticated: ${user.email}`);
 
         // Get all attended shows with their setlists
+        console.log('[Stats] Fetching attended shows...');
         const { data: attendedShows, error: showsError } = await supabase
             .from('user_shows')
             .select(`
@@ -241,22 +246,25 @@ router.get('/stats', async (req, res) => {
             .eq('user_id', user.id);
 
         if (showsError) {
-            console.error('Error fetching attended shows:', showsError);
+            console.error('[Stats] Error fetching attended shows:', showsError);
             return res.status(500).json({ error: 'Failed to fetch statistics' });
         }
 
+        console.log(`[Stats] Found ${attendedShows?.length || 0} attended shows`);
         const attendedShowIds = attendedShows.map(us => us.show_id);
 
         // Get all songs from attended shows
         // Need to paginate to get all records
         let songsSeen = [];
         if (attendedShowIds.length > 0) {
+            console.log('[Stats] Fetching songs from attended shows...');
             let allSetlistSongs = [];
             let page = 0;
             const pageSize = 1000;
             let hasMore = true;
 
             while (hasMore) {
+                console.log(`[Stats] Fetching songs page ${page + 1}...`);
                 const { data: setlistSongs, error: songsError } = await supabase
                     .from('setlist_songs')
                     .select(`
@@ -273,18 +281,20 @@ router.get('/stats', async (req, res) => {
                     .range(page * pageSize, (page + 1) * pageSize - 1);
 
                 if (songsError) {
-                    console.error('Error fetching songs:', songsError);
+                    console.error('[Stats] Error fetching songs:', songsError);
                     break;
                 }
 
                 if (setlistSongs && setlistSongs.length > 0) {
                     allSetlistSongs = allSetlistSongs.concat(setlistSongs);
+                    console.log(`[Stats] Page ${page + 1}: ${setlistSongs.length} records, total: ${allSetlistSongs.length}`);
                     page++;
                     hasMore = setlistSongs.length === pageSize;
                 } else {
                     hasMore = false;
                 }
             }
+            console.log(`[Stats] Total setlist songs fetched: ${allSetlistSongs.length}`);
 
             // Get unique songs with play count (count once per show, not per performance)
             const songPlayCount = new Map();
@@ -316,12 +326,14 @@ router.get('/stats', async (req, res) => {
 
         // Get all songs that have been played at least once (not orphan songs)
         // Need to paginate to get all records since we have 5000+ setlist_songs
+        console.log('[Stats] Fetching all played songs...');
         let allPlayedSongsData = [];
         let page = 0;
         const pageSize = 1000;
         let hasMore = true;
 
         while (hasMore) {
+            console.log(`[Stats] Fetching played songs page ${page + 1}...`);
             const { data: playedSongsData, error: playedSongsError } = await supabase
                 .from('setlist_songs')
                 .select(`
@@ -336,18 +348,20 @@ router.get('/stats', async (req, res) => {
                 .range(page * pageSize, (page + 1) * pageSize - 1);
 
             if (playedSongsError) {
-                console.error('Error fetching played songs:', playedSongsError);
+                console.error('[Stats] Error fetching played songs:', playedSongsError);
                 return res.status(500).json({ error: 'Failed to fetch statistics' });
             }
 
             if (playedSongsData && playedSongsData.length > 0) {
                 allPlayedSongsData = allPlayedSongsData.concat(playedSongsData);
+                console.log(`[Stats] Page ${page + 1}: ${playedSongsData.length} records, total: ${allPlayedSongsData.length}`);
                 page++;
                 hasMore = playedSongsData.length === pageSize;
             } else {
                 hasMore = false;
             }
         }
+        console.log(`[Stats] Total played songs records fetched: ${allPlayedSongsData.length}`);
 
         // Get unique songs that have been played
         const uniquePlayedSongs = new Map();
@@ -413,21 +427,28 @@ router.get('/stats', async (req, res) => {
 
         const endTime = Date.now();
         const duration = endTime - startTime;
-        console.log(`[Stats] Request completed in ${duration}ms`);
+        console.log(`[Stats] ✅ Request completed in ${duration}ms`);
         console.log(`[Stats] Shows: ${attendedShows.length}, Songs Seen: ${songsSeen.length}, Songs Not Seen: ${songsNotSeenWithShow.length}`);
 
-        res.json({
+        const response = {
             totalShowsAttended: attendedShows.length,
             attendedShows: attendedShows.map(us => us.shows),
             songsSeen: songsSeen,
             songsNotSeen: songsNotSeenWithShow,
             totalSongsSeen: songsSeen.length,
             totalSongsNotSeen: songsNotSeenWithShow.length
-        });
+        };
+
+        console.log('[Stats] Sending response...');
+        res.json(response);
 
     } catch (error) {
-        console.error('[Stats] Error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        console.error('[Stats] ❌ Error:', error);
+        console.error('[Stats] Error stack:', error.stack);
+        res.status(500).json({
+            error: 'Internal server error',
+            message: error.message
+        });
     }
 });
 

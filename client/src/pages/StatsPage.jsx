@@ -17,12 +17,12 @@ export default function StatsPage() {
             return;
         }
 
-        const fetchStats = async () => {
+        const fetchStats = async (retryCount = 0) => {
             try {
                 setLoading(true);
                 setError(null);
 
-                console.log('[StatsPage] Fetching stats...');
+                console.log('[StatsPage] Fetching stats... (attempt', retryCount + 1, ')');
                 const startTime = Date.now();
 
                 const data = await getUserStats();
@@ -34,6 +34,14 @@ export default function StatsPage() {
                 setStats(data);
             } catch (err) {
                 console.error('[StatsPage] Error fetching stats:', err);
+
+                // Retry once if it's a timeout or network error
+                if (retryCount === 0 && (err.message.includes('timeout') || err.message.includes('fetch'))) {
+                    console.log('[StatsPage] Retrying...');
+                    setTimeout(() => fetchStats(1), 1000);
+                    return;
+                }
+
                 setError(err.message || 'Failed to load statistics. Please try refreshing the page.');
             } finally {
                 setLoading(false);
@@ -47,7 +55,12 @@ export default function StatsPage() {
         return (
             <div className="px-4 py-8 max-w-6xl mx-auto">
                 <div className="text-center">
-                    <div className="text-xl text-gray-300">Loading your statistics...</div>
+                    <div className="text-xl text-gray-300 mb-4">Loading your statistics...</div>
+                    <div className="text-sm text-gray-500">This may take a few seconds...</div>
+                    {/* Spinner */}
+                    <div className="mt-6 flex justify-center">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400"></div>
+                    </div>
                 </div>
             </div>
         );
