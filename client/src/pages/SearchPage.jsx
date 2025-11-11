@@ -176,12 +176,15 @@ export default function SearchPage() {
                             is_original
                         )
                     `)
-                    .in('show_id', showIds);
+                    .in('show_id', showIds)
+                    .not('song_id', 'is', null);
 
                 if (error) {
                     console.error('[SearchPage] Error fetching setlist songs for stats:', error);
                     return;
                 }
+
+                console.log('[SearchPage] Fetched setlist songs:', setlistSongs?.length, 'songs for', showIds.length, 'shows');
 
                 // Calculate stats per show
                 const statsMap = {};
@@ -205,6 +208,11 @@ export default function SearchPage() {
                         // Use ONLY the songs table as master source of truth
                         const isOriginal = item.songs?.is_original === true;
 
+                        // Debug: Log if songs relation is missing
+                        if (!item.songs) {
+                            console.warn('[SearchPage] Missing songs relation for song_id:', songId, 'in show:', showId);
+                        }
+
                         if (isOriginal) {
                             originals++;
                         } else {
@@ -212,6 +220,7 @@ export default function SearchPage() {
                         }
                     });
 
+                    console.log('[SearchPage] Show', showId, 'stats:', { originals, covers, totalSongs: showSongs.length });
                     statsMap[showId] = { originals, covers };
                 });
 
