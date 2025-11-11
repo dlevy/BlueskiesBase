@@ -763,19 +763,12 @@ export default function SearchPage() {
                                             </div>
                                         )}
 
-                                        {/* Song Stats Badges - Originals and Covers */}
-                                        {(songStats.originals > 0 || songStats.covers > 0) && (
+                                        {/* Song Stats Badges - Only show Covers count, Originals are implied */}
+                                        {songStats.covers > 0 && (
                                             <div className="mt-2 flex items-center justify-center gap-2 flex-wrap">
-                                                {songStats.originals > 0 && (
-                                                    <span className="text-xs bg-green-900/50 text-green-300 px-2 py-1 rounded border border-green-700">
-                                                        {songStats.originals} Original{songStats.originals !== 1 ? 's' : ''}
-                                                    </span>
-                                                )}
-                                                {songStats.covers > 0 && (
-                                                    <span className="text-xs bg-blue-900/50 text-blue-300 px-2 py-1 rounded border border-blue-700">
-                                                        {songStats.covers} Cover{songStats.covers !== 1 ? 's' : ''}
-                                                    </span>
-                                                )}
+                                                <span className="text-xs bg-blue-900/50 text-blue-300 px-2 py-1 rounded border border-blue-700">
+                                                    {songStats.covers} Cover{songStats.covers !== 1 ? 's' : ''}
+                                                </span>
                                             </div>
                                         )}
                                         {show.tour_name && (

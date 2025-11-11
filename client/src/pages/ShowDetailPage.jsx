@@ -268,11 +268,7 @@ export default function ShowDetailPage() {
                                                 <div className="flex flex-wrap items-center gap-2">
                                                     <span className="font-medium text-lg">{song.title}</span>
 
-                                                    {song.is_original === true && (
-                                                        <span className="text-xs bg-green-900/50 text-green-300 px-2 py-0.5 rounded border border-green-700 whitespace-nowrap">
-                                                            Original
-                                                        </span>
-                                                    )}
+                                                    {/* Only show Cover badge, Original is implied */}
                                                     {song.is_original === false && (
                                                         <span className="text-xs bg-blue-900/50 text-blue-300 px-2 py-0.5 rounded border border-blue-700 whitespace-nowrap">
                                                             Cover
@@ -325,11 +321,7 @@ export default function ShowDetailPage() {
                                                 <div className="flex flex-wrap items-center gap-2">
                                                     <span className="font-medium text-lg">{song.title}</span>
 
-                                                    {song.is_original === true && (
-                                                        <span className="text-xs bg-green-900/50 text-green-300 px-2 py-0.5 rounded border border-green-700 whitespace-nowrap">
-                                                            Original
-                                                        </span>
-                                                    )}
+                                                    {/* Only show Cover badge, Original is implied */}
                                                     {song.is_original === false && (
                                                         <span className="text-xs bg-blue-900/50 text-blue-300 px-2 py-0.5 rounded border border-blue-700 whitespace-nowrap">
                                                             Cover
@@ -382,11 +374,7 @@ export default function ShowDetailPage() {
                                                 <div className="flex flex-wrap items-center gap-2">
                                                     <span className="font-medium text-lg">{song.title}</span>
 
-                                                    {song.is_original === true && (
-                                                        <span className="text-xs bg-green-900/50 text-green-300 px-2 py-0.5 rounded border border-green-700 whitespace-nowrap">
-                                                            Original
-                                                        </span>
-                                                    )}
+                                                    {/* Only show Cover badge, Original is implied */}
                                                     {song.is_original === false && (
                                                         <span className="text-xs bg-blue-900/50 text-blue-300 px-2 py-0.5 rounded border border-blue-700 whitespace-nowrap">
                                                             Cover
@@ -439,11 +427,7 @@ export default function ShowDetailPage() {
                                                 <div className="flex flex-wrap items-center gap-2">
                                                     <span className="font-medium text-lg">{song.title}</span>
 
-                                                    {song.is_original === true && (
-                                                        <span className="text-xs bg-green-900/50 text-green-300 px-2 py-0.5 rounded border border-green-700 whitespace-nowrap">
-                                                            Original
-                                                        </span>
-                                                    )}
+                                                    {/* Only show Cover badge, Original is implied */}
                                                     {song.is_original === false && (
                                                         <span className="text-xs bg-blue-900/50 text-blue-300 px-2 py-0.5 rounded border border-blue-700 whitespace-nowrap">
                                                             Cover
