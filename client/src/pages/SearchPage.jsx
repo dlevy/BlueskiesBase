@@ -25,7 +25,7 @@ export default function SearchPage() {
     const [attendanceMap, setAttendanceMap] = useState({}); // Track attendance for each show
     const [attendanceLoading, setAttendanceLoading] = useState({}); // Track loading state per show
     const [contentMap, setContentMap] = useState({}); // Track notes/photos for each show
-    const [songStats, setSongStats] = useState({ uniqueOriginals: 0, uniqueCovers: 0 }); // Track unique songs in results
+    const [songStatsMap, setSongStatsMap] = useState({}); // Track unique songs per show: { showId: { originals: N, covers: N } }
 
     // Pagination state for standalone content filtering
     const [currentPage, setCurrentPage] = useState(1);
@@ -154,11 +154,11 @@ export default function SearchPage() {
         checkContent();
     }, [results]);
 
-    // Calculate song statistics (unique originals and covers) from filtered results
+    // Calculate song statistics (unique originals and covers) per show
     useEffect(() => {
         const calculateSongStats = async () => {
             if (filteredResults.length === 0) {
-                setSongStats({ uniqueOriginals: 0, uniqueCovers: 0 });
+                setSongStatsMap({});
                 return;
             }
 
@@ -169,6 +169,7 @@ export default function SearchPage() {
                 const { data: setlistSongs, error } = await supabase
                     .from('setlist_songs')
                     .select(`
+                        show_id,
                         song_id,
                         is_cover,
                         songs (
@@ -183,35 +184,41 @@ export default function SearchPage() {
                     return;
                 }
 
-                // Track unique songs by song_id
-                const uniqueSongIds = new Set();
-                const originalSongIds = new Set();
-                const coverSongIds = new Set();
+                // Calculate stats per show
+                const statsMap = {};
 
-                setlistSongs?.forEach(item => {
-                    const songId = item.song_id;
-                    if (!songId || uniqueSongIds.has(songId)) {
-                        return; // Skip if no song_id or already counted
-                    }
+                showIds.forEach(showId => {
+                    const showSongs = setlistSongs?.filter(item => item.show_id === showId) || [];
 
-                    uniqueSongIds.add(songId);
+                    // Track unique songs by song_id for this show
+                    const uniqueSongIds = new Set();
+                    let originals = 0;
+                    let covers = 0;
 
-                    // Determine if it's a cover using smart merge logic (same as backend)
-                    const isCover = item.is_cover !== null && item.is_cover !== undefined
-                        ? item.is_cover
-                        : (item.songs?.is_original === false);
+                    showSongs.forEach(item => {
+                        const songId = item.song_id;
+                        if (!songId || uniqueSongIds.has(songId)) {
+                            return; // Skip if no song_id or already counted for this show
+                        }
 
-                    if (isCover) {
-                        coverSongIds.add(songId);
-                    } else {
-                        originalSongIds.add(songId);
-                    }
+                        uniqueSongIds.add(songId);
+
+                        // Determine if it's a cover using smart merge logic (same as backend)
+                        const isCover = item.is_cover !== null && item.is_cover !== undefined
+                            ? item.is_cover
+                            : (item.songs?.is_original === false);
+
+                        if (isCover) {
+                            covers++;
+                        } else {
+                            originals++;
+                        }
+                    });
+
+                    statsMap[showId] = { originals, covers };
                 });
 
-                setSongStats({
-                    uniqueOriginals: originalSongIds.size,
-                    uniqueCovers: coverSongIds.size
-                });
+                setSongStatsMap(statsMap);
 
             } catch (err) {
                 console.error('[SearchPage] Error calculating song stats:', err);
@@ -634,25 +641,9 @@ export default function SearchPage() {
 
             {/* Results */}
             <div className="bg-gray-800 shadow-2xl rounded-lg px-8 pt-6 pb-8 border border-gray-700">
-                <div className="flex flex-wrap items-center gap-3 mb-6">
-                    <h2 className="text-2xl font-bold text-gray-100">
-                        Results {filteredResults.length > 0 && `(${filteredResults.length})`}
-                    </h2>
-                    {filteredResults.length > 0 && (songStats.uniqueOriginals > 0 || songStats.uniqueCovers > 0) && (
-                        <div className="flex gap-2">
-                            {songStats.uniqueOriginals > 0 && (
-                                <span className="text-xs bg-green-900/50 text-green-300 px-2 py-1 rounded border border-green-700">
-                                    {songStats.uniqueOriginals} Original{songStats.uniqueOriginals !== 1 ? 's' : ''}
-                                </span>
-                            )}
-                            {songStats.uniqueCovers > 0 && (
-                                <span className="text-xs bg-blue-900/50 text-blue-300 px-2 py-1 rounded border border-blue-700">
-                                    {songStats.uniqueCovers} Cover{songStats.uniqueCovers !== 1 ? 's' : ''}
-                                </span>
-                            )}
-                        </div>
-                    )}
-                </div>
+                <h2 className="text-2xl font-bold mb-6 text-gray-100">
+                    Results {filteredResults.length > 0 && `(${filteredResults.length})`}
+                </h2>
 
                 {!hasActiveFilters(searchParams) && !loading ? (
                     <div className="text-center py-8">
@@ -669,6 +660,7 @@ export default function SearchPage() {
                             const hasNotes = contentMap[show.id]?.hasNotes || false;
                             const hasPhotos = contentMap[show.id]?.hasPhotos || false;
                             const hasPoster = contentMap[show.id]?.hasPoster || false;
+                            const songStats = songStatsMap[show.id] || { originals: 0, covers: 0 };
 
                             return (
                                 <div key={show.id} className="border border-gray-700 pb-4 hover:border-blue-500 transition-colors rounded-lg p-4 bg-gray-750 relative text-center">
@@ -738,6 +730,22 @@ export default function SearchPage() {
                                                             <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
                                                         </svg>
                                                         <span>Poster</span>
+                                                    </span>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {/* Song Stats Badges - Originals and Covers */}
+                                        {(songStats.originals > 0 || songStats.covers > 0) && (
+                                            <div className="mt-2 flex items-center justify-center gap-2 flex-wrap">
+                                                {songStats.originals > 0 && (
+                                                    <span className="text-xs bg-green-900/50 text-green-300 px-2 py-1 rounded border border-green-700">
+                                                        {songStats.originals} Original{songStats.originals !== 1 ? 's' : ''}
+                                                    </span>
+                                                )}
+                                                {songStats.covers > 0 && (
+                                                    <span className="text-xs bg-blue-900/50 text-blue-300 px-2 py-1 rounded border border-blue-700">
+                                                        {songStats.covers} Cover{songStats.covers !== 1 ? 's' : ''}
                                                     </span>
                                                 )}
                                             </div>
