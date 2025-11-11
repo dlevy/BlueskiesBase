@@ -319,13 +319,12 @@ SELECT
     false
 FROM public.songs WHERE title = 'Best Clockmaker on Mars';
 
--- SET 2
 INSERT INTO public.setlist_songs (show_id, song_id, set_number, song_order, is_encore, notes, is_cover, original_artist, jams_into)
 SELECT
     'd3b365b4-e1e0-4b40-a414-d5a29d360526',
     id,
-    2,
     1,
+    24,
     false,
     NULL,
     false,
@@ -337,8 +336,8 @@ INSERT INTO public.setlist_songs (show_id, song_id, set_number, song_order, is_e
 SELECT
     'd3b365b4-e1e0-4b40-a414-d5a29d360526',
     id,
-    2,
-    2,
+    1,
+    25,
     false,
     NULL,
     true,
@@ -350,8 +349,8 @@ INSERT INTO public.setlist_songs (show_id, song_id, set_number, song_order, is_e
 SELECT
     'd3b365b4-e1e0-4b40-a414-d5a29d360526',
     id,
-    2,
-    3,
+    1,
+    26,
     false,
     NULL,
     false,
@@ -363,8 +362,8 @@ INSERT INTO public.setlist_songs (show_id, song_id, set_number, song_order, is_e
 SELECT
     'd3b365b4-e1e0-4b40-a414-d5a29d360526',
     id,
-    2,
-    4,
+    1,
+    27,
     false,
     NULL,
     true,
@@ -376,8 +375,8 @@ INSERT INTO public.setlist_songs (show_id, song_id, set_number, song_order, is_e
 SELECT
     'd3b365b4-e1e0-4b40-a414-d5a29d360526',
     id,
-    2,
-    5,
+    1,
+    28,
     false,
     NULL,
     true,
@@ -389,8 +388,8 @@ INSERT INTO public.setlist_songs (show_id, song_id, set_number, song_order, is_e
 SELECT
     'd3b365b4-e1e0-4b40-a414-d5a29d360526',
     id,
-    2,
-    6,
+    1,
+    29,
     false,
     'Reprise',
     false,
@@ -402,8 +401,8 @@ INSERT INTO public.setlist_songs (show_id, song_id, set_number, song_order, is_e
 SELECT
     'd3b365b4-e1e0-4b40-a414-d5a29d360526',
     id,
-    2,
-    7,
+    1,
+    30,
     false,
     NULL,
     false,
@@ -415,8 +414,8 @@ INSERT INTO public.setlist_songs (show_id, song_id, set_number, song_order, is_e
 SELECT
     'd3b365b4-e1e0-4b40-a414-d5a29d360526',
     id,
-    2,
-    8,
+    1,
+    31,
     false,
     NULL,
     true,
@@ -428,8 +427,8 @@ INSERT INTO public.setlist_songs (show_id, song_id, set_number, song_order, is_e
 SELECT
     'd3b365b4-e1e0-4b40-a414-d5a29d360526',
     id,
-    2,
-    9,
+    1,
+    32,
     false,
     NULL,
     false,
@@ -441,8 +440,8 @@ INSERT INTO public.setlist_songs (show_id, song_id, set_number, song_order, is_e
 SELECT
     'd3b365b4-e1e0-4b40-a414-d5a29d360526',
     id,
-    2,
-    10,
+    1,
+    33,
     false,
     NULL,
     false,
@@ -454,8 +453,8 @@ INSERT INTO public.setlist_songs (show_id, song_id, set_number, song_order, is_e
 SELECT
     'd3b365b4-e1e0-4b40-a414-d5a29d360526',
     id,
-    2,
-    11,
+    1,
+    34,
     false,
     NULL,
     false,
@@ -467,8 +466,8 @@ INSERT INTO public.setlist_songs (show_id, song_id, set_number, song_order, is_e
 SELECT
     'd3b365b4-e1e0-4b40-a414-d5a29d360526',
     id,
-    2,
-    12,
+    1,
+    35,
     false,
     'China Cat Sunflower Interpolation',
     false,
@@ -480,8 +479,8 @@ INSERT INTO public.setlist_songs (show_id, song_id, set_number, song_order, is_e
 SELECT
     'd3b365b4-e1e0-4b40-a414-d5a29d360526',
     id,
-    2,
-    13,
+    1,
+    36,
     false,
     'intro',
     false,
@@ -493,8 +492,8 @@ INSERT INTO public.setlist_songs (show_id, song_id, set_number, song_order, is_e
 SELECT
     'd3b365b4-e1e0-4b40-a414-d5a29d360526',
     id,
-    2,
-    14,
+    1,
+    37,
     false,
     NULL,
     true,
@@ -506,8 +505,8 @@ INSERT INTO public.setlist_songs (show_id, song_id, set_number, song_order, is_e
 SELECT
     'd3b365b4-e1e0-4b40-a414-d5a29d360526',
     id,
-    2,
-    15,
+    1,
+    38,
     false,
     NULL,
     false,
@@ -519,8 +518,8 @@ INSERT INTO public.setlist_songs (show_id, song_id, set_number, song_order, is_e
 SELECT
     'd3b365b4-e1e0-4b40-a414-d5a29d360526',
     id,
-    2,
-    16,
+    1,
+    39,
     false,
     NULL,
     true,
@@ -532,8 +531,8 @@ INSERT INTO public.setlist_songs (show_id, song_id, set_number, song_order, is_e
 SELECT
     'd3b365b4-e1e0-4b40-a414-d5a29d360526',
     id,
-    2,
-    17,
+    1,
+    40,
     false,
     NULL,
     true,
@@ -545,8 +544,8 @@ INSERT INTO public.setlist_songs (show_id, song_id, set_number, song_order, is_e
 SELECT
     'd3b365b4-e1e0-4b40-a414-d5a29d360526',
     id,
-    2,
-    18,
+    1,
+    41,
     false,
     'outro',
     false,
