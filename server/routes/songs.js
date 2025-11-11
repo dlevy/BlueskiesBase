@@ -34,8 +34,8 @@ router.get('/stats/global', async (req, res) => {
     try {
         console.log('[Song Stats] Fetching global song statistics...');
 
-        // Get all setlist_songs with song info (remove default 1000 row limit)
-        const { data: setlistSongs, error: setlistError, count: setlistCount } = await supabase
+        // Get all setlist_songs with song info (use range to bypass 1000 row limit)
+        const { data: setlistSongs, error: setlistError } = await supabase
             .from('setlist_songs')
             .select(`
                 show_id,
@@ -46,8 +46,8 @@ router.get('/stats/global', async (req, res) => {
                     is_original,
                     original_artist
                 )
-            `, { count: 'exact' })
-            .limit(10000); // Increase limit to handle all setlist songs
+            `)
+            .range(0, 9999); // Get up to 10,000 rows (we have ~5,836)
 
         if (setlistError) {
             console.error('[Song Stats] Error fetching setlist songs:', setlistError);
@@ -55,13 +55,13 @@ router.get('/stats/global', async (req, res) => {
             return res.status(500).json({ error: 'Failed to fetch song statistics', details: setlistError.message });
         }
 
-        console.log(`[Song Stats] Fetched ${setlistSongs?.length || 0} setlist songs (total: ${setlistCount})`);
+        console.log(`[Song Stats] Fetched ${setlistSongs?.length || 0} setlist songs`);
 
         // Get all shows to get dates
-        const { data: shows, error: showsError, count: showsCount } = await supabase
+        const { data: shows, error: showsError } = await supabase
             .from('shows')
-            .select('id, date', { count: 'exact' })
-            .limit(1000); // Should be enough for shows
+            .select('id, date')
+            .range(0, 999); // Get up to 1000 shows (we have ~302)
 
         if (showsError) {
             console.error('[Song Stats] Error fetching shows:', showsError);
@@ -69,7 +69,7 @@ router.get('/stats/global', async (req, res) => {
             return res.status(500).json({ error: 'Failed to fetch show dates', details: showsError.message });
         }
 
-        console.log(`[Song Stats] Fetched ${shows?.length || 0} shows (total: ${showsCount})`);
+        console.log(`[Song Stats] Fetched ${shows?.length || 0} shows`);
 
         // Create a map of show_id -> date for quick lookup
         const showDates = {};
