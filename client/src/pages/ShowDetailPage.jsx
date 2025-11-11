@@ -107,41 +107,42 @@ export default function ShowDetailPage() {
             </Link>
 
             {/* Show Header */}
-            <div className="bg-gray-800 shadow-2xl rounded-lg p-6 mb-6 border border-gray-700 relative text-center">
-                {/* Attendance Button - positioned absolutely in top right */}
+            <div className="bg-gray-800 shadow-2xl rounded-lg p-4 md:p-6 mb-6 border border-gray-700 relative text-center">
+                {/* Attendance Button - responsive positioning */}
                 {user && (
-                    <div className="absolute top-6 right-6">
+                    <div className="absolute top-2 right-2 md:top-6 md:right-6">
                         <button
                             onClick={handleAttendanceToggle}
                             disabled={attendanceLoading}
-                            className={`px-6 py-3 rounded-lg font-medium transition-all ${
+                            className={`px-3 py-2 md:px-6 md:py-3 rounded-lg font-medium text-xs md:text-base transition-all whitespace-nowrap ${
                                 attended
                                     ? 'bg-green-900/50 text-green-200 border-2 border-green-700 hover:bg-green-900/70'
                                     : 'bg-blue-900/50 text-blue-200 border-2 border-blue-700 hover:bg-blue-900/70'
                             } disabled:opacity-50`}
                         >
-                            {attendanceLoading ? '...' : attended ? '✓ I Was There' : '+ Mark as Attended'}
+                            {attendanceLoading ? '...' : attended ? '✓' : '+'}
+                            <span className="hidden sm:inline ml-1">{attended ? 'I Was There' : 'Mark as Attended'}</span>
                         </button>
                     </div>
                 )}
 
-                {/* Centered content */}
-                <div>
-                    <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">{show.artist_name}</h1>
-                    <p className="text-2xl text-gray-300 mb-2">{formatDate(show.show_date)}</p>
+                {/* Centered content - add padding on mobile to avoid button overlap */}
+                <div className={user ? 'pr-20 md:pr-0' : ''}>
+                    <h1 className="text-2xl md:text-4xl font-bold mb-2 bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">{show.artist_name}</h1>
+                    <p className="text-lg md:text-2xl text-gray-300 mb-2">{formatDate(show.show_date)}</p>
 
                     {show.venues && (
-                        <div className="text-lg text-gray-400 mb-2">
+                        <div className="text-sm md:text-lg text-gray-400 mb-2">
                             <p className="font-semibold text-gray-200">{show.venues.name}</p>
                             <p>{show.venues.city}, {show.venues.state_country}</p>
                             {show.venues.address && (
-                                <p className="text-sm">{show.venues.address}</p>
+                                <p className="text-xs md:text-sm">{show.venues.address}</p>
                             )}
                         </div>
                     )}
 
                     {show.tour_name && (
-                        <p className="text-lg italic text-gray-400 mb-2">
+                        <p className="text-sm md:text-lg italic text-gray-400 mb-2">
                             Tour: {show.tour_name}
                         </p>
                     )}

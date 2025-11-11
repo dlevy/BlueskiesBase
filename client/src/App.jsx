@@ -68,48 +68,97 @@ function PublicLayout() {
   return (
     <div className="min-h-screen bg-black">
       <div className="container mx-auto px-4">
-        <header className="bg-gradient-to-r from-blue-900 to-indigo-900 text-white py-6 shadow-2xl border-b border-blue-800 rounded-t-2xl mt-4">
-          <div className="px-4 flex justify-between items-center">
-            <Link to="/" className="hover:opacity-80 transition-opacity">
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-200 to-indigo-200 bg-clip-text text-transparent">blueskiesbase</h1>
-              <p className="text-blue-300"> something else goes here.</p>
-            </Link>
-
-            <div className="flex items-center gap-4">
-              {user ? (
-                <div className="flex items-center gap-4">
+        <header className="bg-gradient-to-r from-blue-900 to-indigo-900 text-white py-4 md:py-6 shadow-2xl border-b border-blue-800 rounded-t-2xl mt-4">
+          <div className="px-2 md:px-4">
+            {/* Mobile Layout */}
+            <div className="md:hidden">
+              <div className="flex justify-between items-center mb-3">
+                <Link to="/" className="hover:opacity-80 transition-opacity">
+                  <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-200 to-indigo-200 bg-clip-text text-transparent">blueskiesbase</h1>
+                </Link>
+                {user && (
                   <Link
                     to="/stats"
-                    className="px-4 py-2 text-sm font-medium text-blue-300 hover:text-blue-200 transition-colors"
+                    className="px-3 py-1.5 text-xs font-medium text-blue-300 hover:text-blue-200 transition-colors border border-blue-700 rounded-md"
                   >
                     My Stats
                   </Link>
-                  <span className="text-sm text-blue-300">
+                )}
+              </div>
+
+              {user ? (
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs text-blue-300 truncate max-w-[180px]">
                     {user.email}
                   </span>
                   <button
                     onClick={handleSignOut}
-                    className="px-4 py-2 text-sm font-medium text-white bg-blue-700 hover:bg-blue-600 rounded-md transition-colors"
+                    className="px-3 py-1.5 text-xs font-medium text-white bg-blue-700 hover:bg-blue-600 rounded-md transition-colors whitespace-nowrap"
                   >
                     Sign Out
                   </button>
                 </div>
               ) : (
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                   <Link
                     to="/member-login"
-                    className="px-4 py-2 text-sm font-medium text-blue-300 hover:text-blue-200 transition-colors"
+                    className="px-3 py-1.5 text-xs font-medium text-blue-300 hover:text-blue-200 transition-colors border border-blue-700 rounded-md"
                   >
                     Login
                   </Link>
                   <Link
                     to="/signup"
-                    className="px-4 py-2 text-sm font-medium text-white bg-blue-700 hover:bg-blue-600 rounded-md transition-colors"
+                    className="px-3 py-1.5 text-xs font-medium text-white bg-blue-700 hover:bg-blue-600 rounded-md transition-colors"
                   >
                     Sign Up
                   </Link>
                 </div>
               )}
+            </div>
+
+            {/* Desktop Layout */}
+            <div className="hidden md:flex justify-between items-center">
+              <Link to="/" className="hover:opacity-80 transition-opacity">
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-200 to-indigo-200 bg-clip-text text-transparent">blueskiesbase</h1>
+                <p className="text-blue-300"> something else goes here.</p>
+              </Link>
+
+              <div className="flex items-center gap-4">
+                {user ? (
+                  <div className="flex items-center gap-4">
+                    <Link
+                      to="/stats"
+                      className="px-4 py-2 text-sm font-medium text-blue-300 hover:text-blue-200 transition-colors"
+                    >
+                      My Stats
+                    </Link>
+                    <span className="text-sm text-blue-300">
+                      {user.email}
+                    </span>
+                    <button
+                      onClick={handleSignOut}
+                      className="px-4 py-2 text-sm font-medium text-white bg-blue-700 hover:bg-blue-600 rounded-md transition-colors"
+                    >
+                      Sign Out
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3">
+                    <Link
+                      to="/member-login"
+                      className="px-4 py-2 text-sm font-medium text-blue-300 hover:text-blue-200 transition-colors"
+                    >
+                      Login
+                    </Link>
+                    <Link
+                      to="/signup"
+                      className="px-4 py-2 text-sm font-medium text-white bg-blue-700 hover:bg-blue-600 rounded-md transition-colors"
+                    >
+                      Sign Up
+                    </Link>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </header>

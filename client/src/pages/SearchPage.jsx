@@ -406,47 +406,48 @@ export default function SearchPage() {
 
                             return (
                                 <div key={show.id} className="border border-gray-700 pb-4 hover:border-blue-500 transition-colors rounded-lg p-4 bg-gray-750 relative text-center">
-                                    {/* Attendance Button - positioned absolutely in top right */}
+                                    {/* Attendance Button - responsive positioning */}
                                     {user && (
-                                        <div className="absolute top-4 right-4">
+                                        <div className="absolute top-2 right-2 md:top-4 md:right-4">
                                             <button
                                                 onClick={(e) => handleAttendanceToggle(show.id, e)}
                                                 disabled={isLoading}
-                                                className={`px-4 py-2 rounded-lg font-medium text-sm transition-all whitespace-nowrap ${
+                                                className={`px-2 py-1 md:px-4 md:py-2 rounded-lg font-medium text-xs md:text-sm transition-all whitespace-nowrap ${
                                                     isAttended
                                                         ? 'bg-green-900/50 text-green-200 border-2 border-green-700 hover:bg-green-900/70'
                                                         : 'bg-blue-900/50 text-blue-200 border-2 border-blue-700 hover:bg-blue-900/70'
                                                 } disabled:opacity-50`}
                                             >
-                                                {isLoading ? '...' : isAttended ? '✓ I Was There' : '+ I Was There'}
+                                                {isLoading ? '...' : isAttended ? '✓' : '+'}
+                                                <span className="hidden sm:inline ml-1">I Was There</span>
                                             </button>
                                         </div>
                                     )}
 
-                                    {/* Centered content */}
-                                    <div>
-                                        <h3 className="text-xl font-semibold text-gray-100">
+                                    {/* Centered content - add padding on mobile to avoid button overlap */}
+                                    <div className={user ? 'pr-16 md:pr-0' : ''}>
+                                        <h3 className="text-lg md:text-xl font-semibold text-gray-100">
                                             {new Date(show.show_date).toLocaleDateString('en-US', {
                                                 year: 'numeric',
                                                 month: 'long',
                                                 day: 'numeric'
                                             })}
                                         </h3>
-                                        <p className="text-gray-300 mt-1">
+                                        <p className="text-gray-300 mt-1 text-sm md:text-base">
                                             {show.artist_name}
                                         </p>
                                         {show.venues && (
-                                            <p className="text-gray-400 mt-1">
+                                            <p className="text-gray-400 mt-1 text-xs md:text-sm">
                                                 {show.venues.name} - {show.venues.city}, {show.venues.state_country}
                                             </p>
                                         )}
                                         {show.tour_name && (
-                                            <p className="text-sm text-gray-500 italic mt-1">{show.tour_name}</p>
+                                            <p className="text-xs md:text-sm text-gray-500 italic mt-1">{show.tour_name}</p>
                                         )}
-                                        <div className="mt-3 flex items-center justify-center gap-3">
+                                        <div className="mt-3 flex flex-wrap items-center justify-center gap-2 md:gap-3">
                                             <Link
                                                 to={`/show/${show.id}`}
-                                                className="text-blue-400 hover:text-blue-300 text-sm transition-colors"
+                                                className="text-blue-400 hover:text-blue-300 text-xs md:text-sm transition-colors"
                                             >
                                                 View Setlist →
                                             </Link>
