@@ -28,16 +28,44 @@ router.post('/check-attendance-batch', async (req, res) => {
             return res.status(400).json({ error: 'showIds array is required' });
         }
 
-        // Fetch all attended shows for this user in one query
-        const { data: userShows, error } = await supabase
-            .from('user_shows')
-            .select('show_id')
-            .eq('user_id', user.id)
-            .in('show_id', showIds);
+        console.log(`[check-attendance-batch] Checking ${showIds.length} shows for user ${user.id}`);
 
-        if (error) {
-            console.error('Error checking attendance:', error);
-            return res.status(500).json({ error: 'Failed to check attendance' });
+        // If there are too many show IDs, we need to batch the query
+        // PostgreSQL/Supabase has limits on IN clause size
+        const BATCH_SIZE = 100;
+        let allUserShows = [];
+
+        if (showIds.length > BATCH_SIZE) {
+            // Process in batches
+            for (let i = 0; i < showIds.length; i += BATCH_SIZE) {
+                const batch = showIds.slice(i, i + BATCH_SIZE);
+                const { data: batchUserShows, error } = await supabase
+                    .from('user_shows')
+                    .select('show_id')
+                    .eq('user_id', user.id)
+                    .in('show_id', batch);
+
+                if (error) {
+                    console.error('Error checking attendance batch:', error);
+                    return res.status(500).json({ error: 'Failed to check attendance' });
+                }
+
+                allUserShows = allUserShows.concat(batchUserShows || []);
+            }
+        } else {
+            // Single query for small batches
+            const { data: userShows, error } = await supabase
+                .from('user_shows')
+                .select('show_id')
+                .eq('user_id', user.id)
+                .in('show_id', showIds);
+
+            if (error) {
+                console.error('Error checking attendance:', error);
+                return res.status(500).json({ error: 'Failed to check attendance' });
+            }
+
+            allUserShows = userShows || [];
         }
 
         // Create a map of show_id -> true for attended shows
@@ -46,10 +74,11 @@ router.post('/check-attendance-batch', async (req, res) => {
             attendanceMap[showId] = false; // Default to false
         });
 
-        userShows.forEach(userShow => {
+        allUserShows.forEach(userShow => {
             attendanceMap[userShow.show_id] = true;
         });
 
+        console.log(`[check-attendance-batch] Found ${allUserShows.length} attended shows out of ${showIds.length}`);
         res.json({ attendance: attendanceMap });
     } catch (error) {
         console.error('Error in check-attendance-batch:', error);
