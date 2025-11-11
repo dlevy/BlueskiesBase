@@ -582,3 +582,31 @@ export const deletePhoto = async (photoId) => {
     return response.json();
 };
 
+/**
+ * Check if shows have notes or photos (batch check for search results)
+ */
+export const checkShowsHaveContent = async (showIds) => {
+    console.log('[API] checkShowsHaveContent: Checking content for shows:', showIds);
+
+    if (!showIds || showIds.length === 0) {
+        return { contentMap: {} };
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/notes/check-content`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ show_ids: showIds }),
+    });
+
+    if (!response.ok) {
+        console.error('[API] checkShowsHaveContent: Failed to check content');
+        throw new Error('Failed to check content');
+    }
+
+    const data = await response.json();
+    console.log('[API] checkShowsHaveContent: Content map:', data.contentMap);
+    return data;
+};
+

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { searchShows, checkShowAttendanceBatch, markShowAttended, unmarkShowAttended } from '../services/api';
+import { searchShows, checkShowAttendanceBatch, markShowAttended, unmarkShowAttended, checkShowsHaveContent } from '../services/api';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -20,6 +20,7 @@ export default function SearchPage() {
     const [error, setError] = useState(null);
     const [attendanceMap, setAttendanceMap] = useState({}); // Track attendance for each show
     const [attendanceLoading, setAttendanceLoading] = useState({}); // Track loading state per show
+    const [contentMap, setContentMap] = useState({}); // Track notes/photos for each show
 
     // Dropdown options
     const [years, setYears] = useState([]);
@@ -119,6 +120,27 @@ export default function SearchPage() {
 
         checkAllAttendance();
     }, [results, user]);
+
+    // Check for notes and photos when results change
+    useEffect(() => {
+        const checkContent = async () => {
+            if (results.length === 0) {
+                setContentMap({});
+                return;
+            }
+
+            try {
+                const showIds = results.map(show => show.id);
+                const { contentMap } = await checkShowsHaveContent(showIds);
+                setContentMap(contentMap);
+            } catch (err) {
+                console.error('Error checking content:', err);
+                // Don't show error to user, just fail silently
+            }
+        };
+
+        checkContent();
+    }, [results]);
 
     const hasActiveFilters = (params) => {
         return params.year || params.month || params.venue || params.city || params.song || params.source || params.hasImages;
@@ -404,6 +426,8 @@ export default function SearchPage() {
                         {results.map(show => {
                             const isAttended = attendanceMap[show.id] || false;
                             const isLoading = attendanceLoading[show.id] || false;
+                            const hasNotes = contentMap[show.id]?.hasNotes || false;
+                            const hasPhotos = contentMap[show.id]?.hasPhotos || false;
 
                             return (
                                 <div key={show.id} className="border border-gray-700 pb-4 hover:border-blue-500 transition-colors rounded-lg p-4 bg-gray-750 relative text-center">
@@ -443,8 +467,30 @@ export default function SearchPage() {
                                             {show.artist_name}
                                         </p>
                                         {show.venues && (
-                                            <p className="text-gray-400 mt-1 text-xs md:text-sm">
-                                                {show.venues.name} - {show.venues.city}, {show.venues.state_country}
+                                            <p className="text-gray-400 mt-1 text-xs md:text-sm flex items-center justify-center gap-2">
+                                                <span>{show.venues.name} - {show.venues.city}, {show.venues.state_country}</span>
+                                                {(hasNotes || hasPhotos) && (
+                                                    <span className="flex items-center gap-1">
+                                                        {hasNotes && (
+                                                            <span
+                                                                className="text-yellow-400"
+                                                                title="Has user notes"
+                                                                aria-label="Has user notes"
+                                                            >
+                                                                📝
+                                                            </span>
+                                                        )}
+                                                        {hasPhotos && (
+                                                            <span
+                                                                className="text-blue-400"
+                                                                title="Has user photos"
+                                                                aria-label="Has user photos"
+                                                            >
+                                                                📸
+                                                            </span>
+                                                        )}
+                                                    </span>
+                                                )}
                                             </p>
                                         )}
                                         {show.tour_name && (

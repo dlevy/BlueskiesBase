@@ -206,5 +206,53 @@ router.delete('/:noteId', authenticate, async (req, res) => {
     }
 });
 
+/**
+ * POST /api/notes/check-content
+ * Check if shows have notes or photos (batch check for search results)
+ */
+router.post('/check-content', async (req, res) => {
+    try {
+        const { show_ids } = req.body;
+
+        if (!show_ids || !Array.isArray(show_ids) || show_ids.length === 0) {
+            return res.json({ contentMap: {} });
+        }
+
+        // Check for notes
+        const { data: notesData, error: notesError } = await supabaseAdmin
+            .from('user_notes')
+            .select('show_id')
+            .in('show_id', show_ids);
+
+        if (notesError) {
+            console.error('Error checking notes:', notesError);
+        }
+
+        // Check for photos
+        const { data: photosData, error: photosError } = await supabaseAdmin
+            .from('user_photos')
+            .select('show_id')
+            .in('show_id', show_ids);
+
+        if (photosError) {
+            console.error('Error checking photos:', photosError);
+        }
+
+        // Build content map
+        const contentMap = {};
+        show_ids.forEach(showId => {
+            contentMap[showId] = {
+                hasNotes: notesData ? notesData.some(n => n.show_id === showId) : false,
+                hasPhotos: photosData ? photosData.some(p => p.show_id === showId) : false
+            };
+        });
+
+        res.json({ contentMap });
+    } catch (error) {
+        console.error('Error in POST /api/notes/check-content:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 module.exports = router;
 
