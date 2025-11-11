@@ -193,13 +193,15 @@ export default function SongStatsWidget() {
                                     key={song.id}
                                     className="flex flex-col p-2 bg-gray-750 rounded border border-gray-600"
                                 >
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                                    <div className="flex items-start justify-between">
+                                        <div className="flex items-start gap-2 flex-1 min-w-0">
                                             <div className="text-lg font-bold text-green-400 w-5 flex-shrink-0">
                                                 {index + 1}
                                             </div>
-                                            <div className="font-medium text-gray-100 text-sm truncate">
-                                                {song.title}
+                                            <div className="min-w-0 flex-1">
+                                                <div className="font-medium text-gray-100 text-sm truncate">
+                                                    {song.title}
+                                                </div>
                                             </div>
                                         </div>
                                         <div className="text-sm font-semibold text-green-300 ml-2 flex-shrink-0">
@@ -227,13 +229,15 @@ export default function SongStatsWidget() {
                                     key={song.id}
                                     className="flex flex-col p-2 bg-gray-750 rounded border border-gray-600"
                                 >
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                                    <div className="flex items-start justify-between">
+                                        <div className="flex items-start gap-2 flex-1 min-w-0">
                                             <div className="text-lg font-bold text-purple-400 w-5 flex-shrink-0">
                                                 {index + 1}
                                             </div>
-                                            <div className="font-medium text-gray-100 text-sm truncate">
-                                                {song.title}
+                                            <div className="min-w-0 flex-1">
+                                                <div className="font-medium text-gray-100 text-sm truncate">
+                                                    {song.title}
+                                                </div>
                                             </div>
                                         </div>
                                         <div className="text-sm font-semibold text-purple-300 ml-2 flex-shrink-0">
