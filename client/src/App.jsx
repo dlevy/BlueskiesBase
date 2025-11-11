@@ -14,6 +14,7 @@ import AdminLayout from './pages/admin/AdminLayout'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import ShowsList from './pages/admin/ShowsList'
 import ShowForm from './pages/admin/ShowForm'
+import SongsList from './pages/admin/SongsList'
 import './App.css'
 
 function App() {
@@ -48,6 +49,7 @@ function App() {
             <Route path="shows" element={<ShowsList />} />
             <Route path="shows/new" element={<ShowForm />} />
             <Route path="shows/edit/:id" element={<ShowForm />} />
+            <Route path="songs" element={<SongsList />} />
           </Route>
         </Routes>
       </Router>

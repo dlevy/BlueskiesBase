@@ -70,6 +70,64 @@ export const getSongById = async (id) => {
 };
 
 /**
+ * Create a new song
+ */
+export const createSong = async (songData) => {
+    const token = await getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/api/songs`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            ...(token && { 'Authorization': `Bearer ${token}` })
+        },
+        body: JSON.stringify(songData)
+    });
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to create song');
+    }
+    return response.json();
+};
+
+/**
+ * Update an existing song
+ */
+export const updateSong = async (id, songData) => {
+    const token = await getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/api/songs/${id}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            ...(token && { 'Authorization': `Bearer ${token}` })
+        },
+        body: JSON.stringify(songData)
+    });
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to update song');
+    }
+    return response.json();
+};
+
+/**
+ * Delete a song
+ */
+export const deleteSong = async (id) => {
+    const token = await getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/api/songs/${id}`, {
+        method: 'DELETE',
+        headers: {
+            ...(token && { 'Authorization': `Bearer ${token}` })
+        }
+    });
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to delete song');
+    }
+    return response.json();
+};
+
+/**
  * Get all venues
  */
 export const getVenues = async () => {

@@ -109,5 +109,84 @@ router.post('/', async (req, res) => {
     }
 });
 
+/**
+ * PUT /api/songs/:id
+ * Update a song (admin only)
+ */
+router.put('/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { title, original_artist, is_original, written_by, lyrics, notes } = req.body;
+
+        // TODO: Add authentication middleware to verify admin status
+
+        const { data: song, error } = await supabase
+            .from('songs')
+            .update({ title, original_artist, is_original, written_by, lyrics, notes, updated_at: new Date() })
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error updating song:', error);
+            return res.status(500).json({ error: 'Failed to update song' });
+        }
+
+        res.json(song);
+
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * DELETE /api/songs/:id
+ * Delete a song (admin only)
+ * Note: This will fail if the song is used in any setlists due to foreign key constraint
+ */
+router.delete('/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // TODO: Add authentication middleware to verify admin status
+
+        // Check if song is used in any setlists
+        const { data: usages, error: usageError } = await supabase
+            .from('setlist_songs')
+            .select('id')
+            .eq('song_id', id)
+            .limit(1);
+
+        if (usageError) {
+            console.error('Error checking song usage:', usageError);
+            return res.status(500).json({ error: 'Failed to check song usage' });
+        }
+
+        if (usages && usages.length > 0) {
+            return res.status(400).json({
+                error: 'Cannot delete song that is used in setlists',
+                message: 'This song appears in one or more setlists and cannot be deleted.'
+            });
+        }
+
+        const { error } = await supabase
+            .from('songs')
+            .delete()
+            .eq('id', id);
+
+        if (error) {
+            console.error('Error deleting song:', error);
+            return res.status(500).json({ error: 'Failed to delete song' });
+        }
+
+        res.json({ message: 'Song deleted successfully' });
+
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 module.exports = router;
 
