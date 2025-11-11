@@ -70,6 +70,17 @@ export const getSongById = async (id) => {
 };
 
 /**
+ * Get global song statistics (covers and originals)
+ */
+export const getGlobalSongStats = async () => {
+    const response = await fetch(`${API_BASE_URL}/api/songs/stats/global`);
+    if (!response.ok) {
+        throw new Error('Failed to fetch song statistics');
+    }
+    return response.json();
+};
+
+/**
  * Create a new song
  */
 export const createSong = async (songData) => {

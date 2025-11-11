@@ -27,6 +27,100 @@ router.get('/', async (req, res) => {
 });
 
 /**
+ * GET /api/songs/stats/global
+ * Get global song statistics (covers and originals)
+ */
+router.get('/stats/global', async (req, res) => {
+    try {
+        console.log('[Song Stats] Fetching global song statistics...');
+
+        // Get all setlist_songs with song info
+        const { data: setlistSongs, error } = await supabase
+            .from('setlist_songs')
+            .select(`
+                show_id,
+                song_id,
+                songs (
+                    id,
+                    title,
+                    is_original,
+                    original_artist
+                )
+            `);
+
+        if (error) {
+            console.error('[Song Stats] Error fetching setlist songs:', error);
+            return res.status(500).json({ error: 'Failed to fetch song statistics' });
+        }
+
+        // Count unique plays per song (one per show)
+        const songPlayCounts = {};
+
+        setlistSongs.forEach(ss => {
+            if (!ss.songs) return;
+
+            const songId = ss.songs.id;
+            const showId = ss.show_id;
+
+            if (!songPlayCounts[songId]) {
+                songPlayCounts[songId] = {
+                    id: songId,
+                    title: ss.songs.title,
+                    is_original: ss.songs.is_original,
+                    original_artist: ss.songs.original_artist,
+                    shows: new Set()
+                };
+            }
+
+            songPlayCounts[songId].shows.add(showId);
+        });
+
+        // Convert to array with play counts
+        const songsWithCounts = Object.values(songPlayCounts).map(song => ({
+            id: song.id,
+            title: song.title,
+            is_original: song.is_original,
+            original_artist: song.original_artist,
+            playCount: song.shows.size
+        }));
+
+        // Separate covers and originals
+        const covers = songsWithCounts.filter(s => s.is_original === false);
+        const originals = songsWithCounts.filter(s => s.is_original === true);
+
+        // Sort by play count
+        covers.sort((a, b) => b.playCount - a.playCount);
+        originals.sort((a, b) => b.playCount - a.playCount);
+
+        // Get top 5 and rarest 5
+        const topCovers = covers.slice(0, 5);
+        const rarestCovers = covers.slice(-5).reverse();
+        const topOriginals = originals.slice(0, 5);
+        const rarestOriginals = originals.slice(-5).reverse();
+
+        const stats = {
+            covers: {
+                total: covers.length,
+                top5: topCovers,
+                rarest5: rarestCovers
+            },
+            originals: {
+                total: originals.length,
+                top5: topOriginals,
+                rarest5: rarestOriginals
+            }
+        };
+
+        console.log(`[Song Stats] ✅ Stats calculated: ${covers.length} covers, ${originals.length} originals`);
+        res.json(stats);
+
+    } catch (error) {
+        console.error('[Song Stats] Error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
  * GET /api/songs/:id
  * Get a single song with all performances
  */

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { searchShows, getShows, checkShowAttendanceBatch, markShowAttended, unmarkShowAttended, checkShowsHaveContent } from '../services/api';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import SongStatsWidget from '../components/SongStatsWidget';
 
 export default function SearchPage() {
     const { user } = useAuth();
@@ -477,6 +478,11 @@ export default function SearchPage() {
             <h1 className="text-4xl font-bold mb-8 text-center bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
                 Search Setlists
             </h1>
+
+            {/* Song Statistics Widget */}
+            <div className="mb-8">
+                <SongStatsWidget />
+            </div>
 
             <form onSubmit={handleSearch} className="bg-gray-800 shadow-2xl rounded-lg px-8 pt-6 pb-8 mb-8 border border-gray-700">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
