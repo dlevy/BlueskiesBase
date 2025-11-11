@@ -55,7 +55,7 @@ function App() {
 
 // Public Layout Component
 function PublicLayout() {
-  const { user, signOut } = useAuth();
+  const { user, isAdmin, signOut } = useAuth();
 
   const handleSignOut = async () => {
     try {
