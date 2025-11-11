@@ -29,17 +29,27 @@ export const AuthProvider = ({ children }) => {
             // Fetch user profile to get admin status
             if (session?.user) {
                 try {
-                    const { data: profileData, error } = await supabase
+                    // Add timeout to prevent hanging
+                    const timeoutPromise = new Promise((_, reject) =>
+                        setTimeout(() => reject(new Error('Profile fetch timeout')), 5000)
+                    );
+
+                    const profilePromise = supabase
                         .from('profiles')
                         .select('*')
                         .eq('id', session.user.id)
                         .single();
 
+                    const { data: profileData, error } = await Promise.race([
+                        profilePromise,
+                        timeoutPromise
+                    ]);
+
                     if (error) {
                         console.error('[AuthContext] Error fetching profile:', error);
                         setProfile(null);
                     } else {
-                        console.log('[AuthContext] Initial profile loaded:', profileData.username);
+                        console.log('[AuthContext] Initial profile loaded:', profileData?.username);
                         setProfile(profileData);
                     }
                 } catch (err) {
@@ -67,17 +77,28 @@ export const AuthProvider = ({ children }) => {
             if (session?.user) {
                 try {
                     console.log('[AuthContext] Fetching profile for user:', session.user.email);
-                    const { data: profileData, error } = await supabase
+
+                    // Add timeout to prevent hanging
+                    const timeoutPromise = new Promise((_, reject) =>
+                        setTimeout(() => reject(new Error('Profile fetch timeout')), 5000)
+                    );
+
+                    const profilePromise = supabase
                         .from('profiles')
                         .select('*')
                         .eq('id', session.user.id)
                         .single();
 
+                    const { data: profileData, error } = await Promise.race([
+                        profilePromise,
+                        timeoutPromise
+                    ]);
+
                     if (error) {
                         console.error('[AuthContext] Error fetching profile:', error);
                         setProfile(null);
                     } else {
-                        console.log('[AuthContext] Profile loaded:', profileData.username, 'Admin:', profileData.is_admin);
+                        console.log('[AuthContext] Profile loaded:', profileData?.username, 'Admin:', profileData?.is_admin);
                         setProfile(profileData);
                     }
                 } catch (err) {
