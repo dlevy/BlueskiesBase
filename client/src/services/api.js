@@ -213,47 +213,30 @@ export const removeSongFromSetlist = async (showId, setlistId) => {
 // ============================================
 
 /**
- * Get authentication token from Supabase
+ * Get authentication token from AuthContext
+ * This is set by the setAuthTokenGetter function passed from AuthContext
  */
-const getAuthToken = async () => {
-    try {
-        console.log('[API] getAuthToken: Fetching session...');
+let authTokenGetter = null;
 
-        // Add timeout to prevent hanging
-        const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Session fetch timeout')), 5000)
-        );
+export const setAuthTokenGetter = (getter) => {
+    authTokenGetter = getter;
+};
 
-        const sessionPromise = supabase.auth.getSession();
-
-        const { data: { session }, error } = await Promise.race([
-            sessionPromise,
-            timeoutPromise
-        ]);
-
-        if (error) {
-            console.error('[API] getAuthToken: Error getting session:', error);
-            return null;
-        }
-
-        if (!session) {
-            console.log('[API] getAuthToken: No active session');
-            return null;
-        }
-
-        console.log('[API] getAuthToken: Session found, token valid');
-        return session.access_token;
-    } catch (err) {
-        console.error('[API] getAuthToken: Exception:', err);
+const getAuthToken = () => {
+    if (!authTokenGetter) {
+        console.warn('[API] getAuthToken: No auth token getter set');
         return null;
     }
+    const token = authTokenGetter();
+    console.log('[API] getAuthToken:', token ? 'Token found' : 'No token');
+    return token;
 };
 
 /**
  * Mark a show as attended
  */
 export const markShowAttended = async (showId) => {
-    const token = await getAuthToken();
+    const token = getAuthToken();
     if (!token) {
         throw new Error('Not authenticated');
     }
@@ -276,7 +259,7 @@ export const markShowAttended = async (showId) => {
  * Unmark a show as attended
  */
 export const unmarkShowAttended = async (showId) => {
-    const token = await getAuthToken();
+    const token = getAuthToken();
     if (!token) {
         throw new Error('Not authenticated');
     }
@@ -297,7 +280,7 @@ export const unmarkShowAttended = async (showId) => {
  * Check attendance for multiple shows at once (batch)
  */
 export const checkShowAttendanceBatch = async (showIds) => {
-    const token = await getAuthToken();
+    const token = getAuthToken();
     if (!token || !showIds || showIds.length === 0) {
         return {};
     }
@@ -329,7 +312,7 @@ export const checkShowAttendanceBatch = async (showIds) => {
  * Check if a show is marked as attended
  */
 export const checkShowAttendance = async (showId) => {
-    const token = await getAuthToken();
+    const token = getAuthToken();
     if (!token) {
         return { attended: false };
     }
@@ -351,7 +334,7 @@ export const checkShowAttendance = async (showId) => {
 export const getUserStats = async () => {
     console.log('[API] getUserStats: Starting...');
 
-    const token = await getAuthToken();
+    const token = getAuthToken();
     if (!token) {
         console.log('[API] getUserStats: No auth token');
         throw new Error('Not authenticated');
@@ -398,7 +381,7 @@ export const getUserStats = async () => {
  * Get all attended shows
  */
 export const getAttendedShows = async () => {
-    const token = await getAuthToken();
+    const token = getAuthToken();
     if (!token) {
         throw new Error('Not authenticated');
     }
@@ -433,7 +416,7 @@ export const getShowNotes = async (showId) => {
  * Get user's note for a show
  */
 export const getUserNote = async (showId) => {
-    const token = await getAuthToken();
+    const token = getAuthToken();
     if (!token) {
         return { note: null };
     }
@@ -453,7 +436,7 @@ export const getUserNote = async (showId) => {
  * Save or update a note
  */
 export const saveNote = async (showId, noteText) => {
-    const token = await getAuthToken();
+    const token = getAuthToken();
     if (!token) {
         throw new Error('Not authenticated');
     }
@@ -476,7 +459,7 @@ export const saveNote = async (showId, noteText) => {
  * Delete a note
  */
 export const deleteNote = async (noteId) => {
-    const token = await getAuthToken();
+    const token = getAuthToken();
     if (!token) {
         throw new Error('Not authenticated');
     }
@@ -512,7 +495,7 @@ export const getShowPhotos = async (showId) => {
  * Upload a photo
  */
 export const uploadPhoto = async (showId, file, caption = '') => {
-    const token = await getAuthToken();
+    const token = getAuthToken();
     if (!token) {
         throw new Error('Not authenticated');
     }
@@ -542,7 +525,7 @@ export const uploadPhoto = async (showId, file, caption = '') => {
  * Update photo caption
  */
 export const updatePhotoCaption = async (photoId, caption) => {
-    const token = await getAuthToken();
+    const token = getAuthToken();
     if (!token) {
         throw new Error('Not authenticated');
     }
@@ -565,7 +548,7 @@ export const updatePhotoCaption = async (photoId, caption) => {
  * Delete a photo
  */
 export const deletePhoto = async (photoId) => {
-    const token = await getAuthToken();
+    const token = getAuthToken();
     if (!token) {
         throw new Error('Not authenticated');
     }

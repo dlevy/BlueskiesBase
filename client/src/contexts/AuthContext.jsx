@@ -15,6 +15,7 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [session, setSession] = useState(null);
 
     useEffect(() => {
         console.log('[AuthContext] Initializing auth...');
@@ -22,6 +23,7 @@ export const AuthProvider = ({ children }) => {
         // Check active sessions and sets the user
         supabase.auth.getSession().then(async ({ data: { session } }) => {
             console.log('[AuthContext] Initial session check:', session ? 'Session found' : 'No session');
+            setSession(session);
             setUser(session?.user ?? null);
 
             // Fetch user profile to get admin status
@@ -58,6 +60,7 @@ export const AuthProvider = ({ children }) => {
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
             console.log('[AuthContext] Auth state changed:', event);
 
+            setSession(session);
             setUser(session?.user ?? null);
 
             // Fetch user profile to get admin status
@@ -132,14 +135,20 @@ export const AuthProvider = ({ children }) => {
         if (error) throw error;
     };
 
+    const getToken = () => {
+        return session?.access_token || null;
+    };
+
     const value = {
         user,
         profile,
+        session,
         isAdmin: profile?.is_admin || false,
         loading,
         signIn,
         signUp,
         signOut,
+        getToken,
     };
 
     return (
