@@ -128,8 +128,8 @@ function PublicLayout() {
             {/* Desktop Layout */}
             <div className="hidden md:flex justify-between items-center">
               <Link to="/" className="hover:opacity-80 transition-opacity">
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-200 to-indigo-200 bg-clip-text text-transparent">blueskiesbase</h1>
-                <p className="text-blue-300"> something else goes here.</p>
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-200 to-indigo-200 bg-clip-text text-transparent">blueskiesbase.</h1>
+                <p className="text-blue-300"> go on and live a little.</p>
               </Link>
 
               <div className="flex items-center gap-4">

@@ -4,6 +4,7 @@ import { getShowById, checkShowAttendance, markShowAttended, unmarkShowAttended 
 import { useAuth } from '../contexts/AuthContext';
 import NotesSection from '../components/NotesSection';
 import PhotosSection from '../components/PhotosSection';
+import PostersSection from '../components/PostersSection';
 
 export default function ShowDetailPage() {
     const { id } = useParams();
@@ -295,6 +296,11 @@ export default function ShowDetailPage() {
             {/* Notes Section */}
             <div className="mt-8">
                 <NotesSection showId={id} />
+            </div>
+
+            {/* Poster Section */}
+            <div className="mt-8">
+                <PostersSection showId={id} />
             </div>
 
             {/* Photos Section */}

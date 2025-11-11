@@ -486,6 +486,7 @@ export default function SearchPage() {
                             const isLoading = attendanceLoading[show.id] || false;
                             const hasNotes = contentMap[show.id]?.hasNotes || false;
                             const hasPhotos = contentMap[show.id]?.hasPhotos || false;
+                            const hasPoster = contentMap[show.id]?.hasPoster || false;
 
                             return (
                                 <div key={show.id} className="border border-gray-700 pb-4 hover:border-blue-500 transition-colors rounded-lg p-4 bg-gray-750 relative text-center">
@@ -530,9 +531,9 @@ export default function SearchPage() {
                                             </p>
                                         )}
 
-                                        {/* Content Badges - Notes and Photos */}
-                                        {(hasNotes || hasPhotos) && (
-                                            <div className="mt-2 flex items-center justify-center gap-2">
+                                        {/* Content Badges - Notes, Photos, and Poster */}
+                                        {(hasNotes || hasPhotos || hasPoster) && (
+                                            <div className="mt-2 flex items-center justify-center gap-2 flex-wrap">
                                                 {hasNotes && (
                                                     <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-yellow-900/30 border border-yellow-700/50 text-yellow-300 text-xs font-medium">
                                                         <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
@@ -547,6 +548,14 @@ export default function SearchPage() {
                                                             <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
                                                         </svg>
                                                         <span>Photos</span>
+                                                    </span>
+                                                )}
+                                                {hasPoster && (
+                                                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-purple-900/30 border border-purple-700/50 text-purple-300 text-xs font-medium">
+                                                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                                            <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                                                        </svg>
+                                                        <span>Poster</span>
                                                     </span>
                                                 )}
                                             </div>

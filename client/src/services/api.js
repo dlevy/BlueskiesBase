@@ -593,3 +593,92 @@ export const checkShowsHaveContent = async (showIds) => {
     return data;
 };
 
+// ============================================
+// POSTERS API
+// ============================================
+
+/**
+ * Get poster for a show
+ */
+export const getShowPoster = async (showId) => {
+    const response = await fetch(`${API_BASE_URL}/api/posters/show/${showId}`);
+    if (!response.ok) {
+        throw new Error('Failed to fetch poster');
+    }
+    return response.json();
+};
+
+/**
+ * Upload a poster (replaces existing poster if any)
+ */
+export const uploadPoster = async (showId, file, caption = '') => {
+    const token = getAuthToken();
+    if (!token) {
+        throw new Error('Not authenticated');
+    }
+
+    const formData = new FormData();
+    formData.append('poster', file);
+    formData.append('show_id', showId);
+    if (caption) {
+        formData.append('caption', caption);
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/posters/upload`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+    });
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to upload poster');
+    }
+    return response.json();
+};
+
+/**
+ * Update poster caption
+ */
+export const updatePosterCaption = async (posterId, caption) => {
+    const token = getAuthToken();
+    if (!token) {
+        throw new Error('Not authenticated');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/posters/${posterId}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ caption }),
+    });
+    if (!response.ok) {
+        throw new Error('Failed to update poster caption');
+    }
+    return response.json();
+};
+
+/**
+ * Delete a poster
+ */
+export const deletePoster = async (posterId) => {
+    const token = getAuthToken();
+    if (!token) {
+        throw new Error('Not authenticated');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/posters/${posterId}`, {
+        method: 'DELETE',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+        },
+    });
+    if (!response.ok) {
+        throw new Error('Failed to delete poster');
+    }
+    return response.json();
+};
+

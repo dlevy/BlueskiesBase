@@ -208,7 +208,7 @@ router.delete('/:noteId', authenticate, async (req, res) => {
 
 /**
  * POST /api/notes/check-content
- * Check if shows have notes or photos (batch check for search results)
+ * Check if shows have notes, photos, or posters (batch check for search results)
  */
 router.post('/check-content', async (req, res) => {
     try {
@@ -238,12 +238,23 @@ router.post('/check-content', async (req, res) => {
             console.error('Error checking photos:', photosError);
         }
 
+        // Check for posters
+        const { data: postersData, error: postersError } = await supabaseAdmin
+            .from('user_posters')
+            .select('show_id')
+            .in('show_id', show_ids);
+
+        if (postersError) {
+            console.error('Error checking posters:', postersError);
+        }
+
         // Build content map
         const contentMap = {};
         show_ids.forEach(showId => {
             contentMap[showId] = {
                 hasNotes: notesData ? notesData.some(n => n.show_id === showId) : false,
-                hasPhotos: photosData ? photosData.some(p => p.show_id === showId) : false
+                hasPhotos: photosData ? photosData.some(p => p.show_id === showId) : false,
+                hasPoster: postersData ? postersData.some(p => p.show_id === showId) : false
             };
         });
 
