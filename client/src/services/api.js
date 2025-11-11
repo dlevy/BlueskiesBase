@@ -414,3 +414,171 @@ export const getAttendedShows = async () => {
     return response.json();
 };
 
+// ============================================
+// NOTES API
+// ============================================
+
+/**
+ * Get all notes for a show
+ */
+export const getShowNotes = async (showId) => {
+    const response = await fetch(`${API_BASE_URL}/api/notes/show/${showId}`);
+    if (!response.ok) {
+        throw new Error('Failed to fetch notes');
+    }
+    return response.json();
+};
+
+/**
+ * Get user's note for a show
+ */
+export const getUserNote = async (showId) => {
+    const token = await getAuthToken();
+    if (!token) {
+        return { note: null };
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/notes/user/${showId}`, {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+        },
+    });
+    if (!response.ok) {
+        throw new Error('Failed to fetch user note');
+    }
+    return response.json();
+};
+
+/**
+ * Save or update a note
+ */
+export const saveNote = async (showId, noteText) => {
+    const token = await getAuthToken();
+    if (!token) {
+        throw new Error('Not authenticated');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/notes`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ show_id: showId, note_text: noteText }),
+    });
+    if (!response.ok) {
+        throw new Error('Failed to save note');
+    }
+    return response.json();
+};
+
+/**
+ * Delete a note
+ */
+export const deleteNote = async (noteId) => {
+    const token = await getAuthToken();
+    if (!token) {
+        throw new Error('Not authenticated');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/notes/${noteId}`, {
+        method: 'DELETE',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+        },
+    });
+    if (!response.ok) {
+        throw new Error('Failed to delete note');
+    }
+    return response.json();
+};
+
+// ============================================
+// PHOTOS API
+// ============================================
+
+/**
+ * Get all photos for a show
+ */
+export const getShowPhotos = async (showId) => {
+    const response = await fetch(`${API_BASE_URL}/api/photos/show/${showId}`);
+    if (!response.ok) {
+        throw new Error('Failed to fetch photos');
+    }
+    return response.json();
+};
+
+/**
+ * Upload a photo
+ */
+export const uploadPhoto = async (showId, file, caption = '') => {
+    const token = await getAuthToken();
+    if (!token) {
+        throw new Error('Not authenticated');
+    }
+
+    const formData = new FormData();
+    formData.append('photo', file);
+    formData.append('show_id', showId);
+    if (caption) {
+        formData.append('caption', caption);
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/photos/upload`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+    });
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to upload photo');
+    }
+    return response.json();
+};
+
+/**
+ * Update photo caption
+ */
+export const updatePhotoCaption = async (photoId, caption) => {
+    const token = await getAuthToken();
+    if (!token) {
+        throw new Error('Not authenticated');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/photos/${photoId}`, {
+        method: 'PUT',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ caption }),
+    });
+    if (!response.ok) {
+        throw new Error('Failed to update photo');
+    }
+    return response.json();
+};
+
+/**
+ * Delete a photo
+ */
+export const deletePhoto = async (photoId) => {
+    const token = await getAuthToken();
+    if (!token) {
+        throw new Error('Not authenticated');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/photos/${photoId}`, {
+        method: 'DELETE',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+        },
+    });
+    if (!response.ok) {
+        throw new Error('Failed to delete photo');
+    }
+    return response.json();
+};
+

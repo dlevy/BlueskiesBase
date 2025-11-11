@@ -36,6 +36,8 @@ app.use('/api/songs', require('./server/routes/songs'));
 app.use('/api/venues', require('./server/routes/venues'));
 app.use('/api/search', require('./server/routes/search'));
 app.use('/api/users', require('./server/routes/users'));
+app.use('/api/notes', require('./server/routes/notes'));
+app.use('/api/photos', require('./server/routes/photos'));
 
 // Error handling middleware
 app.use((err, req, res, next) => {

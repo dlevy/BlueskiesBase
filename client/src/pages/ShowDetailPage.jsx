@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getShowById, checkShowAttendance, markShowAttended, unmarkShowAttended } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import NotesSection from '../components/NotesSection';
+import PhotosSection from '../components/PhotosSection';
 
 export default function ShowDetailPage() {
     const { id } = useParams();
@@ -288,6 +290,16 @@ export default function ShowDetailPage() {
                 ) : (
                     <p className="text-gray-400">No setlist information available for this show.</p>
                 )}
+            </div>
+
+            {/* Notes Section */}
+            <div className="mt-8">
+                <NotesSection showId={id} />
+            </div>
+
+            {/* Photos Section */}
+            <div className="mt-8">
+                <PhotosSection showId={id} />
             </div>
 
             {/* Back Button at Bottom */}
