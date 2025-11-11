@@ -218,6 +218,8 @@ router.post('/check-content', async (req, res) => {
             return res.json({ contentMap: {} });
         }
 
+        console.log(`[check-content] Checking content for ${show_ids.length} shows`);
+
         // Check for notes
         const { data: notesData, error: notesError } = await supabaseAdmin
             .from('user_notes')
@@ -225,7 +227,12 @@ router.post('/check-content', async (req, res) => {
             .in('show_id', show_ids);
 
         if (notesError) {
-            console.error('Error checking notes:', notesError);
+            console.error('[check-content] Error checking notes:', notesError);
+        }
+
+        console.log(`[check-content] Found ${notesData?.length || 0} notes`);
+        if (notesData && notesData.length > 0) {
+            console.log('[check-content] Shows with notes:', notesData.map(n => n.show_id));
         }
 
         // Check for photos
@@ -235,8 +242,10 @@ router.post('/check-content', async (req, res) => {
             .in('show_id', show_ids);
 
         if (photosError) {
-            console.error('Error checking photos:', photosError);
+            console.error('[check-content] Error checking photos:', photosError);
         }
+
+        console.log(`[check-content] Found ${photosData?.length || 0} photos`);
 
         // Check for posters
         const { data: postersData, error: postersError } = await supabaseAdmin
@@ -245,8 +254,10 @@ router.post('/check-content', async (req, res) => {
             .in('show_id', show_ids);
 
         if (postersError) {
-            console.error('Error checking posters:', postersError);
+            console.error('[check-content] Error checking posters:', postersError);
         }
+
+        console.log(`[check-content] Found ${postersData?.length || 0} posters`);
 
         // Build content map
         const contentMap = {};
