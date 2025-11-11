@@ -220,52 +220,68 @@ router.post('/check-content', async (req, res) => {
 
         console.log(`[check-content] Checking content for ${show_ids.length} shows`);
 
-        // Check for notes
-        const { data: notesData, error: notesError } = await supabaseAdmin
-            .from('user_notes')
-            .select('show_id')
-            .in('show_id', show_ids);
+        // Batch the queries to avoid hitting Supabase limits
+        const BATCH_SIZE = 100;
+        let allNotesData = [];
+        let allPhotosData = [];
+        let allPostersData = [];
 
-        if (notesError) {
-            console.error('[check-content] Error checking notes:', notesError);
+        // Process in batches if needed
+        for (let i = 0; i < show_ids.length; i += BATCH_SIZE) {
+            const batch = show_ids.slice(i, i + BATCH_SIZE);
+            console.log(`[check-content] Processing batch ${Math.floor(i / BATCH_SIZE) + 1} (${batch.length} shows)`);
+
+            // Check for notes in this batch
+            const { data: notesData, error: notesError } = await supabaseAdmin
+                .from('user_notes')
+                .select('show_id')
+                .in('show_id', batch);
+
+            if (notesError) {
+                console.error('[check-content] Error checking notes:', notesError);
+            } else if (notesData) {
+                allNotesData = allNotesData.concat(notesData);
+            }
+
+            // Check for photos in this batch
+            const { data: photosData, error: photosError } = await supabaseAdmin
+                .from('user_photos')
+                .select('show_id')
+                .in('show_id', batch);
+
+            if (photosError) {
+                console.error('[check-content] Error checking photos:', photosError);
+            } else if (photosData) {
+                allPhotosData = allPhotosData.concat(photosData);
+            }
+
+            // Check for posters in this batch
+            const { data: postersData, error: postersError } = await supabaseAdmin
+                .from('user_posters')
+                .select('show_id')
+                .in('show_id', batch);
+
+            if (postersError) {
+                console.error('[check-content] Error checking posters:', postersError);
+            } else if (postersData) {
+                allPostersData = allPostersData.concat(postersData);
+            }
         }
 
-        console.log(`[check-content] Found ${notesData?.length || 0} notes`);
-        if (notesData && notesData.length > 0) {
-            console.log('[check-content] Shows with notes:', notesData.map(n => n.show_id));
+        console.log(`[check-content] Found ${allNotesData.length} notes total`);
+        if (allNotesData.length > 0) {
+            console.log('[check-content] Shows with notes:', allNotesData.map(n => n.show_id));
         }
-
-        // Check for photos
-        const { data: photosData, error: photosError } = await supabaseAdmin
-            .from('user_photos')
-            .select('show_id')
-            .in('show_id', show_ids);
-
-        if (photosError) {
-            console.error('[check-content] Error checking photos:', photosError);
-        }
-
-        console.log(`[check-content] Found ${photosData?.length || 0} photos`);
-
-        // Check for posters
-        const { data: postersData, error: postersError } = await supabaseAdmin
-            .from('user_posters')
-            .select('show_id')
-            .in('show_id', show_ids);
-
-        if (postersError) {
-            console.error('[check-content] Error checking posters:', postersError);
-        }
-
-        console.log(`[check-content] Found ${postersData?.length || 0} posters`);
+        console.log(`[check-content] Found ${allPhotosData.length} photos total`);
+        console.log(`[check-content] Found ${allPostersData.length} posters total`);
 
         // Build content map
         const contentMap = {};
         show_ids.forEach(showId => {
             contentMap[showId] = {
-                hasNotes: notesData ? notesData.some(n => n.show_id === showId) : false,
-                hasPhotos: photosData ? photosData.some(p => p.show_id === showId) : false,
-                hasPoster: postersData ? postersData.some(p => p.show_id === showId) : false
+                hasNotes: allNotesData.some(n => n.show_id === showId),
+                hasPhotos: allPhotosData.some(p => p.show_id === showId),
+                hasPoster: allPostersData.some(p => p.show_id === showId)
             };
         });
 
