@@ -245,15 +245,15 @@ export default function ShowDetailPage() {
             </div>
 
             {/* Setlist */}
-            <div className="bg-gray-800 shadow-2xl rounded-lg p-6 border border-gray-700">
-                <h2 className="text-3xl font-bold mb-6 bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">Setlist</h2>
+            <div className="bg-gray-800 shadow-2xl rounded-lg p-6 border border-gray-700 text-left">
+                <h2 className="text-3xl font-bold mb-6 bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent text-left">Setlist</h2>
 
                 {show.setlist && Object.keys(show.setlist).length > 0 ? (
-                    <div className="space-y-6">
+                    <div className="space-y-6 text-left">
                         {/* Set 1 */}
                         {show.setlist.set1 && (
                             <div>
-                                <h3 className="text-xl font-semibold mb-3 text-blue-400">Set 1</h3>
+                                <h3 className="text-xl font-semibold mb-3 text-blue-400 text-left">Set 1</h3>
                                 <ol className="space-y-3">
                                     {show.setlist.set1.map((song, index) => (
                                         <li key={index} className="flex gap-3 text-gray-200">
@@ -310,7 +310,7 @@ export default function ShowDetailPage() {
                         {/* Set 2 */}
                         {show.setlist.set2 && (
                             <div>
-                                <h3 className="text-xl font-semibold mb-3 text-blue-400">Set 2</h3>
+                                <h3 className="text-xl font-semibold mb-3 text-blue-400 text-left">Set 2</h3>
                                 <ol className="space-y-3">
                                     {show.setlist.set2.map((song, index) => (
                                         <li key={index} className="flex gap-3 text-gray-200">
@@ -367,7 +367,7 @@ export default function ShowDetailPage() {
                         {/* Set 3 */}
                         {show.setlist.set3 && (
                             <div>
-                                <h3 className="text-xl font-semibold mb-3 text-blue-400">Set 3</h3>
+                                <h3 className="text-xl font-semibold mb-3 text-blue-400 text-left">Set 3</h3>
                                 <ol className="space-y-3">
                                     {show.setlist.set3.map((song, index) => (
                                         <li key={index} className="flex gap-3 text-gray-200">
@@ -424,7 +424,7 @@ export default function ShowDetailPage() {
                         {/* Encore */}
                         {show.setlist.encore && (
                             <div>
-                                <h3 className="text-xl font-semibold mb-3 text-purple-400">Encore</h3>
+                                <h3 className="text-xl font-semibold mb-3 text-purple-400 text-left">Encore</h3>
                                 <ol className="space-y-3">
                                     {show.setlist.encore.map((song, index) => (
                                         <li key={index} className="flex gap-3 text-gray-200">
