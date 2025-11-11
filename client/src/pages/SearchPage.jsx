@@ -4,6 +4,7 @@ import { searchShows, getShows, checkShowAttendanceBatch, markShowAttended, unma
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import SongStatsWidget from '../components/SongStatsWidget';
+import UserStatsWidget from '../components/UserStatsWidget';
 
 export default function SearchPage() {
     const { user } = useAuth();
@@ -505,6 +506,16 @@ export default function SearchPage() {
                 >
                     📊 Song Statistics
                 </button>
+                <button
+                    onClick={() => setActiveTab('mystats')}
+                    className={`flex-1 px-6 py-3 rounded-lg font-semibold transition-colors ${
+                        activeTab === 'mystats'
+                            ? 'bg-blue-600 text-white shadow-lg'
+                            : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700'
+                    }`}
+                >
+                    👤 My Stats
+                </button>
             </div>
 
             {/* Search Tab Content */}
@@ -854,6 +865,13 @@ export default function SearchPage() {
             {activeTab === 'stats' && (
                 <div className="max-w-4xl mx-auto">
                     <SongStatsWidget />
+                </div>
+            )}
+
+            {/* My Stats Tab Content */}
+            {activeTab === 'mystats' && (
+                <div className="max-w-6xl mx-auto">
+                    <UserStatsWidget />
                 </div>
             )}
         </div>

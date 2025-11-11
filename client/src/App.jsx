@@ -87,14 +87,6 @@ function PublicLayout() {
                 <Link to="/" className="hover:opacity-80 transition-opacity">
                   <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-200 to-indigo-200 bg-clip-text text-transparent">blueskiesbase</h1>
                 </Link>
-                {user && (
-                  <Link
-                    to="/stats"
-                    className="px-3 py-1.5 text-xs font-medium text-blue-300 hover:text-blue-200 transition-colors border border-blue-700 rounded-md"
-                  >
-                    My Stats
-                  </Link>
-                )}
               </div>
 
               {user ? (
@@ -137,12 +129,6 @@ function PublicLayout() {
               <div className="flex items-center gap-4">
                 {user ? (
                   <div className="flex items-center gap-4">
-                    <Link
-                      to="/stats"
-                      className="px-4 py-2 text-sm font-medium text-blue-300 hover:text-blue-200 transition-colors"
-                    >
-                      My Stats
-                    </Link>
                     <span className="text-sm text-blue-300">
                       {user.email}
                     </span>
