@@ -34,28 +34,45 @@ router.get('/stats/global', async (req, res) => {
     try {
         console.log('[Song Stats] Fetching global song statistics...');
 
-        // Get all setlist_songs with song info (use range to bypass 1000 row limit)
-        const { data: setlistSongs, error: setlistError } = await supabase
-            .from('setlist_songs')
-            .select(`
-                show_id,
-                song_id,
-                songs (
-                    id,
-                    title,
-                    is_original,
-                    original_artist
-                )
-            `)
-            .range(0, 9999); // Get up to 10,000 rows (we have ~5,836)
+        // Get all setlist_songs with song info
+        // Note: Supabase has a default 1000 row limit, so we need to fetch in batches
+        let allSetlistSongs = [];
+        let from = 0;
+        const batchSize = 1000;
+        let hasMore = true;
 
-        if (setlistError) {
-            console.error('[Song Stats] Error fetching setlist songs:', setlistError);
-            console.error('[Song Stats] Error details:', JSON.stringify(setlistError, null, 2));
-            return res.status(500).json({ error: 'Failed to fetch song statistics', details: setlistError.message });
+        while (hasMore) {
+            const { data: batch, error: batchError } = await supabase
+                .from('setlist_songs')
+                .select(`
+                    show_id,
+                    song_id,
+                    songs (
+                        id,
+                        title,
+                        is_original,
+                        original_artist
+                    )
+                `)
+                .range(from, from + batchSize - 1);
+
+            if (batchError) {
+                console.error('[Song Stats] Error fetching setlist songs batch:', batchError);
+                return res.status(500).json({ error: 'Failed to fetch song statistics', details: batchError.message });
+            }
+
+            if (batch && batch.length > 0) {
+                allSetlistSongs = allSetlistSongs.concat(batch);
+                from += batchSize;
+                hasMore = batch.length === batchSize; // Continue if we got a full batch
+            } else {
+                hasMore = false;
+            }
         }
 
-        console.log(`[Song Stats] Fetched ${setlistSongs?.length || 0} setlist songs`);
+        const setlistSongs = allSetlistSongs;
+
+        console.log(`[Song Stats] Fetched ${setlistSongs?.length || 0} setlist songs (in ${Math.ceil(setlistSongs.length / batchSize)} batches)`);
 
         // Get all shows to get dates
         const { data: shows, error: showsError } = await supabase
