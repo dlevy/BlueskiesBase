@@ -127,10 +127,17 @@ router.get('/:id', async (req, res) => {
                 sets[setNum] = [];
             }
             sets[setNum].push({
-                ...item.songs,
+                // Include the setlist_songs fields
+                id: item.id,  // setlist_songs.id
+                song_id: item.song_id,  // CRITICAL: The foreign key to songs table
                 order: item.song_order,
                 notes: item.notes,
-                jams_into: item.jams_into || false
+                is_cover: item.is_cover || false,
+                original_artist: item.original_artist || null,
+                jams_into: item.jams_into || false,
+                // Include the song details from the songs table
+                title: item.songs?.title,
+                songs: item.songs  // Keep the full song object for backward compatibility
             });
         });
 
