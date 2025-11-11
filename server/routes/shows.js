@@ -80,7 +80,16 @@ router.get('/:id', async (req, res) => {
         const { data: setlist, error: setlistError } = await supabase
             .from('setlist_songs')
             .select(`
-                *,
+                id,
+                show_id,
+                song_id,
+                set_number,
+                song_order,
+                notes,
+                is_encore,
+                is_cover,
+                original_artist,
+                jams_into,
                 songs (
                     id,
                     title,
@@ -94,8 +103,20 @@ router.get('/:id', async (req, res) => {
             .order('song_order');
 
         if (setlistError) {
-            console.error('Error fetching setlist:', setlistError);
-            return res.status(500).json({ error: 'Failed to fetch setlist' });
+            console.error('[GET /shows/:id] Error fetching setlist:', setlistError);
+            console.error('[GET /shows/:id] Error details:', {
+                message: setlistError.message,
+                details: setlistError.details,
+                hint: setlistError.hint,
+                code: setlistError.code
+            });
+            // Don't fail the entire request if setlist fetch fails - just return empty setlist
+            // This allows the show details to still display
+            return res.json({
+                ...show,
+                setlist: {},
+                setlist_error: setlistError.message
+            });
         }
 
         // Organize setlist by sets
@@ -108,7 +129,8 @@ router.get('/:id', async (req, res) => {
             sets[setNum].push({
                 ...item.songs,
                 order: item.song_order,
-                notes: item.notes
+                notes: item.notes,
+                jams_into: item.jams_into || false
             });
         });
 
