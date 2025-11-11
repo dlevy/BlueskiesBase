@@ -184,53 +184,40 @@ export default function SearchPage() {
                     return;
                 }
 
-                console.log('[SearchPage] Fetched setlist songs:', setlistSongs?.length, 'songs for', showIds.length, 'shows');
-
                 // Calculate stats per show
                 const statsMap = {};
 
                 showIds.forEach(showId => {
                     const showSongs = setlistSongs?.filter(item => item.show_id === showId) || [];
 
-                    // Track unique songs - use setlist_songs.id if no song_id
+                    // Track unique songs by song_id
                     const uniqueSongIds = new Set();
-                    const uniqueSetlistIds = new Set();
                     let originals = 0;
                     let covers = 0;
-                    let songsWithoutReference = 0;
 
                     showSongs.forEach(item => {
-                        // If song has a song_id reference, use it for deduplication
-                        if (item.song_id) {
-                            if (uniqueSongIds.has(item.song_id)) {
-                                return; // Already counted this song
-                            }
-                            uniqueSongIds.add(item.song_id);
+                        // Skip songs without song_id (should be rare/never after cleanup)
+                        if (!item.song_id) {
+                            console.warn('[SearchPage] Skipping setlist_song without song_id:', item.id);
+                            return;
+                        }
 
-                            // Use ONLY the songs table as master source of truth
-                            const isOriginal = item.songs?.is_original === true;
+                        // Deduplicate by song_id
+                        if (uniqueSongIds.has(item.song_id)) {
+                            return; // Already counted this song
+                        }
+                        uniqueSongIds.add(item.song_id);
 
-                            if (isOriginal) {
-                                originals++;
-                            } else {
-                                covers++;
-                            }
+                        // Use ONLY the songs table as single source of truth
+                        const isOriginal = item.songs?.is_original === true;
+
+                        if (isOriginal) {
+                            originals++;
                         } else {
-                            // Song doesn't have a song_id reference - use setlist_songs.id for deduplication
-                            if (uniqueSetlistIds.has(item.id)) {
-                                return; // Already counted
-                            }
-                            uniqueSetlistIds.add(item.id);
-                            songsWithoutReference++;
-                            // Count as cover since we don't have song data
                             covers++;
                         }
                     });
 
-                    if (songsWithoutReference > 0) {
-                        console.warn('[SearchPage] Show', showId, 'has', songsWithoutReference, 'songs without song_id reference');
-                    }
-                    console.log('[SearchPage] Show', showId, 'stats:', { originals, covers, totalSongs: showSongs.length, songsWithoutReference });
                     statsMap[showId] = { originals, covers };
                 });
 

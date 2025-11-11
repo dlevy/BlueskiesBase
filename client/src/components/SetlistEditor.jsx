@@ -60,8 +60,11 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
             id: `temp-${Date.now()}`, // Temporary ID for new songs
             song_id: song.id,
             title: song.title,
-            is_cover: false,
-            original_artist: null,
+            // Song metadata comes from songs table
+            is_original: song.is_original,
+            original_artist: song.original_artist,
+            written_by: song.written_by,
+            // Performance-specific fields only
             notes: '',
             jams_into: false,
             order: setlist[selectedSet].length
@@ -124,6 +127,7 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
     const notifyChange = (updatedSetlist) => {
         if (onChange) {
             // Convert to API format
+            // Only send junction table fields - song metadata comes from songs table
             const apiFormat = [];
             Object.entries(updatedSetlist).forEach(([setKey, songs]) => {
                 const setNumber = setKey === 'encore' ? 1 : parseInt(setKey.replace('set', ''));
@@ -135,9 +139,7 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
                         set_number: setNumber,
                         song_order: index + 1,
                         is_encore: isEncore,
-                        notes: song.notes || null,
-                        is_cover: song.is_cover || false,
-                        original_artist: song.original_artist || null,
+                        notes: song.notes || null,  // Performance-specific notes only
                         jams_into: song.jams_into || false
                     });
                 });
@@ -282,7 +284,13 @@ function SetlistSongItem({ song, index, setKey, isFirst, isLast, onRemove, onMov
                 <div className="flex items-center gap-2 flex-1">
                     <span className="text-gray-400 text-sm font-mono w-6">{index + 1}.</span>
                     <span className="font-medium text-gray-200">{song.title}</span>
-                    {song.is_cover && (
+                    {/* Show song metadata from songs table (read-only) */}
+                    {song.is_original === true && (
+                        <span className="text-xs bg-green-900/50 text-green-300 px-2 py-0.5 rounded border border-green-700">
+                            Original
+                        </span>
+                    )}
+                    {song.is_original === false && (
                         <span className="text-xs bg-blue-900/50 text-blue-300 px-2 py-0.5 rounded border border-blue-700">
                             Cover
                         </span>
@@ -333,43 +341,43 @@ function SetlistSongItem({ song, index, setKey, isFirst, isLast, onRemove, onMov
 
             {isExpanded && (
                 <div className="mt-2 pt-2 border-t border-gray-700 space-y-2">
-                    <label className="flex items-center text-sm text-gray-300">
-                        <input
-                            type="checkbox"
-                            checked={song.is_cover}
-                            onChange={(e) => onUpdate('is_cover', e.target.checked)}
-                            className="mr-2"
-                        />
-                        This is a cover song
-                    </label>
-
-                    {song.is_cover && (
-                        <input
-                            type="text"
-                            placeholder="Original artist"
-                            value={song.original_artist || ''}
-                            onChange={(e) => onUpdate('original_artist', e.target.value)}
-                            className="border border-gray-600 bg-gray-700 text-gray-100 placeholder-gray-400 rounded px-2 py-1 text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
+                    {/* Song metadata from songs table (read-only display) */}
+                    {song.original_artist && (
+                        <div className="text-sm text-gray-400">
+                            <span className="font-semibold">Original Artist:</span> {song.original_artist}
+                        </div>
+                    )}
+                    {song.written_by && (
+                        <div className="text-sm text-gray-400">
+                            <span className="font-semibold">Written By:</span> {song.written_by}
+                        </div>
                     )}
 
-                    <label className="flex items-center text-sm text-gray-300">
-                        <input
-                            type="checkbox"
-                            checked={song.jams_into}
-                            onChange={(e) => onUpdate('jams_into', e.target.checked)}
-                            className="mr-2"
-                        />
-                        Jams into next song <span className="ml-1 text-purple-400 font-bold">&gt;</span>
-                    </label>
+                    {/* Performance-specific fields (editable) */}
+                    <div className="pt-2 border-t border-gray-600">
+                        <label className="flex items-center text-sm text-gray-300">
+                            <input
+                                type="checkbox"
+                                checked={song.jams_into}
+                                onChange={(e) => onUpdate('jams_into', e.target.checked)}
+                                className="mr-2"
+                            />
+                            Jams into next song <span className="ml-1 text-purple-400 font-bold">&gt;</span>
+                        </label>
 
-                    <input
-                        type="text"
-                        placeholder="Notes (e.g., 'with guest', 'teases')"
-                        value={song.notes || ''}
-                        onChange={(e) => onUpdate('notes', e.target.value)}
-                        className="border border-gray-600 bg-gray-700 text-gray-100 placeholder-gray-400 rounded px-2 py-1 text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                        <input
+                            type="text"
+                            placeholder="Performance notes (e.g., 'with guest', 'teases')"
+                            value={song.notes || ''}
+                            onChange={(e) => onUpdate('notes', e.target.value)}
+                            className="mt-2 border border-gray-600 bg-gray-700 text-gray-100 placeholder-gray-400 rounded px-2 py-1 text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                    </div>
+
+                    {/* Help text */}
+                    <div className="text-xs text-gray-500 italic pt-2 border-t border-gray-600">
+                        💡 To change song metadata (original/cover, artist, writer), edit the song in the Songs admin panel.
+                    </div>
                 </div>
             )}
         </div>

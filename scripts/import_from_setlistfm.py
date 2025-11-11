@@ -239,17 +239,36 @@ class SetlistImporter:
             print(f"  ❌ Error creating venue: {e}")
             return None
 
-    def get_or_create_song(self, song_name: str, artist_id: str = None) -> Optional[str]:
-        """Get or create song in database"""
+    def get_or_create_song(self, song_name: str, artist_id: str = None, is_cover: bool = False, original_artist: str = None) -> Optional[str]:
+        """Get or create song in database and update metadata if it's a cover"""
         try:
             # Try to find by title
-            result = supabase.table('songs').select('id').eq('title', song_name).execute()
-            if result.data and len(result.data) > 0:
-                return result.data[0]['id']
+            result = supabase.table('songs').select('id, is_original, original_artist').eq('title', song_name).execute()
 
-            # Create new song - use only fields that exist in schema
+            if result.data and len(result.data) > 0:
+                song_id = result.data[0]['id']
+                existing_is_original = result.data[0].get('is_original')
+                existing_original_artist = result.data[0].get('original_artist')
+
+                # Update song metadata if we have new cover information
+                # Only update if the song doesn't already have this metadata set
+                if is_cover and (existing_is_original is None or existing_is_original == True):
+                    try:
+                        supabase.table('songs').update({
+                            'is_original': False,
+                            'original_artist': original_artist
+                        }).eq('id', song_id).execute()
+                        print(f"    ℹ️  Updated '{song_name}' as cover by {original_artist}")
+                    except Exception as e:
+                        print(f"    ⚠️  Failed to update song metadata: {e}")
+
+                return song_id
+
+            # Create new song with metadata
             new_song = {
-                'title': song_name
+                'title': song_name,
+                'is_original': not is_cover,  # If it's a cover, is_original = False
+                'original_artist': original_artist if is_cover else None
             }
 
             result = supabase.table('songs').insert(new_song).execute()
@@ -380,25 +399,24 @@ class SetlistImporter:
                 if not song_name:
                     continue
 
-                # Get or create song
-                song_id = self.get_or_create_song(song_name, artist_id)
-                if not song_id:
-                    continue
-
-                # Check if it's a cover
+                # Check if it's a cover from setlist.fm
                 is_cover = 'cover' in song_data
                 original_artist = song_data.get('cover', {}).get('name') if is_cover else None
 
-                # Create setlist_song entry
+                # Get or create song - now updates song metadata in songs table
+                song_id = self.get_or_create_song(song_name, artist_id, is_cover, original_artist)
+                if not song_id:
+                    continue
+
+                # Create setlist_song entry - ONLY junction table fields
                 setlist_song = {
                     'show_id': show_id,
                     'song_id': song_id,
                     'set_number': set_number,
                     'song_order': song_order,
                     'is_encore': is_encore,
-                    'is_cover': is_cover,
-                    'original_artist': original_artist,
-                    'notes': song_data.get('info')
+                    'notes': song_data.get('info'),  # Performance-specific notes only
+                    'jams_into': False  # setlist.fm doesn't provide this
                 }
 
                 setlist_songs_batch.append(setlist_song)

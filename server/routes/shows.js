@@ -87,8 +87,6 @@ router.get('/:id', async (req, res) => {
                 song_order,
                 notes,
                 is_encore,
-                is_cover,
-                original_artist,
                 jams_into,
                 songs (
                     id,
@@ -127,24 +125,19 @@ router.get('/:id', async (req, res) => {
                 sets[setNum] = [];
             }
 
-            // Use songs table as SINGLE SOURCE OF TRUTH for is_original
-            // is_cover is the inverse of is_original
-            const isOriginal = item.songs?.is_original === true;
-            const isCover = !isOriginal;
-
+            // ALL song metadata comes from the songs table (single source of truth)
             sets[setNum].push({
-                // Include the setlist_songs fields
-                id: item.id,  // setlist_songs.id
-                song_id: item.song_id,  // CRITICAL: The foreign key to songs table
+                // setlist_songs fields (junction table data only)
+                id: item.id,
+                song_id: item.song_id,
                 order: item.song_order,
-                notes: item.notes,
-                is_cover: isCover,
-                original_artist: item.songs?.original_artist || null,
+                notes: item.notes,  // Performance-specific notes
                 jams_into: item.jams_into || false,
-                // Include the song details from the songs table
+                // Song metadata from songs table
                 title: item.songs?.title,
+                is_original: item.songs?.is_original,
+                original_artist: item.songs?.original_artist,
                 written_by: item.songs?.written_by,
-                is_original: isOriginal,
                 songs: item.songs  // Keep the full song object for backward compatibility
             });
         });
@@ -267,7 +260,8 @@ router.delete('/:id', async (req, res) => {
 /**
  * PUT /api/shows/:id/setlist
  * Update the entire setlist for a show (admin only)
- * Body: { setlist: [{ song_id, set_number, song_order, is_encore, notes, is_cover, original_artist, jams_into }] }
+ * Body: { setlist: [{ song_id, set_number, song_order, is_encore, notes, jams_into }] }
+ * Note: is_cover and original_artist are NO LONGER accepted - all song metadata comes from songs table
  */
 router.put('/:id/setlist', async (req, res) => {
     try {
@@ -301,15 +295,14 @@ router.put('/:id/setlist', async (req, res) => {
         }
 
         // Insert new setlist entries
+        // Only junction table fields - NO song metadata (comes from songs table)
         const setlistEntries = setlist.map(item => ({
             show_id: id,
             song_id: item.song_id,
             set_number: item.set_number,
             song_order: item.song_order,
             is_encore: item.is_encore || false,
-            notes: item.notes || null,
-            is_cover: item.is_cover || false,
-            original_artist: item.original_artist || null,
+            notes: item.notes || null,  // Performance-specific notes only
             jams_into: item.jams_into || false
         }));
 
@@ -349,11 +342,12 @@ router.put('/:id/setlist', async (req, res) => {
 /**
  * POST /api/shows/:id/setlist/song
  * Add a single song to a show's setlist (admin only)
+ * Note: is_cover and original_artist are NO LONGER accepted - all song metadata comes from songs table
  */
 router.post('/:id/setlist/song', async (req, res) => {
     try {
         const { id } = req.params;
-        const { song_id, set_number, song_order, is_encore, notes, is_cover, original_artist, jams_into } = req.body;
+        const { song_id, set_number, song_order, is_encore, notes, jams_into } = req.body;
 
         // TODO: Add authentication middleware to verify admin status
 
@@ -365,9 +359,7 @@ router.post('/:id/setlist/song', async (req, res) => {
                 set_number,
                 song_order,
                 is_encore: is_encore || false,
-                notes: notes || null,
-                is_cover: is_cover || false,
-                original_artist: original_artist || null,
+                notes: notes || null,  // Performance-specific notes only
                 jams_into: jams_into || false
             }])
             .select()
