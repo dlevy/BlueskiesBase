@@ -34,38 +34,58 @@ router.get('/stats/global', async (req, res) => {
     try {
         console.log('[Song Stats] Fetching global song statistics...');
 
-        // Get all setlist_songs with song info and show date
-        const { data: setlistSongs, error } = await supabase
+        // Get all setlist_songs with song info (with count limit removed)
+        const { data: setlistSongs, error: setlistError, count: setlistCount } = await supabase
             .from('setlist_songs')
             .select(`
                 show_id,
                 song_id,
-                shows!inner (
-                    id,
-                    date
-                ),
                 songs (
                     id,
                     title,
                     is_original,
                     original_artist
                 )
-            `);
+            `, { count: 'exact' });
 
-        if (error) {
-            console.error('[Song Stats] Error fetching setlist songs:', error);
-            return res.status(500).json({ error: 'Failed to fetch song statistics' });
+        if (setlistError) {
+            console.error('[Song Stats] Error fetching setlist songs:', setlistError);
+            console.error('[Song Stats] Error details:', JSON.stringify(setlistError, null, 2));
+            return res.status(500).json({ error: 'Failed to fetch song statistics', details: setlistError.message });
         }
+
+        console.log(`[Song Stats] Fetched ${setlistSongs?.length || 0} setlist songs (total: ${setlistCount})`);
+
+        // Get all shows to get dates
+        const { data: shows, error: showsError, count: showsCount } = await supabase
+            .from('shows')
+            .select('id, date', { count: 'exact' });
+
+        if (showsError) {
+            console.error('[Song Stats] Error fetching shows:', showsError);
+            console.error('[Song Stats] Error details:', JSON.stringify(showsError, null, 2));
+            return res.status(500).json({ error: 'Failed to fetch show dates', details: showsError.message });
+        }
+
+        console.log(`[Song Stats] Fetched ${shows?.length || 0} shows (total: ${showsCount})`);
+
+        // Create a map of show_id -> date for quick lookup
+        const showDates = {};
+        shows.forEach(show => {
+            showDates[show.id] = show.date;
+        });
 
         // Count unique plays per song (one per show) and track last played date
         const songPlayCounts = {};
 
         setlistSongs.forEach(ss => {
-            if (!ss.songs || !ss.shows) return;
+            if (!ss.songs) return;
 
             const songId = ss.songs.id;
             const showId = ss.show_id;
-            const showDate = ss.shows.date;
+            const showDate = showDates[showId];
+
+            if (!showDate) return; // Skip if show date not found
 
             if (!songPlayCounts[songId]) {
                 songPlayCounts[songId] = {
