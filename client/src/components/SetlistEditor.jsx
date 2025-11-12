@@ -46,7 +46,7 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
                     is_cover: song.is_cover || false,
                     original_artist: song.original_artist || null,
                     notes: song.notes || '',
-                    jams_into: song.jams_into || false,
+                    jams_into: song.jams_into || null,  // UUID or null, NOT false
                     order: index
                 }));
             }
@@ -66,7 +66,7 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
             written_by: song.written_by,
             // Performance-specific fields only
             notes: '',
-            jams_into: false,
+            jams_into: null,  // UUID or null, NOT false
             order: setlist[selectedSet].length
         };
 
@@ -110,10 +110,29 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
 
     const handleUpdateSong = (setKey, index, field, value) => {
         const updatedSet = [...setlist[setKey]];
-        updatedSet[index] = {
-            ...updatedSet[index],
-            [field]: value
-        };
+
+        // Special handling for jams_into checkbox
+        if (field === 'jams_into') {
+            if (value) {
+                // When checked, set to the UUID of the next song in the setlist
+                const nextSong = updatedSet[index + 1];
+                updatedSet[index] = {
+                    ...updatedSet[index],
+                    [field]: nextSong ? nextSong.song_id : null
+                };
+            } else {
+                // When unchecked, set to null
+                updatedSet[index] = {
+                    ...updatedSet[index],
+                    [field]: null
+                };
+            }
+        } else {
+            updatedSet[index] = {
+                ...updatedSet[index],
+                [field]: value
+            };
+        }
 
         const updatedSetlist = {
             ...setlist,
@@ -140,7 +159,7 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
                         song_order: index + 1,
                         is_encore: isEncore,
                         notes: song.notes || null,  // Performance-specific notes only
-                        jams_into: song.jams_into || false
+                        jams_into: song.jams_into || null  // UUID or null, NOT false
                     });
                 });
             });
@@ -358,7 +377,7 @@ function SetlistSongItem({ song, index, setKey, isFirst, isLast, onRemove, onMov
                         <label className="flex items-center text-sm text-gray-300">
                             <input
                                 type="checkbox"
-                                checked={song.jams_into}
+                                checked={!!song.jams_into}
                                 onChange={(e) => onUpdate('jams_into', e.target.checked)}
                                 className="mr-2"
                             />

@@ -132,7 +132,7 @@ router.get('/:id', async (req, res) => {
                 song_id: item.song_id,
                 order: item.song_order,
                 notes: item.notes,  // Performance-specific notes
-                jams_into: item.jams_into || false,
+                jams_into: item.jams_into || null,  // UUID or null, NOT false
                 // Song metadata from songs table
                 title: item.songs?.title,
                 is_original: item.songs?.is_original,
@@ -270,7 +270,128 @@ router.put('/:id/setlist', async (req, res) => {
 
         // TODO: Add authentication middleware to verify admin status
 
-        // First, delete all existing setlist entries for this show
+        // If setlist is empty, delete all entries and return
+        if (!setlist || setlist.length === 0) {
+            const { error: deleteError } = await supabase
+                .from('setlist_songs')
+                .delete()
+                .eq('show_id', id);
+
+            if (deleteError) {
+                console.error('[PUT /setlist] Error deleting setlist:', deleteError);
+                return res.status(500).json({
+                    error: 'Failed to clear setlist',
+                    details: deleteError.message,
+                    code: deleteError.code
+                });
+            }
+
+            return res.json({ message: 'Setlist cleared successfully', setlist: [] });
+        }
+
+        // ============================================================
+        // STEP 1: VALIDATE ALL DATA BEFORE TOUCHING THE DATABASE
+        // ============================================================
+
+        // Prepare setlist entries (validate data types)
+        const setlistEntries = setlist.map((item, index) => {
+            // Validate required fields
+            if (!item.song_id) {
+                throw new Error(`Entry ${index + 1}: song_id is required`);
+            }
+            if (typeof item.set_number !== 'number') {
+                throw new Error(`Entry ${index + 1}: set_number must be a number`);
+            }
+            if (typeof item.song_order !== 'number') {
+                throw new Error(`Entry ${index + 1}: song_order must be a number`);
+            }
+
+            // Validate UUID format for song_id
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+            if (!uuidRegex.test(item.song_id)) {
+                throw new Error(`Entry ${index + 1}: song_id is not a valid UUID`);
+            }
+
+            // Validate jams_into if provided (must be UUID or null, NOT false)
+            const jamsInto = item.jams_into || null;
+            if (jamsInto !== null && !uuidRegex.test(jamsInto)) {
+                throw new Error(`Entry ${index + 1}: jams_into must be a valid UUID or null`);
+            }
+
+            return {
+                show_id: id,
+                song_id: item.song_id,
+                set_number: item.set_number,
+                song_order: item.song_order,
+                is_encore: item.is_encore || false,
+                notes: item.notes || null,
+                jams_into: jamsInto
+            };
+        });
+
+        // ============================================================
+        // STEP 2: VERIFY ALL SONG REFERENCES EXIST
+        // ============================================================
+
+        // Collect all unique song IDs (both song_id and jams_into)
+        const allSongIds = new Set();
+        setlistEntries.forEach(entry => {
+            allSongIds.add(entry.song_id);
+            if (entry.jams_into) {
+                allSongIds.add(entry.jams_into);
+            }
+        });
+
+        // Query database to verify all songs exist
+        const { data: existingSongs, error: songCheckError } = await supabase
+            .from('songs')
+            .select('id')
+            .in('id', Array.from(allSongIds));
+
+        if (songCheckError) {
+            console.error('[PUT /setlist] Error checking song references:', songCheckError);
+            return res.status(500).json({
+                error: 'Failed to validate song references',
+                details: songCheckError.message
+            });
+        }
+
+        // Verify all song IDs exist
+        const existingSongIds = new Set(existingSongs.map(s => s.id));
+        const missingSongIds = Array.from(allSongIds).filter(id => !existingSongIds.has(id));
+
+        if (missingSongIds.length > 0) {
+            console.error('[PUT /setlist] Missing song references:', missingSongIds);
+            return res.status(400).json({
+                error: 'Invalid song references',
+                message: 'Some songs do not exist in the database',
+                missingSongIds: missingSongIds
+            });
+        }
+
+        // ============================================================
+        // STEP 3: VERIFY SHOW EXISTS
+        // ============================================================
+
+        const { data: show, error: showCheckError } = await supabase
+            .from('shows')
+            .select('id')
+            .eq('id', id)
+            .single();
+
+        if (showCheckError || !show) {
+            console.error('[PUT /setlist] Show not found:', id);
+            return res.status(404).json({
+                error: 'Show not found',
+                message: `No show found with ID: ${id}`
+            });
+        }
+
+        // ============================================================
+        // STEP 4: ALL VALIDATION PASSED - NOW SAFE TO UPDATE
+        // ============================================================
+
+        // Delete existing setlist entries
         const { error: deleteError } = await supabase
             .from('setlist_songs')
             .delete()
@@ -285,23 +406,7 @@ router.put('/:id/setlist', async (req, res) => {
             });
         }
 
-        // If setlist is empty, just return success
-        if (!setlist || setlist.length === 0) {
-            return res.json({ message: 'Setlist updated successfully', setlist: [] });
-        }
-
         // Insert new setlist entries
-        // Only junction table fields - NO song metadata (comes from songs table)
-        const setlistEntries = setlist.map(item => ({
-            show_id: id,
-            song_id: item.song_id,
-            set_number: item.set_number,
-            song_order: item.song_order,
-            is_encore: item.is_encore || false,
-            notes: item.notes || null,  // Performance-specific notes only
-            jams_into: item.jams_into || null  // UUID or null, NOT false
-        }));
-
         const { data: newSetlist, error: insertError } = await supabase
             .from('setlist_songs')
             .insert(setlistEntries)
@@ -309,12 +414,15 @@ router.put('/:id/setlist', async (req, res) => {
 
         if (insertError) {
             console.error('[PUT /setlist] Error inserting new setlist:', insertError);
+            // This should never happen since we validated everything
+            // But if it does, the old data is already deleted (unavoidable without transactions)
             return res.status(500).json({
-                error: 'Failed to update setlist',
+                error: 'Failed to insert setlist',
                 message: insertError.message,
                 details: insertError.details,
                 hint: insertError.hint,
-                code: insertError.code
+                code: insertError.code,
+                warning: 'Old setlist data was deleted but new data failed to insert. Please try again.'
             });
         }
 
@@ -322,7 +430,10 @@ router.put('/:id/setlist', async (req, res) => {
 
     } catch (error) {
         console.error('[PUT /setlist] Unexpected error:', error);
-        res.status(500).json({ error: 'Internal server error', message: error.message });
+        res.status(500).json({
+            error: 'Internal server error',
+            message: error.message
+        });
     }
 });
 
@@ -338,6 +449,88 @@ router.post('/:id/setlist/song', async (req, res) => {
 
         // TODO: Add authentication middleware to verify admin status
 
+        // ============================================================
+        // VALIDATE INPUT DATA
+        // ============================================================
+
+        // Validate required fields
+        if (!song_id) {
+            return res.status(400).json({ error: 'song_id is required' });
+        }
+        if (typeof set_number !== 'number') {
+            return res.status(400).json({ error: 'set_number must be a number' });
+        }
+        if (typeof song_order !== 'number') {
+            return res.status(400).json({ error: 'song_order must be a number' });
+        }
+
+        // Validate UUID format
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (!uuidRegex.test(song_id)) {
+            return res.status(400).json({ error: 'song_id must be a valid UUID' });
+        }
+
+        // Validate jams_into if provided (must be UUID or null, NOT false)
+        const jamsIntoValue = jams_into || null;
+        if (jamsIntoValue !== null && !uuidRegex.test(jamsIntoValue)) {
+            return res.status(400).json({ error: 'jams_into must be a valid UUID or null' });
+        }
+
+        // ============================================================
+        // VERIFY SONG REFERENCES EXIST
+        // ============================================================
+
+        // Collect song IDs to verify
+        const songIdsToCheck = [song_id];
+        if (jamsIntoValue) {
+            songIdsToCheck.push(jamsIntoValue);
+        }
+
+        const { data: existingSongs, error: songCheckError } = await supabase
+            .from('songs')
+            .select('id')
+            .in('id', songIdsToCheck);
+
+        if (songCheckError) {
+            console.error('[POST /setlist/song] Error checking song references:', songCheckError);
+            return res.status(500).json({
+                error: 'Failed to validate song references',
+                details: songCheckError.message
+            });
+        }
+
+        const existingSongIds = new Set(existingSongs.map(s => s.id));
+        const missingSongIds = songIdsToCheck.filter(id => !existingSongIds.has(id));
+
+        if (missingSongIds.length > 0) {
+            return res.status(400).json({
+                error: 'Invalid song references',
+                message: 'Some songs do not exist in the database',
+                missingSongIds: missingSongIds
+            });
+        }
+
+        // ============================================================
+        // VERIFY SHOW EXISTS
+        // ============================================================
+
+        const { data: show, error: showCheckError } = await supabase
+            .from('shows')
+            .select('id')
+            .eq('id', id)
+            .single();
+
+        if (showCheckError || !show) {
+            return res.status(404).json({
+                error: 'Show not found',
+                message: `No show found with ID: ${id}`
+            });
+        }
+
+        // ============================================================
+        // ALL VALIDATION PASSED - INSERT THE SONG
+        // ============================================================
+
         const { data: setlistSong, error } = await supabase
             .from('setlist_songs')
             .insert([{
@@ -347,21 +540,27 @@ router.post('/:id/setlist/song', async (req, res) => {
                 song_order,
                 is_encore: is_encore || false,
                 notes: notes || null,  // Performance-specific notes only
-                jams_into: jams_into || null  // UUID or null, NOT false
+                jams_into: jamsIntoValue  // UUID or null, NOT false
             }])
             .select()
             .single();
 
         if (error) {
-            console.error('Error adding song to setlist:', error);
-            return res.status(500).json({ error: 'Failed to add song to setlist' });
+            console.error('[POST /setlist/song] Error adding song to setlist:', error);
+            return res.status(500).json({
+                error: 'Failed to add song to setlist',
+                details: error.message
+            });
         }
 
         res.status(201).json(setlistSong);
 
     } catch (error) {
-        console.error('Error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        console.error('[POST /setlist/song] Unexpected error:', error);
+        res.status(500).json({
+            error: 'Internal server error',
+            message: error.message
+        });
     }
 });
 
