@@ -268,9 +268,6 @@ router.put('/:id/setlist', async (req, res) => {
         const { id } = req.params;
         const { setlist } = req.body;
 
-        console.log('[PUT /setlist] Updating setlist for show:', id);
-        console.log('[PUT /setlist] Setlist data:', JSON.stringify(setlist, null, 2));
-
         // TODO: Add authentication middleware to verify admin status
 
         // First, delete all existing setlist entries for this show
@@ -290,7 +287,6 @@ router.put('/:id/setlist', async (req, res) => {
 
         // If setlist is empty, just return success
         if (!setlist || setlist.length === 0) {
-            console.log('[PUT /setlist] Empty setlist, returning success');
             return res.json({ message: 'Setlist updated successfully', setlist: [] });
         }
 
@@ -303,10 +299,8 @@ router.put('/:id/setlist', async (req, res) => {
             song_order: item.song_order,
             is_encore: item.is_encore || false,
             notes: item.notes || null,  // Performance-specific notes only
-            jams_into: item.jams_into || false
+            jams_into: item.jams_into || null  // UUID or null, NOT false
         }));
-
-        console.log('[PUT /setlist] Inserting entries:', JSON.stringify(setlistEntries, null, 2));
 
         const { data: newSetlist, error: insertError } = await supabase
             .from('setlist_songs')
@@ -315,12 +309,6 @@ router.put('/:id/setlist', async (req, res) => {
 
         if (insertError) {
             console.error('[PUT /setlist] Error inserting new setlist:', insertError);
-            console.error('[PUT /setlist] Error details:', {
-                message: insertError.message,
-                details: insertError.details,
-                hint: insertError.hint,
-                code: insertError.code
-            });
             return res.status(500).json({
                 error: 'Failed to update setlist',
                 message: insertError.message,
@@ -330,7 +318,6 @@ router.put('/:id/setlist', async (req, res) => {
             });
         }
 
-        console.log('[PUT /setlist] Successfully updated setlist');
         res.json({ message: 'Setlist updated successfully', setlist: newSetlist });
 
     } catch (error) {
@@ -360,7 +347,7 @@ router.post('/:id/setlist/song', async (req, res) => {
                 song_order,
                 is_encore: is_encore || false,
                 notes: notes || null,  // Performance-specific notes only
-                jams_into: jams_into || false
+                jams_into: jams_into || null  // UUID or null, NOT false
             }])
             .select()
             .single();
