@@ -1,6 +1,6 @@
 # BlueskiesBase - Current State Document
 
-**Last Updated:** November 12, 2025
+**Last Updated:** January 21, 2025
 **Project Status:** Production - All Critical Issues Resolved! ✅
 
 ---
@@ -78,6 +78,14 @@ await supabase.from('setlist_songs').insert(setlistEntries);
 
 ## ✅ Recently Completed Work
 
+### UI Improvements and Bug Fixes (Completed: Jan 21, 2025)
+- ✅ **Tab Navigation Layout** - Changed from flex to grid for equal-width tabs
+- ✅ **Song Stats Container Width** - Increased from max-w-4xl to max-w-6xl to match other sections
+- ✅ **Sub-tabs Reordering** - Swapped Originals and Covers order (Originals now first)
+- ✅ **My Stats Tab Error Fixed** - Fixed foreign key ambiguity in user stats endpoint
+- ✅ **Tab Label Consistency** - Shortened "Song Statistics" to "Song Stats"
+- **Commit:** `f3f617e`
+
 ### Critical Bug Fixes (Completed: Nov 12, 2025)
 - ✅ **Data Loss Prevention** - Implemented validation-first pattern in setlist update endpoints
 - ✅ **September 16, 2025 Setlist Restored** - Recovered all 31 songs from setlist.fm
@@ -97,9 +105,9 @@ await supabase.from('setlist_songs').insert(setlistEntries);
 ## 📊 Current Database State
 
 ### Statistics
-- **Total Shows:** 302
+- **Total Shows:** 443
 - **Total Songs:** 134 (cleaned up duplicates)
-- **Total Setlist Entries:** 5,899 (restored September 16, 2025 show)
+- **Total Setlist Entries:** 5,868 (restored September 16, 2025 show)
 - **Total Albums:** 8
 - **Total Venues:** ~200+
 - **Songs with Performances:** 133+
@@ -357,7 +365,7 @@ node scripts/find_missing_show.js
 
 ## 🐛 Known Bugs and Limitations
 
-1. **CRITICAL:** Setlist update can cause data loss (see top of document)
+1. ~~**CRITICAL:** Setlist update can cause data loss~~ ✅ **FIXED Nov 12, 2025**
 2. No automated backups - data loss is permanent
 3. No audit logging - can't track who made changes
 4. No undo functionality - mistakes are permanent

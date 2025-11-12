@@ -39,35 +39,52 @@ jams_into: item.jams_into || null
 
 **Problem:** Queries return only the first 1,000 rows by default, causing inaccurate counts and incomplete data.
 
-**Solution:** Use batch fetching for large datasets:
+**Solution:** Use pagination with `.range()` for large datasets:
 ```javascript
 let allData = [];
-let from = 0;
-const batchSize = 1000;
+let rangeStart = 0;
+const PAGE_SIZE = 1000;
 let hasMore = true;
 
 while (hasMore) {
-    const { data: batch, error } = await supabase
+    const rangeEnd = rangeStart + PAGE_SIZE - 1;
+
+    const { data: pageData, error, count } = await supabase
         .from('table_name')
-        .select('*')
-        .range(from, from + batchSize - 1);
-    
-    if (error) break;
-    
-    if (batch && batch.length > 0) {
-        allData = allData.concat(batch);
-        hasMore = batch.length === batchSize;
-        from += batchSize;
+        .select('*', { count: 'exact' })
+        .eq('filter_field', filterValue)
+        .range(rangeStart, rangeEnd);
+
+    if (error) {
+        console.error('Error:', error);
+        break;
+    }
+
+    if (pageData && pageData.length > 0) {
+        allData = allData.concat(pageData);
+        rangeStart += PAGE_SIZE;
+
+        // Stop if we got less than a full page or reached the total count
+        if (pageData.length < PAGE_SIZE || allData.length >= count) {
+            hasMore = false;
+        }
     } else {
         hasMore = false;
     }
 }
 ```
 
-**Where this matters:**
-- Performance counts (counting songs across all shows)
-- Any aggregation across large datasets
-- Exporting data
+**Where this has been applied (as of Nov 12, 2025):**
+- ✅ `client/src/pages/SearchPage.jsx` - Song stats calculation (lines 208-257)
+- ✅ `client/src/pages/SearchPage.jsx` - Dropdown songs fetch (lines 102-146)
+- ✅ `server/routes/songs.js` - Global song stats (lines 20-73)
+- ✅ `server/routes/songs.js` - Song stats endpoint (lines 76-135)
+- ✅ `server/routes/songs.js` - Song performances (lines 241-286)
+- ✅ `server/routes/search.js` - Search by song (lines 132-164)
+- ✅ `server/routes/users.js` - User stats (lines 286-393)
+- ✅ `server/routes/users.js` - Songs not seen (lines 416-462)
+
+**See `SUPABASE_1000_ROW_LIMIT_AUDIT.md` for complete audit and monitoring plan.**
 
 ---
 
@@ -247,12 +264,12 @@ Fixes: Description of what bug was fixed
 
 ## Current Database Stats
 
-- **Total shows:** 302
-- **Total songs:** 137
+- **Total shows:** 443
+- **Total songs:** 134
 - **Total setlist entries:** 5,868
 - **Total albums:** 8
 - **Songs with performances:** 133
-- **Songs never performed:** 4
+- **Songs never performed:** 1-4
 - **Songs with jams_into relationships:** 32
 
 **Top 5 Most Performed Songs:**
@@ -401,7 +418,7 @@ node scripts/migrations/run_migration.js
 
 ---
 
-## Current State Summary (Last Updated: 2025-11-12)
+## Current State Summary (Last Updated: 2025-01-21)
 
 ### ✅ Completed Features
 
@@ -433,9 +450,9 @@ node scripts/migrations/run_migration.js
 - ✅ Admin panel link in footer for admin users
 
 **Data Quality:**
-- ✅ 302 shows imported from setlist.fm
+- ✅ 443 shows imported from setlist.fm
 - ✅ 134 songs in database (cleaned up duplicates)
-- ✅ 5,899 setlist entries (restored September 16, 2025 show)
+- ✅ 5,868 setlist entries (restored September 16, 2025 show)
 - ✅ 8 albums created
 - ✅ Combined songs split into individual songs with jams_into relationships
 - ✅ Orphaned data cleanup
@@ -501,13 +518,14 @@ node scripts/migrations/run_migration.js
 1. ~~**FIX DATA LOSS BUG**~~ ✅ **COMPLETED 2025-11-12** - Implemented transaction-safe setlist update
 2. ~~**Restore September 16, 2025 setlist**~~ ✅ **COMPLETED 2025-11-12** - Restored all 31 songs from setlist.fm
 3. ~~**Delete duplicate "The Promise (Cover)" song**~~ ✅ **COMPLETED** - Cleaned up unused duplicate
-4. **Add audit logging** - Track all admin changes (NEXT PRIORITY)
-5. **Set up automated backups** - Daily database snapshots
-6. **Fix data inconsistencies** - Review songs with "(Cover)" in title
-7. **Add undo functionality** - Allow admins to revert recent changes
-8. **Improve error handling** - Better user feedback on failures
-9. **Add data validation** - Prevent invalid data from being saved
-10. **Performance monitoring** - Track slow queries and optimize
+4. ~~**Fix UI inconsistencies**~~ ✅ **COMPLETED 2025-01-21** - Fixed tab widths, reordered sub-tabs, fixed My Stats error
+5. **Add audit logging** - Track all admin changes (NEXT PRIORITY)
+6. **Set up automated backups** - Daily database snapshots
+7. **Fix data inconsistencies** - Review songs with "(Cover)" in title
+8. **Add undo functionality** - Allow admins to revert recent changes
+9. **Improve error handling** - Better user feedback on failures
+10. **Add data validation** - Prevent invalid data from being saved
+11. **Performance monitoring** - Track slow queries and optimize
 
 ### 🎯 Future Enhancements (Backlog)
 
