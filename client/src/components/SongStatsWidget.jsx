@@ -5,7 +5,7 @@ export default function SongStatsWidget() {
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [activeTab, setActiveTab] = useState('covers'); // 'covers' or 'originals'
+    const [activeTab, setActiveTab] = useState('originals'); // 'covers' or 'originals'
 
     useEffect(() => {
         const fetchStats = async () => {
@@ -55,16 +55,6 @@ export default function SongStatsWidget() {
             {/* Tab Buttons */}
             <div className="flex gap-2 mb-4">
                 <button
-                    onClick={() => setActiveTab('covers')}
-                    className={`flex-1 px-3 py-1.5 rounded-lg font-medium text-sm transition-colors ${
-                        activeTab === 'covers'
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                    }`}
-                >
-                    Covers
-                </button>
-                <button
                     onClick={() => setActiveTab('originals')}
                     className={`flex-1 px-3 py-1.5 rounded-lg font-medium text-sm transition-colors ${
                         activeTab === 'originals'
@@ -74,7 +64,102 @@ export default function SongStatsWidget() {
                 >
                     Originals
                 </button>
+                <button
+                    onClick={() => setActiveTab('covers')}
+                    className={`flex-1 px-3 py-1.5 rounded-lg font-medium text-sm transition-colors ${
+                        activeTab === 'covers'
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                    }`}
+                >
+                    Covers
+                </button>
             </div>
+
+            {/* Originals Tab */}
+            {activeTab === 'originals' && (
+                <div className="space-y-4">
+                    {/* Total Originals */}
+                    <div className="text-center p-3 bg-gray-750 rounded-lg border border-gray-600">
+                        <div className="text-3xl font-bold text-green-400 mb-0.5">
+                            {stats.originals.total}
+                        </div>
+                        <div className="text-sm text-gray-300">Unique Originals</div>
+                    </div>
+
+                    {/* Top 5 Originals */}
+                    <div>
+                        <h3 className="text-sm font-semibold text-gray-200 mb-2">
+                            🔥 Top 5 Most Played
+                        </h3>
+                        <div className="space-y-1.5">
+                            {stats.originals.top5.map((song, index) => (
+                                <div
+                                    key={song.id}
+                                    className="flex flex-col p-2 bg-gray-750 rounded border border-gray-600"
+                                >
+                                    <div className="flex items-start justify-between">
+                                        <div className="flex items-start gap-2 flex-1 min-w-0">
+                                            <div className="text-lg font-bold text-green-400 w-5 flex-shrink-0">
+                                                {index + 1}
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <div className="font-medium text-gray-100 text-sm truncate">
+                                                    {song.title}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="text-sm font-semibold text-green-300 ml-2 flex-shrink-0">
+                                            {song.playCount}x
+                                        </div>
+                                    </div>
+                                    {song.lastPlayed && (
+                                        <div className="text-xs text-gray-500 mt-1 ml-7">
+                                            Last played: {new Date(song.lastPlayed).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Rarest 5 Originals */}
+                    <div>
+                        <h3 className="text-sm font-semibold text-gray-200 mb-2">
+                            💎 Rarest 5
+                        </h3>
+                        <div className="space-y-1.5">
+                            {stats.originals.rarest5.map((song, index) => (
+                                <div
+                                    key={song.id}
+                                    className="flex flex-col p-2 bg-gray-750 rounded border border-gray-600"
+                                >
+                                    <div className="flex items-start justify-between">
+                                        <div className="flex items-start gap-2 flex-1 min-w-0">
+                                            <div className="text-lg font-bold text-purple-400 w-5 flex-shrink-0">
+                                                {index + 1}
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <div className="font-medium text-gray-100 text-sm truncate">
+                                                    {song.title}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="text-sm font-semibold text-purple-300 ml-2 flex-shrink-0">
+                                            {song.playCount}x
+                                        </div>
+                                    </div>
+                                    {song.lastPlayed && (
+                                        <div className="text-xs text-gray-500 mt-1 ml-7">
+                                            Last played: {new Date(song.lastPlayed).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Covers Tab */}
             {activeTab === 'covers' && (
@@ -153,91 +238,6 @@ export default function SongStatsWidget() {
                                                         {song.original_artist}
                                                     </div>
                                                 )}
-                                            </div>
-                                        </div>
-                                        <div className="text-sm font-semibold text-purple-300 ml-2 flex-shrink-0">
-                                            {song.playCount}x
-                                        </div>
-                                    </div>
-                                    {song.lastPlayed && (
-                                        <div className="text-xs text-gray-500 mt-1 ml-7">
-                                            Last played: {new Date(song.lastPlayed).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Originals Tab */}
-            {activeTab === 'originals' && (
-                <div className="space-y-4">
-                    {/* Total Originals */}
-                    <div className="text-center p-3 bg-gray-750 rounded-lg border border-gray-600">
-                        <div className="text-3xl font-bold text-green-400 mb-0.5">
-                            {stats.originals.total}
-                        </div>
-                        <div className="text-sm text-gray-300">Unique Originals</div>
-                    </div>
-
-                    {/* Top 5 Originals */}
-                    <div>
-                        <h3 className="text-sm font-semibold text-gray-200 mb-2">
-                            🔥 Top 5 Most Played
-                        </h3>
-                        <div className="space-y-1.5">
-                            {stats.originals.top5.map((song, index) => (
-                                <div
-                                    key={song.id}
-                                    className="flex flex-col p-2 bg-gray-750 rounded border border-gray-600"
-                                >
-                                    <div className="flex items-start justify-between">
-                                        <div className="flex items-start gap-2 flex-1 min-w-0">
-                                            <div className="text-lg font-bold text-green-400 w-5 flex-shrink-0">
-                                                {index + 1}
-                                            </div>
-                                            <div className="min-w-0 flex-1">
-                                                <div className="font-medium text-gray-100 text-sm truncate">
-                                                    {song.title}
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className="text-sm font-semibold text-green-300 ml-2 flex-shrink-0">
-                                            {song.playCount}x
-                                        </div>
-                                    </div>
-                                    {song.lastPlayed && (
-                                        <div className="text-xs text-gray-500 mt-1 ml-7">
-                                            Last played: {new Date(song.lastPlayed).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Rarest 5 Originals */}
-                    <div>
-                        <h3 className="text-sm font-semibold text-gray-200 mb-2">
-                            💎 Rarest 5
-                        </h3>
-                        <div className="space-y-1.5">
-                            {stats.originals.rarest5.map((song, index) => (
-                                <div
-                                    key={song.id}
-                                    className="flex flex-col p-2 bg-gray-750 rounded border border-gray-600"
-                                >
-                                    <div className="flex items-start justify-between">
-                                        <div className="flex items-start gap-2 flex-1 min-w-0">
-                                            <div className="text-lg font-bold text-purple-400 w-5 flex-shrink-0">
-                                                {index + 1}
-                                            </div>
-                                            <div className="min-w-0 flex-1">
-                                                <div className="font-medium text-gray-100 text-sm truncate">
-                                                    {song.title}
-                                                </div>
                                             </div>
                                         </div>
                                         <div className="text-sm font-semibold text-purple-300 ml-2 flex-shrink-0">

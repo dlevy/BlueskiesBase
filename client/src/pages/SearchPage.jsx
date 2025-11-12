@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { searchShows, getShows, checkShowAttendanceBatch, markShowAttended, unmarkShowAttended, checkShowsHaveContent } from '../services/api';
 import { supabase } from '../services/supabase';
@@ -32,6 +32,10 @@ export default function SearchPage() {
     const [attendanceLoading, setAttendanceLoading] = useState({}); // Track loading state per show
     const [contentMap, setContentMap] = useState({}); // Track notes/photos for each show
     const [songStatsMap, setSongStatsMap] = useState({}); // Track unique songs per show: { showId: { originals: N, covers: N } }
+    const [songStatsLoading, setSongStatsLoading] = useState(false); // Track if song stats are being calculated
+
+    // Use ref to track the current filteredResults IDs to avoid recalculating stats unnecessarily
+    const lastCalculatedShowIds = useRef(null);
 
     // Pagination state for standalone content filtering
     const [currentPage, setCurrentPage] = useState(1);
@@ -49,8 +53,10 @@ export default function SearchPage() {
     useEffect(() => {
         const fetchDropdownOptions = async () => {
             try {
+                console.log('[SearchPage] Fetching dropdown options...');
+
                 // Fetch all shows to get all available options
-                const { data: showsData } = await supabase
+                const { data: showsData, error: showsError } = await supabase
                     .from('shows')
                     .select(`
                         id,
@@ -63,7 +69,15 @@ export default function SearchPage() {
                         )
                     `);
 
+                if (showsError) {
+                    console.error('[SearchPage] Error fetching shows for dropdowns:', showsError);
+                    setError('Failed to load search options. Please refresh the page.');
+                    return;
+                }
+
                 if (showsData) {
+                    console.log('[SearchPage] Loaded', showsData.length, 'shows for dropdowns');
+
                     // Extract unique years - parse as local date to avoid timezone issues
                     const uniqueYears = [...new Set(showsData.map(show => {
                         const [year] = show.show_date.split('-');
@@ -85,27 +99,55 @@ export default function SearchPage() {
                     )].sort();
                     setCities(uniqueCities);
 
-                    // Fetch all songs
+                    // Fetch all songs with pagination (we have 5,899+ setlist_songs)
                     const showIds = showsData.map(show => show.id);
-                    const { data: setlistSongsData } = await supabase
-                        .from('setlist_songs')
-                        .select(`
-                            songs!setlist_songs_song_id_fkey!inner (
-                                title
-                            )
-                        `)
-                        .in('show_id', showIds);
+                    let allSetlistSongs = [];
+                    let rangeStart = 0;
+                    const PAGE_SIZE = 1000;
+                    let hasMore = true;
 
-                    if (setlistSongsData) {
-                        const uniqueSongs = [...new Set(setlistSongsData
+                    while (hasMore) {
+                        const rangeEnd = rangeStart + PAGE_SIZE - 1;
+
+                        const { data: pageData, error: songsError, count } = await supabase
+                            .from('setlist_songs')
+                            .select(`
+                                songs!setlist_songs_song_id_fkey!inner (
+                                    title
+                                )
+                            `, { count: 'exact' })
+                            .in('show_id', showIds)
+                            .range(rangeStart, rangeEnd);
+
+                        if (songsError) {
+                            console.error('[SearchPage] Error fetching songs for dropdowns:', songsError);
+                            break;
+                        }
+
+                        if (pageData && pageData.length > 0) {
+                            allSetlistSongs = allSetlistSongs.concat(pageData);
+                            rangeStart += PAGE_SIZE;
+
+                            if (pageData.length < PAGE_SIZE || allSetlistSongs.length >= count) {
+                                hasMore = false;
+                            }
+                        } else {
+                            hasMore = false;
+                        }
+                    }
+
+                    if (allSetlistSongs.length > 0) {
+                        const uniqueSongs = [...new Set(allSetlistSongs
                             .map(ss => ss.songs?.title)
                             .filter(Boolean)
                         )].sort();
                         setSongs(uniqueSongs);
+                        console.log('[SearchPage] Loaded', uniqueSongs.length, 'unique songs for dropdown (from', allSetlistSongs.length, 'setlist entries)');
                     }
                 }
             } catch (err) {
-                console.error('Error fetching dropdown options:', err);
+                console.error('[SearchPage] Exception fetching dropdown options:', err);
+                setError('Failed to load search options. Please refresh the page.');
             }
         };
 
@@ -165,13 +207,23 @@ export default function SearchPage() {
         const calculateSongStats = async () => {
             if (filteredResults.length === 0) {
                 setSongStatsMap({});
+                setSongStatsLoading(false);
+                lastCalculatedShowIds.current = null;
                 return;
             }
 
+            // Check if we've already calculated stats for these exact shows
+            const showIds = filteredResults.map(show => show.id);
+            const showIdsKey = [...showIds].sort().join(',');
+
+            if (lastCalculatedShowIds.current === showIdsKey) {
+                return;
+            }
+
+            setSongStatsLoading(true);
+            lastCalculatedShowIds.current = showIdsKey;
+
             try {
-                // Fetch setlist songs for all shows in filtered results
-                const showIds = filteredResults.map(show => show.id);
-                console.log('[SearchPage] Calculating song stats for', showIds.length, 'shows');
 
                 // Batch the queries if there are too many shows (Supabase has limits on IN clause)
                 const BATCH_SIZE = 100;
@@ -179,37 +231,55 @@ export default function SearchPage() {
 
                 for (let i = 0; i < showIds.length; i += BATCH_SIZE) {
                     const batchIds = showIds.slice(i, i + BATCH_SIZE);
-                    console.log('[SearchPage] Fetching batch', Math.floor(i / BATCH_SIZE) + 1, 'of', Math.ceil(showIds.length / BATCH_SIZE), '(', batchIds.length, 'shows)');
 
-                    const { data: setlistSongs, error } = await supabase
-                        .from('setlist_songs')
-                        .select(`
-                            show_id,
-                            song_id,
-                            id,
-                            songs!setlist_songs_song_id_fkey (
+                    // Fetch all rows using pagination (Supabase has a 1000 row limit by default)
+                    let batchSetlistSongs = [];
+                    let rangeStart = 0;
+                    const PAGE_SIZE = 1000;
+                    let hasMore = true;
+
+                    while (hasMore) {
+                        const rangeEnd = rangeStart + PAGE_SIZE - 1;
+
+                        const { data: pageData, error, count } = await supabase
+                            .from('setlist_songs')
+                            .select(`
+                                show_id,
+                                song_id,
                                 id,
-                                is_original
-                            )
-                        `)
-                        .in('show_id', batchIds);
+                                songs!setlist_songs_song_id_fkey (
+                                    id,
+                                    is_original
+                                )
+                            `, { count: 'exact' })
+                            .in('show_id', batchIds)
+                            .range(rangeStart, rangeEnd);
 
-                    if (error) {
-                        console.error('[SearchPage] Error fetching setlist songs batch:', error);
-                        continue; // Skip this batch but continue with others
+                        if (error) {
+                            console.error('[SearchPage] Error fetching setlist songs page:', error);
+                            break;
+                        }
+
+                        if (pageData && pageData.length > 0) {
+                            batchSetlistSongs = batchSetlistSongs.concat(pageData);
+                            rangeStart += PAGE_SIZE;
+
+                            // Check if we've fetched all rows
+                            if (pageData.length < PAGE_SIZE || batchSetlistSongs.length >= count) {
+                                hasMore = false;
+                            }
+                        } else {
+                            hasMore = false;
+                        }
                     }
 
-                    if (setlistSongs) {
-                        allSetlistSongs = allSetlistSongs.concat(setlistSongs);
-                    }
+                    allSetlistSongs = allSetlistSongs.concat(batchSetlistSongs);
                 }
-
-                console.log('[SearchPage] Fetched total of', allSetlistSongs.length, 'setlist songs');
 
                 // Calculate stats per show
                 const statsMap = {};
 
-                showIds.forEach(showId => {
+                showIds.forEach((showId) => {
                     const showSongs = allSetlistSongs?.filter(item => item.show_id === showId) || [];
 
                     // Track unique songs by song_id
@@ -244,11 +314,12 @@ export default function SearchPage() {
                     statsMap[showId] = { originals, covers };
                 });
 
-                console.log('[SearchPage] Calculated stats for', Object.keys(statsMap).length, 'shows');
                 setSongStatsMap(statsMap);
+                setSongStatsLoading(false);
 
             } catch (err) {
                 console.error('[SearchPage] Error calculating song stats:', err);
+                setSongStatsLoading(false);
             }
         };
 
@@ -485,10 +556,10 @@ export default function SearchPage() {
             </h1>
 
             {/* Tab Navigation */}
-            <div className="flex gap-2 mb-6">
+            <div className="grid grid-cols-3 gap-2 mb-6">
                 <button
                     onClick={() => setActiveTab('search')}
-                    className={`flex-1 px-6 py-3 rounded-lg font-semibold transition-colors ${
+                    className={`px-6 py-3 rounded-lg font-semibold transition-colors ${
                         activeTab === 'search'
                             ? 'bg-blue-600 text-white shadow-lg'
                             : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700'
@@ -498,17 +569,17 @@ export default function SearchPage() {
                 </button>
                 <button
                     onClick={() => setActiveTab('stats')}
-                    className={`flex-1 px-6 py-3 rounded-lg font-semibold transition-colors ${
+                    className={`px-6 py-3 rounded-lg font-semibold transition-colors ${
                         activeTab === 'stats'
                             ? 'bg-blue-600 text-white shadow-lg'
                             : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700'
                     }`}
                 >
-                    📊 Song Statistics
+                    📊 Song Stats
                 </button>
                 <button
                     onClick={() => setActiveTab('mystats')}
-                    className={`flex-1 px-6 py-3 rounded-lg font-semibold transition-colors ${
+                    className={`px-6 py-3 rounded-lg font-semibold transition-colors ${
                         activeTab === 'mystats'
                             ? 'bg-blue-600 text-white shadow-lg'
                             : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700'
@@ -725,7 +796,7 @@ export default function SearchPage() {
                             <p className="text-gray-400">No shows found. Try adjusting your search criteria.</p>
                         ) : (
                             <div className="space-y-4">
-                        {filteredResults.map(show => {
+                        {filteredResults.map((show, index) => {
                             const isAttended = attendanceMap[show.id] || false;
                             const isLoading = attendanceLoading[show.id] || false;
                             const hasNotes = contentMap[show.id]?.hasNotes || false;
@@ -863,7 +934,7 @@ export default function SearchPage() {
 
             {/* Stats Tab Content */}
             {activeTab === 'stats' && (
-                <div className="max-w-4xl mx-auto">
+                <div className="max-w-6xl mx-auto">
                     <SongStatsWidget />
                 </div>
             )}

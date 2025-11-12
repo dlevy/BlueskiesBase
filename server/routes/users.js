@@ -367,7 +367,7 @@ router.get('/stats', async (req, res) => {
                 .from('setlist_songs')
                 .select(`
                     song_id,
-                    songs!inner (
+                    songs!setlist_songs_song_id_fkey!inner (
                         id,
                         title,
                         is_original,
@@ -413,29 +413,53 @@ router.get('/stats', async (req, res) => {
         if (songsNotSeenBasic.length > 0) {
             const notSeenSongIds = songsNotSeenBasic.map(s => s.id);
 
-            // Get all setlist_songs for songs not seen with show info
-            const { data: notSeenSetlistData, error: notSeenError } = await supabase
-                .from('setlist_songs')
-                .select(`
-                    song_id,
-                    show_id,
-                    shows!inner (
-                        id,
-                        show_date,
-                        artist_name,
-                        venues (
-                            name,
-                            city,
-                            state_country
-                        )
-                    )
-                `)
-                .in('song_id', notSeenSongIds)
-                .order('shows(show_date)', { ascending: false });
+            // Get all setlist_songs for songs not seen with show info (with pagination)
+            let allNotSeenSetlistData = [];
+            let rangeStart = 0;
+            const PAGE_SIZE = 1000;
+            let hasMore = true;
 
-            if (notSeenError) {
-                console.error('Error fetching not seen shows:', notSeenError);
+            while (hasMore) {
+                const rangeEnd = rangeStart + PAGE_SIZE - 1;
+
+                const { data: pageData, error: notSeenError, count } = await supabase
+                    .from('setlist_songs')
+                    .select(`
+                        song_id,
+                        show_id,
+                        shows!inner (
+                            id,
+                            show_date,
+                            artist_name,
+                            venues (
+                                name,
+                                city,
+                                state_country
+                            )
+                        )
+                    `, { count: 'exact' })
+                    .in('song_id', notSeenSongIds)
+                    .order('shows(show_date)', { ascending: false })
+                    .range(rangeStart, rangeEnd);
+
+                if (notSeenError) {
+                    console.error('Error fetching not seen shows page:', notSeenError);
+                    break;
+                }
+
+                if (pageData && pageData.length > 0) {
+                    allNotSeenSetlistData = allNotSeenSetlistData.concat(pageData);
+                    rangeStart += PAGE_SIZE;
+
+                    if (pageData.length < PAGE_SIZE || allNotSeenSetlistData.length >= count) {
+                        hasMore = false;
+                    }
+                } else {
+                    hasMore = false;
+                }
             }
+
+            const notSeenSetlistData = allNotSeenSetlistData;
 
             // Group by song_id and get the most recent show for each
             const songToMostRecentShow = new Map();
