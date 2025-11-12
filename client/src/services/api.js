@@ -368,7 +368,25 @@ export const removeSongFromSetlist = async (showId, setlistId) => {
 const getAuthToken = async () => {
     try {
         console.log('[API] getAuthToken: Fetching fresh session...');
-        const { data: { session }, error } = await supabase.auth.getSession();
+
+        // Add timeout to prevent hanging on getSession
+        const timeoutMs = 10000; // 10 seconds
+        let timeoutId;
+
+        const sessionPromise = supabase.auth.getSession();
+        const timeoutPromise = new Promise((_, reject) => {
+            timeoutId = setTimeout(() => {
+                console.error('[API] getAuthToken: Timeout after', timeoutMs, 'ms');
+                reject(new Error('getSession timeout'));
+            }, timeoutMs);
+        });
+
+        const result = await Promise.race([sessionPromise, timeoutPromise]);
+        clearTimeout(timeoutId);
+
+        console.log('[API] getAuthToken: Session fetch completed');
+
+        const { data: { session }, error } = result;
 
         if (error) {
             console.error('[API] getAuthToken: Error getting session:', error);
