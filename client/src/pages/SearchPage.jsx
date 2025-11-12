@@ -551,9 +551,7 @@ export default function SearchPage() {
 
     return (
         <div className="px-4 py-4 md:py-6 max-w-6xl mx-auto">
-            <h1 className="text-2xl md:text-3xl font-bold mb-4 text-center bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
-                Johnny Blue Skies Setlists
-            </h1>
+
 
             {/* Tab Navigation */}
             <div className="grid grid-cols-3 gap-2 mb-6">
@@ -565,7 +563,7 @@ export default function SearchPage() {
                             : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700'
                     }`}
                 >
-                    🔍 Search Setlists
+                    🔍 Search
                 </button>
                 <button
                     onClick={() => setActiveTab('stats')}
@@ -575,7 +573,7 @@ export default function SearchPage() {
                             : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700'
                     }`}
                 >
-                    📊 Song Stats
+                    📊 Stats
                 </button>
                 <button
                     onClick={() => setActiveTab('mystats')}
@@ -700,7 +698,7 @@ export default function SearchPage() {
                                         onChange={handleInputChange}
                                         className="w-3.5 h-3.5 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500 focus:ring-2"
                                     />
-                                    <span className="ml-1.5 text-gray-300 text-xs">Has Notes</span>
+                                    <span className="ml-1.5 text-gray-300 text-xs">Notes</span>
                                 </label>
                                 <label className="inline-flex items-center cursor-pointer">
                                     <input
@@ -710,7 +708,7 @@ export default function SearchPage() {
                                         onChange={handleInputChange}
                                         className="w-3.5 h-3.5 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500 focus:ring-2"
                                     />
-                                    <span className="ml-1.5 text-gray-300 text-xs">Has Photos</span>
+                                    <span className="ml-1.5 text-gray-300 text-xs">Photos</span>
                                 </label>
                                 <label className="inline-flex items-center cursor-pointer">
                                     <input
@@ -720,7 +718,7 @@ export default function SearchPage() {
                                         onChange={handleInputChange}
                                         className="w-3.5 h-3.5 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500 focus:ring-2"
                                     />
-                                    <span className="ml-1.5 text-gray-300 text-xs">Has Poster</span>
+                                    <span className="ml-1.5 text-gray-300 text-xs">Poster</span>
                                 </label>
                             </div>
                         </div>
