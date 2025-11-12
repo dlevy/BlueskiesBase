@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { getSongs } from '../../services/api';
 import SongForm from './SongForm';
 
@@ -193,6 +194,9 @@ export default function SongsList() {
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                                     Written By
                                 </th>
+                                <th className="px-4 py-3 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">
+                                    Shows
+                                </th>
                                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
                                     Actions
                                 </th>
@@ -201,7 +205,7 @@ export default function SongsList() {
                         <tbody className="divide-y divide-gray-700">
                             {filteredSongs.length === 0 ? (
                                 <tr>
-                                    <td colSpan="5" className="px-4 py-8 text-center text-gray-400">
+                                    <td colSpan="6" className="px-4 py-8 text-center text-gray-400">
                                         No songs found
                                     </td>
                                 </tr>
@@ -234,6 +238,19 @@ export default function SongsList() {
                                         </td>
                                         <td className="px-4 py-3 text-gray-300">
                                             {song.written_by || '-'}
+                                        </td>
+                                        <td className="px-4 py-3 text-center">
+                                            {song.performance_count > 0 ? (
+                                                <Link
+                                                    to={`/?song=${encodeURIComponent(song.title)}`}
+                                                    className="text-blue-400 hover:text-blue-300 font-medium text-sm transition-colors hover:underline"
+                                                    title={`View ${song.performance_count} show${song.performance_count !== 1 ? 's' : ''} where this song was played`}
+                                                >
+                                                    {song.performance_count}
+                                                </Link>
+                                            ) : (
+                                                <span className="text-gray-500 text-sm">0</span>
+                                            )}
                                         </td>
                                         <td className="px-4 py-3 text-right">
                                             <button

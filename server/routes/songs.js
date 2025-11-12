@@ -4,7 +4,7 @@ const { supabase } = require('../config/supabase');
 
 /**
  * GET /api/songs
- * Get all songs
+ * Get all songs with performance counts
  */
 router.get('/', async (req, res) => {
     try {
@@ -18,7 +18,54 @@ router.get('/', async (req, res) => {
             return res.status(500).json({ error: 'Failed to fetch songs' });
         }
 
-        res.json({ songs });
+        // Get performance counts for each song (count unique shows)
+        const songIds = songs.map(s => s.id);
+
+        // Fetch ALL setlist_songs entries using batch fetching to avoid 1000-row limit
+        let allSetlistSongs = [];
+        let from = 0;
+        const batchSize = 1000;
+        let hasMore = true;
+
+        while (hasMore) {
+            const { data: batch, error: batchError } = await supabase
+                .from('setlist_songs')
+                .select('song_id, show_id')
+                .in('song_id', songIds)
+                .range(from, from + batchSize - 1);
+
+            if (batchError) {
+                console.error('Error fetching setlist songs batch:', batchError);
+                break;
+            }
+
+            if (batch && batch.length > 0) {
+                allSetlistSongs = allSetlistSongs.concat(batch);
+                hasMore = batch.length === batchSize;
+                from += batchSize;
+            } else {
+                hasMore = false;
+            }
+        }
+
+        // Count unique shows per song
+        const performanceCounts = {};
+        if (allSetlistSongs.length > 0) {
+            allSetlistSongs.forEach(entry => {
+                if (!performanceCounts[entry.song_id]) {
+                    performanceCounts[entry.song_id] = new Set();
+                }
+                performanceCounts[entry.song_id].add(entry.show_id);
+            });
+        }
+
+        // Add performance_count to each song
+        const songsWithCounts = songs.map(song => ({
+            ...song,
+            performance_count: performanceCounts[song.id] ? performanceCounts[song.id].size : 0
+        }));
+
+        res.json({ songs: songsWithCounts });
 
     } catch (error) {
         console.error('Error:', error);
