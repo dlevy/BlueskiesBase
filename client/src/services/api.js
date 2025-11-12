@@ -6,6 +6,14 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000
 // Log the API URL for debugging
 console.log('[API Service] Using API Base URL:', API_BASE_URL);
 
+// Token getter function - will be set by AuthContext
+let tokenGetter = null;
+
+export const setTokenGetter = (getter) => {
+    console.log('[API] setTokenGetter called');
+    tokenGetter = getter;
+};
+
 /**
  * Search for shows with filters
  */
@@ -362,12 +370,25 @@ export const removeSongFromSetlist = async (showId, setlistId) => {
 // ============================================
 
 /**
- * Get authentication token from Supabase session
- * Always fetches a fresh token to avoid expiration issues
+ * Get authentication token
+ * Uses the token getter provided by AuthContext for immediate access
+ * Falls back to Supabase session if token getter is not available
  */
 const getAuthToken = async () => {
     try {
-        console.log('[API] getAuthToken: Fetching fresh session...');
+        // First try to use the token getter from AuthContext (fastest)
+        if (tokenGetter) {
+            console.log('[API] getAuthToken: Using token getter from AuthContext');
+            const token = tokenGetter();
+            if (token) {
+                console.log('[API] getAuthToken: Token found from AuthContext');
+                return token;
+            }
+            console.log('[API] getAuthToken: No token from AuthContext, falling back to Supabase');
+        }
+
+        // Fallback to Supabase session (slower but more reliable)
+        console.log('[API] getAuthToken: Fetching fresh session from Supabase...');
 
         // Add timeout to prevent hanging on getSession
         const timeoutMs = 10000; // 10 seconds
