@@ -1,7 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Link, Outlet, useNavigate } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
-import { setAuthTokenGetter } from './services/api'
 import ProtectedRoute from './components/ProtectedRoute'
 import HomePage from './pages/HomePage'
 import ShowDetailPage from './pages/ShowDetailPage'
@@ -61,16 +60,9 @@ function App() {
 
 // Public Layout Component
 function PublicLayout() {
-  const { user, isAdmin, signOut, getToken } = useAuth();
+  const { user, isAdmin, signOut } = useAuth();
   const navigate = useNavigate();
   const [isSigningOut, setIsSigningOut] = useState(false);
-
-  // Set up the auth token getter for the API module
-  useEffect(() => {
-    if (getToken) {
-      setAuthTokenGetter(getToken);
-    }
-  }, [getToken]);
 
   const handleSignOut = async () => {
     if (isSigningOut) return; // Prevent double-clicks

@@ -362,35 +362,85 @@ export const removeSongFromSetlist = async (showId, setlistId) => {
 // ============================================
 
 /**
- * Get authentication token from AuthContext
- * This is set by the setAuthTokenGetter function passed from AuthContext
+ * Get authentication token from Supabase session
+ * Always fetches a fresh token to avoid expiration issues
  */
-let authTokenGetter = null;
+const getAuthToken = async () => {
+    try {
+        console.log('[API] getAuthToken: Fetching fresh session...');
+        const { data: { session }, error } = await supabase.auth.getSession();
 
-export const setAuthTokenGetter = (getter) => {
-    authTokenGetter = getter;
-};
+        if (error) {
+            console.error('[API] getAuthToken: Error getting session:', error);
+            return null;
+        }
 
-const getAuthToken = () => {
-    if (!authTokenGetter) {
-        console.warn('[API] getAuthToken: No auth token getter set');
+        if (!session) {
+            console.warn('[API] getAuthToken: No active session');
+            return null;
+        }
+
+        console.log('[API] getAuthToken: Token found, expires at:', new Date(session.expires_at * 1000).toLocaleString());
+        return session.access_token;
+    } catch (error) {
+        console.error('[API] getAuthToken: Exception:', error);
         return null;
     }
-    const token = authTokenGetter();
-    console.log('[API] getAuthToken:', token ? 'Token found' : 'No token');
-    return token;
+};
+
+/**
+ * Wrapper for fetch that handles 401 errors by refreshing the session and retrying
+ */
+const fetchWithAuth = async (url, options = {}) => {
+    // First attempt
+    let response = await fetch(url, options);
+
+    // If we get a 401, try to refresh the session and retry once
+    if (response.status === 401) {
+        console.log('[API] fetchWithAuth: Got 401, attempting to refresh session...');
+
+        try {
+            const { data: { session }, error } = await supabase.auth.refreshSession();
+
+            if (error || !session) {
+                console.error('[API] fetchWithAuth: Session refresh failed:', error);
+                // Session is truly expired, user needs to log in again
+                throw new Error('Session expired. Please log in again.');
+            }
+
+            console.log('[API] fetchWithAuth: Session refreshed, retrying request...');
+
+            // Update the Authorization header with the new token
+            if (options.headers && options.headers.Authorization) {
+                options.headers.Authorization = `Bearer ${session.access_token}`;
+            }
+
+            // Retry the request with the new token
+            response = await fetch(url, options);
+
+            if (response.status === 401) {
+                // Still getting 401 after refresh, session is invalid
+                throw new Error('Authentication failed. Please log in again.');
+            }
+        } catch (error) {
+            console.error('[API] fetchWithAuth: Error during retry:', error);
+            throw error;
+        }
+    }
+
+    return response;
 };
 
 /**
  * Mark a show as attended
  */
 export const markShowAttended = async (showId) => {
-    const token = getAuthToken();
+    const token = await getAuthToken();
     if (!token) {
         throw new Error('Not authenticated');
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/users/attended-shows/${showId}`, {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/users/attended-shows/${showId}`, {
         method: 'POST',
         headers: {
             'Authorization': `Bearer ${token}`,
@@ -408,12 +458,12 @@ export const markShowAttended = async (showId) => {
  * Unmark a show as attended
  */
 export const unmarkShowAttended = async (showId) => {
-    const token = getAuthToken();
+    const token = await getAuthToken();
     if (!token) {
         throw new Error('Not authenticated');
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/users/attended-shows/${showId}`, {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/users/attended-shows/${showId}`, {
         method: 'DELETE',
         headers: {
             'Authorization': `Bearer ${token}`,
@@ -429,13 +479,13 @@ export const unmarkShowAttended = async (showId) => {
  * Check attendance for multiple shows at once (batch)
  */
 export const checkShowAttendanceBatch = async (showIds) => {
-    const token = getAuthToken();
+    const token = await getAuthToken();
     if (!token || !showIds || showIds.length === 0) {
         return {};
     }
 
     try {
-        const response = await fetch(`${API_BASE_URL}/api/users/check-attendance-batch`, {
+        const response = await fetchWithAuth(`${API_BASE_URL}/api/users/check-attendance-batch`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -461,12 +511,12 @@ export const checkShowAttendanceBatch = async (showIds) => {
  * Check if a show is marked as attended
  */
 export const checkShowAttendance = async (showId) => {
-    const token = getAuthToken();
+    const token = await getAuthToken();
     if (!token) {
         return { attended: false };
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/users/check-attendance/${showId}`, {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/users/check-attendance/${showId}`, {
         headers: {
             'Authorization': `Bearer ${token}`,
         },
@@ -483,7 +533,7 @@ export const checkShowAttendance = async (showId) => {
 export const getUserStats = async () => {
     console.log('[API] getUserStats: Starting...');
 
-    const token = getAuthToken();
+    const token = await getAuthToken();
     if (!token) {
         console.log('[API] getUserStats: No auth token');
         throw new Error('Not authenticated');
@@ -496,7 +546,7 @@ export const getUserStats = async () => {
     const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
     try {
-        const response = await fetch(`${API_BASE_URL}/api/users/stats`, {
+        const response = await fetchWithAuth(`${API_BASE_URL}/api/users/stats`, {
             headers: {
                 'Authorization': `Bearer ${token}`,
             },
@@ -530,12 +580,12 @@ export const getUserStats = async () => {
  * Get all attended shows
  */
 export const getAttendedShows = async () => {
-    const token = getAuthToken();
+    const token = await getAuthToken();
     if (!token) {
         throw new Error('Not authenticated');
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/users/attended-shows`, {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/users/attended-shows`, {
         headers: {
             'Authorization': `Bearer ${token}`,
         },
@@ -565,12 +615,12 @@ export const getShowNotes = async (showId) => {
  * Get user's note for a show
  */
 export const getUserNote = async (showId) => {
-    const token = getAuthToken();
+    const token = await getAuthToken();
     if (!token) {
         return { note: null };
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/notes/user/${showId}`, {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/notes/user/${showId}`, {
         headers: {
             'Authorization': `Bearer ${token}`,
         },
@@ -585,12 +635,12 @@ export const getUserNote = async (showId) => {
  * Save or update a note
  */
 export const saveNote = async (showId, noteText) => {
-    const token = getAuthToken();
+    const token = await getAuthToken();
     if (!token) {
         throw new Error('Not authenticated');
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/notes`, {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/notes`, {
         method: 'POST',
         headers: {
             'Authorization': `Bearer ${token}`,
@@ -608,12 +658,12 @@ export const saveNote = async (showId, noteText) => {
  * Delete a note
  */
 export const deleteNote = async (noteId) => {
-    const token = getAuthToken();
+    const token = await getAuthToken();
     if (!token) {
         throw new Error('Not authenticated');
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/notes/${noteId}`, {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/notes/${noteId}`, {
         method: 'DELETE',
         headers: {
             'Authorization': `Bearer ${token}`,
@@ -644,7 +694,7 @@ export const getShowPhotos = async (showId) => {
  * Upload a photo
  */
 export const uploadPhoto = async (showId, file, caption = '') => {
-    const token = getAuthToken();
+    const token = await getAuthToken();
     if (!token) {
         throw new Error('Not authenticated');
     }
@@ -656,7 +706,7 @@ export const uploadPhoto = async (showId, file, caption = '') => {
         formData.append('caption', caption);
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/photos/upload`, {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/photos/upload`, {
         method: 'POST',
         headers: {
             'Authorization': `Bearer ${token}`,
@@ -674,12 +724,12 @@ export const uploadPhoto = async (showId, file, caption = '') => {
  * Update photo caption
  */
 export const updatePhotoCaption = async (photoId, caption) => {
-    const token = getAuthToken();
+    const token = await getAuthToken();
     if (!token) {
         throw new Error('Not authenticated');
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/photos/${photoId}`, {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/photos/${photoId}`, {
         method: 'PUT',
         headers: {
             'Authorization': `Bearer ${token}`,
@@ -697,12 +747,12 @@ export const updatePhotoCaption = async (photoId, caption) => {
  * Delete a photo
  */
 export const deletePhoto = async (photoId) => {
-    const token = getAuthToken();
+    const token = await getAuthToken();
     if (!token) {
         throw new Error('Not authenticated');
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/photos/${photoId}`, {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/photos/${photoId}`, {
         method: 'DELETE',
         headers: {
             'Authorization': `Bearer ${token}`,
@@ -761,7 +811,7 @@ export const getShowPoster = async (showId) => {
  * Upload a poster (replaces existing poster if any)
  */
 export const uploadPoster = async (showId, file, caption = '') => {
-    const token = getAuthToken();
+    const token = await getAuthToken();
     if (!token) {
         throw new Error('Not authenticated');
     }
@@ -773,7 +823,7 @@ export const uploadPoster = async (showId, file, caption = '') => {
         formData.append('caption', caption);
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/posters/upload`, {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/posters/upload`, {
         method: 'POST',
         headers: {
             'Authorization': `Bearer ${token}`,
@@ -791,12 +841,12 @@ export const uploadPoster = async (showId, file, caption = '') => {
  * Update poster caption
  */
 export const updatePosterCaption = async (posterId, caption) => {
-    const token = getAuthToken();
+    const token = await getAuthToken();
     if (!token) {
         throw new Error('Not authenticated');
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/posters/${posterId}`, {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/posters/${posterId}`, {
         method: 'PUT',
         headers: {
             'Content-Type': 'application/json',
@@ -814,12 +864,12 @@ export const updatePosterCaption = async (posterId, caption) => {
  * Delete a poster
  */
 export const deletePoster = async (posterId) => {
-    const token = getAuthToken();
+    const token = await getAuthToken();
     if (!token) {
         throw new Error('Not authenticated');
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/posters/${posterId}`, {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/posters/${posterId}`, {
         method: 'DELETE',
         headers: {
             'Authorization': `Bearer ${token}`,

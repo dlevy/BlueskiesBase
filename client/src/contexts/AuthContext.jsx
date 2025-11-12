@@ -93,11 +93,23 @@ export const AuthProvider = ({ children }) => {
             setLoading(false);
         });
 
-        // Refresh session every 30 minutes to keep it alive
+        // Refresh session every 15 minutes to keep it alive
+        // This is more aggressive than the default 30 minutes to prevent token expiration
         const refreshInterval = setInterval(async () => {
             const { data: { session } } = await supabase.auth.getSession();
             if (session) {
-                console.log('[AuthContext] Refreshing session...');
+                // Check if token is expiring soon (within 5 minutes)
+                const expiresAt = session.expires_at * 1000; // Convert to milliseconds
+                const now = Date.now();
+                const timeUntilExpiry = expiresAt - now;
+                const fiveMinutes = 5 * 60 * 1000;
+
+                if (timeUntilExpiry < fiveMinutes) {
+                    console.log('[AuthContext] Token expiring soon, refreshing immediately...');
+                } else {
+                    console.log('[AuthContext] Proactive session refresh...');
+                }
+
                 const { error } = await supabase.auth.refreshSession();
                 if (error) {
                     console.error('[AuthContext] Error refreshing session:', error);
@@ -105,11 +117,34 @@ export const AuthProvider = ({ children }) => {
                     console.log('[AuthContext] Session refreshed successfully');
                 }
             }
-        }, 30 * 60 * 1000); // 30 minutes
+        }, 15 * 60 * 1000); // 15 minutes
+
+        // Additional check every 5 minutes to catch expiring tokens early
+        const expiryCheckInterval = setInterval(async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                const expiresAt = session.expires_at * 1000;
+                const now = Date.now();
+                const timeUntilExpiry = expiresAt - now;
+                const tenMinutes = 10 * 60 * 1000;
+
+                // If token expires in less than 10 minutes, refresh it now
+                if (timeUntilExpiry < tenMinutes) {
+                    console.log('[AuthContext] Token expiring in', Math.floor(timeUntilExpiry / 60000), 'minutes, refreshing now...');
+                    const { error } = await supabase.auth.refreshSession();
+                    if (error) {
+                        console.error('[AuthContext] Error refreshing session:', error);
+                    } else {
+                        console.log('[AuthContext] Session refreshed successfully');
+                    }
+                }
+            }
+        }, 5 * 60 * 1000); // Check every 5 minutes
 
         return () => {
             subscription.unsubscribe();
             clearInterval(refreshInterval);
+            clearInterval(expiryCheckInterval);
         };
     }, []);
 
