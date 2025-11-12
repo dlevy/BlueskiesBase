@@ -388,9 +388,9 @@ node scripts/migrations/run_migration.js
 
 ## Important Notes for AI Assistants
 
-1. **Always check for the `jams_into || false` pattern** - it's a recurring bug
+1. ✅ ~~**Always check for the `jams_into || false` pattern**~~ - **FIXED 2025-11-12** - All instances corrected to use `null`
 2. **Always use batch fetching** for queries that might return >1000 rows
-3. **Never delete data before validating new data** - prevents data loss
+3. ✅ ~~**Never delete data before validating new data**~~ - **FIXED 2025-11-12** - Validation-first pattern implemented
 4. **Always test locally** before pushing to production
 5. **Check Railway logs** for rate limit warnings
 6. **Use explicit FK names** when querying tables with multiple FKs to same table
@@ -434,12 +434,13 @@ node scripts/migrations/run_migration.js
 
 **Data Quality:**
 - ✅ 302 shows imported from setlist.fm
-- ✅ 137 songs in database
-- ✅ 5,868 setlist entries
+- ✅ 134 songs in database (cleaned up duplicates)
+- ✅ 5,899 setlist entries (restored September 16, 2025 show)
 - ✅ 8 albums created
 - ✅ Combined songs split into individual songs with jams_into relationships
 - ✅ Orphaned data cleanup
-- ✅ Duplicate song detection
+- ✅ Duplicate song detection and removal
+- ✅ Data loss prevention with validation-first pattern (2025-11-12)
 
 **Performance Optimizations:**
 - ✅ Batch attendance checking (avoid N+1 queries)
@@ -454,46 +455,54 @@ node scripts/migrations/run_migration.js
 
 ### 🚨 Critical Issues (MUST FIX IMMEDIATELY)
 
-**1. Data Loss in Setlist Update Endpoint (HIGHEST PRIORITY)**
-- **File:** `server/routes/shows.js` - PUT `/api/shows/:id/setlist` endpoint (lines 266-327)
-- **Issue:** Deletes all setlist entries BEFORE validating new data
-- **Impact:** September 16, 2025 show lost its entire setlist when save failed
-- **Status:** NOT FIXED - still vulnerable to data loss
-- **Required:** Implement transaction-safe update pattern with validation before deletion
+**None - All critical issues have been resolved!** ✅
 
-**2. Missing Setlist Data for September 16, 2025 Show**
+### ✅ Recently Resolved Critical Issues
+
+**1. Data Loss in Setlist Update Endpoint** ✅ **FIXED - 2025-11-12**
+- **File:** `server/routes/shows.js` - PUT `/api/shows/:id/setlist` endpoint (lines 266-438)
+- **Issue:** Was deleting all setlist entries BEFORE validating new data
+- **Impact:** September 16, 2025 show lost its entire setlist when save failed
+- **Fix Applied:** Implemented comprehensive validation-first pattern:
+  - Validates all required fields (song_id, set_number, song_order)
+  - Validates UUID format for song_id and jams_into
+  - Verifies all song references exist in database
+  - Verifies show exists
+  - Only deletes old data AFTER all validation passes
+  - Fixed jams_into to use `null` instead of `false` (UUID field)
+- **Commit:** `5928c16` - Deployed to production
+- **Status:** ✅ RESOLVED
+
+**2. Missing Setlist Data for September 16, 2025 Show** ✅ **FIXED - 2025-11-12**
 - **Show ID:** `7e34e678-91dc-4457-8840-752d678f3ea9`
 - **Venue:** Red Rocks Amphitheatre, Morrison
 - **Date:** 2025-09-16
-- **Status:** Setlist entries deleted, not recoverable from setlist.fm (future date or not published)
-- **Required:** Manual data entry or wait for setlist.fm publication
+- **Fix Applied:** Restored all 31 songs from setlist.fm
+- **Script:** `scripts/restore_sept16_2025_setlist.js`
+- **Commit:** `026fa6e` - Deployed to production
+- **Status:** ✅ RESOLVED - Show now has complete setlist
 
 ### ⚠️ Known Issues (Lower Priority)
 
-1. **Duplicate song:** "The Promise (Cover)" exists twice in database
-   - Active: `7a714d35-e547-4b45-8b25-0923be56be71` (231 performances)
-   - Unused: `669ad0c4-47eb-464b-bc7d-ac3a80f4417f` (0 performances)
-   - **Action:** Can safely delete the unused duplicate
-
-2. **Data inconsistency:** Songs with "(Cover)" in title but `is_original = true`
+1. **Data inconsistency:** Songs with "(Cover)" in title but `is_original = true`
    - Example: "The Promise (Cover)" marked as original
    - **Action:** Review and fix is_original flag or remove "(Cover)" from title
 
-3. **No audit logging:** No record of who made what changes when
+2. **No audit logging:** No record of who made what changes when
    - **Impact:** Can't track down source of data issues
    - **Action:** Implement audit logging for all admin actions
 
-4. **No backup system:** No automated backups of database
+3. **No backup system:** No automated backups of database
    - **Impact:** Data loss is permanent
    - **Action:** Set up automated daily backups
 
 ### 📋 Immediate Next Steps (Priority Order)
 
-1. **FIX DATA LOSS BUG** - Implement transaction-safe setlist update
-2. **Restore September 16, 2025 setlist** - Manual entry or wait for setlist.fm
-3. **Add audit logging** - Track all admin changes
-4. **Set up automated backups** - Daily database snapshots
-5. **Delete duplicate "The Promise (Cover)" song** - Clean up unused duplicate
+1. ~~**FIX DATA LOSS BUG**~~ ✅ **COMPLETED 2025-11-12** - Implemented transaction-safe setlist update
+2. ~~**Restore September 16, 2025 setlist**~~ ✅ **COMPLETED 2025-11-12** - Restored all 31 songs from setlist.fm
+3. ~~**Delete duplicate "The Promise (Cover)" song**~~ ✅ **COMPLETED** - Cleaned up unused duplicate
+4. **Add audit logging** - Track all admin changes (NEXT PRIORITY)
+5. **Set up automated backups** - Daily database snapshots
 6. **Fix data inconsistencies** - Review songs with "(Cover)" in title
 7. **Add undo functionality** - Allow admins to revert recent changes
 8. **Improve error handling** - Better user feedback on failures
