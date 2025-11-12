@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { createSong, updateSong, deleteSong } from '../../services/api';
+import { createSong, updateSong, deleteSong, getAlbums } from '../../services/api';
 
 export default function SongForm({ song, onClose }) {
     const [formData, setFormData] = useState({
@@ -8,11 +8,26 @@ export default function SongForm({ song, onClose }) {
         original_artist: '',
         written_by: '',
         lyrics: '',
-        notes: ''
+        notes: '',
+        album_id: ''
     });
+    const [albums, setAlbums] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+    useEffect(() => {
+        // Fetch albums for dropdown
+        const fetchAlbums = async () => {
+            try {
+                const data = await getAlbums();
+                setAlbums(data.albums || []);
+            } catch (err) {
+                console.error('Error fetching albums:', err);
+            }
+        };
+        fetchAlbums();
+    }, []);
 
     useEffect(() => {
         if (song) {
@@ -22,7 +37,8 @@ export default function SongForm({ song, onClose }) {
                 original_artist: song.original_artist || '',
                 written_by: song.written_by || '',
                 lyrics: song.lyrics || '',
-                notes: song.notes || ''
+                notes: song.notes || '',
+                album_id: song.album_id || ''
             });
         }
     }, [song]);
@@ -157,6 +173,31 @@ export default function SongForm({ song, onClose }) {
                         placeholder="e.g., John Lennon, Paul McCartney"
                     />
                 </div>
+
+                {/* Album (shown only for originals) */}
+                {formData.is_original && (
+                    <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                            Album
+                        </label>
+                        <select
+                            name="album_id"
+                            value={formData.album_id}
+                            onChange={handleChange}
+                            className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                        >
+                            <option value="">-- No Album / Unreleased --</option>
+                            {albums.map(album => (
+                                <option key={album.id} value={album.id}>
+                                    {album.title} ({new Date(album.release_date).getFullYear()}) - {album.album_type}
+                                </option>
+                            ))}
+                        </select>
+                        <p className="text-xs text-gray-500 mt-1">
+                            Select the album this song appears on (leave blank if unreleased)
+                        </p>
+                    </div>
+                )}
 
                 {/* Lyrics */}
                 <div>

@@ -139,6 +139,86 @@ export const deleteSong = async (id) => {
 };
 
 /**
+ * Get all albums
+ */
+export const getAlbums = async () => {
+    const response = await fetch(`${API_BASE_URL}/api/albums`);
+    if (!response.ok) {
+        throw new Error('Failed to fetch albums');
+    }
+    return response.json();
+};
+
+/**
+ * Get a single album by ID with songs
+ */
+export const getAlbumById = async (id) => {
+    const response = await fetch(`${API_BASE_URL}/api/albums/${id}`);
+    if (!response.ok) {
+        throw new Error('Failed to fetch album');
+    }
+    return response.json();
+};
+
+/**
+ * Create a new album
+ */
+export const createAlbum = async (albumData) => {
+    const token = await getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/api/albums`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            ...(token && { 'Authorization': `Bearer ${token}` })
+        },
+        body: JSON.stringify(albumData)
+    });
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to create album');
+    }
+    return response.json();
+};
+
+/**
+ * Update an existing album
+ */
+export const updateAlbum = async (id, albumData) => {
+    const token = await getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/api/albums/${id}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            ...(token && { 'Authorization': `Bearer ${token}` })
+        },
+        body: JSON.stringify(albumData)
+    });
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to update album');
+    }
+    return response.json();
+};
+
+/**
+ * Delete an album
+ */
+export const deleteAlbum = async (id) => {
+    const token = await getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/api/albums/${id}`, {
+        method: 'DELETE',
+        headers: {
+            ...(token && { 'Authorization': `Bearer ${token}` })
+        }
+    });
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to delete album');
+    }
+    return response.json();
+};
+
+/**
  * Get all venues
  */
 export const getVenues = async () => {

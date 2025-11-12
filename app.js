@@ -33,6 +33,7 @@ app.get('/health', (req, res) => {
 // API routes
 app.use('/api/shows', require('./server/routes/shows'));
 app.use('/api/songs', require('./server/routes/songs'));
+app.use('/api/albums', require('./server/routes/albums'));
 app.use('/api/venues', require('./server/routes/venues'));
 app.use('/api/search', require('./server/routes/search'));
 app.use('/api/users', require('./server/routes/users'));

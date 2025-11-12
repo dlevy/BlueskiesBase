@@ -90,7 +90,7 @@ export default function SearchPage() {
                     const { data: setlistSongsData } = await supabase
                         .from('setlist_songs')
                         .select(`
-                            songs!inner (
+                            songs!setlist_songs_song_id_fkey!inner (
                                 title
                             )
                         `)
@@ -187,7 +187,7 @@ export default function SearchPage() {
                             show_id,
                             song_id,
                             id,
-                            songs (
+                            songs!setlist_songs_song_id_fkey (
                                 id,
                                 is_original
                             )

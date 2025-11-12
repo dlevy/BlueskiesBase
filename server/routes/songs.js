@@ -47,11 +47,12 @@ router.get('/stats/global', async (req, res) => {
                 .select(`
                     show_id,
                     song_id,
-                    songs (
+                    songs!setlist_songs_song_id_fkey (
                         id,
                         title,
                         is_original,
-                        original_artist
+                        original_artist,
+                        album_id
                     )
                 `)
                 .range(from, from + batchSize - 1);
@@ -231,13 +232,13 @@ router.get('/:id', async (req, res) => {
  */
 router.post('/', async (req, res) => {
     try {
-        const { title, original_artist, is_original, written_by, lyrics, notes } = req.body;
+        const { title, original_artist, is_original, written_by, lyrics, notes, album_id } = req.body;
 
         // TODO: Add authentication middleware to verify admin status
 
         const { data: song, error } = await supabase
             .from('songs')
-            .insert([{ title, original_artist, is_original, written_by, lyrics, notes }])
+            .insert([{ title, original_artist, is_original, written_by, lyrics, notes, album_id }])
             .select()
             .single();
 
@@ -261,13 +262,13 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const { title, original_artist, is_original, written_by, lyrics, notes } = req.body;
+        const { title, original_artist, is_original, written_by, lyrics, notes, album_id } = req.body;
 
         // TODO: Add authentication middleware to verify admin status
 
         const { data: song, error } = await supabase
             .from('songs')
-            .update({ title, original_artist, is_original, written_by, lyrics, notes, updated_at: new Date() })
+            .update({ title, original_artist, is_original, written_by, lyrics, notes, album_id, updated_at: new Date() })
             .eq('id', id)
             .select()
             .single();

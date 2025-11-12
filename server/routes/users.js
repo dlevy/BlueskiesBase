@@ -299,7 +299,7 @@ router.get('/stats', async (req, res) => {
                     .select(`
                         song_id,
                         show_id,
-                        songs (
+                        songs!setlist_songs_song_id_fkey (
                             id,
                             title,
                             is_original,

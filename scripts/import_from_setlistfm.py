@@ -416,7 +416,7 @@ class SetlistImporter:
                     'song_order': song_order,
                     'is_encore': is_encore,
                     'notes': song_data.get('info'),  # Performance-specific notes only
-                    'jams_into': False  # setlist.fm doesn't provide this
+                    'jams_into': None  # setlist.fm doesn't provide this, use NULL for UUID field
                 }
 
                 setlist_songs_batch.append(setlist_song)

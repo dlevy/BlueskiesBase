@@ -72,6 +72,14 @@ export default function AdminLayout() {
                             </li>
                             <li>
                                 <Link
+                                    to="/admin/albums"
+                                    className="text-gray-300 hover:text-blue-400 font-medium transition-colors"
+                                >
+                                    Albums
+                                </Link>
+                            </li>
+                            <li>
+                                <Link
                                     to="/admin/venues"
                                     className="text-gray-300 hover:text-blue-400 font-medium transition-colors"
                                 >

@@ -88,7 +88,7 @@ router.get('/:id', async (req, res) => {
                 notes,
                 is_encore,
                 jams_into,
-                songs (
+                songs!setlist_songs_song_id_fkey (
                     id,
                     title,
                     original_artist,
