@@ -238,29 +238,52 @@ router.get('/:id', async (req, res) => {
             return res.status(404).json({ error: 'Song not found' });
         }
 
-        // Get all performances of this song
-        const { data: performances, error: perfError } = await supabase
-            .from('setlist_songs')
-            .select(`
-                *,
-                shows (
-                    id,
-                    show_date,
-                    artist_name,
-                    venues (
-                        name,
-                        city,
-                        state_country
-                    )
-                )
-            `)
-            .eq('song_id', id)
-            .order('shows(show_date)', { ascending: false });
+        // Get all performances of this song with pagination (popular songs may have 1000+ performances)
+        let allPerformances = [];
+        let rangeStart = 0;
+        const PAGE_SIZE = 1000;
+        let hasMore = true;
 
-        if (perfError) {
-            console.error('Error fetching performances:', perfError);
-            return res.status(500).json({ error: 'Failed to fetch performances' });
+        while (hasMore) {
+            const rangeEnd = rangeStart + PAGE_SIZE - 1;
+
+            const { data: pageData, error: perfError, count } = await supabase
+                .from('setlist_songs')
+                .select(`
+                    *,
+                    shows (
+                        id,
+                        show_date,
+                        artist_name,
+                        venues (
+                            name,
+                            city,
+                            state_country
+                        )
+                    )
+                `, { count: 'exact' })
+                .eq('song_id', id)
+                .order('shows(show_date)', { ascending: false })
+                .range(rangeStart, rangeEnd);
+
+            if (perfError) {
+                console.error('Error fetching performances page:', perfError);
+                return res.status(500).json({ error: 'Failed to fetch performances' });
+            }
+
+            if (pageData && pageData.length > 0) {
+                allPerformances = allPerformances.concat(pageData);
+                rangeStart += PAGE_SIZE;
+
+                if (pageData.length < PAGE_SIZE || allPerformances.length >= count) {
+                    hasMore = false;
+                }
+            } else {
+                hasMore = false;
+            }
         }
+
+        const performances = allPerformances;
 
         res.json({
             ...song,

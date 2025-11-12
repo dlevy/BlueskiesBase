@@ -129,16 +129,39 @@ router.get('/shows', async (req, res) => {
                 });
             }
 
-            // Now find all shows that have this song
-            const { data: setlistSongs, error: songError } = await supabase
-                .from('setlist_songs')
-                .select('show_id')
-                .eq('song_id', songData.id);
+            // Now find all shows that have this song with pagination (popular songs may have 1000+ performances)
+            let allSetlistSongs = [];
+            let rangeStart = 0;
+            const PAGE_SIZE = 1000;
+            let hasMore = true;
 
-            if (songError) {
-                console.error('Song search error:', songError);
-                return res.status(500).json({ error: 'Failed to search by song' });
+            while (hasMore) {
+                const rangeEnd = rangeStart + PAGE_SIZE - 1;
+
+                const { data: pageData, error: songError, count } = await supabase
+                    .from('setlist_songs')
+                    .select('show_id', { count: 'exact' })
+                    .eq('song_id', songData.id)
+                    .range(rangeStart, rangeEnd);
+
+                if (songError) {
+                    console.error('Song search error:', songError);
+                    return res.status(500).json({ error: 'Failed to search by song' });
+                }
+
+                if (pageData && pageData.length > 0) {
+                    allSetlistSongs = allSetlistSongs.concat(pageData);
+                    rangeStart += PAGE_SIZE;
+
+                    if (pageData.length < PAGE_SIZE || allSetlistSongs.length >= count) {
+                        hasMore = false;
+                    }
+                } else {
+                    hasMore = false;
+                }
             }
+
+            const setlistSongs = allSetlistSongs;
 
             const showIdsWithSong = new Set(setlistSongs.map(s => s.show_id));
             filteredShows = filteredShows.filter(show => showIdsWithSong.has(show.id));

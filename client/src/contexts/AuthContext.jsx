@@ -132,8 +132,29 @@ export const AuthProvider = ({ children }) => {
     };
 
     const signOut = async () => {
-        const { error } = await supabase.auth.signOut();
-        if (error) throw error;
+        console.log('[AuthContext] Signing out...');
+        try {
+            // Clear local state immediately for better UX
+            setUser(null);
+            setProfile(null);
+            setSession(null);
+
+            // Sign out from Supabase
+            const { error } = await supabase.auth.signOut();
+            if (error) {
+                console.error('[AuthContext] Error signing out:', error);
+                throw error;
+            }
+
+            console.log('[AuthContext] Sign out successful');
+        } catch (error) {
+            console.error('[AuthContext] Sign out failed:', error);
+            // Even if signOut fails, clear local state
+            setUser(null);
+            setProfile(null);
+            setSession(null);
+            throw error;
+        }
     };
 
     const getToken = () => {

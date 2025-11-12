@@ -1,16 +1,27 @@
 import { Link, Outlet, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 
 export default function AdminLayout() {
     const { user, signOut } = useAuth();
     const navigate = useNavigate();
+    const [isSigningOut, setIsSigningOut] = useState(false);
 
     const handleSignOut = async () => {
+        if (isSigningOut) return; // Prevent double-clicks
+
+        setIsSigningOut(true);
+        console.log('[AdminLayout] Sign out button clicked');
+
         try {
             await signOut();
+            console.log('[AdminLayout] Sign out successful, navigating to home');
             navigate('/');
         } catch (error) {
-            console.error('Error signing out:', error);
+            console.error('[AdminLayout] Error signing out:', error);
+            alert('Failed to sign out. Please try again.');
+        } finally {
+            setIsSigningOut(false);
         }
     };
 
@@ -33,9 +44,10 @@ export default function AdminLayout() {
                                 </Link>
                                 <button
                                     onClick={handleSignOut}
-                                    className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded text-sm transition-colors"
+                                    disabled={isSigningOut}
+                                    className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    Sign Out
+                                    {isSigningOut ? 'Signing Out...' : 'Sign Out'}
                                 </button>
                             </div>
                         </div>

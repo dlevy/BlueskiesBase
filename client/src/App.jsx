@@ -1,5 +1,5 @@
-import { BrowserRouter as Router, Routes, Route, Link, Outlet } from 'react-router-dom'
-import { useEffect } from 'react'
+import { BrowserRouter as Router, Routes, Route, Link, Outlet, useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { setAuthTokenGetter } from './services/api'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -62,6 +62,8 @@ function App() {
 // Public Layout Component
 function PublicLayout() {
   const { user, isAdmin, signOut, getToken } = useAuth();
+  const navigate = useNavigate();
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   // Set up the auth token getter for the API module
   useEffect(() => {
@@ -71,10 +73,20 @@ function PublicLayout() {
   }, [getToken]);
 
   const handleSignOut = async () => {
+    if (isSigningOut) return; // Prevent double-clicks
+
+    setIsSigningOut(true);
+    console.log('[PublicLayout] Sign out button clicked');
+
     try {
       await signOut();
+      console.log('[PublicLayout] Sign out successful, navigating to home');
+      navigate('/');
     } catch (error) {
-      console.error('Sign out error:', error);
+      console.error('[PublicLayout] Sign out error:', error);
+      alert('Failed to sign out. Please try again.');
+    } finally {
+      setIsSigningOut(false);
     }
   };
 
@@ -98,9 +110,10 @@ function PublicLayout() {
                   </span>
                   <button
                     onClick={handleSignOut}
-                    className="px-3 py-1.5 text-xs font-medium text-white bg-blue-700 hover:bg-blue-600 rounded-md transition-colors whitespace-nowrap"
+                    disabled={isSigningOut}
+                    className="px-3 py-1.5 text-xs font-medium text-white bg-blue-700 hover:bg-blue-600 rounded-md transition-colors whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Sign Out
+                    {isSigningOut ? 'Signing Out...' : 'Sign Out'}
                   </button>
                 </div>
               ) : (
@@ -122,10 +135,10 @@ function PublicLayout() {
             </div>
 
             {/* Desktop Layout */}
-            <div className="hidden md:flex justify-between items-center">
+            <div className="hidden md:flex justify-between items-center text-left">
               <Link to="/" className="hover:opacity-80 transition-opacity">
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-200 to-indigo-200 bg-clip-text text-transparent">blueskiesbase.</h1>
-                <p className="text-blue-300"> go on and live a little.</p>
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-200 to-indigo-200 bg-clip-text text-transparent">Johnny Blueskies & the Dark Clouds</h1>
+                <p className="text-blue-300 text-left text-xs">A concert archive for fans of Sturgill Simpson, Johnny Blueskies, and the Dark Clouds</p>
               </Link>
 
               <div className="flex items-center gap-4">
@@ -136,9 +149,10 @@ function PublicLayout() {
                     </span>
                     <button
                       onClick={handleSignOut}
-                      className="px-4 py-2 text-sm font-medium text-white bg-blue-700 hover:bg-blue-600 rounded-md transition-colors"
+                      disabled={isSigningOut}
+                      className="px-4 py-2 text-sm font-medium text-white bg-blue-700 hover:bg-blue-600 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Sign Out
+                      {isSigningOut ? 'Signing Out...' : 'Sign Out'}
                     </button>
                   </div>
                 ) : (
