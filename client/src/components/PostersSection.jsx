@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { getShowPoster, uploadPoster, updatePosterCaption, deletePoster } from '../services/api';
 import Lightbox from 'yet-another-react-lightbox';
@@ -14,11 +14,7 @@ export default function PostersSection({ showId }) {
     const [caption, setCaption] = useState('');
     const [showUploadForm, setShowUploadForm] = useState(false);
 
-    useEffect(() => {
-        loadPoster();
-    }, [showId]);
-
-    const loadPoster = async () => {
+    const loadPoster = useCallback(async () => {
         try {
             const { poster: showPoster } = await getShowPoster(showId);
             setPoster(showPoster);
@@ -26,7 +22,11 @@ export default function PostersSection({ showId }) {
             console.error('Error loading poster:', err);
             setError('Failed to load poster');
         }
-    };
+    }, [showId]);
+
+    useEffect(() => {
+        loadPoster();
+    }, [loadPoster]);
 
     const handleFileSelect = (e) => {
         const file = e.target.files[0];

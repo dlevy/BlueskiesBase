@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getSongs } from '../services/api';
 
 export default function SetlistEditor({ initialSetlist = {}, onChange }) {
@@ -13,23 +13,16 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
     const [selectedSet, setSelectedSet] = useState('set1');
     const [showSongPicker, setShowSongPicker] = useState(false);
 
-    useEffect(() => {
-        fetchSongs();
-        if (initialSetlist) {
-            convertInitialSetlist(initialSetlist);
-        }
-    }, []);
-
-    const fetchSongs = async () => {
+    const fetchSongs = useCallback(async () => {
         try {
             const data = await getSongs();
             setAllSongs(data.songs || []);
         } catch (err) {
             console.error('Error fetching songs:', err);
         }
-    };
+    }, []);
 
-    const convertInitialSetlist = (initial) => {
+    const convertInitialSetlist = useCallback((initial) => {
         const converted = {
             set1: [],
             set2: [],
@@ -53,7 +46,17 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
         });
 
         setSetlist(converted);
-    };
+    }, []);
+
+    useEffect(() => {
+        fetchSongs();
+    }, [fetchSongs]);
+
+    useEffect(() => {
+        if (initialSetlist && Object.keys(initialSetlist).length > 0) {
+            convertInitialSetlist(initialSetlist);
+        }
+    }, [initialSetlist, convertInitialSetlist]);
 
     const handleAddSong = (song) => {
         const newSong = {

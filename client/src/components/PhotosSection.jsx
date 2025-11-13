@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { getShowPhotos, uploadPhoto, updatePhotoCaption, deletePhoto } from '../services/api';
 import Lightbox from 'yet-another-react-lightbox';
@@ -15,11 +15,7 @@ export default function PhotosSection({ showId }) {
     const [caption, setCaption] = useState('');
     const [showUploadForm, setShowUploadForm] = useState(false);
 
-    useEffect(() => {
-        loadPhotos();
-    }, [showId]);
-
-    const loadPhotos = async () => {
+    const loadPhotos = useCallback(async () => {
         try {
             const { photos: allPhotos } = await getShowPhotos(showId);
             setPhotos(allPhotos || []);
@@ -27,7 +23,11 @@ export default function PhotosSection({ showId }) {
             console.error('Error loading photos:', err);
             setError('Failed to load photos');
         }
-    };
+    }, [showId]);
+
+    useEffect(() => {
+        loadPhotos();
+    }, [loadPhotos]);
 
     const handleFileSelect = (e) => {
         const file = e.target.files[0];

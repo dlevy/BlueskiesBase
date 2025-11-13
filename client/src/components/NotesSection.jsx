@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { getShowNotes, getUserNote, saveNote, deleteNote } from '../services/api';
 
@@ -12,11 +12,7 @@ export default function NotesSection({ showId }) {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState(null);
 
-    useEffect(() => {
-        loadNotes();
-    }, [showId, user]);
-
-    const loadNotes = async () => {
+    const loadNotes = useCallback(async () => {
         try {
             setLoading(true);
             setError(null);
@@ -39,7 +35,11 @@ export default function NotesSection({ showId }) {
         } finally {
             setLoading(false);
         }
-    };
+    }, [showId, user]);
+
+    useEffect(() => {
+        loadNotes();
+    }, [loadNotes]);
 
     const handleSave = async () => {
         if (!noteText.trim()) {
