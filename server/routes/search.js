@@ -15,10 +15,104 @@ const { supabase } = require('../config/supabase');
  *   - song: Filter by song title (shows containing this song)
  *   - source: Filter by source type (AUD, SBD, VIDEO, etc.)
  *   - hasImages: Filter by shows with images (true/false)
+ *   - hasNotes: Filter by shows with user notes (true/false)
+ *   - hasPhotos: Filter by shows with user photos (true/false)
+ *   - hasPoster: Filter by shows with user posters (true/false)
  */
 router.get('/shows', async (req, res) => {
     try {
-        const { year, month, day, venue, city, state, song, source, hasImages } = req.query;
+        const { year, month, day, venue, city, state, song, source, hasImages, hasNotes, hasPhotos, hasPoster } = req.query;
+
+        // Handle content-based filters (hasNotes, hasPhotos, hasPoster)
+        // These require querying the user_notes, user_photos, user_posters tables first
+        let contentFilteredShowIds = null;
+
+        if (hasNotes === 'true' || hasPhotos === 'true' || hasPoster === 'true') {
+            console.log('[Search] Content filters detected:', { hasNotes, hasPhotos, hasPoster });
+
+            let showIdsWithNotes = new Set();
+            let showIdsWithPhotos = new Set();
+            let showIdsWithPosters = new Set();
+
+            // Query for shows with notes
+            if (hasNotes === 'true') {
+                const { data: notesData, error: notesError } = await supabase
+                    .from('user_notes')
+                    .select('show_id');
+
+                if (notesError) {
+                    console.error('[Search] Error fetching notes:', notesError);
+                } else if (notesData) {
+                    notesData.forEach(n => showIdsWithNotes.add(n.show_id));
+                    console.log('[Search] Found', showIdsWithNotes.size, 'shows with notes');
+                }
+            }
+
+            // Query for shows with photos
+            if (hasPhotos === 'true') {
+                const { data: photosData, error: photosError } = await supabase
+                    .from('user_photos')
+                    .select('show_id');
+
+                if (photosError) {
+                    console.error('[Search] Error fetching photos:', photosError);
+                } else if (photosData) {
+                    photosData.forEach(p => showIdsWithPhotos.add(p.show_id));
+                    console.log('[Search] Found', showIdsWithPhotos.size, 'shows with photos');
+                }
+            }
+
+            // Query for shows with posters
+            if (hasPoster === 'true') {
+                const { data: postersData, error: postersError } = await supabase
+                    .from('user_posters')
+                    .select('show_id');
+
+                if (postersError) {
+                    console.error('[Search] Error fetching posters:', postersError);
+                } else if (postersData) {
+                    postersData.forEach(p => showIdsWithPosters.add(p.show_id));
+                    console.log('[Search] Found', showIdsWithPosters.size, 'shows with posters');
+                }
+            }
+
+            // Combine the sets based on which filters are active
+            // If multiple content filters are active, we want shows that match ALL of them (AND logic)
+            let combinedShowIds = null;
+
+            if (hasNotes === 'true') {
+                combinedShowIds = showIdsWithNotes;
+            }
+
+            if (hasPhotos === 'true') {
+                if (combinedShowIds === null) {
+                    combinedShowIds = showIdsWithPhotos;
+                } else {
+                    // Intersection: only shows that have BOTH notes and photos
+                    combinedShowIds = new Set([...combinedShowIds].filter(id => showIdsWithPhotos.has(id)));
+                }
+            }
+
+            if (hasPoster === 'true') {
+                if (combinedShowIds === null) {
+                    combinedShowIds = showIdsWithPosters;
+                } else {
+                    // Intersection: only shows that have posters AND previous filters
+                    combinedShowIds = new Set([...combinedShowIds].filter(id => showIdsWithPosters.has(id)));
+                }
+            }
+
+            contentFilteredShowIds = Array.from(combinedShowIds || []);
+            console.log('[Search] After combining content filters:', contentFilteredShowIds.length, 'shows');
+
+            // If no shows match the content filters, return empty results
+            if (contentFilteredShowIds.length === 0) {
+                return res.json({
+                    count: 0,
+                    shows: []
+                });
+            }
+        }
 
         // Start building the query
         let query = supabase
@@ -34,6 +128,11 @@ router.get('/shows', async (req, res) => {
                 )
             `)
             .order('show_date', { ascending: false });
+
+        // If we have content-filtered show IDs, apply them
+        if (contentFilteredShowIds !== null) {
+            query = query.in('id', contentFilteredShowIds);
+        }
 
         // Apply date filters
         if (year && !month) {

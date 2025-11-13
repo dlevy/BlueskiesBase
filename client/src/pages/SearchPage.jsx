@@ -326,76 +326,17 @@ export default function SearchPage() {
         calculateSongStats();
     }, [filteredResults]);
 
-    // Filter results based on content filters (hasNotes, hasPhotos, hasPoster)
+    // No longer need client-side content filtering - backend handles it now
+    // Just sync filteredResults with results
     useEffect(() => {
-        if (results.length === 0) {
-            setFilteredResults([]);
-            return;
-        }
-
-        // Check if we need to apply content filters
-        const needsContentFiltering = searchParams.hasNotes || searchParams.hasPhotos || searchParams.hasPoster;
-
-        // If NO content filtering needed, just pass through all results immediately
-        if (!needsContentFiltering) {
-            console.log('[SearchPage] No content filtering needed, setting filteredResults =', results.length);
-            setFilteredResults(results);
-            return;
-        }
-
-        // If we need content filtering but contentMap is empty, wait for it to be populated
-        if (Object.keys(contentMap).length === 0) {
-            console.log('[SearchPage] Waiting for contentMap to populate...');
-            return;
-        }
-
-        let filtered = [...results];
-
-        console.log('[SearchPage] Starting content filtering. Results:', results.length, 'ContentMap size:', Object.keys(contentMap).length);
-
-        // Apply content filters
-        if (searchParams.hasNotes) {
-            console.log('[SearchPage] Filtering by hasNotes');
-
-            // Count how many shows have notes in the contentMap
-            const showsWithNotes = Object.entries(contentMap).filter(([id, content]) => content.hasNotes);
-            console.log('[SearchPage] Shows with notes in contentMap:', showsWithNotes.length);
-            if (showsWithNotes.length > 0) {
-                console.log('[SearchPage] Sample shows with notes:', showsWithNotes.slice(0, 3).map(([id, content]) => ({ id, ...content })));
-            }
-
-            const before = filtered.length;
-            filtered = filtered.filter(show => contentMap[show.id]?.hasNotes);
-            console.log('[SearchPage] After hasNotes filter:', filtered.length, '(removed', before - filtered.length, ')');
-        }
-
-        if (searchParams.hasPhotos) {
-            console.log('[SearchPage] Filtering by hasPhotos');
-            const before = filtered.length;
-            filtered = filtered.filter(show => contentMap[show.id]?.hasPhotos);
-            console.log('[SearchPage] After hasPhotos filter:', filtered.length, '(removed', before - filtered.length, ')');
-        }
-
-        if (searchParams.hasPoster) {
-            console.log('[SearchPage] Filtering by hasPoster');
-            const before = filtered.length;
-            filtered = filtered.filter(show => contentMap[show.id]?.hasPoster);
-            console.log('[SearchPage] After hasPoster filter:', filtered.length, '(removed', before - filtered.length, ')');
-        }
-
-        console.log('[SearchPage] Final filtered results:', filtered.length);
-        setFilteredResults(filtered);
-    }, [results, contentMap, searchParams.hasNotes, searchParams.hasPhotos, searchParams.hasPoster]);
+        setFilteredResults(results);
+    }, [results]);
 
     const hasActiveFilters = (params) => {
         return params.year || params.month || params.venue || params.city || params.song || params.source || params.hasImages || params.hasNotes || params.hasPhotos || params.hasPoster;
     };
 
-    const hasContentOnlyFilters = (params) => {
-        const hasContentFilters = params.hasNotes || params.hasPhotos || params.hasPoster;
-        const hasOtherFilters = params.year || params.month || params.venue || params.city || params.song || params.source || params.hasImages;
-        return hasContentFilters && !hasOtherFilters;
-    };
+
 
     const handleAttendanceToggle = async (showId, e) => {
         e.preventDefault(); // Prevent navigation if button is inside a link
@@ -428,6 +369,7 @@ export default function SearchPage() {
         // Don't search if no filters are selected
         if (!hasActiveFilters(params)) {
             setResults([]);
+            setFilteredResults([]);
             setCurrentPage(1);
             setTotalPages(1);
             setLoading(false);
@@ -438,28 +380,15 @@ export default function SearchPage() {
         setError(null);
 
         try {
-            let data;
-
-            // If only content filters are selected (hasNotes, hasPhotos, hasPoster),
-            // we need to fetch shows in pages and filter client-side
-            if (hasContentOnlyFilters(params)) {
-                console.log('[SearchPage] Content-only filters detected, fetching page', page);
-                // Fetch shows with pagination
-                data = await getShows(page, ITEMS_PER_PAGE);
-                console.log('[SearchPage] Fetched', data.shows?.length || 0, 'shows for content filtering');
-
-                // Calculate total pages
-                const total = Math.ceil((data.total || 0) / ITEMS_PER_PAGE);
-                setTotalPages(total);
-                setCurrentPage(page);
-            } else {
-                // Normal search with backend filters
-                data = await searchShows(params);
-                setCurrentPage(1);
-                setTotalPages(1);
-            }
+            // All filters (including content filters) are now handled by the backend
+            console.log('[SearchPage] Performing search with params:', params);
+            const data = await searchShows(params);
+            console.log('[SearchPage] Search returned', data.shows?.length || 0, 'shows');
 
             setResults(data.shows || []);
+            setFilteredResults(data.shows || []); // No client-side filtering needed anymore
+            setCurrentPage(1);
+            setTotalPages(1);
         } catch (err) {
             console.error('Search error:', err);
             setError('Failed to search shows. Please try again.');
