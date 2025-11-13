@@ -37,12 +37,6 @@ export default function SearchPage() {
     // Use ref to track the current filteredResults IDs to avoid recalculating stats unnecessarily
     const lastCalculatedShowIds = useRef(null);
 
-    // Pagination state for standalone content filtering
-    const [currentPage, setCurrentPage] = useState(1);
-    const [totalPages, setTotalPages] = useState(1);
-    const [isLoadingMore, setIsLoadingMore] = useState(false);
-    const ITEMS_PER_PAGE = 50;
-
     // Dropdown options
     const [years, setYears] = useState([]);
     const [venues, setVenues] = useState([]);
@@ -365,13 +359,11 @@ export default function SearchPage() {
         }
     };
 
-    const performSearch = async (params, page = 1) => {
+    const performSearch = async (params) => {
         // Don't search if no filters are selected
         if (!hasActiveFilters(params)) {
             setResults([]);
             setFilteredResults([]);
-            setCurrentPage(1);
-            setTotalPages(1);
             setLoading(false);
             return;
         }
@@ -387,8 +379,6 @@ export default function SearchPage() {
 
             setResults(data.shows || []);
             setFilteredResults(data.shows || []); // No client-side filtering needed anymore
-            setCurrentPage(1);
-            setTotalPages(1);
         } catch (err) {
             console.error('Search error:', err);
             setError('Failed to search shows. Please try again.');
@@ -399,7 +389,7 @@ export default function SearchPage() {
 
     const handleSearch = async (e) => {
         e.preventDefault();
-        await performSearch(searchParams, 1);
+        await performSearch(searchParams);
     };
 
     const handleInputChange = (e) => {
@@ -410,8 +400,8 @@ export default function SearchPage() {
         };
         setSearchParams(newParams);
 
-        // Auto-search when filter changes (always start from page 1)
-        performSearch(newParams, 1);
+        // Auto-search when filter changes
+        performSearch(newParams);
     };
 
     const clearFilter = (filterName) => {
@@ -421,26 +411,8 @@ export default function SearchPage() {
         };
         setSearchParams(newParams);
 
-        // Auto-search after clearing filter (always start from page 1)
-        performSearch(newParams, 1);
-    };
-
-    const loadNextPage = async () => {
-        if (currentPage >= totalPages || isLoadingMore) return;
-
-        setIsLoadingMore(true);
-        try {
-            const nextPage = currentPage + 1;
-            const data = await getShows(nextPage, ITEMS_PER_PAGE);
-
-            // Append new results to existing results
-            setResults(prev => [...prev, ...(data.shows || [])]);
-            setCurrentPage(nextPage);
-        } catch (err) {
-            console.error('Error loading more shows:', err);
-        } finally {
-            setIsLoadingMore(false);
-        }
+        // Auto-search after clearing filter
+        performSearch(newParams);
     };
 
     const clearAllFilters = () => {
@@ -837,22 +809,6 @@ export default function SearchPage() {
                                 </div>
                             );
                                 })}
-                            </div>
-                        )}
-
-                        {/* Load More Button for Standalone Content Filtering */}
-                        {hasContentOnlyFilters(searchParams) && currentPage < totalPages && (
-                            <div className="mt-8 text-center">
-                                <button
-                                    onClick={loadNextPage}
-                                    disabled={isLoadingMore}
-                                    className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
-                                >
-                                    {isLoadingMore ? 'Loading...' : `Load More (Page ${currentPage + 1} of ${totalPages})`}
-                                </button>
-                                <p className="mt-2 text-sm text-gray-400">
-                                    Showing {results.length} shows loaded
-                                </p>
                             </div>
                         )}
                     </div>
