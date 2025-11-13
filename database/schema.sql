@@ -288,9 +288,43 @@ CREATE TRIGGER update_songs_updated_at BEFORE UPDATE ON public.songs
 -- Function to create profile on user signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
+DECLARE
+    base_username TEXT;
+    final_username TEXT;
+    username_exists BOOLEAN;
+    random_suffix INTEGER;
 BEGIN
+    -- Extract the part before @ from email and clean it up
+    base_username := LOWER(SPLIT_PART(NEW.email, '@', 1));
+
+    -- Remove any special characters, keep only alphanumeric and underscores
+    base_username := REGEXP_REPLACE(base_username, '[^a-z0-9_]', '', 'g');
+
+    -- Ensure username is not empty (in case email had only special chars before @)
+    IF base_username = '' THEN
+        base_username := 'user';
+    END IF;
+
+    -- Limit to 20 characters to leave room for suffix
+    base_username := SUBSTRING(base_username, 1, 20);
+
+    -- Try the base username first
+    final_username := base_username;
+
+    -- Check if username exists
+    SELECT EXISTS(SELECT 1 FROM public.profiles WHERE username = final_username) INTO username_exists;
+
+    -- If username exists, add random 4-digit suffix until we find a unique one
+    WHILE username_exists LOOP
+        random_suffix := FLOOR(RANDOM() * 9000 + 1000)::INTEGER; -- Random number between 1000-9999
+        final_username := base_username || random_suffix::TEXT;
+        SELECT EXISTS(SELECT 1 FROM public.profiles WHERE username = final_username) INTO username_exists;
+    END LOOP;
+
+    -- Insert the profile with generated username
     INSERT INTO public.profiles (id, username)
-    VALUES (NEW.id, NEW.email);
+    VALUES (NEW.id, final_username);
+
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
