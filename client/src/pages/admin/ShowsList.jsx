@@ -1,31 +1,37 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { getShows, deleteShow } from '../../services/api';
 
 export default function ShowsList() {
+    const [searchParams, setSearchParams] = useSearchParams();
     const [shows, setShows] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [page, setPage] = useState(1);
     const [pagination, setPagination] = useState(null);
 
-    useEffect(() => {
-        fetchShows();
-    }, [page]);
+    // Get page from URL or default to 1
+    const page = parseInt(searchParams.get('page') || '1', 10);
 
-    const fetchShows = async () => {
+    const fetchShows = useCallback(async () => {
         try {
+            console.log('[ShowsList] Fetching shows for page', page);
             setLoading(true);
+            setError(null);
             const data = await getShows(page, 20);
+            console.log('[ShowsList] Received', data.shows?.length, 'shows');
             setShows(data.shows || []);
             setPagination(data.pagination);
         } catch (err) {
-            console.error('Error fetching shows:', err);
+            console.error('[ShowsList] Error fetching shows:', err);
             setError('Failed to load shows');
         } finally {
             setLoading(false);
         }
-    };
+    }, [page]);
+
+    useEffect(() => {
+        fetchShows();
+    }, [fetchShows]);
 
     const handleDelete = async (id, showDate, artistName) => {
         if (!confirm(`Are you sure you want to delete the show on ${showDate} by ${artistName}?`)) {
@@ -158,7 +164,7 @@ export default function ShowsList() {
             {pagination && pagination.totalPages > 1 && (
                 <div className="mt-6 flex justify-center gap-2">
                     <button
-                        onClick={() => setPage(page - 1)}
+                        onClick={() => setSearchParams({ page: (page - 1).toString() })}
                         disabled={page === 1}
                         className="px-4 py-2 bg-gray-800 border border-gray-700 text-gray-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-700 transition-colors"
                     >
@@ -168,7 +174,7 @@ export default function ShowsList() {
                         Page {page} of {pagination.totalPages}
                     </span>
                     <button
-                        onClick={() => setPage(page + 1)}
+                        onClick={() => setSearchParams({ page: (page + 1).toString() })}
                         disabled={page === pagination.totalPages}
                         className="px-4 py-2 bg-gray-800 border border-gray-700 text-gray-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-700 transition-colors"
                     >
