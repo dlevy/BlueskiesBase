@@ -8,8 +8,12 @@ const { supabase } = require('../config/supabase');
  */
 router.get('/', async (req, res) => {
     try {
-        const { page = 1, limit = 20 } = req.query;
+        // Parse query params as integers (they come as strings from req.query)
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
         const offset = (page - 1) * limit;
+
+        console.log(`[Shows API] Fetching page ${page}, limit ${limit}, offset ${offset}`);
 
         const { data: shows, error, count } = await supabase
             .from('shows')
@@ -31,11 +35,13 @@ router.get('/', async (req, res) => {
             return res.status(500).json({ error: 'Failed to fetch shows' });
         }
 
+        console.log(`[Shows API] Returning ${shows.length} shows, total count: ${count}`);
+
         res.json({
             shows,
             pagination: {
-                page: parseInt(page),
-                limit: parseInt(limit),
+                page,
+                limit,
                 total: count,
                 totalPages: Math.ceil(count / limit)
             }
