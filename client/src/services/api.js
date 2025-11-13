@@ -379,7 +379,7 @@ const getAuthToken = async () => {
         // First try to use the token getter from AuthContext (fastest)
         if (tokenGetter) {
             console.log('[API] getAuthToken: Using token getter from AuthContext');
-            const token = tokenGetter();
+            const token = await tokenGetter(); // Now async!
             if (token) {
                 console.log('[API] getAuthToken: Token found from AuthContext');
                 return token;
@@ -449,13 +449,17 @@ const fetchWithAuth = async (url, options = {}) => {
 
             console.log('[API] fetchWithAuth: Session refreshed, retrying request...');
 
-            // Update the Authorization header with the new token
-            if (options.headers && options.headers.Authorization) {
-                options.headers.Authorization = `Bearer ${session.access_token}`;
-            }
+            // Create new options with updated token, preserving all other options
+            const retryOptions = {
+                ...options,
+                headers: {
+                    ...options.headers,
+                    Authorization: `Bearer ${session.access_token}`
+                }
+            };
 
             // Retry the request with the new token
-            response = await fetch(url, options);
+            response = await fetch(url, retryOptions);
 
             if (response.status === 401) {
                 // Still getting 401 after refresh, session is invalid

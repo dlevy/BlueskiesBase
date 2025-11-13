@@ -192,8 +192,38 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
-    const getToken = () => {
-        return session?.access_token || null;
+    const getToken = async () => {
+        // Check if we have a session
+        if (!session) {
+            console.log('[AuthContext] getToken: No session available');
+            return null;
+        }
+
+        // Check if token is expired or expiring soon (within 5 minutes)
+        const expiresAt = session.expires_at * 1000;
+        const now = Date.now();
+        const timeUntilExpiry = expiresAt - now;
+        const fiveMinutes = 5 * 60 * 1000;
+
+        if (timeUntilExpiry < fiveMinutes) {
+            console.log('[AuthContext] getToken: Token expired or expiring soon, refreshing...');
+            try {
+                const { data: { session: newSession }, error } = await supabase.auth.refreshSession();
+                if (error || !newSession) {
+                    console.error('[AuthContext] getToken: Failed to refresh session:', error);
+                    return null;
+                }
+                console.log('[AuthContext] getToken: Session refreshed successfully');
+                setSession(newSession);
+                return newSession.access_token;
+            } catch (err) {
+                console.error('[AuthContext] getToken: Exception refreshing session:', err);
+                return null;
+            }
+        }
+
+        // Token is still valid
+        return session.access_token;
     };
 
     const value = {
