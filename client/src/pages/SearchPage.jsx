@@ -11,6 +11,7 @@ export default function SearchPage() {
 
     // Tab state
     const [activeTab, setActiveTab] = useState('search'); // 'search' or 'stats'
+    const [statsSubTab, setStatsSubTab] = useState('songs'); // 'songs' or 'mystats'
 
     const [searchParams, setSearchParams] = useState({
         year: '',
@@ -455,7 +456,7 @@ export default function SearchPage() {
 
 
             {/* Tab Navigation */}
-            <div className="grid grid-cols-3 gap-2 mb-6">
+            <div className="grid grid-cols-2 gap-2 mb-6">
                 <button
                     onClick={() => setActiveTab('search')}
                     className={`px-6 py-3 rounded-lg font-semibold transition-colors ${
@@ -475,16 +476,6 @@ export default function SearchPage() {
                     }`}
                 >
                     📊 Stats
-                </button>
-                <button
-                    onClick={() => setActiveTab('mystats')}
-                    className={`px-6 py-3 rounded-lg font-semibold transition-colors ${
-                        activeTab === 'mystats'
-                            ? 'bg-blue-600 text-white shadow-lg'
-                            : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700'
-                    }`}
-                >
-                    👤 My Stats
                 </button>
             </div>
 
@@ -818,14 +809,33 @@ export default function SearchPage() {
             {/* Stats Tab Content */}
             {activeTab === 'stats' && (
                 <div className="max-w-6xl mx-auto">
-                    <SongStatsWidget />
-                </div>
-            )}
+                    {/* Stats Sub-tabs */}
+                    <div className="flex gap-2 mb-6 border-b border-gray-700">
+                        <button
+                            onClick={() => setStatsSubTab('songs')}
+                            className={`px-6 py-3 font-medium transition-colors ${
+                                statsSubTab === 'songs'
+                                    ? 'text-blue-400 border-b-2 border-blue-400'
+                                    : 'text-gray-400 hover:text-gray-300'
+                            }`}
+                        >
+                            Song Stats
+                        </button>
+                        <button
+                            onClick={() => setStatsSubTab('mystats')}
+                            className={`px-6 py-3 font-medium transition-colors ${
+                                statsSubTab === 'mystats'
+                                    ? 'text-blue-400 border-b-2 border-blue-400'
+                                    : 'text-gray-400 hover:text-gray-300'
+                            }`}
+                        >
+                            My Stats
+                        </button>
+                    </div>
 
-            {/* My Stats Tab Content */}
-            {activeTab === 'mystats' && (
-                <div className="max-w-6xl mx-auto">
-                    <UserStatsWidget />
+                    {/* Sub-tab Content */}
+                    {statsSubTab === 'songs' && <SongStatsWidget />}
+                    {statsSubTab === 'mystats' && <UserStatsWidget />}
                 </div>
             )}
         </div>

@@ -56,6 +56,16 @@ export default function UserStatsWidget() {
         const [year, month, day] = dateString.split('-');
         const date = new Date(year, month - 1, day);
         return date.toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+        });
+    };
+
+    const formatDateLong = (dateString) => {
+        const [year, month, day] = dateString.split('-');
+        const date = new Date(year, month - 1, day);
+        return date.toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'long',
             day: 'numeric'
@@ -121,34 +131,45 @@ export default function UserStatsWidget() {
     }
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4">
+            {/* Compact Header */}
+            <h2 className="text-base font-medium text-gray-400 uppercase tracking-wide">
+                My Stats
+            </h2>
+
             {/* Summary Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 text-center">
-                    <div className="text-4xl font-bold text-blue-400 mb-2">
-                        {stats.attendedShows.length}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
+                <div className="bg-gray-850 border border-gray-700/50 rounded-xl p-6 shadow-lg">
+                    <div className="text-center">
+                        <div className="text-5xl font-bold text-blue-400 mb-2 leading-none">
+                            {stats.attendedShows.length}
+                        </div>
+                        <div className="text-sm font-medium text-gray-300">Shows Attended</div>
                     </div>
-                    <div className="text-gray-300">Shows Attended</div>
                 </div>
-                <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 text-center">
-                    <div className="text-4xl font-bold text-green-400 mb-2">
-                        {stats.songsSeen.length}
+                <div className="bg-gray-850 border border-gray-700/50 rounded-xl p-6 shadow-lg">
+                    <div className="text-center">
+                        <div className="text-5xl font-bold text-green-400 mb-2 leading-none">
+                            {stats.songsSeen.length}
+                        </div>
+                        <div className="text-sm font-medium text-gray-300">Songs Seen Live</div>
                     </div>
-                    <div className="text-gray-300">Songs Seen Live</div>
                 </div>
-                <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 text-center">
-                    <div className="text-4xl font-bold text-purple-400 mb-2">
-                        {stats.songsNotSeen.length}
+                <div className="bg-gray-850 border border-gray-700/50 rounded-xl p-6 shadow-lg">
+                    <div className="text-center">
+                        <div className="text-5xl font-bold text-purple-400 mb-2 leading-none">
+                            {stats.songsNotSeen.length}
+                        </div>
+                        <div className="text-sm font-medium text-gray-300">Songs Not Seen Yet</div>
                     </div>
-                    <div className="text-gray-300">Songs Not Seen Yet</div>
                 </div>
             </div>
 
             {/* Tab Navigation */}
-            <div className="flex gap-2 border-b border-gray-700">
+            <div className="flex gap-2 border-b border-gray-700/50">
                 <button
                     onClick={() => setActiveTab('shows')}
-                    className={`px-4 py-2 font-medium transition-colors ${
+                    className={`px-6 py-3 font-medium transition-colors ${
                         activeTab === 'shows'
                             ? 'text-blue-400 border-b-2 border-blue-400'
                             : 'text-gray-400 hover:text-gray-300'
@@ -158,7 +179,7 @@ export default function UserStatsWidget() {
                 </button>
                 <button
                     onClick={() => setActiveTab('seen')}
-                    className={`px-4 py-2 font-medium transition-colors ${
+                    className={`px-6 py-3 font-medium transition-colors ${
                         activeTab === 'seen'
                             ? 'text-blue-400 border-b-2 border-blue-400'
                             : 'text-gray-400 hover:text-gray-300'
@@ -168,7 +189,7 @@ export default function UserStatsWidget() {
                 </button>
                 <button
                     onClick={() => setActiveTab('notSeen')}
-                    className={`px-4 py-2 font-medium transition-colors ${
+                    className={`px-6 py-3 font-medium transition-colors ${
                         activeTab === 'notSeen'
                             ? 'text-blue-400 border-b-2 border-blue-400'
                             : 'text-gray-400 hover:text-gray-300'
@@ -179,29 +200,41 @@ export default function UserStatsWidget() {
             </div>
 
             {/* Tab Content */}
-            <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
+            <div className="bg-gray-850 border border-gray-700/50 rounded-xl p-6 shadow-lg">
                 {/* Attended Shows Tab */}
                 {activeTab === 'shows' && (
                     <div>
-                        <h2 className="text-2xl font-bold text-gray-100 mb-4">Attended Shows</h2>
+                        <div className="flex items-center gap-2 pb-4 mb-6 border-b border-blue-500/20">
+                            <h3 className="text-xl font-semibold text-gray-100">Attended Shows</h3>
+                            <div className="h-1 flex-1 bg-gradient-to-r from-blue-500/30 to-transparent rounded"></div>
+                        </div>
                         {stats.attendedShows.length === 0 ? (
-                            <p className="text-gray-400">You haven't marked any shows as attended yet.</p>
+                            <p className="text-gray-400 text-center py-8">You haven't marked any shows as attended yet.</p>
                         ) : (
-                            <div className="space-y-4">
-                                {stats.attendedShows.map((show) => (
-                                    <div key={show.id} className="border border-gray-700 rounded-lg p-4 hover:border-blue-500 transition-colors">
-                                        <Link to={`/show/${show.id}`} className="block">
-                                            <h3 className="text-xl font-semibold text-gray-100 mb-1">
-                                                {formatDate(show.show_date)}
-                                            </h3>
-                                            <p className="text-gray-300">{show.artist_name}</p>
-                                            {show.venues && (
-                                                <p className="text-gray-400 text-sm">
-                                                    {show.venues.name} - {show.venues.city}, {show.venues.state_country}
-                                                </p>
-                                            )}
-                                        </Link>
-                                    </div>
+                            <div className="space-y-3">
+                                {stats.attendedShows.map((show, index) => (
+                                    <Link
+                                        key={show.id}
+                                        to={`/show/${show.id}`}
+                                        className="block bg-gray-800/30 border border-gray-700/30 rounded-lg p-4 hover:bg-gray-750/50 hover:border-blue-500/50 transition-all group"
+                                    >
+                                        <div className="flex items-start gap-3">
+                                            <span className="text-blue-400 font-bold text-sm mt-0.5 min-w-[2rem]">
+                                                #{index + 1}
+                                            </span>
+                                            <div className="flex-1 min-w-0">
+                                                <h4 className="text-lg font-semibold text-gray-100 mb-1 group-hover:text-blue-400 transition-colors">
+                                                    {formatDateLong(show.show_date)}
+                                                </h4>
+                                                <p className="text-gray-300 font-medium mb-1">{show.artist_name}</p>
+                                                {show.venues && (
+                                                    <p className="text-sm text-gray-500 leading-relaxed">
+                                                        {show.venues.name} • {show.venues.city}, {show.venues.state_country}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </Link>
                                 ))}
                             </div>
                         )}
@@ -211,23 +244,36 @@ export default function UserStatsWidget() {
                 {/* Songs Seen Tab */}
                 {activeTab === 'seen' && (
                     <div>
-                        <h2 className="text-2xl font-bold text-gray-100 mb-4">Songs You've Seen Live</h2>
+                        <div className="flex items-center gap-2 pb-4 mb-6 border-b border-green-500/20">
+                            <h3 className="text-xl font-semibold text-gray-100">Songs You've Seen Live</h3>
+                            <div className="h-1 flex-1 bg-gradient-to-r from-green-500/30 to-transparent rounded"></div>
+                        </div>
                         {stats.songsSeen.length === 0 ? (
-                            <p className="text-gray-400">No songs tracked yet.</p>
+                            <p className="text-gray-400 text-center py-8">No songs tracked yet.</p>
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {stats.songsSeen
-                                    .sort((a, b) => a.title.localeCompare(b.title))
+                                    .sort((a, b) => b.playCount - a.playCount || a.title.localeCompare(b.title))
                                     .map((song) => (
-                                        <div key={song.id} className="border border-gray-700 rounded-lg p-4 bg-gray-750">
-                                            <div className="font-medium text-gray-100 mb-1">{song.title}</div>
+                                        <div
+                                            key={song.id}
+                                            className="bg-gray-800/30 border border-gray-700/30 rounded-lg p-4 hover:bg-gray-750/50 transition-colors"
+                                        >
+                                            <div
+                                                className="font-semibold text-gray-100 mb-2 leading-relaxed truncate"
+                                                title={song.title}
+                                            >
+                                                {song.title}
+                                            </div>
                                             {!song.is_original && song.original_artist && (
-                                                <div className="text-sm text-gray-400 italic mb-2">
-                                                    Cover - {song.original_artist}
+                                                <div className="text-xs text-gray-400 mb-2 leading-relaxed">
+                                                    {song.original_artist}
                                                 </div>
                                             )}
-                                            <div className="text-sm text-blue-400">
-                                                Seen {song.playCount} {song.playCount === 1 ? 'time' : 'times'}
+                                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-green-500/10 border border-green-500/20 rounded-full">
+                                                <span className="text-xs font-medium text-green-400">
+                                                    Seen {song.playCount} {song.playCount === 1 ? 'time' : 'times'}
+                                                </span>
                                             </div>
                                         </div>
                                     ))}
@@ -239,27 +285,41 @@ export default function UserStatsWidget() {
                 {/* Songs Not Seen Tab */}
                 {activeTab === 'notSeen' && (
                     <div>
-                        <h2 className="text-2xl font-bold text-gray-100 mb-4">Songs You Haven't Seen Yet</h2>
+                        <div className="flex items-center gap-2 pb-4 mb-6 border-b border-purple-500/20">
+                            <h3 className="text-xl font-semibold text-gray-100">Songs You Haven't Seen Yet</h3>
+                            <div className="h-1 flex-1 bg-gradient-to-r from-purple-500/30 to-transparent rounded"></div>
+                        </div>
                         {stats.songsNotSeen.length === 0 ? (
-                            <p className="text-gray-400">You've seen all the songs! 🎉</p>
+                            <div className="text-center py-8">
+                                <div className="text-4xl mb-3">🎉</div>
+                                <p className="text-gray-300 text-lg font-medium">You've seen all the songs!</p>
+                            </div>
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {stats.songsNotSeen
                                     .sort((a, b) => a.title.localeCompare(b.title))
                                     .map((song) => (
-                                        <div key={song.id} className="border border-gray-700 rounded-lg p-4 bg-gray-750 text-center">
-                                            <div className="font-medium text-gray-100 text-lg mb-1">{song.title}</div>
+                                        <div
+                                            key={song.id}
+                                            className="bg-gray-800/30 border border-gray-700/30 rounded-lg p-4 hover:bg-gray-750/50 transition-colors"
+                                        >
+                                            <div
+                                                className="font-semibold text-gray-100 mb-2 leading-relaxed truncate"
+                                                title={song.title}
+                                            >
+                                                {song.title}
+                                            </div>
                                             {!song.is_original && song.original_artist && (
-                                                <div className="text-sm text-gray-400 italic mb-2">
-                                                    Cover - {song.original_artist}
+                                                <div className="text-xs text-gray-400 mb-3 leading-relaxed">
+                                                    {song.original_artist}
                                                 </div>
                                             )}
                                             {song.mostRecentShow && (
-                                                <div className="mt-2">
-                                                    <div className="text-xs text-gray-400 mb-1">Last played on:</div>
+                                                <div className="pt-2 border-t border-gray-700/50">
+                                                    <div className="text-xs text-gray-500 mb-1.5">Last played:</div>
                                                     <Link
                                                         to={`/show/${song.mostRecentShow.id}`}
-                                                        className="text-blue-400 hover:text-blue-300 transition-colors text-sm inline-block"
+                                                        className="text-sm text-purple-400 hover:text-purple-300 transition-colors inline-block font-medium"
                                                     >
                                                         {formatDate(song.mostRecentShow.show_date)}
                                                     </Link>
@@ -271,6 +331,11 @@ export default function UserStatsWidget() {
                         )}
                     </div>
                 )}
+            </div>
+
+            {/* Footer */}
+            <div className="text-center text-xs text-gray-600 pt-2">
+                Data as of {formatDate(new Date().toISOString().split('T')[0])}
             </div>
         </div>
     );
