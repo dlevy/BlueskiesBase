@@ -20,6 +20,8 @@ export const AuthProvider = ({ children }) => {
     useEffect(() => {
         console.log('[AuthContext] Initializing auth...');
 
+        let initialLoadComplete = false;
+
         // Check active sessions and sets the user
         supabase.auth.getSession().then(async ({ data: { session } }) => {
             console.log('[AuthContext] Initial session check:', session ? 'Session found' : 'No session');
@@ -39,7 +41,7 @@ export const AuthProvider = ({ children }) => {
                         console.error('[AuthContext] Error fetching profile:', error);
                         setProfile(null);
                     } else {
-                        console.log('[AuthContext] Initial profile loaded:', profileData?.username);
+                        console.log('[AuthContext] Initial profile loaded:', profileData?.username, 'Admin:', profileData?.is_admin);
                         setProfile(profileData);
                     }
                 } catch (err) {
@@ -50,15 +52,25 @@ export const AuthProvider = ({ children }) => {
                 setProfile(null);
             }
 
+            initialLoadComplete = true;
+            console.log('[AuthContext] Initial load complete, setting loading = false');
             setLoading(false);
         }).catch(err => {
             console.error('[AuthContext] Error getting session:', err);
+            initialLoadComplete = true;
             setLoading(false);
         });
 
         // Listen for changes on auth state (sign in, sign out, etc.)
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
             console.log('[AuthContext] Auth state changed:', event);
+
+            // Only process auth state changes after initial load is complete
+            // This prevents race conditions on page refresh
+            if (!initialLoadComplete) {
+                console.log('[AuthContext] Skipping auth state change during initial load');
+                return;
+            }
 
             setSession(session);
             setUser(session?.user ?? null);
@@ -89,8 +101,6 @@ export const AuthProvider = ({ children }) => {
                 console.log('[AuthContext] No user session, clearing profile');
                 setProfile(null);
             }
-
-            setLoading(false);
         });
 
         // Refresh session every 15 minutes to keep it alive
