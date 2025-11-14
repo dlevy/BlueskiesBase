@@ -359,7 +359,10 @@ router.put('/:id', async (req, res) => {
 /**
  * DELETE /api/songs/:id
  * Delete a song (admin only)
- * Note: This will fail if the song is used in any setlists due to foreign key constraint
+ * WARNING: Before running the fix_song_delete_cascade.sql migration, this will CASCADE DELETE
+ * all setlist_songs entries! After the migration, it will properly RESTRICT deletion.
+ *
+ * This endpoint checks if the song is used in setlists and prevents deletion if so.
  */
 router.delete('/:id', async (req, res) => {
     try {
@@ -370,9 +373,8 @@ router.delete('/:id', async (req, res) => {
         // Check if song is used in any setlists
         const { data: usages, error: usageError } = await supabase
             .from('setlist_songs')
-            .select('id')
-            .eq('song_id', id)
-            .limit(1);
+            .select('id, show_id')
+            .eq('song_id', id);
 
         if (usageError) {
             console.error('Error checking song usage:', usageError);
@@ -382,7 +384,8 @@ router.delete('/:id', async (req, res) => {
         if (usages && usages.length > 0) {
             return res.status(400).json({
                 error: 'Cannot delete song that is used in setlists',
-                message: 'This song appears in one or more setlists and cannot be deleted.'
+                message: `This song appears in ${usages.length} setlist(s) and cannot be deleted. Remove it from all setlists first.`,
+                usageCount: usages.length
             });
         }
 
@@ -393,6 +396,15 @@ router.delete('/:id', async (req, res) => {
 
         if (error) {
             console.error('Error deleting song:', error);
+
+            // Check if it's a foreign key constraint error
+            if (error.code === '23503') {
+                return res.status(400).json({
+                    error: 'Cannot delete song',
+                    message: 'This song is still referenced in setlists. Please remove it from all setlists first.'
+                });
+            }
+
             return res.status(500).json({ error: 'Failed to delete song' });
         }
 
