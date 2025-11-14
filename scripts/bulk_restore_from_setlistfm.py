@@ -30,6 +30,11 @@ from dotenv import load_dotenv
 import requests
 from supabase import create_client, Client
 
+# Add scripts directory to path for imports
+script_dir = os.path.dirname(os.path.abspath(__file__))
+if script_dir not in sys.path:
+    sys.path.insert(0, script_dir)
+
 # Load environment variables
 load_dotenv()
 
@@ -70,6 +75,7 @@ class BulkSetlistRestorer:
             'shows_restored': 0,
             'shows_not_found': 0,
             'shows_skipped': 0,
+            'shows_empty_on_setlistfm': 0,
             'errors': []
         }
 
@@ -193,6 +199,20 @@ class BulkSetlistRestorer:
                 self.stats['errors'].append(f"{show_date}: Failed to get artist ID")
                 return False
 
+            # Check if setlist has any songs
+            has_songs = False
+            if 'sets' in setlist and 'set' in setlist['sets']:
+                for set_data in setlist['sets']['set']:
+                    if 'song' in set_data and len(set_data['song']) > 0:
+                        has_songs = True
+                        break
+
+            if not has_songs:
+                print(f"    ⚠️  Setlist found but has no songs on setlist.fm")
+                self.stats['shows_empty_on_setlistfm'] += 1
+                self.stats['errors'].append(f"{show_date} - {venue_name}: Empty on setlist.fm")
+                return False
+
             # Import the setlist
             success = importer.import_setlist(setlist, artist_id)
 
@@ -215,18 +235,19 @@ class BulkSetlistRestorer:
         print("\n" + "="*60)
         print("📊 BULK RESTORATION STATISTICS")
         print("="*60)
-        print(f"Shows checked:       {self.stats['shows_checked']}")
-        print(f"Shows restored:      {self.stats['shows_restored']}")
-        print(f"Shows not found:     {self.stats['shows_not_found']}")
-        print(f"Shows skipped:       {self.stats['shows_skipped']}")
-        print(f"Errors:              {len(self.stats['errors'])}")
+        print(f"Shows checked:               {self.stats['shows_checked']}")
+        print(f"Shows restored:              {self.stats['shows_restored']}")
+        print(f"Shows not found on setlist.fm: {self.stats['shows_not_found']}")
+        print(f"Shows empty on setlist.fm:   {self.stats['shows_empty_on_setlistfm']}")
+        print(f"Shows skipped:               {self.stats['shows_skipped']}")
+        print(f"Total errors:                {len(self.stats['errors'])}")
 
         if self.stats['errors']:
-            print("\n❌ ERRORS:")
-            for error in self.stats['errors'][:10]:  # Show first 10 errors
+            print("\n⚠️  SHOWS THAT COULD NOT BE RESTORED:")
+            for error in self.stats['errors'][:20]:  # Show first 20 errors
                 print(f"  - {error}")
-            if len(self.stats['errors']) > 10:
-                print(f"  ... and {len(self.stats['errors']) - 10} more")
+            if len(self.stats['errors']) > 20:
+                print(f"  ... and {len(self.stats['errors']) - 20} more")
 
         print("="*60)
 
