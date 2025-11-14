@@ -30,7 +30,7 @@ router.get('/', async (req, res) => {
         while (hasMore) {
             const { data: batch, error: batchError } = await supabase
                 .from('setlist_songs')
-                .select('song_id, show_id')
+                .select('song_id, show_id, performance_type')
                 .in('song_id', songIds)
                 .range(from, from + batchSize - 1);
 
@@ -94,6 +94,7 @@ router.get('/stats/global', async (req, res) => {
                 .select(`
                     show_id,
                     song_id,
+                    performance_type,
                     songs!setlist_songs_song_id_fkey (
                         id,
                         title,
@@ -285,9 +286,25 @@ router.get('/:id', async (req, res) => {
 
         const performances = allPerformances;
 
+        // Calculate performance type counts
+        const performanceTypeCounts = {
+            full: 0,
+            tease: 0,
+            partial: 0
+        };
+
+        performances.forEach(perf => {
+            const perfType = perf.performance_type || 'full';
+            if (performanceTypeCounts.hasOwnProperty(perfType)) {
+                performanceTypeCounts[perfType]++;
+            }
+        });
+
         res.json({
             ...song,
-            performances
+            performances,
+            performance_type_counts: performanceTypeCounts,
+            total_performances: performances.length
         });
 
     } catch (error) {

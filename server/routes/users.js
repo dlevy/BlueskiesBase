@@ -299,6 +299,7 @@ router.get('/stats', async (req, res) => {
                     .select(`
                         song_id,
                         show_id,
+                        performance_type,
                         songs!setlist_songs_song_id_fkey (
                             id,
                             title,
@@ -427,6 +428,7 @@ router.get('/stats', async (req, res) => {
                     .select(`
                         song_id,
                         show_id,
+                        performance_type,
                         shows!inner (
                             id,
                             show_date,

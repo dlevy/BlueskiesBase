@@ -248,6 +248,30 @@ export default function ShowDetailPage() {
             <div className="bg-gray-800 shadow-2xl rounded-lg p-6 border border-gray-700 text-left">
                 <h2 className="text-3xl font-bold mb-6 bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent text-left">Setlist</h2>
 
+                {/* Legend */}
+                <div className="mb-4 p-3 bg-gray-900/50 rounded-lg border border-gray-700 text-sm text-gray-400">
+                    <div className="flex flex-wrap gap-4">
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs bg-yellow-900/50 text-yellow-300 px-2 py-0.5 rounded border border-yellow-700 whitespace-nowrap">
+                                Tease
+                            </span>
+                            <span>= Brief snippet without full vocals</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs bg-orange-900/50 text-orange-300 px-2 py-0.5 rounded border border-orange-700 whitespace-nowrap">
+                                Partial
+                            </span>
+                            <span>= Incomplete performance</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs bg-purple-900/50 text-purple-300 px-1.5 py-0.5 rounded border border-purple-700 font-bold whitespace-nowrap">
+                                &gt;
+                            </span>
+                            <span>= Jams into next song</span>
+                        </div>
+                    </div>
+                </div>
+
                 {show.setlist && Object.keys(show.setlist).length > 0 ? (
                     <div className="space-y-6 text-left">
                         {/* Set 1 */}
@@ -267,6 +291,18 @@ export default function ShowDetailPage() {
                                                 {/* First Line: Title + Badges */}
                                                 <div className="flex flex-wrap items-center gap-2">
                                                     <span className="font-medium text-lg">{song.title}</span>
+
+                                                    {/* Performance Type Badge */}
+                                                    {song.performance_type === 'tease' && (
+                                                        <span className="text-xs bg-yellow-900/50 text-yellow-300 px-2 py-0.5 rounded border border-yellow-700 whitespace-nowrap">
+                                                            Tease
+                                                        </span>
+                                                    )}
+                                                    {song.performance_type === 'partial' && (
+                                                        <span className="text-xs bg-orange-900/50 text-orange-300 px-2 py-0.5 rounded border border-orange-700 whitespace-nowrap">
+                                                            Partial
+                                                        </span>
+                                                    )}
 
                                                     {/* Only show Cover badge, Original is implied */}
                                                     {song.is_original === false && (
@@ -321,6 +357,18 @@ export default function ShowDetailPage() {
                                                 <div className="flex flex-wrap items-center gap-2">
                                                     <span className="font-medium text-lg">{song.title}</span>
 
+                                                    {/* Performance Type Badge */}
+                                                    {song.performance_type === 'tease' && (
+                                                        <span className="text-xs bg-yellow-900/50 text-yellow-300 px-2 py-0.5 rounded border border-yellow-700 whitespace-nowrap">
+                                                            Tease
+                                                        </span>
+                                                    )}
+                                                    {song.performance_type === 'partial' && (
+                                                        <span className="text-xs bg-orange-900/50 text-orange-300 px-2 py-0.5 rounded border border-orange-700 whitespace-nowrap">
+                                                            Partial
+                                                        </span>
+                                                    )}
+
                                                     {/* Only show Cover badge, Original is implied */}
                                                     {song.is_original === false && (
                                                         <span className="text-xs bg-blue-900/50 text-blue-300 px-2 py-0.5 rounded border border-blue-700 whitespace-nowrap">
@@ -374,6 +422,18 @@ export default function ShowDetailPage() {
                                                 <div className="flex flex-wrap items-center gap-2">
                                                     <span className="font-medium text-lg">{song.title}</span>
 
+                                                    {/* Performance Type Badge */}
+                                                    {song.performance_type === 'tease' && (
+                                                        <span className="text-xs bg-yellow-900/50 text-yellow-300 px-2 py-0.5 rounded border border-yellow-700 whitespace-nowrap">
+                                                            Tease
+                                                        </span>
+                                                    )}
+                                                    {song.performance_type === 'partial' && (
+                                                        <span className="text-xs bg-orange-900/50 text-orange-300 px-2 py-0.5 rounded border border-orange-700 whitespace-nowrap">
+                                                            Partial
+                                                        </span>
+                                                    )}
+
                                                     {/* Only show Cover badge, Original is implied */}
                                                     {song.is_original === false && (
                                                         <span className="text-xs bg-blue-900/50 text-blue-300 px-2 py-0.5 rounded border border-blue-700 whitespace-nowrap">
@@ -426,6 +486,18 @@ export default function ShowDetailPage() {
                                                 {/* First Line: Title + Badges */}
                                                 <div className="flex flex-wrap items-center gap-2">
                                                     <span className="font-medium text-lg">{song.title}</span>
+
+                                                    {/* Performance Type Badge */}
+                                                    {song.performance_type === 'tease' && (
+                                                        <span className="text-xs bg-yellow-900/50 text-yellow-300 px-2 py-0.5 rounded border border-yellow-700 whitespace-nowrap">
+                                                            Tease
+                                                        </span>
+                                                    )}
+                                                    {song.performance_type === 'partial' && (
+                                                        <span className="text-xs bg-orange-900/50 text-orange-300 px-2 py-0.5 rounded border border-orange-700 whitespace-nowrap">
+                                                            Partial
+                                                        </span>
+                                                    )}
 
                                                     {/* Only show Cover badge, Original is implied */}
                                                     {song.is_original === false && (

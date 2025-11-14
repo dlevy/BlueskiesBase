@@ -94,6 +94,7 @@ router.get('/:id', async (req, res) => {
                 notes,
                 is_encore,
                 jams_into,
+                performance_type,
                 songs!setlist_songs_song_id_fkey (
                     id,
                     title,
@@ -139,6 +140,7 @@ router.get('/:id', async (req, res) => {
                 order: item.song_order,
                 notes: item.notes,  // Performance-specific notes
                 jams_into: item.jams_into || null,  // UUID or null, NOT false
+                performance_type: item.performance_type || 'full',  // full, tease, or partial
                 // Song metadata from songs table
                 title: item.songs?.title,
                 is_original: item.songs?.is_original,
@@ -324,6 +326,13 @@ router.put('/:id/setlist', async (req, res) => {
                 throw new Error(`Entry ${index + 1}: jams_into must be a valid UUID or null`);
             }
 
+            // Validate performance_type if provided
+            const performanceType = item.performance_type || 'full';
+            const validPerformanceTypes = ['full', 'tease', 'partial'];
+            if (!validPerformanceTypes.includes(performanceType)) {
+                throw new Error(`Entry ${index + 1}: performance_type must be one of: ${validPerformanceTypes.join(', ')}`);
+            }
+
             return {
                 show_id: id,
                 song_id: item.song_id,
@@ -331,7 +340,8 @@ router.put('/:id/setlist', async (req, res) => {
                 song_order: item.song_order,
                 is_encore: item.is_encore || false,
                 notes: item.notes || null,
-                jams_into: jamsInto
+                jams_into: jamsInto,
+                performance_type: performanceType
             };
         });
 
@@ -451,7 +461,7 @@ router.put('/:id/setlist', async (req, res) => {
 router.post('/:id/setlist/song', async (req, res) => {
     try {
         const { id } = req.params;
-        const { song_id, set_number, song_order, is_encore, notes, jams_into } = req.body;
+        const { song_id, set_number, song_order, is_encore, notes, jams_into, performance_type } = req.body;
 
         // TODO: Add authentication middleware to verify admin status
 
@@ -480,6 +490,16 @@ router.post('/:id/setlist/song', async (req, res) => {
         const jamsIntoValue = jams_into || null;
         if (jamsIntoValue !== null && !uuidRegex.test(jamsIntoValue)) {
             return res.status(400).json({ error: 'jams_into must be a valid UUID or null' });
+        }
+
+        // Validate performance_type if provided
+        const performanceTypeValue = performance_type || 'full';
+        const validPerformanceTypes = ['full', 'tease', 'partial'];
+        if (!validPerformanceTypes.includes(performanceTypeValue)) {
+            return res.status(400).json({
+                error: 'performance_type must be one of: full, tease, partial',
+                provided: performanceTypeValue
+            });
         }
 
         // ============================================================
@@ -546,7 +566,8 @@ router.post('/:id/setlist/song', async (req, res) => {
                 song_order,
                 is_encore: is_encore || false,
                 notes: notes || null,  // Performance-specific notes only
-                jams_into: jamsIntoValue  // UUID or null, NOT false
+                jams_into: jamsIntoValue,  // UUID or null, NOT false
+                performance_type: performanceTypeValue  // full, tease, or partial
             }])
             .select()
             .single();

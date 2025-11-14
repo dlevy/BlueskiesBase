@@ -70,6 +70,7 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
             // Performance-specific fields only
             notes: '',
             jams_into: null,  // UUID or null, NOT false
+            performance_type: 'full',  // Default to full performance
             order: setlist[selectedSet].length
         };
 
@@ -162,7 +163,8 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
                         song_order: index + 1,
                         is_encore: isEncore,
                         notes: song.notes || null,  // Performance-specific notes only
-                        jams_into: song.jams_into || null  // UUID or null, NOT false
+                        jams_into: song.jams_into || null,  // UUID or null, NOT false
+                        performance_type: song.performance_type || 'full'  // full, tease, or partial
                     });
                 });
             });
@@ -376,7 +378,22 @@ function SetlistSongItem({ song, index, setKey, isFirst, isLast, onRemove, onMov
                     )}
 
                     {/* Performance-specific fields (editable) */}
-                    <div className="pt-2 border-t border-gray-600">
+                    <div className="pt-2 border-t border-gray-600 space-y-2">
+                        <div>
+                            <label className="block text-sm text-gray-300 mb-1">
+                                Performance Type
+                            </label>
+                            <select
+                                value={song.performance_type || 'full'}
+                                onChange={(e) => onUpdate('performance_type', e.target.value)}
+                                className="border border-gray-600 bg-gray-700 text-gray-100 rounded px-2 py-1 text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                                <option value="full">Full Performance</option>
+                                <option value="tease">Tease</option>
+                                <option value="partial">Partial</option>
+                            </select>
+                        </div>
+
                         <label className="flex items-center text-sm text-gray-300">
                             <input
                                 type="checkbox"
@@ -389,10 +406,10 @@ function SetlistSongItem({ song, index, setKey, isFirst, isLast, onRemove, onMov
 
                         <input
                             type="text"
-                            placeholder="Performance notes (e.g., 'with guest', 'teases')"
+                            placeholder="Performance notes (e.g., 'with guest', 'acoustic version')"
                             value={song.notes || ''}
                             onChange={(e) => onUpdate('notes', e.target.value)}
-                            className="mt-2 border border-gray-600 bg-gray-700 text-gray-100 placeholder-gray-400 rounded px-2 py-1 text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="border border-gray-600 bg-gray-700 text-gray-100 placeholder-gray-400 rounded px-2 py-1 text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                     </div>
 
