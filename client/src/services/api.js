@@ -249,6 +249,24 @@ export const getVenueById = async (id) => {
 };
 
 /**
+ * Create a new venue
+ */
+export const createVenue = async (venueData) => {
+    const response = await fetch(`${API_BASE_URL}/api/venues`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(venueData),
+    });
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to create venue');
+    }
+    return response.json();
+};
+
+/**
  * Search for songs
  */
 export const searchSongs = async (filters = {}) => {

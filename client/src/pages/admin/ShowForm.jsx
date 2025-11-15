@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { getShowById, createShow, updateShow, getVenues, updateSetlist } from '../../services/api';
+import { getShowById, createShow, updateShow, getVenues, updateSetlist, createVenue } from '../../services/api';
 import SetlistEditor from '../../components/SetlistEditor';
 
 export default function ShowForm() {
@@ -14,6 +14,14 @@ export default function ShowForm() {
     const [venues, setVenues] = useState([]);
     const [setlistData, setSetlistData] = useState([]);
     const [initialSetlist, setInitialSetlist] = useState({});
+    const [showVenueForm, setShowVenueForm] = useState(false);
+    const [venueFormData, setVenueFormData] = useState({
+        name: '',
+        city: '',
+        state_country: '',
+        address: ''
+    });
+    const [venueFormError, setVenueFormError] = useState('');
 
     const [formData, setFormData] = useState({
         venue_id: '',
@@ -85,6 +93,55 @@ export default function ShowForm() {
 
     const handleSetlistChange = (updatedSetlist) => {
         setSetlistData(updatedSetlist);
+    };
+
+    const handleVenueFormChange = (e) => {
+        const { name, value } = e.target;
+        setVenueFormData(prev => ({
+            ...prev,
+            [name]: value
+        }));
+    };
+
+    const handleCreateVenue = async (e) => {
+        e.preventDefault();
+        setVenueFormError('');
+
+        try {
+            const newVenue = await createVenue(venueFormData);
+
+            // Add the new venue to the list
+            setVenues(prev => [...prev, newVenue].sort((a, b) => a.name.localeCompare(b.name)));
+
+            // Select the new venue
+            setFormData(prev => ({
+                ...prev,
+                venue_id: newVenue.id
+            }));
+
+            // Reset and close the form
+            setVenueFormData({
+                name: '',
+                city: '',
+                state_country: '',
+                address: ''
+            });
+            setShowVenueForm(false);
+        } catch (err) {
+            console.error('Error creating venue:', err);
+            setVenueFormError(err.message || 'Failed to create venue');
+        }
+    };
+
+    const handleCancelVenueForm = () => {
+        setShowVenueForm(false);
+        setVenueFormError('');
+        setVenueFormData({
+            name: '',
+            city: '',
+            state_country: '',
+            address: ''
+        });
     };
 
     const handleSubmit = async (e) => {
@@ -167,23 +224,125 @@ export default function ShowForm() {
 
                     {/* Venue */}
                     <div>
-                        <label className="block text-gray-300 text-sm font-bold mb-2">
-                            Venue *
-                        </label>
-                        <select
-                            name="venue_id"
-                            value={formData.venue_id}
-                            onChange={handleChange}
-                            required
-                            className="shadow border border-gray-600 rounded w-full py-2 px-3 text-gray-100 bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                            <option value="">Select a venue</option>
-                            {venues.map(venue => (
-                                <option key={venue.id} value={venue.id}>
-                                    {venue.name} - {venue.city}, {venue.state_country}
-                                </option>
-                            ))}
-                        </select>
+                        <div className="flex justify-between items-center mb-2">
+                            <label className="block text-gray-300 text-sm font-bold">
+                                Venue *
+                            </label>
+                            {!showVenueForm && (
+                                <button
+                                    type="button"
+                                    onClick={() => setShowVenueForm(true)}
+                                    className="text-blue-400 hover:text-blue-300 text-sm font-medium transition-colors"
+                                >
+                                    + Add New Venue
+                                </button>
+                            )}
+                        </div>
+
+                        {!showVenueForm ? (
+                            <select
+                                name="venue_id"
+                                value={formData.venue_id}
+                                onChange={handleChange}
+                                required
+                                className="shadow border border-gray-600 rounded w-full py-2 px-3 text-gray-100 bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                                <option value="">Select a venue</option>
+                                {venues.map(venue => (
+                                    <option key={venue.id} value={venue.id}>
+                                        {venue.name} - {venue.city}, {venue.state_country}
+                                    </option>
+                                ))}
+                            </select>
+                        ) : (
+                            <div className="border border-blue-500 rounded-lg p-4 bg-gray-750">
+                                <h3 className="text-lg font-semibold text-blue-400 mb-3">Create New Venue</h3>
+
+                                {venueFormError && (
+                                    <div className="bg-red-900/50 border border-red-700 text-red-200 px-3 py-2 rounded mb-3 text-sm">
+                                        {venueFormError}
+                                    </div>
+                                )}
+
+                                <div className="space-y-3">
+                                    <div>
+                                        <label className="block text-gray-300 text-sm font-medium mb-1">
+                                            Venue Name *
+                                        </label>
+                                        <input
+                                            type="text"
+                                            name="name"
+                                            value={venueFormData.name}
+                                            onChange={handleVenueFormChange}
+                                            required
+                                            className="shadow border border-gray-600 rounded w-full py-2 px-3 text-gray-100 bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            placeholder="e.g., Red Rocks Amphitheatre"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-gray-300 text-sm font-medium mb-1">
+                                            City *
+                                        </label>
+                                        <input
+                                            type="text"
+                                            name="city"
+                                            value={venueFormData.city}
+                                            onChange={handleVenueFormChange}
+                                            required
+                                            className="shadow border border-gray-600 rounded w-full py-2 px-3 text-gray-100 bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            placeholder="e.g., Morrison"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-gray-300 text-sm font-medium mb-1">
+                                            State/Country *
+                                        </label>
+                                        <input
+                                            type="text"
+                                            name="state_country"
+                                            value={venueFormData.state_country}
+                                            onChange={handleVenueFormChange}
+                                            required
+                                            className="shadow border border-gray-600 rounded w-full py-2 px-3 text-gray-100 bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            placeholder="e.g., CO or United States"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-gray-300 text-sm font-medium mb-1">
+                                            Address (Optional)
+                                        </label>
+                                        <input
+                                            type="text"
+                                            name="address"
+                                            value={venueFormData.address}
+                                            onChange={handleVenueFormChange}
+                                            className="shadow border border-gray-600 rounded w-full py-2 px-3 text-gray-100 bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            placeholder="e.g., 18300 W Alameda Pkwy"
+                                        />
+                                    </div>
+
+                                    <div className="flex gap-2 pt-2">
+                                        <button
+                                            type="button"
+                                            onClick={handleCreateVenue}
+                                            className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-colors"
+                                        >
+                                            Create Venue
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={handleCancelVenueForm}
+                                            className="bg-gray-600 hover:bg-gray-700 text-white font-medium py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-colors"
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Tour Name */}
