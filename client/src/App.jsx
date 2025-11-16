@@ -138,8 +138,8 @@ function PublicLayout() {
             {/* Desktop Layout */}
             <div className="hidden md:flex justify-between items-center text-left">
               <Link to="/" className="hover:opacity-80 transition-opacity">
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-200 to-indigo-200 bg-clip-text text-transparent">Johnny Blueskies & the Dark Clouds</h1>
-                <p className="text-blue-300 text-left text-xs">A concert archive for fans of Sturgill Simpson, Johnny Blueskies, and the Dark Clouds</p>
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-200 to-indigo-200 bg-clip-text text-transparent">Johnny Blue Skies & the Dark Clouds</h1>
+                <p className="text-blue-300 text-left text-xs">A concert archive for fans of Sturgill Simpson, Johnny Blue Skies, and the Dark Clouds</p>
               </Link>
 
               <div className="flex items-center gap-4">
