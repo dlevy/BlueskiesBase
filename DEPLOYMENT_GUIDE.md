@@ -108,7 +108,7 @@ git push -u origin main
 
 ```
 PORT=3000
-SUPABASE_URL=https://sxkonriiudchfhkrrait.supabase.co
+SUPABASE_URL=https://your-project-ref.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here
 NODE_ENV=production
 ```
@@ -156,7 +156,7 @@ Vercel should auto-detect Vite, but verify:
 2. Add these variables:
 
 ```
-VITE_SUPABASE_URL=https://sxkonriiudchfhkrrait.supabase.co
+VITE_SUPABASE_URL=https://your-project-ref.supabase.co
 VITE_SUPABASE_ANON_KEY=your_anon_key_here
 VITE_API_URL=https://blueskiesbase-production.up.railway.app
 ```
