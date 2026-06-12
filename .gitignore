@@ -58,3 +58,6 @@ audit_*.js
 check_*.js
 debug_*.js
 
+
+.vercel
+.env*
