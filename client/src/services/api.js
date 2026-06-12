@@ -1,7 +1,7 @@
 // API service for making calls to the backend
 import { supabase } from './supabase';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 // Log the API URL for debugging
 console.log('[API Service] Using API Base URL:', API_BASE_URL);
