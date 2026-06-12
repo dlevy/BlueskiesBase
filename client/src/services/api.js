@@ -52,7 +52,9 @@ export const getShows = async (page = 1, limit = 20) => {
 export const getShowById = async (id) => {
     const response = await fetch(`${API_BASE_URL}/api/shows/${id}`);
     if (!response.ok) {
-        throw new Error('Failed to fetch show');
+        const body = await response.json().catch(() => ({}));
+        console.error('[getShowById] API error:', body);
+        throw new Error(body.detail || body.error || 'Failed to fetch show');
     }
     return response.json();
 };

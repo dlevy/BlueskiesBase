@@ -79,7 +79,10 @@ router.get('/:id', async (req, res) => {
 
         if (showError) {
             console.error('Error fetching show:', showError);
-            return res.status(404).json({ error: 'Show not found' });
+            if (showError.code === 'PGRST116') {
+                return res.status(404).json({ error: 'Show not found' });
+            }
+            return res.status(500).json({ error: 'Failed to fetch show', detail: showError.message, code: showError.code, hint: showError.hint });
         }
 
         // Get setlist
