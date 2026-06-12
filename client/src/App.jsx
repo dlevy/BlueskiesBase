@@ -16,6 +16,7 @@ import ShowsList from './pages/admin/ShowsList'
 import ShowForm from './pages/admin/ShowForm'
 import SongsList from './pages/admin/SongsList'
 import AlbumsList from './pages/admin/AlbumsList'
+import ChatWidget from './components/ChatWidget'
 import './App.css'
 
 function App() {
@@ -194,6 +195,7 @@ function PublicLayout() {
           </div>
         </footer>
       </div>
+      <ChatWidget />
     </div>
   );
 }
