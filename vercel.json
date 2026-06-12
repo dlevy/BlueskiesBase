@@ -3,6 +3,11 @@
   "outputDirectory": "client/dist",
   "installCommand": "npm install",
   "framework": null,
+  "functions": {
+    "api/[...path].js": {
+      "includeFiles": "server/**"
+    }
+  },
   "rewrites": [
     { "source": "/((?!api(?:/|$)).*)", "destination": "/index.html" }
   ]
