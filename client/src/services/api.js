@@ -28,7 +28,9 @@ export const searchShows = async (filters = {}) => {
 
     const response = await fetch(`${API_BASE_URL}/api/search/shows?${params}`);
     if (!response.ok) {
-        throw new Error('Failed to search shows');
+        const body = await response.json().catch(() => ({}));
+        console.error('[searchShows] API error:', body);
+        throw new Error(body.detail || body.error || 'Failed to search shows');
     }
     return response.json();
 };

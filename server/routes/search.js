@@ -175,7 +175,7 @@ router.get('/shows', async (req, res) => {
 
         if (error) {
             console.error('Search error:', error);
-            return res.status(500).json({ error: 'Failed to search shows' });
+            return res.status(500).json({ error: 'Failed to search shows', detail: error.message, hint: error.hint, code: error.code });
         }
 
         // Filter by venue/city/state if needed (in-memory filtering)
