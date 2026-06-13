@@ -10,6 +10,7 @@
   },
   "routes": [
     { "handle": "filesystem" },
+    { "src": "/sitemap.xml", "dest": "/api/[...path].js" },
     { "src": "/api/(.*)", "dest": "/api/[...path].js" },
     { "src": "/(.*)", "dest": "/index.html" }
   ]

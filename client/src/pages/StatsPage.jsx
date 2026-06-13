@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getUserStats } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import SEO from '../components/SEO';
 
 export default function StatsPage() {
     const { user } = useAuth();
@@ -93,6 +94,10 @@ export default function StatsPage() {
 
     return (
         <div className="px-4 py-8 max-w-6xl mx-auto">
+            <SEO
+                title="My Concert Stats"
+                description="Track your personal Sturgill Simpson and Johnny Blue Skies concert history. See every show you've attended and songs you've heard live."
+            />
             {/* Header */}
             <div className="mb-8">
                 <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">

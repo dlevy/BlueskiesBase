@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import NotesSection from '../components/NotesSection';
 import PhotosSection from '../components/PhotosSection';
 import PostersSection from '../components/PostersSection';
+import SEO from '../components/SEO';
 
 function SongRow({ song, position, isChained }) {
     return (
@@ -201,8 +202,6 @@ export default function ShowDetailPage() {
     }
 
     const formatDate = (dateString) => {
-        // Parse date as local date to avoid timezone issues
-        // Date string format: "YYYY-MM-DD"
         const [year, month, day] = dateString.split('-');
         const date = new Date(year, month - 1, day);
         return date.toLocaleDateString('en-US', {
@@ -213,8 +212,37 @@ export default function ShowDetailPage() {
         });
     };
 
+    const allSongs = [
+        ...(show.setlist?.set1 || []),
+        ...(show.setlist?.set2 || []),
+        ...(show.setlist?.set3 || []),
+        ...(show.setlist?.encore || []),
+    ];
+    const venueName = show.venues?.name || '';
+    const venueCity = show.venues ? `${show.venues.city}${show.venues.state_country ? ', ' + show.venues.state_country : ''}` : '';
+    const [syear, smonth, sday] = show.show_date.split('-');
+    const showDateObj = new Date(syear, smonth - 1, sday);
+    const longDate = showDateObj.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    const seoTitle = `${show.artist_name} at ${venueName} – ${longDate} Setlist`;
+    const firstFive = allSongs.slice(0, 5).map(s => s.title).filter(Boolean).join(', ');
+    const seoDescription = `${show.artist_name} performed at ${venueName} in ${venueCity} on ${longDate}.${firstFive ? ' Setlist: ' + firstFive + '.' : ''}`;
+    const jsonLd = {
+        '@context': 'https://schema.org',
+        '@type': 'MusicEvent',
+        name: `${show.artist_name} – ${venueName}`,
+        startDate: show.show_date,
+        location: {
+            '@type': 'MusicVenue',
+            name: venueName,
+            address: { '@type': 'PostalAddress', addressLocality: show.venues?.city, addressRegion: show.venues?.state_country }
+        },
+        performer: { '@type': 'MusicGroup', name: show.artist_name },
+        ...(show.tour_name ? { subEvent: { '@type': 'Event', name: show.tour_name } } : {})
+    };
+
     return (
         <div className="px-4 py-8 max-w-6xl mx-auto">
+            <SEO title={seoTitle} description={seoDescription} jsonLd={jsonLd} />
             {/* Back Button */}
             <Link to="/" className="text-blue-400 hover:text-blue-300 mb-4 inline-block transition-colors">
                 ← Back to Search

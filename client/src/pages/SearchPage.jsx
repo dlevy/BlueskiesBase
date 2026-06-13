@@ -5,6 +5,7 @@ import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import SongStatsWidget from '../components/SongStatsWidget';
 import UserStatsWidget from '../components/UserStatsWidget';
+import SEO from '../components/SEO';
 
 export default function SearchPage() {
     const { user } = useAuth();
@@ -453,7 +454,10 @@ export default function SearchPage() {
 
     return (
         <div className="px-4 py-4 md:py-6 max-w-6xl mx-auto">
-
+            <SEO
+                title="Sturgill Simpson &amp; Johnny Blue Skies Setlists"
+                description="The complete Sturgill Simpson and Johnny Blue Skies setlist database. Search 400+ concerts from 2012 to present, including the Why Not? and Who the F**k Is Johnny Blue Skies? tours."
+            />
 
             {/* Tab Navigation */}
             <div className="grid grid-cols-2 gap-2 mb-6">
