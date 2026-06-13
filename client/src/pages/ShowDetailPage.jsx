@@ -6,6 +6,71 @@ import NotesSection from '../components/NotesSection';
 import PhotosSection from '../components/PhotosSection';
 import PostersSection from '../components/PostersSection';
 
+function SongRow({ song, position, isChained }) {
+    return (
+        <li className={`flex gap-3 text-gray-200 ${isChained ? 'ml-6 pl-3 border-l-2 border-purple-700/60' : ''}`}>
+            <span className={`font-mono text-sm mt-1 shrink-0 ${isChained ? 'text-purple-400 w-4' : 'text-gray-500 w-8'}`}>
+                {isChained ? '›' : `${position}.`}
+            </span>
+            <div className="flex-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                    <span className={`font-medium text-lg leading-snug ${isChained ? 'text-gray-300' : ''}`}>
+                        {song.title}
+                    </span>
+                    {song.performance_type === 'tease' && (
+                        <span className="text-xs bg-yellow-900/50 text-yellow-300 px-2 py-0.5 rounded border border-yellow-700 whitespace-nowrap">
+                            Tease
+                        </span>
+                    )}
+                    {song.performance_type === 'partial' && (
+                        <span className="text-xs bg-orange-900/50 text-orange-300 px-2 py-0.5 rounded border border-orange-700 whitespace-nowrap">
+                            Partial
+                        </span>
+                    )}
+                    {song.is_original === false && (
+                        <span className="text-xs bg-blue-900/50 text-blue-300 px-2 py-0.5 rounded border border-blue-700 whitespace-nowrap">
+                            Cover
+                        </span>
+                    )}
+                    {song.jams_into && (
+                        <span className="text-xs bg-purple-900/50 text-purple-300 px-1.5 py-0.5 rounded border border-purple-700 font-bold whitespace-nowrap">
+                            &gt;
+                        </span>
+                    )}
+                </div>
+                {(song.original_artist || song.notes) && (
+                    <div className="mt-0.5 text-sm space-x-2">
+                        {song.original_artist && (
+                            <span className="text-gray-400">({song.original_artist})</span>
+                        )}
+                        {song.notes && (
+                            <span className="text-gray-400 italic">{song.notes}</span>
+                        )}
+                    </div>
+                )}
+            </div>
+        </li>
+    );
+}
+
+function SetList({ songs }) {
+    return (
+        <ol className="space-y-2">
+            {songs.map((song, index) => {
+                const isChained = index > 0 && songs[index - 1].jams_into != null;
+                return (
+                    <SongRow
+                        key={song.id || index}
+                        song={song}
+                        position={index + 1}
+                        isChained={isChained}
+                    />
+                );
+            })}
+        </ol>
+    );
+}
+
 export default function ShowDetailPage() {
     const { id } = useParams();
     const { user } = useAuth();
@@ -267,271 +332,29 @@ export default function ShowDetailPage() {
                             <span className="text-xs bg-purple-900/50 text-purple-300 px-1.5 py-0.5 rounded border border-purple-700 font-bold whitespace-nowrap">
                                 &gt;
                             </span>
-                            <span>= Jams into next song</span>
+                            <span>= Segues into next song</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <span className="inline-block w-3 h-4 border-l-2 border-purple-600 mr-1" />
+                            <span>= Song played inside another song</span>
                         </div>
                     </div>
                 </div>
 
                 {show.setlist && Object.keys(show.setlist).length > 0 ? (
                     <div className="space-y-6 text-left">
-                        {/* Set 1 */}
-                        {show.setlist.set1 && (
-                            <div>
-                                <h3 className="text-xl font-semibold mb-3 text-blue-400 text-left">Set 1</h3>
-                                <ol className="space-y-3">
-                                    {show.setlist.set1.map((song, index) => (
-                                        <li key={index} className="flex gap-3 text-gray-200">
-                                            {/* Song Number */}
-                                            <span className="text-gray-500 font-mono text-sm mt-0.5 min-w-[2rem]">
-                                                {index + 1}.
-                                            </span>
-
-                                            {/* Song Content */}
-                                            <div className="flex-1">
-                                                {/* First Line: Title + Badges */}
-                                                <div className="flex flex-wrap items-center gap-2">
-                                                    <span className="font-medium text-lg">{song.title}</span>
-
-                                                    {/* Performance Type Badge */}
-                                                    {song.performance_type === 'tease' && (
-                                                        <span className="text-xs bg-yellow-900/50 text-yellow-300 px-2 py-0.5 rounded border border-yellow-700 whitespace-nowrap">
-                                                            Tease
-                                                        </span>
-                                                    )}
-                                                    {song.performance_type === 'partial' && (
-                                                        <span className="text-xs bg-orange-900/50 text-orange-300 px-2 py-0.5 rounded border border-orange-700 whitespace-nowrap">
-                                                            Partial
-                                                        </span>
-                                                    )}
-
-                                                    {/* Only show Cover badge, Original is implied */}
-                                                    {song.is_original === false && (
-                                                        <span className="text-xs bg-blue-900/50 text-blue-300 px-2 py-0.5 rounded border border-blue-700 whitespace-nowrap">
-                                                            Cover
-                                                        </span>
-                                                    )}
-                                                    {song.jams_into && (
-                                                        <span className="text-xs bg-purple-900/50 text-purple-300 px-1.5 py-0.5 rounded border border-purple-700 font-bold whitespace-nowrap">
-                                                            &gt;
-                                                        </span>
-                                                    )}
-                                                </div>
-
-                                                {/* Second Line: Metadata (if any) */}
-                                                {(song.original_artist || song.notes) && (
-                                                    <div className="mt-1 text-sm space-x-2">
-                                                        {song.original_artist && (
-                                                            <span className="text-gray-400">
-                                                                ({song.original_artist})
-                                                            </span>
-                                                        )}
-                                                        {song.notes && (
-                                                            <span className="text-gray-400 italic">
-                                                                {song.notes}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </li>
-                                    ))}
-                                </ol>
-                            </div>
-                        )}
-
-                        {/* Set 2 */}
-                        {show.setlist.set2 && (
-                            <div>
-                                <h3 className="text-xl font-semibold mb-3 text-blue-400 text-left">Set 2</h3>
-                                <ol className="space-y-3">
-                                    {show.setlist.set2.map((song, index) => (
-                                        <li key={index} className="flex gap-3 text-gray-200">
-                                            {/* Song Number */}
-                                            <span className="text-gray-500 font-mono text-sm mt-0.5 min-w-[2rem]">
-                                                {index + 1}.
-                                            </span>
-
-                                            {/* Song Content */}
-                                            <div className="flex-1">
-                                                {/* First Line: Title + Badges */}
-                                                <div className="flex flex-wrap items-center gap-2">
-                                                    <span className="font-medium text-lg">{song.title}</span>
-
-                                                    {/* Performance Type Badge */}
-                                                    {song.performance_type === 'tease' && (
-                                                        <span className="text-xs bg-yellow-900/50 text-yellow-300 px-2 py-0.5 rounded border border-yellow-700 whitespace-nowrap">
-                                                            Tease
-                                                        </span>
-                                                    )}
-                                                    {song.performance_type === 'partial' && (
-                                                        <span className="text-xs bg-orange-900/50 text-orange-300 px-2 py-0.5 rounded border border-orange-700 whitespace-nowrap">
-                                                            Partial
-                                                        </span>
-                                                    )}
-
-                                                    {/* Only show Cover badge, Original is implied */}
-                                                    {song.is_original === false && (
-                                                        <span className="text-xs bg-blue-900/50 text-blue-300 px-2 py-0.5 rounded border border-blue-700 whitespace-nowrap">
-                                                            Cover
-                                                        </span>
-                                                    )}
-                                                    {song.jams_into && (
-                                                        <span className="text-xs bg-purple-900/50 text-purple-300 px-1.5 py-0.5 rounded border border-purple-700 font-bold whitespace-nowrap">
-                                                            &gt;
-                                                        </span>
-                                                    )}
-                                                </div>
-
-                                                {/* Second Line: Metadata (if any) */}
-                                                {(song.original_artist || song.notes) && (
-                                                    <div className="mt-1 text-sm space-x-2">
-                                                        {song.original_artist && (
-                                                            <span className="text-gray-400">
-                                                                ({song.original_artist})
-                                                            </span>
-                                                        )}
-                                                        {song.notes && (
-                                                            <span className="text-gray-400 italic">
-                                                                {song.notes}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </li>
-                                    ))}
-                                </ol>
-                            </div>
-                        )}
-
-                        {/* Set 3 */}
-                        {show.setlist.set3 && (
-                            <div>
-                                <h3 className="text-xl font-semibold mb-3 text-blue-400 text-left">Set 3</h3>
-                                <ol className="space-y-3">
-                                    {show.setlist.set3.map((song, index) => (
-                                        <li key={index} className="flex gap-3 text-gray-200">
-                                            {/* Song Number */}
-                                            <span className="text-gray-500 font-mono text-sm mt-0.5 min-w-[2rem]">
-                                                {index + 1}.
-                                            </span>
-
-                                            {/* Song Content */}
-                                            <div className="flex-1">
-                                                {/* First Line: Title + Badges */}
-                                                <div className="flex flex-wrap items-center gap-2">
-                                                    <span className="font-medium text-lg">{song.title}</span>
-
-                                                    {/* Performance Type Badge */}
-                                                    {song.performance_type === 'tease' && (
-                                                        <span className="text-xs bg-yellow-900/50 text-yellow-300 px-2 py-0.5 rounded border border-yellow-700 whitespace-nowrap">
-                                                            Tease
-                                                        </span>
-                                                    )}
-                                                    {song.performance_type === 'partial' && (
-                                                        <span className="text-xs bg-orange-900/50 text-orange-300 px-2 py-0.5 rounded border border-orange-700 whitespace-nowrap">
-                                                            Partial
-                                                        </span>
-                                                    )}
-
-                                                    {/* Only show Cover badge, Original is implied */}
-                                                    {song.is_original === false && (
-                                                        <span className="text-xs bg-blue-900/50 text-blue-300 px-2 py-0.5 rounded border border-blue-700 whitespace-nowrap">
-                                                            Cover
-                                                        </span>
-                                                    )}
-                                                    {song.jams_into && (
-                                                        <span className="text-xs bg-purple-900/50 text-purple-300 px-1.5 py-0.5 rounded border border-purple-700 font-bold whitespace-nowrap">
-                                                            &gt;
-                                                        </span>
-                                                    )}
-                                                </div>
-
-                                                {/* Second Line: Metadata (if any) */}
-                                                {(song.original_artist || song.notes) && (
-                                                    <div className="mt-1 text-sm space-x-2">
-                                                        {song.original_artist && (
-                                                            <span className="text-gray-400">
-                                                                ({song.original_artist})
-                                                            </span>
-                                                        )}
-                                                        {song.notes && (
-                                                            <span className="text-gray-400 italic">
-                                                                {song.notes}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </li>
-                                    ))}
-                                </ol>
-                            </div>
-                        )}
-
-                        {/* Encore */}
-                        {show.setlist.encore && (
-                            <div>
-                                <h3 className="text-xl font-semibold mb-3 text-purple-400 text-left">Encore</h3>
-                                <ol className="space-y-3">
-                                    {show.setlist.encore.map((song, index) => (
-                                        <li key={index} className="flex gap-3 text-gray-200">
-                                            {/* Song Number */}
-                                            <span className="text-gray-500 font-mono text-sm mt-0.5 min-w-[2rem]">
-                                                {index + 1}.
-                                            </span>
-
-                                            {/* Song Content */}
-                                            <div className="flex-1">
-                                                {/* First Line: Title + Badges */}
-                                                <div className="flex flex-wrap items-center gap-2">
-                                                    <span className="font-medium text-lg">{song.title}</span>
-
-                                                    {/* Performance Type Badge */}
-                                                    {song.performance_type === 'tease' && (
-                                                        <span className="text-xs bg-yellow-900/50 text-yellow-300 px-2 py-0.5 rounded border border-yellow-700 whitespace-nowrap">
-                                                            Tease
-                                                        </span>
-                                                    )}
-                                                    {song.performance_type === 'partial' && (
-                                                        <span className="text-xs bg-orange-900/50 text-orange-300 px-2 py-0.5 rounded border border-orange-700 whitespace-nowrap">
-                                                            Partial
-                                                        </span>
-                                                    )}
-
-                                                    {/* Only show Cover badge, Original is implied */}
-                                                    {song.is_original === false && (
-                                                        <span className="text-xs bg-blue-900/50 text-blue-300 px-2 py-0.5 rounded border border-blue-700 whitespace-nowrap">
-                                                            Cover
-                                                        </span>
-                                                    )}
-                                                    {song.jams_into && (
-                                                        <span className="text-xs bg-purple-900/50 text-purple-300 px-1.5 py-0.5 rounded border border-purple-700 font-bold whitespace-nowrap">
-                                                            &gt;
-                                                        </span>
-                                                    )}
-                                                </div>
-
-                                                {/* Second Line: Metadata (if any) */}
-                                                {(song.original_artist || song.notes) && (
-                                                    <div className="mt-1 text-sm space-x-2">
-                                                        {song.original_artist && (
-                                                            <span className="text-gray-400">
-                                                                ({song.original_artist})
-                                                            </span>
-                                                        )}
-                                                        {song.notes && (
-                                                            <span className="text-gray-400 italic">
-                                                                {song.notes}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </li>
-                                    ))}
-                                </ol>
-                            </div>
+                        {[
+                            { key: 'set1', label: 'Set 1', labelColor: 'text-blue-400' },
+                            { key: 'set2', label: 'Set 2', labelColor: 'text-blue-400' },
+                            { key: 'set3', label: 'Set 3', labelColor: 'text-blue-400' },
+                            { key: 'encore', label: 'Encore', labelColor: 'text-purple-400' },
+                        ].map(({ key, label, labelColor }) =>
+                            show.setlist[key] ? (
+                                <div key={key}>
+                                    <h3 className={`text-xl font-semibold mb-3 ${labelColor} text-left`}>{label}</h3>
+                                    <SetList songs={show.setlist[key]} />
+                                </div>
+                            ) : null
                         )}
                     </div>
                 ) : (
