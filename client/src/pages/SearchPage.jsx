@@ -697,6 +697,9 @@ export default function SearchPage() {
                             const hasPhotos = contentMap[show.id]?.hasPhotos || false;
                             const hasPoster = contentMap[show.id]?.hasPoster || false;
                             const songStats = songStatsMap[show.id] || { originals: 0, covers: 0 };
+                            const [sy, sm, sd] = show.show_date.split('-');
+                            const today = new Date(); today.setHours(0, 0, 0, 0);
+                            const isFutureShow = new Date(sy, sm - 1, sd) >= today;
 
                             return (
                                 <div key={show.id} className="border border-gray-700 pb-4 hover:border-blue-500 transition-colors rounded-lg p-4 bg-gray-750 relative text-center">
@@ -713,7 +716,11 @@ export default function SearchPage() {
                                                 } disabled:opacity-50`}
                                             >
                                                 {isLoading ? '...' : isAttended ? '✓' : '+'}
-                                                <span className="hidden sm:inline ml-1">I Was There</span>
+                                                <span className="hidden sm:inline ml-1">
+                                                    {isAttended
+                                                        ? (isFutureShow ? "I'm Attending" : 'I Was There')
+                                                        : (isFutureShow ? 'Mark as Attending' : 'Mark as Attended')}
+                                                </span>
                                             </button>
                                         </div>
                                     )}
