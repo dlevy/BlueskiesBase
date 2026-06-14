@@ -321,8 +321,8 @@ export default function UserStatsWidget() {
                                         >
                                             <div className="min-w-0">
                                                 <span className="font-medium text-gray-100">{song.title}</span>
-                                                {!song.is_original && song.original_artist && (
-                                                    <span className="text-xs text-gray-400 ml-2">{song.original_artist}</span>
+                                                {!song.is_original && (
+                                                    <span className="text-xs text-blue-400 ml-2">Cover</span>
                                                 )}
                                             </div>
                                             <span className="text-xs font-medium text-green-400 whitespace-nowrap flex-shrink-0">
@@ -358,8 +358,8 @@ export default function UserStatsWidget() {
                                         >
                                             <div className="min-w-0">
                                                 <span className="font-medium text-gray-100">{song.title}</span>
-                                                {!song.is_original && song.original_artist && (
-                                                    <span className="text-xs text-gray-400 ml-2">{song.original_artist}</span>
+                                                {!song.is_original && (
+                                                    <span className="text-xs text-blue-400 ml-2">Cover</span>
                                                 )}
                                             </div>
                                             {song.mostRecentShow && (
@@ -368,7 +368,7 @@ export default function UserStatsWidget() {
                                                     className="text-xs text-purple-400 hover:text-purple-300 transition-colors whitespace-nowrap flex-shrink-0"
                                                     onClick={e => e.stopPropagation()}
                                                 >
-                                                    {formatDate(song.mostRecentShow.show_date)}
+                                                    Last played: {formatDate(song.mostRecentShow.show_date)}
                                                 </Link>
                                             )}
                                         </div>
