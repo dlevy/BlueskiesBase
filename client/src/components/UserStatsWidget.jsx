@@ -243,28 +243,21 @@ export default function UserStatsWidget() {
                             <p className="text-gray-400 text-center py-8">No past shows yet.</p>
                         ) : (
                             <div className="space-y-3">
-                                {pastShows.map((show, index) => (
+                                {pastShows.map((show) => (
                                     <Link
                                         key={show.id}
                                         to={`/show/${show.id}`}
                                         className="block bg-gray-800/30 border border-gray-700/30 rounded-lg p-4 hover:bg-gray-750/50 hover:border-blue-500/50 transition-all group"
                                     >
-                                        <div className="flex items-start gap-3">
-                                            <span className="text-blue-400 font-bold text-sm mt-0.5 min-w-[2rem]">
-                                                #{index + 1}
-                                            </span>
-                                            <div className="flex-1 min-w-0">
-                                                <h4 className="text-lg font-semibold text-gray-100 mb-1 group-hover:text-blue-400 transition-colors">
-                                                    {formatDateLong(show.show_date)}
-                                                </h4>
-                                                <p className="text-gray-300 font-medium mb-1">{show.artist_name}</p>
-                                                {show.venues && (
-                                                    <p className="text-sm text-gray-500 leading-relaxed">
-                                                        {show.venues.name} • {show.venues.city}, {show.venues.state_country}
-                                                    </p>
-                                                )}
-                                            </div>
-                                        </div>
+                                        <h4 className="text-lg font-semibold text-gray-100 mb-1 group-hover:text-blue-400 transition-colors">
+                                            {formatDateLong(show.show_date)}
+                                        </h4>
+                                        <p className="text-gray-300 font-medium mb-1">{show.artist_name}</p>
+                                        {show.venues && (
+                                            <p className="text-sm text-gray-500 leading-relaxed">
+                                                {show.venues.name} • {show.venues.city}, {show.venues.state_country}
+                                            </p>
+                                        )}
                                     </Link>
                                 ))}
                             </div>
@@ -283,31 +276,24 @@ export default function UserStatsWidget() {
                             <p className="text-gray-400 text-center py-8">No upcoming shows marked yet.</p>
                         ) : (
                             <div className="space-y-3">
-                                {upcomingShows.map((show, index) => (
+                                {upcomingShows.map((show) => (
                                     <Link
                                         key={show.id}
                                         to={`/show/${show.id}`}
                                         className="block bg-purple-950/20 border border-purple-800/50 rounded-lg p-4 hover:bg-purple-900/20 hover:border-purple-500/50 transition-all group"
                                     >
-                                        <div className="flex items-start gap-3">
-                                            <span className="text-purple-400 font-bold text-sm mt-0.5 min-w-[2rem]">
-                                                #{index + 1}
-                                            </span>
-                                            <div className="flex-1 min-w-0">
-                                                <h4 className="text-lg font-semibold text-gray-100 mb-1 group-hover:text-purple-400 transition-colors">
-                                                    {formatDateLong(show.show_date)}
-                                                </h4>
-                                                <p className="text-gray-300 font-medium mb-1">{show.artist_name}</p>
-                                                {show.venues && (
-                                                    <p className="text-sm text-gray-500 leading-relaxed">
-                                                        {show.venues.name} • {show.venues.city}, {show.venues.state_country}
-                                                    </p>
-                                                )}
-                                                {show.tour_name && (
-                                                    <p className="text-xs text-purple-400/70 mt-1 italic">{show.tour_name}</p>
-                                                )}
-                                            </div>
-                                        </div>
+                                        <h4 className="text-lg font-semibold text-gray-100 mb-1 group-hover:text-purple-400 transition-colors">
+                                            {formatDateLong(show.show_date)}
+                                        </h4>
+                                        <p className="text-gray-300 font-medium mb-1">{show.artist_name}</p>
+                                        {show.venues && (
+                                            <p className="text-sm text-gray-500 leading-relaxed">
+                                                {show.venues.name} • {show.venues.city}, {show.venues.state_country}
+                                            </p>
+                                        )}
+                                        {show.tour_name && (
+                                            <p className="text-xs text-purple-400/70 mt-1 italic">{show.tour_name}</p>
+                                        )}
                                     </Link>
                                 ))}
                             </div>
@@ -325,30 +311,23 @@ export default function UserStatsWidget() {
                         {stats.songsSeen.length === 0 ? (
                             <p className="text-gray-400 text-center py-8">No songs tracked yet.</p>
                         ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div className="space-y-2">
                                 {stats.songsSeen
                                     .sort((a, b) => b.playCount - a.playCount || a.title.localeCompare(b.title))
                                     .map((song) => (
                                         <div
                                             key={song.id}
-                                            className="bg-gray-800/30 border border-gray-700/30 rounded-lg p-4 hover:bg-gray-750/50 transition-colors"
+                                            className="flex items-center justify-between gap-3 py-2 px-3 rounded-lg hover:bg-gray-800/40 transition-colors"
                                         >
-                                            <div
-                                                className="font-semibold text-gray-100 mb-2 leading-relaxed truncate"
-                                                title={song.title}
-                                            >
-                                                {song.title}
+                                            <div className="min-w-0">
+                                                <span className="font-medium text-gray-100">{song.title}</span>
+                                                {!song.is_original && song.original_artist && (
+                                                    <span className="text-xs text-gray-400 ml-2">{song.original_artist}</span>
+                                                )}
                                             </div>
-                                            {!song.is_original && song.original_artist && (
-                                                <div className="text-xs text-gray-400 mb-2 leading-relaxed">
-                                                    {song.original_artist}
-                                                </div>
-                                            )}
-                                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-green-500/10 border border-green-500/20 rounded-full">
-                                                <span className="text-xs font-medium text-green-400">
-                                                    Seen {song.playCount} {song.playCount === 1 ? 'time' : 'times'}
-                                                </span>
-                                            </div>
+                                            <span className="text-xs font-medium text-green-400 whitespace-nowrap flex-shrink-0">
+                                                {song.playCount}x
+                                            </span>
                                         </div>
                                     ))}
                             </div>
@@ -369,35 +348,28 @@ export default function UserStatsWidget() {
                                 <p className="text-gray-300 text-lg font-medium">You've seen all the songs!</p>
                             </div>
                         ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div className="space-y-2">
                                 {stats.songsNotSeen
                                     .sort((a, b) => a.title.localeCompare(b.title))
                                     .map((song) => (
                                         <div
                                             key={song.id}
-                                            className="bg-gray-800/30 border border-gray-700/30 rounded-lg p-4 hover:bg-gray-750/50 transition-colors"
+                                            className="flex items-center justify-between gap-3 py-2 px-3 rounded-lg hover:bg-gray-800/40 transition-colors"
                                         >
-                                            <div
-                                                className="font-semibold text-gray-100 mb-2 leading-relaxed truncate"
-                                                title={song.title}
-                                            >
-                                                {song.title}
+                                            <div className="min-w-0">
+                                                <span className="font-medium text-gray-100">{song.title}</span>
+                                                {!song.is_original && song.original_artist && (
+                                                    <span className="text-xs text-gray-400 ml-2">{song.original_artist}</span>
+                                                )}
                                             </div>
-                                            {!song.is_original && song.original_artist && (
-                                                <div className="text-xs text-gray-400 mb-3 leading-relaxed">
-                                                    {song.original_artist}
-                                                </div>
-                                            )}
                                             {song.mostRecentShow && (
-                                                <div className="pt-2 border-t border-gray-700/50">
-                                                    <div className="text-xs text-gray-500 mb-1.5">Last played:</div>
-                                                    <Link
-                                                        to={`/show/${song.mostRecentShow.id}`}
-                                                        className="text-sm text-purple-400 hover:text-purple-300 transition-colors inline-block font-medium"
-                                                    >
-                                                        {formatDate(song.mostRecentShow.show_date)}
-                                                    </Link>
-                                                </div>
+                                                <Link
+                                                    to={`/show/${song.mostRecentShow.id}`}
+                                                    className="text-xs text-purple-400 hover:text-purple-300 transition-colors whitespace-nowrap flex-shrink-0"
+                                                    onClick={e => e.stopPropagation()}
+                                                >
+                                                    {formatDate(song.mostRecentShow.show_date)}
+                                                </Link>
                                             )}
                                         </div>
                                     ))}
