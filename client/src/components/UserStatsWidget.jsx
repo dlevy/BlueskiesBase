@@ -8,7 +8,7 @@ export default function UserStatsWidget() {
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [activeTab, setActiveTab] = useState('shows'); // 'shows', 'seen', 'notSeen'
+    const [activeTab, setActiveTab] = useState('shows'); // 'shows', 'upcoming', 'seen', 'notSeen'
 
     useEffect(() => {
         if (!user) {
@@ -116,15 +116,28 @@ export default function UserStatsWidget() {
         );
     }
 
-    // No shows attended
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const isUpcoming = (dateString) => {
+        const [y, m, d] = dateString.split('-');
+        return new Date(y, m - 1, d) >= today;
+    };
+    const upcomingShows = stats.attendedShows
+        .filter(s => isUpcoming(s.show_date))
+        .sort((a, b) => a.show_date.localeCompare(b.show_date));
+    const pastShows = stats.attendedShows
+        .filter(s => !isUpcoming(s.show_date))
+        .sort((a, b) => b.show_date.localeCompare(a.show_date));
+
+    // No shows attended or attending
     if (!stats || stats.attendedShows.length === 0) {
         return (
             <div className="bg-gray-800 border border-gray-700 rounded-lg p-8 text-center">
                 <div className="text-gray-300 mb-4">
-                    You haven't marked any shows as attended yet.
+                    You haven't marked any shows yet.
                 </div>
                 <div className="text-sm text-gray-500">
-                    Browse shows and click "I Was There" to start tracking your concert history!
+                    Browse shows and click "Mark as Attended" or "Mark as Attending" to start tracking!
                 </div>
             </div>
         );
@@ -138,13 +151,21 @@ export default function UserStatsWidget() {
             </h2>
 
             {/* Summary Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="bg-gray-850 border border-gray-700/50 rounded-xl p-6 shadow-lg">
                     <div className="text-center">
                         <div className="text-5xl font-bold text-blue-400 mb-2 leading-none">
-                            {stats.attendedShows.length}
+                            {pastShows.length}
                         </div>
                         <div className="text-sm font-medium text-gray-300">Shows Attended</div>
+                    </div>
+                </div>
+                <div className="bg-gray-850 border border-gray-700/50 rounded-xl p-6 shadow-lg">
+                    <div className="text-center">
+                        <div className="text-5xl font-bold text-purple-400 mb-2 leading-none">
+                            {upcomingShows.length}
+                        </div>
+                        <div className="text-sm font-medium text-gray-300">Upcoming Shows</div>
                     </div>
                 </div>
                 <div className="bg-gray-850 border border-gray-700/50 rounded-xl p-6 shadow-lg">
@@ -166,20 +187,30 @@ export default function UserStatsWidget() {
             </div>
 
             {/* Tab Navigation */}
-            <div className="flex gap-2 border-b border-gray-700/50">
+            <div className="flex flex-wrap gap-2 border-b border-gray-700/50">
                 <button
                     onClick={() => setActiveTab('shows')}
-                    className={`px-6 py-3 font-medium transition-colors ${
+                    className={`px-4 py-3 font-medium transition-colors ${
                         activeTab === 'shows'
                             ? 'text-blue-400 border-b-2 border-blue-400'
                             : 'text-gray-400 hover:text-gray-300'
                     }`}
                 >
-                    Attended Shows ({stats.attendedShows.length})
+                    Past Shows ({pastShows.length})
+                </button>
+                <button
+                    onClick={() => setActiveTab('upcoming')}
+                    className={`px-4 py-3 font-medium transition-colors ${
+                        activeTab === 'upcoming'
+                            ? 'text-purple-400 border-b-2 border-purple-400'
+                            : 'text-gray-400 hover:text-gray-300'
+                    }`}
+                >
+                    Upcoming ({upcomingShows.length})
                 </button>
                 <button
                     onClick={() => setActiveTab('seen')}
-                    className={`px-6 py-3 font-medium transition-colors ${
+                    className={`px-4 py-3 font-medium transition-colors ${
                         activeTab === 'seen'
                             ? 'text-blue-400 border-b-2 border-blue-400'
                             : 'text-gray-400 hover:text-gray-300'
@@ -189,7 +220,7 @@ export default function UserStatsWidget() {
                 </button>
                 <button
                     onClick={() => setActiveTab('notSeen')}
-                    className={`px-6 py-3 font-medium transition-colors ${
+                    className={`px-4 py-3 font-medium transition-colors ${
                         activeTab === 'notSeen'
                             ? 'text-blue-400 border-b-2 border-blue-400'
                             : 'text-gray-400 hover:text-gray-300'
@@ -201,18 +232,18 @@ export default function UserStatsWidget() {
 
             {/* Tab Content */}
             <div className="bg-gray-850 border border-gray-700/50 rounded-xl p-6 shadow-lg">
-                {/* Attended Shows Tab */}
+                {/* Past Shows Tab */}
                 {activeTab === 'shows' && (
                     <div>
                         <div className="flex items-center gap-2 pb-4 mb-6 border-b border-blue-500/20">
-                            <h3 className="text-xl font-semibold text-gray-100">Attended Shows</h3>
+                            <h3 className="text-xl font-semibold text-gray-100">Shows Attended</h3>
                             <div className="h-1 flex-1 bg-gradient-to-r from-blue-500/30 to-transparent rounded"></div>
                         </div>
-                        {stats.attendedShows.length === 0 ? (
-                            <p className="text-gray-400 text-center py-8">You haven't marked any shows as attended yet.</p>
+                        {pastShows.length === 0 ? (
+                            <p className="text-gray-400 text-center py-8">No past shows yet.</p>
                         ) : (
                             <div className="space-y-3">
-                                {stats.attendedShows.map((show, index) => (
+                                {pastShows.map((show, index) => (
                                     <Link
                                         key={show.id}
                                         to={`/show/${show.id}`}
@@ -231,6 +262,49 @@ export default function UserStatsWidget() {
                                                     <p className="text-sm text-gray-500 leading-relaxed">
                                                         {show.venues.name} • {show.venues.city}, {show.venues.state_country}
                                                     </p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </Link>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* Upcoming Shows Tab */}
+                {activeTab === 'upcoming' && (
+                    <div>
+                        <div className="flex items-center gap-2 pb-4 mb-6 border-b border-purple-500/20">
+                            <h3 className="text-xl font-semibold text-gray-100">Upcoming Shows</h3>
+                            <div className="h-1 flex-1 bg-gradient-to-r from-purple-500/30 to-transparent rounded"></div>
+                        </div>
+                        {upcomingShows.length === 0 ? (
+                            <p className="text-gray-400 text-center py-8">No upcoming shows marked yet.</p>
+                        ) : (
+                            <div className="space-y-3">
+                                {upcomingShows.map((show, index) => (
+                                    <Link
+                                        key={show.id}
+                                        to={`/show/${show.id}`}
+                                        className="block bg-purple-950/20 border border-purple-800/50 rounded-lg p-4 hover:bg-purple-900/20 hover:border-purple-500/50 transition-all group"
+                                    >
+                                        <div className="flex items-start gap-3">
+                                            <span className="text-purple-400 font-bold text-sm mt-0.5 min-w-[2rem]">
+                                                #{index + 1}
+                                            </span>
+                                            <div className="flex-1 min-w-0">
+                                                <h4 className="text-lg font-semibold text-gray-100 mb-1 group-hover:text-purple-400 transition-colors">
+                                                    {formatDateLong(show.show_date)}
+                                                </h4>
+                                                <p className="text-gray-300 font-medium mb-1">{show.artist_name}</p>
+                                                {show.venues && (
+                                                    <p className="text-sm text-gray-500 leading-relaxed">
+                                                        {show.venues.name} • {show.venues.city}, {show.venues.state_country}
+                                                    </p>
+                                                )}
+                                                {show.tour_name && (
+                                                    <p className="text-xs text-purple-400/70 mt-1 italic">{show.tour_name}</p>
                                                 )}
                                             </div>
                                         </div>
