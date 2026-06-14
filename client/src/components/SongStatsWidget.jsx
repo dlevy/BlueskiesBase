@@ -147,47 +147,6 @@ export default function SongStatsWidget() {
                         </ul>
                     </div>
 
-                    {/* Rarest 5 */}
-                    <div className="bg-gray-800/30 rounded-lg p-5 border border-gray-700/30">
-                        <div className="flex items-center gap-2 mb-4">
-                            <span className="text-lg">💎</span>
-                            <h4 className="text-sm font-semibold text-gray-200 uppercase tracking-wide">
-                                Rarest 5
-                            </h4>
-                        </div>
-                        <ul className="space-y-3.5">
-                            {stats.originals.rarest5.map((song, index) => (
-                                <li
-                                    key={song.id}
-                                    className="group hover:bg-gray-750/50 rounded-lg p-2.5 -mx-2.5 transition-colors cursor-pointer"
-                                >
-                                    <div className="flex items-start gap-3">
-                                        <span className="text-purple-400 font-bold text-sm mt-0.5 min-w-[1.5rem]">
-                                            #{index + 1}
-                                        </span>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-baseline gap-2 mb-1">
-                                                <span
-                                                    className="font-semibold text-gray-100 leading-relaxed truncate"
-                                                    title={song.title}
-                                                >
-                                                    {song.title}
-                                                </span>
-                                                <span className="text-sm text-purple-300 font-medium whitespace-nowrap flex-shrink-0">
-                                                    {formatPlayCount(song.playCount)}
-                                                </span>
-                                            </div>
-                                            {song.lastPlayed && (
-                                                <div className="text-xs text-gray-500 leading-relaxed text-left">
-                                                    Last played: {formatDate(song.lastPlayed)}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
                 </div>
 
                 {/* Covers Column */}
@@ -268,52 +227,6 @@ export default function SongStatsWidget() {
                         </ul>
                     </div>
 
-                    {/* Rarest 5 */}
-                    <div className="bg-gray-800/30 rounded-lg p-5 border border-gray-700/30">
-                        <div className="flex items-center gap-2 mb-4">
-                            <span className="text-lg">💎</span>
-                            <h4 className="text-sm font-semibold text-gray-200 uppercase tracking-wide">
-                                Rarest 5
-                            </h4>
-                        </div>
-                        <ul className="space-y-3.5">
-                            {stats.covers.rarest5.map((song, index) => (
-                                <li
-                                    key={song.id}
-                                    className="group hover:bg-gray-750/50 rounded-lg p-2.5 -mx-2.5 transition-colors cursor-pointer"
-                                >
-                                    <div className="flex items-start gap-3">
-                                        <span className="text-purple-400 font-bold text-sm mt-0.5 min-w-[1.5rem]">
-                                            #{index + 1}
-                                        </span>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-baseline gap-2 mb-1">
-                                                <span
-                                                    className="font-semibold text-gray-100 leading-relaxed truncate"
-                                                    title={song.title}
-                                                >
-                                                    {song.title}
-                                                </span>
-                                                <span className="text-sm text-purple-300 font-medium whitespace-nowrap flex-shrink-0">
-                                                    {formatPlayCount(song.playCount)}
-                                                </span>
-                                            </div>
-                                            {song.original_artist && (
-                                                <div className="text-xs text-gray-400 leading-relaxed text-left">
-                                                    {song.original_artist}
-                                                </div>
-                                            )}
-                                            {song.lastPlayed && (
-                                                <div className="text-xs text-gray-500 leading-relaxed text-left">
-                                                    Last played: {formatDate(song.lastPlayed)}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
                 </div>
             </div>
 
