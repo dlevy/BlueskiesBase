@@ -10,7 +10,7 @@ export default function StatsPage() {
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [activeTab, setActiveTab] = useState('shows'); // 'shows', 'seen', 'notSeen'
+    const [activeTab, setActiveTab] = useState('shows'); // 'shows', 'upcoming', 'seen', 'notSeen'
 
     useEffect(() => {
         if (!user) {
@@ -92,6 +92,19 @@ export default function StatsPage() {
         });
     };
 
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const isUpcoming = (dateString) => {
+        const [y, m, d] = dateString.split('-');
+        return new Date(y, m - 1, d) >= today;
+    };
+    const upcomingShows = stats.attendedShows
+        .filter(s => isUpcoming(s.show_date))
+        .sort((a, b) => a.show_date.localeCompare(b.show_date));
+    const pastShows = stats.attendedShows
+        .filter(s => !isUpcoming(s.show_date))
+        .sort((a, b) => b.show_date.localeCompare(a.show_date));
+
     return (
         <div className="px-4 py-8 max-w-6xl mx-auto">
             <SEO
@@ -107,10 +120,14 @@ export default function StatsPage() {
             </div>
 
             {/* Stats Overview */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                 <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 text-center">
-                    <div className="text-4xl font-bold text-blue-400 mb-2">{stats.totalShowsAttended}</div>
+                    <div className="text-4xl font-bold text-blue-400 mb-2">{pastShows.length}</div>
                     <div className="text-gray-300">Shows Attended</div>
+                </div>
+                <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 text-center">
+                    <div className="text-4xl font-bold text-purple-400 mb-2">{upcomingShows.length}</div>
+                    <div className="text-gray-300">Upcoming Shows</div>
                 </div>
                 <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 text-center">
                     <div className="text-4xl font-bold text-green-400 mb-2">{stats.totalSongsSeen}</div>
@@ -123,20 +140,30 @@ export default function StatsPage() {
             </div>
 
             {/* Tabs */}
-            <div className="flex gap-2 mb-6 border-b border-gray-700">
+            <div className="flex flex-wrap gap-2 mb-6 border-b border-gray-700">
                 <button
                     onClick={() => setActiveTab('shows')}
-                    className={`px-6 py-3 font-medium transition-colors ${
+                    className={`px-4 py-3 font-medium transition-colors ${
                         activeTab === 'shows'
                             ? 'text-blue-400 border-b-2 border-blue-400'
                             : 'text-gray-400 hover:text-gray-300'
                     }`}
                 >
-                    Attended Shows ({stats.totalShowsAttended})
+                    Past Shows ({pastShows.length})
+                </button>
+                <button
+                    onClick={() => setActiveTab('upcoming')}
+                    className={`px-4 py-3 font-medium transition-colors ${
+                        activeTab === 'upcoming'
+                            ? 'text-purple-400 border-b-2 border-purple-400'
+                            : 'text-gray-400 hover:text-gray-300'
+                    }`}
+                >
+                    Upcoming ({upcomingShows.length})
                 </button>
                 <button
                     onClick={() => setActiveTab('seen')}
-                    className={`px-6 py-3 font-medium transition-colors ${
+                    className={`px-4 py-3 font-medium transition-colors ${
                         activeTab === 'seen'
                             ? 'text-blue-400 border-b-2 border-blue-400'
                             : 'text-gray-400 hover:text-gray-300'
@@ -146,27 +173,27 @@ export default function StatsPage() {
                 </button>
                 <button
                     onClick={() => setActiveTab('notSeen')}
-                    className={`px-6 py-3 font-medium transition-colors ${
+                    className={`px-4 py-3 font-medium transition-colors ${
                         activeTab === 'notSeen'
                             ? 'text-blue-400 border-b-2 border-blue-400'
                             : 'text-gray-400 hover:text-gray-300'
                     }`}
                 >
-                    Songs Not Seen ({stats.totalSongsNotSeen})
+                    Not Seen ({stats.totalSongsNotSeen})
                 </button>
             </div>
 
             {/* Tab Content */}
             <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-                {/* Attended Shows Tab */}
+                {/* Past Shows Tab */}
                 {activeTab === 'shows' && (
                     <div>
-                        <h2 className="text-2xl font-bold text-gray-100 mb-4">Attended Shows</h2>
-                        {stats.attendedShows.length === 0 ? (
+                        <h2 className="text-2xl font-bold text-gray-100 mb-4">Shows Attended</h2>
+                        {pastShows.length === 0 ? (
                             <p className="text-gray-400">You haven't marked any shows as attended yet.</p>
                         ) : (
                             <div className="space-y-4">
-                                {stats.attendedShows.map((show) => (
+                                {pastShows.map((show) => (
                                     <div key={show.id} className="border border-gray-700 rounded-lg p-4 hover:border-blue-500 transition-colors">
                                         <Link to={`/show/${show.id}`} className="block">
                                             <h3 className="text-xl font-semibold text-gray-100 mb-1">
@@ -180,6 +207,37 @@ export default function StatsPage() {
                                             )}
                                             {show.tour_name && (
                                                 <p className="text-gray-500 text-sm italic mt-1">{show.tour_name}</p>
+                                            )}
+                                        </Link>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* Upcoming Shows Tab */}
+                {activeTab === 'upcoming' && (
+                    <div>
+                        <h2 className="text-2xl font-bold text-gray-100 mb-4">Upcoming Shows</h2>
+                        {upcomingShows.length === 0 ? (
+                            <p className="text-gray-400">No upcoming shows marked yet. Find a show and click "Mark as Attending"!</p>
+                        ) : (
+                            <div className="space-y-4">
+                                {upcomingShows.map((show) => (
+                                    <div key={show.id} className="border border-purple-800/50 rounded-lg p-4 hover:border-purple-500 transition-colors bg-purple-950/20">
+                                        <Link to={`/show/${show.id}`} className="block">
+                                            <h3 className="text-xl font-semibold text-gray-100 mb-1">
+                                                {formatDate(show.show_date)}
+                                            </h3>
+                                            <p className="text-gray-300">{show.artist_name}</p>
+                                            {show.venues && (
+                                                <p className="text-gray-400 text-sm">
+                                                    {show.venues.name} - {show.venues.city}, {show.venues.state_country}
+                                                </p>
+                                            )}
+                                            {show.tour_name && (
+                                                <p className="text-purple-400 text-sm italic mt-1">{show.tour_name}</p>
                                             )}
                                         </Link>
                                     </div>

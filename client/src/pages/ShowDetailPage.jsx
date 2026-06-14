@@ -222,6 +222,8 @@ export default function ShowDetailPage() {
     const venueCity = show.venues ? `${show.venues.city}${show.venues.state_country ? ', ' + show.venues.state_country : ''}` : '';
     const [syear, smonth, sday] = show.show_date.split('-');
     const showDateObj = new Date(syear, smonth - 1, sday);
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const isFutureShow = showDateObj >= today;
     const longDate = showDateObj.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
     const seoTitle = `${show.artist_name} at ${venueName} – ${longDate} Setlist`;
     const firstFive = allSongs.slice(0, 5).map(s => s.title).filter(Boolean).join(', ');
@@ -263,7 +265,11 @@ export default function ShowDetailPage() {
                             } disabled:opacity-50`}
                         >
                             {attendanceLoading ? '...' : attended ? '✓' : '+'}
-                            <span className="hidden sm:inline ml-1">{attended ? 'I Was There' : 'Mark as Attended'}</span>
+                            <span className="hidden sm:inline ml-1">
+                                {attended
+                                    ? (isFutureShow ? "I'm Attending" : 'I Was There')
+                                    : (isFutureShow ? 'Mark as Attending' : 'Mark as Attended')}
+                            </span>
                         </button>
                     </div>
                 )}
