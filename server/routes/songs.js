@@ -8,14 +8,25 @@ const { supabase } = require('../config/supabase');
  */
 router.get('/', async (req, res) => {
     try {
-        const { data: songs, error } = await supabase
+        // Try to include album data via junction table; fall back to basic fetch if table doesn't exist
+        let songs;
+        const { data: songsWithAlbums, error: joinError } = await supabase
             .from('songs')
             .select('*, album_songs(album_id, albums(id, title, release_date))')
             .order('title');
 
-        if (error) {
-            console.error('Error fetching songs:', error);
-            return res.status(500).json({ error: 'Failed to fetch songs' });
+        if (joinError) {
+            const { data: basicSongs, error: basicError } = await supabase
+                .from('songs')
+                .select('*')
+                .order('title');
+            if (basicError) {
+                console.error('Error fetching songs:', basicError);
+                return res.status(500).json({ error: 'Failed to fetch songs' });
+            }
+            songs = basicSongs || [];
+        } else {
+            songs = songsWithAlbums || [];
         }
 
         // Get performance counts for each song (count unique shows)

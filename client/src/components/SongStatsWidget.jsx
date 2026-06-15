@@ -13,18 +13,23 @@ export default function SongStatsWidget() {
         const fetchStats = async () => {
             try {
                 setLoading(true);
-                const [statsData, songsData] = await Promise.all([
-                    getGlobalSongStats(),
-                    getSongs(),
-                ]);
+                const statsData = await getGlobalSongStats();
                 setStats(statsData);
+            } catch (err) {
+                console.error('Error fetching song stats:', err);
+                setError(err.message);
+            } finally {
+                setLoading(false);
+            }
+        };
 
-                // Compute Holy Grails: original songs never played live
+        const fetchHolyGrails = async () => {
+            try {
+                const songsData = await getSongs();
                 const unplayed = (songsData.songs || []).filter(
                     s => s.is_original === true && s.performance_count === 0
                 );
 
-                // Group by album, sorted newest release first; unalbumed go last
                 const albumMap = new Map();
                 unplayed.forEach(song => {
                     const assocs = song.album_songs?.filter(as => as.albums) || [];
@@ -57,13 +62,13 @@ export default function SongStatsWidget() {
                         .map(album => ({ ...album, songs: album.songs.sort((a, b) => a.localeCompare(b)) }))
                 );
             } catch (err) {
-                console.error('Error fetching song stats:', err);
-                setError(err.message);
-            } finally {
-                setLoading(false);
+                console.error('Error fetching holy grails:', err);
+                // Holy Grails failing silently — stats still show
             }
         };
+
         fetchStats();
+        fetchHolyGrails();
     }, []);
 
     const formatDate = (dateString) => {
