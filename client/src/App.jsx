@@ -155,23 +155,56 @@ function PublicLayout() {
 
       {/* Footer — full-bleed */}
       <footer style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
-        <div className="max-w-6xl mx-auto px-4 md:px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <span className="font-display font-semibold text-sm" style={{ color: 'var(--p-color-contrast-low)' }}>
-            SkySets.org
-          </span>
-          <div className="flex items-center gap-4">
-            <span className="text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>
-              A fan archive. Not affiliated with Sturgill Simpson.
+        <div className="max-w-6xl mx-auto px-4 md:px-6 py-6 flex flex-col gap-3">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+            <span className="font-display font-semibold text-sm" style={{ color: 'var(--p-color-contrast-low)' }}>
+              SkySets.org
             </span>
-            {isAdmin && (
-              <Link
-                to="/admin"
-                className="text-xs hover:opacity-80 transition-opacity"
-                style={{ color: 'var(--p-color-info)' }}
+            <div className="flex items-center gap-4">
+              <span className="text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>
+                A fan archive. Not affiliated with Sturgill Simpson.
+              </span>
+              {isAdmin && (
+                <Link
+                  to="/admin"
+                  className="text-xs hover:opacity-80 transition-opacity"
+                  style={{ color: 'var(--p-color-info)' }}
+                >
+                  Admin
+                </Link>
+              )}
+            </div>
+          </div>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-x-5 gap-y-1 text-center">
+            <span className="text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>
+              Created and maintained by Daniel Levy
+            </span>
+            <span className="hidden sm:inline text-xs" style={{ color: 'rgba(255,255,255,0.15)' }}>·</span>
+            <span className="text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>
+              Initial setlist import thanks to{' '}
+              <a
+                href="https://www.setlist.fm"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:opacity-80 transition-opacity underline underline-offset-2"
+                style={{ color: 'var(--p-color-contrast-medium)' }}
               >
-                Admin
-              </Link>
-            )}
+                Setlist.fm
+              </a>
+            </span>
+            <span className="hidden sm:inline text-xs" style={{ color: 'rgba(255,255,255,0.15)' }}>·</span>
+            <span className="text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>
+              Inspired by{' '}
+              <a
+                href="https://www.crowesbase.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:opacity-80 transition-opacity underline underline-offset-2"
+                style={{ color: 'var(--p-color-contrast-medium)' }}
+              >
+                crowesbase.com
+              </a>
+            </span>
           </div>
         </div>
       </footer>
