@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Link, Outlet, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
+import { PHeading, PText, PButton, PButtonPure } from '@porsche-design-system/components-react'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { setTokenGetter } from './services/api'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -60,29 +61,22 @@ function App() {
   )
 }
 
-// Public Layout Component
 function PublicLayout() {
   const { user, isAdmin, signOut, getToken } = useAuth();
   const navigate = useNavigate();
   const [isSigningOut, setIsSigningOut] = useState(false);
 
-  // Set up the token getter for the API module
   useEffect(() => {
     if (getToken) {
-      console.log('[PublicLayout] Setting token getter for API module');
       setTokenGetter(getToken);
     }
   }, [getToken]);
 
   const handleSignOut = async () => {
-    if (isSigningOut) return; // Prevent double-clicks
-
+    if (isSigningOut) return;
     setIsSigningOut(true);
-    console.log('[PublicLayout] Sign out button clicked');
-
     try {
       await signOut();
-      console.log('[PublicLayout] Sign out successful, navigating to home');
       navigate('/');
     } catch (error) {
       console.error('[PublicLayout] Sign out error:', error);
@@ -93,104 +87,97 @@ function PublicLayout() {
   };
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen" style={{ background: 'var(--p-color-canvas)' }}>
       <div className="container mx-auto px-4">
-        <header className="bg-gradient-to-r from-blue-900 to-indigo-900 text-white py-4 md:py-6 shadow-2xl border-b border-blue-800 rounded-t-2xl mt-4">
-          <div className="px-2 md:px-4">
+        <header
+          className="py-4 md:py-6 shadow-xl border-b border-white/10 rounded-t-2xl mt-4"
+          style={{ background: 'var(--p-color-surface)' }}
+        >
+          <div className="px-4 md:px-6">
             {/* Mobile Layout */}
             <div className="md:hidden">
               <div className="flex justify-between items-center mb-3">
                 <Link to="/" className="hover:opacity-80 transition-opacity">
-                  <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-200 to-indigo-200 bg-clip-text text-transparent">blueskiesbase</h1>
+                  <PHeading size="lg" tag="h1">blueskiesbase</PHeading>
                 </Link>
               </div>
-
               {user ? (
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs text-blue-300 truncate max-w-[180px]">
+                  <PText size="xs" color="contrast-medium" className="truncate max-w-[180px]">
                     {user.email}
-                  </span>
-                  <button
+                  </PText>
+                  <PButton
+                    variant="secondary"
+                    size="small"
+                    loading={isSigningOut}
                     onClick={handleSignOut}
-                    disabled={isSigningOut}
-                    className="px-3 py-1.5 text-xs font-medium text-white bg-blue-700 hover:bg-blue-600 rounded-md transition-colors whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {isSigningOut ? 'Signing Out...' : 'Sign Out'}
-                  </button>
+                    Sign Out
+                  </PButton>
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
-                  <Link
-                    to="/member-login"
-                    className="px-3 py-1.5 text-xs font-medium text-blue-300 hover:text-blue-200 transition-colors border border-blue-700 rounded-md"
-                  >
-                    Login
+                  <Link to="/member-login">
+                    <PButtonPure>Login</PButtonPure>
                   </Link>
-                  <Link
-                    to="/signup"
-                    className="px-3 py-1.5 text-xs font-medium text-white bg-blue-700 hover:bg-blue-600 rounded-md transition-colors"
-                  >
-                    Sign Up
+                  <Link to="/signup">
+                    <PButton size="small">Sign Up</PButton>
                   </Link>
                 </div>
               )}
             </div>
 
             {/* Desktop Layout */}
-            <div className="hidden md:flex justify-between items-center text-left">
+            <div className="hidden md:flex justify-between items-center">
               <Link to="/" className="hover:opacity-80 transition-opacity">
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-200 to-indigo-200 bg-clip-text text-transparent">Johnny Blue Skies & the Dark Clouds</h1>
-                <p className="text-blue-300 text-left text-xs">A concert archive for fans of Sturgill Simpson, Johnny Blue Skies, and the Dark Clouds</p>
+                <PHeading size="xl" tag="h1">Johnny Blue Skies &amp; the Dark Clouds</PHeading>
+                <PText size="xs" color="contrast-medium">
+                  A concert archive for fans of Sturgill Simpson, Johnny Blue Skies, and the Dark Clouds
+                </PText>
               </Link>
-
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
                 {user ? (
-                  <div className="flex items-center gap-4">
-                    <span className="text-sm text-blue-300">
-                      {user.email}
-                    </span>
-                    <button
+                  <>
+                    <PText size="sm" color="contrast-medium">{user.email}</PText>
+                    <PButton
+                      variant="secondary"
+                      loading={isSigningOut}
                       onClick={handleSignOut}
-                      disabled={isSigningOut}
-                      className="px-4 py-2 text-sm font-medium text-white bg-blue-700 hover:bg-blue-600 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {isSigningOut ? 'Signing Out...' : 'Sign Out'}
-                    </button>
-                  </div>
+                      Sign Out
+                    </PButton>
+                  </>
                 ) : (
-                  <div className="flex items-center gap-3">
-                    <Link
-                      to="/member-login"
-                      className="px-4 py-2 text-sm font-medium text-blue-300 hover:text-blue-200 transition-colors"
-                    >
-                      Login
+                  <>
+                    <Link to="/member-login">
+                      <PButtonPure>Login</PButtonPure>
                     </Link>
-                    <Link
-                      to="/signup"
-                      className="px-4 py-2 text-sm font-medium text-white bg-blue-700 hover:bg-blue-600 rounded-md transition-colors"
-                    >
-                      Sign Up
+                    <Link to="/signup">
+                      <PButton>Sign Up</PButton>
                     </Link>
-                  </div>
+                  </>
                 )}
               </div>
             </div>
           </div>
         </header>
 
-        <main className="bg-gray-900">
+        <main style={{ background: 'var(--p-color-canvas)' }}>
           <Outlet />
         </main>
 
-        <footer className="bg-gray-950 text-gray-400 py-6 border-t border-gray-800 rounded-b-2xl mb-4">
-          <div className="px-4 text-center">
-            <p className="text-sm">blueskiesbase - your concert setlist archive</p>
+        <footer
+          className="py-6 border-t border-white/10 rounded-b-2xl mb-4"
+          style={{ background: 'var(--p-color-surface)' }}
+        >
+          <div className="px-4 text-center space-y-1">
+            <PText size="xs" color="contrast-medium">blueskiesbase — your concert setlist archive</PText>
             {isAdmin && (
-              <p className="text-xs mt-2">
-                <Link to="/admin" className="text-blue-400 hover:text-blue-300 transition-colors">
+              <div>
+                <Link to="/admin" className="text-[var(--p-color-info)] hover:opacity-80 transition-opacity text-xs">
                   Admin Panel
                 </Link>
-              </p>
+              </div>
             )}
           </div>
         </footer>

@@ -1,9 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import {
+    PHeading, PText, PButtonPure, PSpinner, PInlineNotification, PTabsBar, PDivider, PTag
+} from '@porsche-design-system/components-react';
 import { buildShowPath } from '../utils/showSlug';
 import { getUserStats } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import SEO from '../components/SEO';
+
+const TABS = ['shows', 'upcoming', 'seen', 'notSeen'];
 
 export default function StatsPage() {
     const { user } = useAuth();
@@ -13,6 +18,8 @@ export default function StatsPage() {
     const [error, setError] = useState(null);
     const [urlParams, setUrlParams] = useSearchParams();
     const activeTab = urlParams.get('tab') || 'shows';
+    const activeTabIndex = Math.max(0, TABS.indexOf(activeTab));
+
     const setActiveTab = (tab) => setUrlParams(prev => {
         const next = new URLSearchParams(prev);
         next.set('tab', tab);
@@ -20,36 +27,20 @@ export default function StatsPage() {
     });
 
     useEffect(() => {
-        if (!user) {
-            navigate('/member-login');
-            return;
-        }
+        if (!user) { navigate('/member-login'); return; }
 
         const fetchStats = async (retryCount = 0) => {
             try {
                 setLoading(true);
                 setError(null);
-
-                console.log('[StatsPage] Fetching stats... (attempt', retryCount + 1, ')');
-                const startTime = Date.now();
-
                 const data = await getUserStats();
-
-                const endTime = Date.now();
-                const duration = endTime - startTime;
-                console.log(`[StatsPage] Stats loaded in ${duration}ms`);
-
                 setStats(data);
             } catch (err) {
                 console.error('[StatsPage] Error fetching stats:', err);
-
-                // Retry once if it's a timeout or network error
                 if (retryCount === 0 && (err.message.includes('timeout') || err.message.includes('fetch'))) {
-                    console.log('[StatsPage] Retrying...');
                     setTimeout(() => fetchStats(1), 1000);
                     return;
                 }
-
                 setError(err.message || 'Failed to load statistics. Please try refreshing the page.');
             } finally {
                 setLoading(false);
@@ -59,228 +50,160 @@ export default function StatsPage() {
         fetchStats();
     }, [user, navigate]);
 
+    const formatDate = (dateString) => {
+        const [year, month, day] = dateString.split('-');
+        return new Date(year, month - 1, day).toLocaleDateString('en-US', {
+            year: 'numeric', month: 'long', day: 'numeric'
+        });
+    };
+
     if (loading) {
         return (
-            <div className="px-4 py-8 max-w-6xl mx-auto">
-                <div className="text-center">
-                    <div className="text-xl text-gray-300 mb-4">Loading your statistics...</div>
-                    <div className="text-sm text-gray-500">This may take a few seconds...</div>
-                    {/* Spinner */}
-                    <div className="mt-6 flex justify-center">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400"></div>
-                    </div>
-                </div>
+            <div className="px-4 py-8 max-w-6xl mx-auto flex flex-col items-center gap-4">
+                <PSpinner size="large" aria={{ 'aria-label': 'Loading statistics' }} />
+                <PText color="contrast-medium">Loading your statistics…</PText>
             </div>
         );
     }
 
     if (error) {
         return (
-            <div className="px-4 py-8 max-w-6xl mx-auto">
-                <div className="bg-red-900/50 border border-red-700 text-red-200 px-4 py-3 rounded-lg">
-                    {error}
-                </div>
-                <Link to="/" className="text-blue-400 hover:text-blue-300 mt-4 inline-block transition-colors">
-                    ← Back to Home
-                </Link>
+            <div className="px-4 py-8 max-w-6xl mx-auto space-y-4">
+                <PInlineNotification heading="Failed to load stats" description={error} state="error" dismissButton={false} />
+                <PButtonPure icon="arrow-left" onClick={() => navigate('/')}>Back to Home</PButtonPure>
             </div>
         );
     }
 
-    const formatDate = (dateString) => {
-        // Parse date as local date to avoid timezone issues
-        // Date string format: "YYYY-MM-DD"
-        const [year, month, day] = dateString.split('-');
-        const date = new Date(year, month - 1, day);
-        return date.toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        });
-    };
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const isUpcoming = (dateString) => {
-        const [y, m, d] = dateString.split('-');
-        return new Date(y, m - 1, d) >= today;
-    };
-    const upcomingShows = stats.attendedShows
-        .filter(s => isUpcoming(s.show_date))
-        .sort((a, b) => a.show_date.localeCompare(b.show_date));
-    const pastShows = stats.attendedShows
-        .filter(s => !isUpcoming(s.show_date))
-        .sort((a, b) => b.show_date.localeCompare(a.show_date));
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const isUpcoming = (d) => { const [y, m, day] = d.split('-'); return new Date(y, m - 1, day) >= today; };
+    const upcomingShows = stats.attendedShows.filter(s => isUpcoming(s.show_date)).sort((a, b) => a.show_date.localeCompare(b.show_date));
+    const pastShows = stats.attendedShows.filter(s => !isUpcoming(s.show_date)).sort((a, b) => b.show_date.localeCompare(a.show_date));
 
     return (
-        <div className="px-4 py-8 max-w-6xl mx-auto">
+        <div className="px-4 py-8 max-w-6xl mx-auto space-y-8">
             <SEO
                 title="My Concert Stats"
-                description="Track your personal Sturgill Simpson and Johnny Blue Skies concert history. See every show you've attended and songs you've heard live."
+                description="Track your personal Sturgill Simpson and Johnny Blue Skies concert history."
             />
-            {/* Header */}
-            <div className="mb-8">
-                <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
-                    My Concert Statistics
-                </h1>
-                <p className="text-gray-400">Track your Johnny Blue Skies concert journey</p>
+
+            <div>
+                <PHeading size="2xl" tag="h1">My Concert Statistics</PHeading>
+                <PText color="contrast-medium">Track your Johnny Blue Skies concert journey</PText>
             </div>
 
-            {/* Stats Overview */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 text-center">
-                    <div className="text-4xl font-bold text-blue-400 mb-2">{pastShows.length}</div>
-                    <div className="text-gray-300">Shows Attended</div>
-                </div>
-                <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 text-center">
-                    <div className="text-4xl font-bold text-purple-400 mb-2">{upcomingShows.length}</div>
-                    <div className="text-gray-300">Upcoming Shows</div>
-                </div>
-                <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 text-center">
-                    <div className="text-4xl font-bold text-green-400 mb-2">{stats.totalSongsSeen}</div>
-                    <div className="text-gray-300">Songs Seen Live</div>
-                </div>
-                <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 text-center">
-                    <div className="text-4xl font-bold text-orange-400 mb-2">{stats.totalSongsNotSeen}</div>
-                    <div className="text-gray-300">Songs Not Yet Seen</div>
-                </div>
+            {/* Summary Cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                {[
+                    { value: pastShows.length, label: 'Shows Attended' },
+                    { value: upcomingShows.length, label: 'Upcoming Shows' },
+                    { value: stats.totalSongsSeen, label: 'Songs Seen Live' },
+                    { value: stats.totalSongsNotSeen, label: 'Songs Not Yet Seen' },
+                ].map(({ value, label }) => (
+                    <div key={label} className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 text-center">
+                        <PHeading size="4xl" tag="p">{value}</PHeading>
+                        <PText size="sm" color="contrast-medium">{label}</PText>
+                    </div>
+                ))}
             </div>
 
             {/* Tabs */}
-            <div className="flex flex-wrap gap-2 mb-6 border-b border-gray-700">
-                <button
-                    onClick={() => setActiveTab('shows')}
-                    className={`px-4 py-3 font-medium transition-colors ${
-                        activeTab === 'shows'
-                            ? 'text-blue-400 border-b-2 border-blue-400'
-                            : 'text-gray-400 hover:text-gray-300'
-                    }`}
-                >
-                    Past Shows ({pastShows.length})
-                </button>
-                <button
-                    onClick={() => setActiveTab('upcoming')}
-                    className={`px-4 py-3 font-medium transition-colors ${
-                        activeTab === 'upcoming'
-                            ? 'text-purple-400 border-b-2 border-purple-400'
-                            : 'text-gray-400 hover:text-gray-300'
-                    }`}
-                >
-                    Upcoming ({upcomingShows.length})
-                </button>
-                <button
-                    onClick={() => setActiveTab('seen')}
-                    className={`px-4 py-3 font-medium transition-colors ${
-                        activeTab === 'seen'
-                            ? 'text-blue-400 border-b-2 border-blue-400'
-                            : 'text-gray-400 hover:text-gray-300'
-                    }`}
-                >
-                    Songs Seen ({stats.totalSongsSeen})
-                </button>
-                <button
-                    onClick={() => setActiveTab('notSeen')}
-                    className={`px-4 py-3 font-medium transition-colors ${
-                        activeTab === 'notSeen'
-                            ? 'text-blue-400 border-b-2 border-blue-400'
-                            : 'text-gray-400 hover:text-gray-300'
-                    }`}
-                >
-                    Not Seen ({stats.totalSongsNotSeen})
-                </button>
-            </div>
+            <PTabsBar
+                activeTabIndex={activeTabIndex}
+                onUpdate={(e) => setActiveTab(TABS[e.detail.activeTabIndex])}
+            >
+                <button>Past Shows ({pastShows.length})</button>
+                <button>Upcoming ({upcomingShows.length})</button>
+                <button>Songs Seen ({stats.totalSongsSeen})</button>
+                <button>Not Seen ({stats.totalSongsNotSeen})</button>
+            </PTabsBar>
 
             {/* Tab Content */}
-            <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-                {/* Past Shows Tab */}
+            <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 md:p-8">
                 {activeTab === 'shows' && (
                     <div>
-                        <h2 className="text-2xl font-bold text-gray-100 mb-4">Shows Attended</h2>
+                        <PHeading size="lg" tag="h2">Shows Attended</PHeading>
+                        <div className="mt-4 mb-6"><PDivider /></div>
                         {pastShows.length === 0 ? (
-                            <p className="text-gray-400">You haven't marked any shows as attended yet.</p>
+                            <PText color="contrast-medium">You haven't marked any shows as attended yet.</PText>
                         ) : (
-                            <div className="space-y-4">
+                            <div className="space-y-2">
                                 {pastShows.map((show) => (
-                                    <div key={show.id} className="border border-gray-700 rounded-lg p-4 hover:border-blue-500 transition-colors">
-                                        <Link to={buildShowPath(show)} className="block">
-                                            <h3 className="text-xl font-semibold text-gray-100 mb-1">
-                                                {formatDate(show.show_date)}
-                                            </h3>
-                                            <p className="text-gray-300">{show.artist_name}</p>
-                                            {show.venues && (
-                                                <p className="text-gray-400 text-sm">
-                                                    {show.venues.name} - {show.venues.city}, {show.venues.state_country}
-                                                </p>
-                                            )}
-                                            {show.tour_name && (
-                                                <p className="text-gray-500 text-sm italic mt-1">{show.tour_name}</p>
-                                            )}
-                                        </Link>
-                                    </div>
+                                    <Link
+                                        key={show.id}
+                                        to={buildShowPath(show)}
+                                        className="block rounded-xl border border-white/5 bg-white/5 p-4 hover:bg-white/10 hover:border-white/20 transition-all"
+                                    >
+                                        <PText weight="semi-bold">{formatDate(show.show_date)}</PText>
+                                        <PText size="sm" color="contrast-medium">{show.artist_name}</PText>
+                                        {show.venues && (
+                                            <PText size="xs" color="contrast-low">
+                                                {show.venues.name} · {show.venues.city}, {show.venues.state_country}
+                                            </PText>
+                                        )}
+                                        {show.tour_name && (
+                                            <PText size="xs" color="contrast-low">{show.tour_name}</PText>
+                                        )}
+                                    </Link>
                                 ))}
                             </div>
                         )}
                     </div>
                 )}
 
-                {/* Upcoming Shows Tab */}
                 {activeTab === 'upcoming' && (
                     <div>
-                        <h2 className="text-2xl font-bold text-gray-100 mb-4">Upcoming Shows</h2>
+                        <PHeading size="lg" tag="h2">Upcoming Shows</PHeading>
+                        <div className="mt-4 mb-6"><PDivider /></div>
                         {upcomingShows.length === 0 ? (
-                            <p className="text-gray-400">No upcoming shows marked yet. Find a show and click "Mark as Attending"!</p>
+                            <PText color="contrast-medium">No upcoming shows marked yet. Find a show and click "Mark as Attending"!</PText>
                         ) : (
-                            <div className="space-y-4">
+                            <div className="space-y-2">
                                 {upcomingShows.map((show) => (
-                                    <div key={show.id} className="border border-purple-800/50 rounded-lg p-4 hover:border-purple-500 transition-colors bg-purple-950/20">
-                                        <Link to={buildShowPath(show)} className="block">
-                                            <h3 className="text-xl font-semibold text-gray-100 mb-1">
-                                                {formatDate(show.show_date)}
-                                            </h3>
-                                            <p className="text-gray-300">{show.artist_name}</p>
-                                            {show.venues && (
-                                                <p className="text-gray-400 text-sm">
-                                                    {show.venues.name} - {show.venues.city}, {show.venues.state_country}
-                                                </p>
-                                            )}
-                                            {show.tour_name && (
-                                                <p className="text-purple-400 text-sm italic mt-1">{show.tour_name}</p>
-                                            )}
-                                        </Link>
-                                    </div>
+                                    <Link
+                                        key={show.id}
+                                        to={buildShowPath(show)}
+                                        className="block rounded-xl border border-white/5 bg-white/5 p-4 hover:bg-white/10 hover:border-white/20 transition-all"
+                                    >
+                                        <PText weight="semi-bold">{formatDate(show.show_date)}</PText>
+                                        <PText size="sm" color="contrast-medium">{show.artist_name}</PText>
+                                        {show.venues && (
+                                            <PText size="xs" color="contrast-low">
+                                                {show.venues.name} · {show.venues.city}, {show.venues.state_country}
+                                            </PText>
+                                        )}
+                                        {show.tour_name && (
+                                            <PText size="xs" color="contrast-low">{show.tour_name}</PText>
+                                        )}
+                                    </Link>
                                 ))}
                             </div>
                         )}
                     </div>
                 )}
 
-                {/* Songs Seen Tab */}
                 {activeTab === 'seen' && (
                     <div>
-                        <h2 className="text-2xl font-bold text-gray-100 mb-4">Songs You've Seen Live</h2>
+                        <PHeading size="lg" tag="h2">Songs You've Seen Live</PHeading>
+                        <div className="mt-4 mb-6"><PDivider /></div>
                         {stats.songsSeen.length === 0 ? (
-                            <p className="text-gray-400">No songs yet. Mark some shows as attended!</p>
+                            <PText color="contrast-medium">No songs yet. Mark some shows as attended!</PText>
                         ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                 {stats.songsSeen
                                     .sort((a, b) => b.playCount - a.playCount)
                                     .map((song) => (
-                                        <div key={song.id} className="border border-gray-700 rounded-lg p-3 bg-gray-750">
-                                            <div className="flex justify-between items-start">
-                                                <div className="flex-1">
-                                                    <div className="font-medium text-gray-100">{song.title}</div>
-                                                    {!song.is_original && song.original_artist && (
-                                                        <div className="text-sm text-gray-400 italic">
-                                                            Cover - {song.original_artist}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                <div className="ml-3 flex-shrink-0">
-                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-900/50 text-blue-300 border border-blue-700">
-                                                        {song.playCount}x
-                                                    </span>
-                                                </div>
+                                        <div key={song.id} className="flex justify-between items-center gap-3 py-2 px-3 rounded-lg hover:bg-white/5 transition-colors">
+                                            <div className="flex items-center gap-2 min-w-0">
+                                                <PText weight="semi-bold">{song.title}</PText>
+                                                {!song.is_original && song.original_artist && (
+                                                    <PText size="xs" color="contrast-medium">· {song.original_artist}</PText>
+                                                )}
+                                                {!song.is_original && (
+                                                    <span className="text-xs bg-blue-900/50 text-blue-300 px-2 py-0.5 rounded border border-blue-700 whitespace-nowrap">Cover</span>
+                                                )}
                                             </div>
+                                            <PTag color="notification-success-soft">{song.playCount}x</PTag>
                                         </div>
                                     ))}
                             </div>
@@ -288,35 +211,34 @@ export default function StatsPage() {
                     </div>
                 )}
 
-                {/* Songs Not Seen Tab */}
                 {activeTab === 'notSeen' && (
                     <div>
-                        <h2 className="text-2xl font-bold text-gray-100 mb-4">Songs You Haven't Seen Yet</h2>
+                        <PHeading size="lg" tag="h2">Songs You Haven't Seen Yet</PHeading>
+                        <div className="mt-4 mb-6"><PDivider /></div>
                         {stats.songsNotSeen.length === 0 ? (
-                            <p className="text-gray-400">Congratulations! You've seen all the songs!</p>
+                            <div className="text-center py-8">
+                                <PHeading size="xl" tag="p">Congratulations!</PHeading>
+                                <PText color="contrast-medium">You've seen all the songs!</PText>
+                            </div>
                         ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                                 {stats.songsNotSeen
                                     .sort((a, b) => {
-                                        // Sort by most recent show date
                                         if (!a.mostRecentShow || !b.mostRecentShow) return 0;
-                                        // Compare date strings directly (YYYY-MM-DD format sorts correctly)
                                         return b.mostRecentShow.show_date.localeCompare(a.mostRecentShow.show_date);
                                     })
                                     .map((song) => (
-                                        <div key={song.id} className="border border-gray-700 rounded-lg p-4 bg-gray-750 text-center">
-                                            <div className="font-medium text-gray-100 text-lg mb-1">{song.title}</div>
+                                        <div key={song.id} className="rounded-xl border border-white/5 bg-white/5 p-4">
+                                            <PText weight="semi-bold">{song.title}</PText>
                                             {!song.is_original && song.original_artist && (
-                                                <div className="text-sm text-gray-400 italic mb-2">
-                                                    Cover - {song.original_artist}
-                                                </div>
+                                                <PText size="xs" color="contrast-medium">Cover · {song.original_artist}</PText>
                                             )}
                                             {song.mostRecentShow && (
                                                 <div className="mt-2">
-                                                    <div className="text-xs text-gray-400 mb-1">Last played on:</div>
+                                                    <PText size="xs" color="contrast-low">Last played:</PText>
                                                     <Link
                                                         to={buildShowPath(song.mostRecentShow)}
-                                                        className="text-blue-400 hover:text-blue-300 transition-colors text-sm inline-block"
+                                                        className="text-xs text-[var(--p-color-info)] hover:opacity-80 transition-opacity"
                                                     >
                                                         {formatDate(song.mostRecentShow.show_date)}
                                                     </Link>
@@ -332,4 +254,3 @@ export default function StatsPage() {
         </div>
     );
 }
-
