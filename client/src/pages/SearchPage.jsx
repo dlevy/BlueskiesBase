@@ -12,8 +12,7 @@ import UserStatsWidget from '../components/UserStatsWidget';
 import OnThisDayWidget from '../components/OnThisDayWidget';
 import SEO from '../components/SEO';
 
-const MAIN_TABS = ['search', 'stats'];
-const SUB_TABS = ['songs', 'mystats'];
+const MAIN_TABS = ['search', 'stats', 'myshows'];
 
 const selectClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-transparent";
 
@@ -22,18 +21,10 @@ export default function SearchPage() {
 
     const [urlParams, setUrlParams] = useSearchParams();
     const activeTab = urlParams.get('tab') || 'search';
-    const statsSubTab = urlParams.get('sub') || 'songs';
-    const mainTabIndex = Math.max(0, MAIN_TABS.indexOf(activeTab));
-    const subTabIndex = Math.max(0, SUB_TABS.indexOf(statsSubTab));
 
     const setActiveTab = (tab) => setUrlParams(prev => {
         const next = new URLSearchParams(prev);
         next.set('tab', tab);
-        return next;
-    });
-    const setStatsSubTab = (sub) => setUrlParams(prev => {
-        const next = new URLSearchParams(prev);
-        next.set('sub', sub);
         return next;
     });
 
@@ -58,7 +49,7 @@ export default function SearchPage() {
     const [originalsByAlbum, setOriginalsByAlbum] = useState([]);
     const [coverSongs, setCoverSongs] = useState([]);
     const [totalShows, setTotalShows] = useState(0);
-    const [filterPanelOpen, setFilterPanelOpen] = useState(true);
+    const [filterPanelOpen, setFilterPanelOpen] = useState(false);
 
     useEffect(() => {
         const fetchDropdownOptions = async () => {
@@ -325,7 +316,7 @@ export default function SearchPage() {
 
             {/* Main Tabs */}
             <div className="flex border-b border-white/[0.07] mb-6">
-                {[['search', 'Search'], ['stats', 'Stats']].map(([id, label]) => (
+                {[['search', 'Search'], ['stats', 'Stats'], ['myshows', 'My Shows']].map(([id, label]) => (
                     <button
                         key={id}
                         onClick={() => setActiveTab(id)}
@@ -342,6 +333,31 @@ export default function SearchPage() {
             {/* Search Tab */}
             {activeTab === 'search' && (
                 <>
+                    {/* Browse by year — always visible above filters */}
+                    {years.length > 0 && (
+                        <div className="rounded-2xl border border-white/10 bg-[#1a1e26] px-5 py-4 mb-4">
+                            <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: 'var(--p-color-contrast-low)' }}>
+                                Browse by year
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                                {years.map(year => (
+                                    <button
+                                        key={year}
+                                        onClick={() => searchParams.year === year.toString() ? clearFilter('year') : setYearFilter(year)}
+                                        className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all duration-150 ${
+                                            searchParams.year === year.toString()
+                                                ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
+                                                : 'border-white/10 hover:border-amber-500/40 hover:bg-amber-500/10 hover:text-amber-300'
+                                        }`}
+                                        style={searchParams.year !== year.toString() ? { color: 'var(--p-color-contrast-medium)' } : undefined}
+                                    >
+                                        {year}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Filter bar */}
                     <div className="rounded-2xl border border-white/10 bg-[#1a1e26] mb-6 overflow-hidden">
                         {/* Toggle header — always visible */}
@@ -361,7 +377,7 @@ export default function SearchPage() {
                                 >
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                                 </svg>
-                                Filters{activeFilters.length > 0 && ` (${activeFilters.length})`}
+                                Advanced Filters{activeFilters.length > 0 && ` (${activeFilters.length})`}
                             </button>
 
                             {activeFilters.length > 0 && (
@@ -502,32 +518,7 @@ export default function SearchPage() {
                     )}
 
                     {/* Hero state — shown when no filters are active */}
-                    {showHero && (
-                        <div className="space-y-4">
-                            <OnThisDayWidget />
-
-                            {/* Browse by year */}
-                            {years.length > 0 && (
-                                <div className="rounded-2xl border border-white/10 bg-[#1a1e26] px-6 py-5">
-                                    <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: 'var(--p-color-contrast-low)' }}>
-                                        Browse by year
-                                    </p>
-                                    <div className="flex flex-wrap gap-2">
-                                        {years.map(year => (
-                                            <button
-                                                key={year}
-                                                onClick={() => setYearFilter(year)}
-                                                className="px-3 py-1.5 rounded-lg text-sm font-medium border border-white/10 hover:border-amber-500/40 hover:bg-amber-500/10 hover:text-amber-300 transition-all duration-150"
-                                                style={{ color: 'var(--p-color-contrast-medium)' }}
-                                            >
-                                                {year}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    )}
+                    {showHero && <OnThisDayWidget />}
 
                     {/* Results */}
                     {showResults && (
@@ -683,27 +674,10 @@ export default function SearchPage() {
             )}
 
             {/* Stats Tab */}
-            {activeTab === 'stats' && (
-                <div className="space-y-6">
-                    <div className="flex border-b border-white/[0.07]">
-                        {[['songs', 'Song Stats'], ['mystats', 'My Stats']].map(([id, label]) => (
-                            <button
-                                key={id}
-                                onClick={() => setStatsSubTab(id)}
-                                className={`h-9 px-4 text-sm font-medium transition-colors -mb-px border-b-2 ${
-                                    statsSubTab === id ? 'border-amber-400 text-amber-300' : 'border-transparent'
-                                }`}
-                                style={{ color: statsSubTab === id ? undefined : 'var(--p-color-contrast-medium)' }}
-                            >
-                                {label}
-                            </button>
-                        ))}
-                    </div>
+            {activeTab === 'stats' && <SongStatsWidget />}
 
-                    {statsSubTab === 'songs' && <SongStatsWidget />}
-                    {statsSubTab === 'mystats' && <UserStatsWidget />}
-                </div>
-            )}
+            {/* My Shows Tab */}
+            {activeTab === 'myshows' && <UserStatsWidget />}
         </div>
     );
 }
