@@ -162,13 +162,13 @@ export default function SongStatsWidget() {
                 <SongColumn
                     title="Originals"
                     data={stats.originals}
-                    accentColor="var(--p-color-success)"
+                    accentColor="#f59e0b"
                     maxPlays={maxOriginalsPlays}
                 />
                 <SongColumn
                     title="Covers"
                     data={stats.covers}
-                    accentColor="var(--p-color-info)"
+                    accentColor="#c084fc"
                     maxPlays={maxCoversPlays}
                 />
             </div>
