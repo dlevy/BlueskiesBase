@@ -37,7 +37,7 @@ export default function SearchPage() {
     });
 
     const [searchParams, setSearchParams] = useState({
-        year: '', month: '', venue: '', city: '', song: '', source: '',
+        year: '', month: '', song: '', source: '',
         hasImages: false, hasNotes: false, hasPhotos: false, hasPoster: false
     });
     const [results, setResults] = useState([]);
@@ -52,8 +52,6 @@ export default function SearchPage() {
     const lastCalculatedShowIds = useRef(null);
 
     const [years, setYears] = useState([]);
-    const [venues, setVenues] = useState([]);
-    const [cities, setCities] = useState([]);
     const [songs, setSongs] = useState([]);
     const [totalShows, setTotalShows] = useState(0);
     const [filterPanelOpen, setFilterPanelOpen] = useState(true);
@@ -70,8 +68,6 @@ export default function SearchPage() {
                 if (showsData) {
                     setTotalShows(showsData.length);
                     setYears([...new Set(showsData.map(s => parseInt(s.show_date.split('-')[0])))].sort((a, b) => b - a));
-                    setVenues([...new Set(showsData.filter(s => s.venues).map(s => s.venues.name))].sort());
-                    setCities([...new Set(showsData.filter(s => s.venues).map(s => s.venues.city))].sort());
 
                     const showIds = showsData.map(s => s.id);
                     let allSetlistSongs = [];
@@ -188,7 +184,7 @@ export default function SearchPage() {
     useEffect(() => { setFilteredResults(results); }, [results]);
 
     const hasActiveFilters = (p) =>
-        p.year || p.month || p.venue || p.city || p.song || p.source ||
+        p.year || p.month || p.song || p.source ||
         p.hasImages || p.hasNotes || p.hasPhotos || p.hasPoster;
 
     const handleAttendanceToggle = async (showId, e) => {
@@ -239,6 +235,12 @@ export default function SearchPage() {
         performSearch(newParams);
     };
 
+    const setMonthFilter = (month) => {
+        const newParams = { ...searchParams, month: month.toString() };
+        setSearchParams(newParams);
+        performSearch(newParams);
+    };
+
     const clearFilter = (filterName) => {
         const newParams = {
             ...searchParams,
@@ -249,7 +251,7 @@ export default function SearchPage() {
     };
 
     const clearAllFilters = () => {
-        const newParams = { year: '', month: '', venue: '', city: '', song: '', source: '', hasImages: false, hasNotes: false, hasPhotos: false, hasPoster: false };
+        const newParams = { year: '', month: '', song: '', source: '', hasImages: false, hasNotes: false, hasPhotos: false, hasPoster: false };
         setSearchParams(newParams);
         setResults([]);
     };
@@ -258,8 +260,6 @@ export default function SearchPage() {
         const filters = [];
         if (searchParams.year) filters.push({ name: 'year', label: 'Year', value: searchParams.year });
         if (searchParams.month) filters.push({ name: 'month', label: 'Month', value: new Date(2000, searchParams.month - 1).toLocaleString('default', { month: 'long' }) });
-        if (searchParams.venue) filters.push({ name: 'venue', label: 'Venue', value: searchParams.venue });
-        if (searchParams.city) filters.push({ name: 'city', label: 'City', value: searchParams.city });
         if (searchParams.song) filters.push({ name: 'song', label: 'Song', value: searchParams.song });
         if (searchParams.source) filters.push({ name: 'source', label: 'Source', value: searchParams.source });
         if (searchParams.hasNotes) filters.push({ name: 'hasNotes', label: 'Has Notes', value: 'Yes' });
@@ -372,42 +372,39 @@ export default function SearchPage() {
                                     </div>
                                 </div>
 
-                                {/* Month · Venue · City · Song */}
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
-                                    <div>
-                                        <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>Month</label>
-                                        <select name="month" value={searchParams.month} onChange={handleInputChange} className={selectClass}
-                                            style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
-                                            <option value="">All Months</option>
-                                            {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
-                                                <option key={m} value={m}>{new Date(2000, m - 1).toLocaleString('default', { month: 'long' })}</option>
-                                            ))}
-                                        </select>
+                                {/* Month pills */}
+                                <div className="mb-4">
+                                    <label className="block text-xs font-semibold mb-2" style={{ color: 'var(--p-color-contrast-medium)' }}>Month</label>
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {Array.from({ length: 12 }, (_, i) => i + 1).map(m => {
+                                            const isSelected = searchParams.month === m.toString();
+                                            return (
+                                                <button
+                                                    key={m}
+                                                    type="button"
+                                                    onClick={() => isSelected ? clearFilter('month') : setMonthFilter(m)}
+                                                    className={`px-2.5 py-1 rounded-md text-xs font-medium border transition-all ${
+                                                        isSelected
+                                                            ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
+                                                            : 'border-white/10 hover:border-amber-500/30 hover:bg-amber-500/8 hover:text-amber-300'
+                                                    }`}
+                                                    style={!isSelected ? { color: 'var(--p-color-contrast-medium)' } : undefined}
+                                                >
+                                                    {new Date(2000, m - 1).toLocaleString('default', { month: 'short' })}
+                                                </button>
+                                            );
+                                        })}
                                     </div>
-                                    <div>
-                                        <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>Venue</label>
-                                        <select name="venue" value={searchParams.venue} onChange={handleInputChange} className={selectClass}
-                                            style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
-                                            <option value="">All Venues</option>
-                                            {venues.map(v => <option key={v} value={v}>{v}</option>)}
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>City</label>
-                                        <select name="city" value={searchParams.city} onChange={handleInputChange} className={selectClass}
-                                            style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
-                                            <option value="">All Cities</option>
-                                            {cities.map(c => <option key={c} value={c}>{c}</option>)}
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>Song</label>
-                                        <select name="song" value={searchParams.song} onChange={handleInputChange} className={selectClass}
-                                            style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
-                                            <option value="">All Songs</option>
-                                            {songs.map(s => <option key={s} value={s}>{s}</option>)}
-                                        </select>
-                                    </div>
+                                </div>
+
+                                {/* Song */}
+                                <div className="mb-4">
+                                    <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>Song</label>
+                                    <select name="song" value={searchParams.song} onChange={handleInputChange} className={selectClass}
+                                        style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
+                                        <option value="">All Songs</option>
+                                        {songs.map(s => <option key={s} value={s}>{s}</option>)}
+                                    </select>
                                 </div>
 
                                 <div>
