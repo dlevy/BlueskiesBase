@@ -53,6 +53,44 @@ router.get('/', async (req, res) => {
     }
 });
 
+// Shared slugify — must match client/src/utils/showSlug.js
+function slugify(str) {
+    return (str || '').toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
+/**
+ * GET /api/shows/lookup?date=&artist=&location=
+ * Find a show by URL slugs and return its ID
+ */
+router.get('/lookup', async (req, res) => {
+    try {
+        const { date, artist, location } = req.query;
+        if (!date) return res.status(400).json({ error: 'date is required' });
+
+        const { data: shows, error } = await supabase
+            .from('shows')
+            .select('id, artist_name, venues(city, state_country)')
+            .eq('show_date', date);
+
+        if (error) return res.status(500).json({ error: error.message });
+
+        const match = (shows || []).find(s => {
+            const artistSlug = slugify(s.artist_name);
+            const citySlug = slugify(s.venues?.city || '');
+            const stateSlug = slugify(s.venues?.state_country || '');
+            const locationSlug = [citySlug, stateSlug].filter(Boolean).join('-');
+            return (!artist || artistSlug === artist) && (!location || locationSlug === location);
+        });
+
+        if (!match) return res.status(404).json({ error: 'Show not found' });
+
+        res.json({ id: match.id });
+    } catch (err) {
+        console.error('[GET /shows/lookup] Error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 /**
  * GET /api/shows/:id
  * Get a single show with full setlist

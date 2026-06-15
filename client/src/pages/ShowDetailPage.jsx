@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { getShowById, checkShowAttendance, markShowAttended, unmarkShowAttended } from '../services/api';
-import { buildShowPath, extractShowId } from '../utils/showSlug';
+import { getShowBySlug, checkShowAttendance, markShowAttended, unmarkShowAttended } from '../services/api';
+import { buildShowPath } from '../utils/showSlug';
 import { useAuth } from '../contexts/AuthContext';
 import NotesSection from '../components/NotesSection';
 import PhotosSection from '../components/PhotosSection';
@@ -76,7 +76,6 @@ function SetList({ songs }) {
 export default function ShowDetailPage() {
     const { artist, date, locationSlug } = useParams();
     const navigate = useNavigate();
-    const showId = extractShowId(locationSlug);
     const { user } = useAuth();
     const [show, setShow] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -89,7 +88,7 @@ export default function ShowDetailPage() {
         const fetchShow = async () => {
             try {
                 setLoading(true);
-                const data = await getShowById(showId);
+                const data = await getShowBySlug(date, artist, locationSlug);
                 setShow(data);
             } catch (err) {
                 console.error('Error fetching show:', err);
@@ -98,9 +97,8 @@ export default function ShowDetailPage() {
                 setLoading(false);
             }
         };
-
         fetchShow();
-    }, [showId]);
+    }, [artist, date, locationSlug]);
 
     // Redirect to canonical URL if params don't match (e.g. old links)
     useEffect(() => {
@@ -154,19 +152,17 @@ export default function ShowDetailPage() {
     }, [show]);
 
     useEffect(() => {
+        if (!user || !show?.id) return;
         const checkAttendance = async () => {
-            if (user && showId) {
-                try {
-                    const { attended: isAttended } = await checkShowAttendance(showId);
-                    setAttended(isAttended);
-                } catch (err) {
-                    console.error('Error checking attendance:', err);
-                }
+            try {
+                const { attended: isAttended } = await checkShowAttendance(show.id);
+                setAttended(isAttended);
+            } catch (err) {
+                console.error('Error checking attendance:', err);
             }
         };
-
         checkAttendance();
-    }, [showId, user]);
+    }, [show?.id, user]);
 
     const handleAttendanceToggle = async () => {
         if (!user) {
@@ -177,10 +173,10 @@ export default function ShowDetailPage() {
         setAttendanceLoading(true);
         try {
             if (attended) {
-                await unmarkShowAttended(showId);
+                await unmarkShowAttended(show.id);
                 setAttended(false);
             } else {
-                await markShowAttended(showId);
+                await markShowAttended(show.id);
                 setAttended(true);
             }
         } catch (err) {
@@ -411,17 +407,17 @@ export default function ShowDetailPage() {
 
             {/* Notes Section */}
             <div className="mt-8">
-                <NotesSection showId={showId} />
+                <NotesSection showId={show.id} />
             </div>
 
             {/* Poster Section */}
             <div className="mt-8">
-                <PostersSection showId={showId} />
+                <PostersSection showId={show.id} />
             </div>
 
             {/* Photos Section */}
             <div className="mt-8">
-                <PhotosSection showId={showId} />
+                <PhotosSection showId={show.id} />
             </div>
 
             {/* Back Button at Bottom */}

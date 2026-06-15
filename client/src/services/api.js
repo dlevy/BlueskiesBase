@@ -60,6 +60,20 @@ export const getShowById = async (id) => {
 };
 
 /**
+ * Look up a show by URL slugs (date, artist, location), then fetch full details
+ */
+export const getShowBySlug = async (date, artist, location) => {
+    const params = new URLSearchParams({ date, artist, location });
+    const lookupRes = await fetch(`${API_BASE_URL}/api/shows/lookup?${params}`);
+    if (!lookupRes.ok) {
+        const body = await lookupRes.json().catch(() => ({}));
+        throw new Error(body.error || 'Show not found');
+    }
+    const { id } = await lookupRes.json();
+    return getShowById(id);
+};
+
+/**
  * Get all songs
  */
 export const getSongs = async () => {
