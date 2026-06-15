@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { PHeading, PText, PSpinner, PInlineNotification, PDivider } from '@porsche-design-system/components-react';
 import { getGlobalSongStats } from '../services/api';
+import { useCountUp } from '../hooks/useCountUp';
 
 export default function SongStatsWidget() {
     const [stats, setStats] = useState(null);
@@ -49,7 +50,9 @@ export default function SongStatsWidget() {
     const maxCoversPlays = stats.covers.top5.length > 0 ? stats.covers.top5[0].playCount : 1;
     const totalPlays = (songs) => songs.reduce((sum, s) => sum + s.playCount, 0);
 
-    const SongColumn = ({ title, data, accentColor, maxPlays }) => (
+    const SongColumn = ({ title, data, accentColor, maxPlays }) => {
+        const animatedTotal = useCountUp(data.total);
+        return (
         <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 space-y-6">
             <div>
                 <PHeading size="lg" tag="h3">{title}</PHeading>
@@ -58,7 +61,7 @@ export default function SongStatsWidget() {
 
             {/* Summary */}
             <div className="rounded-xl border border-white/5 bg-white/5 p-5 text-center">
-                <PHeading size="4xl" tag="p">{data.total}</PHeading>
+                <div className="font-display font-bold text-5xl leading-none mb-1 text-amber-400">{animatedTotal}</div>
                 <PText size="sm" color="contrast-medium">Unique Songs</PText>
                 <PText size="xs" color="contrast-low">{totalPlays(data.top5)} total plays (top 5)</PText>
             </div>
@@ -102,7 +105,8 @@ export default function SongStatsWidget() {
                 </ul>
             </div>
         </div>
-    );
+        );
+    };
 
     return (
         <div className="space-y-4">

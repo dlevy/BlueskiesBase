@@ -56,6 +56,7 @@ export default function SearchPage() {
     const [cities, setCities] = useState([]);
     const [songs, setSongs] = useState([]);
     const [totalShows, setTotalShows] = useState(0);
+    const [filterPanelOpen, setFilterPanelOpen] = useState(true);
 
     useEffect(() => {
         const fetchDropdownOptions = async () => {
@@ -292,104 +293,130 @@ export default function SearchPage() {
             {/* Search Tab */}
             {activeTab === 'search' && (
                 <>
-                    {/* Filter Form */}
-                    <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 mb-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-                            <div>
-                                <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>Year</label>
-                                <select name="year" value={searchParams.year} onChange={handleInputChange} className={selectClass}
-                                    style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
-                                    <option value="">All Years</option>
-                                    {years.map(y => <option key={y} value={y}>{y}</option>)}
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>Month</label>
-                                <select name="month" value={searchParams.month} onChange={handleInputChange} className={selectClass}
-                                    style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
-                                    <option value="">All Months</option>
-                                    {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
-                                        <option key={m} value={m}>{new Date(2000, m - 1).toLocaleString('default', { month: 'long' })}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
+                    {/* Filter bar */}
+                    <div className="rounded-2xl border border-white/10 bg-[#1a1e26] mb-6 overflow-hidden">
+                        {/* Toggle header — always visible */}
+                        <div className="flex items-center gap-3 px-4 py-3 flex-wrap">
+                            <button
+                                onClick={() => setFilterPanelOpen(o => !o)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all shrink-0"
+                                style={{
+                                    borderColor: filterPanelOpen ? 'var(--p-color-info)' : 'rgba(255,255,255,0.15)',
+                                    color: filterPanelOpen ? 'var(--p-color-info)' : 'var(--p-color-contrast-medium)',
+                                    background: filterPanelOpen ? 'rgba(0,120,255,0.08)' : 'transparent',
+                                }}
+                            >
+                                <svg
+                                    className={`w-3.5 h-3.5 transition-transform duration-200 ${filterPanelOpen ? '' : '-rotate-90'}`}
+                                    fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+                                >
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                                </svg>
+                                Filters{activeFilters.length > 0 && ` (${activeFilters.length})`}
+                            </button>
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
-                            <div>
-                                <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>Venue</label>
-                                <select name="venue" value={searchParams.venue} onChange={handleInputChange} className={selectClass}
-                                    style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
-                                    <option value="">All Venues</option>
-                                    {venues.map(v => <option key={v} value={v}>{v}</option>)}
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>City</label>
-                                <select name="city" value={searchParams.city} onChange={handleInputChange} className={selectClass}
-                                    style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
-                                    <option value="">All Cities</option>
-                                    {cities.map(c => <option key={c} value={c}>{c}</option>)}
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>Song</label>
-                                <select name="song" value={searchParams.song} onChange={handleInputChange} className={selectClass}
-                                    style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
-                                    <option value="">All Songs</option>
-                                    {songs.map(s => <option key={s} value={s}>{s}</option>)}
-                                </select>
-                            </div>
-                        </div>
-
-                        <div className="mb-4">
-                            <label className="block text-xs font-semibold mb-2" style={{ color: 'var(--p-color-contrast-medium)' }}>Filter by Content</label>
-                            <div className="flex flex-wrap gap-4">
-                                {[
-                                    { name: 'hasNotes', label: 'Notes' },
-                                    { name: 'hasPhotos', label: 'Photos' },
-                                    { name: 'hasPoster', label: 'Poster' },
-                                ].map(({ name, label }) => (
-                                    <label key={name} className="inline-flex items-center gap-2 cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            name={name}
-                                            checked={searchParams[name]}
-                                            onChange={handleInputChange}
-                                            className="w-3.5 h-3.5 rounded accent-amber-400"
-                                        />
-                                        <span className="text-xs" style={{ color: 'var(--p-color-contrast-medium)' }}>{label}</span>
-                                    </label>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div className="flex items-center justify-between">
-                            <PText size="x-small" color="contrast-medium">
-                                {loading ? 'Searching…' : 'Results update automatically'}
-                            </PText>
                             {activeFilters.length > 0 && (
-                                <PButtonPure icon="close" onClick={clearAllFilters}>Clear All</PButtonPure>
+                                <div className="flex flex-wrap gap-1.5 flex-1 min-w-0">
+                                    {activeFilters.map(filter => (
+                                        <button
+                                            key={filter.name}
+                                            onClick={() => clearFilter(filter.name)}
+                                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border border-amber-500/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 transition-colors"
+                                        >
+                                            <span className="opacity-60">{filter.label}:</span>
+                                            <span>{filter.value}</span>
+                                            <span className="opacity-50 hover:opacity-100 font-bold ml-0.5">×</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+
+                            {activeFilters.length > 1 && (
+                                <button
+                                    onClick={clearAllFilters}
+                                    className="text-xs shrink-0 hover:opacity-80 transition-opacity"
+                                    style={{ color: 'var(--p-color-contrast-low)' }}
+                                >
+                                    Clear all
+                                </button>
                             )}
                         </div>
-                    </div>
 
-                    {/* Active Filter Pills */}
-                    {activeFilters.length > 0 && (
-                        <div className="flex flex-wrap gap-2 mb-6">
-                            {activeFilters.map(filter => (
-                                <button
-                                    key={filter.name}
-                                    onClick={() => clearFilter(filter.name)}
-                                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border border-amber-500/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 transition-colors"
-                                >
-                                    <span className="opacity-60">{filter.label}:</span>
-                                    <span>{filter.value}</span>
-                                    <span className="opacity-50 hover:opacity-100 font-bold ml-0.5">×</span>
-                                </button>
-                            ))}
-                        </div>
-                    )}
+                        {/* Collapsible form */}
+                        {filterPanelOpen && (
+                            <div className="border-t border-white/10 px-4 pb-4 pt-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                                    <div>
+                                        <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>Year</label>
+                                        <select name="year" value={searchParams.year} onChange={handleInputChange} className={selectClass}
+                                            style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
+                                            <option value="">All Years</option>
+                                            {years.map(y => <option key={y} value={y}>{y}</option>)}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>Month</label>
+                                        <select name="month" value={searchParams.month} onChange={handleInputChange} className={selectClass}
+                                            style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
+                                            <option value="">All Months</option>
+                                            {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
+                                                <option key={m} value={m}>{new Date(2000, m - 1).toLocaleString('default', { month: 'long' })}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                                    <div>
+                                        <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>Venue</label>
+                                        <select name="venue" value={searchParams.venue} onChange={handleInputChange} className={selectClass}
+                                            style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
+                                            <option value="">All Venues</option>
+                                            {venues.map(v => <option key={v} value={v}>{v}</option>)}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>City</label>
+                                        <select name="city" value={searchParams.city} onChange={handleInputChange} className={selectClass}
+                                            style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
+                                            <option value="">All Cities</option>
+                                            {cities.map(c => <option key={c} value={c}>{c}</option>)}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>Song</label>
+                                        <select name="song" value={searchParams.song} onChange={handleInputChange} className={selectClass}
+                                            style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
+                                            <option value="">All Songs</option>
+                                            {songs.map(s => <option key={s} value={s}>{s}</option>)}
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-semibold mb-2" style={{ color: 'var(--p-color-contrast-medium)' }}>Filter by Content</label>
+                                    <div className="flex flex-wrap gap-4">
+                                        {[
+                                            { name: 'hasNotes', label: 'Notes' },
+                                            { name: 'hasPhotos', label: 'Photos' },
+                                            { name: 'hasPoster', label: 'Poster' },
+                                        ].map(({ name, label }) => (
+                                            <label key={name} className="inline-flex items-center gap-2 cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    name={name}
+                                                    checked={searchParams[name]}
+                                                    onChange={handleInputChange}
+                                                    className="w-3.5 h-3.5 rounded accent-amber-400"
+                                                />
+                                                <span className="text-xs" style={{ color: 'var(--p-color-contrast-medium)' }}>{label}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
 
                     {/* Error */}
                     {error && (

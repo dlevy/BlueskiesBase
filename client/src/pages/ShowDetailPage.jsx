@@ -254,55 +254,50 @@ export default function ShowDetailPage() {
             </PButtonPure>
 
             {/* Show header */}
-            <div className="relative rounded-2xl border border-white/10 bg-[#1a1e26] p-6 md:p-10">
-                {/* Attendance button */}
-                {user && (
-                    <div className="absolute top-4 right-4 md:top-6 md:right-6">
-                        <PButton
-                            variant={attended ? 'primary' : 'secondary'}
-                            icon={attendanceIcon}
-                            loading={attendanceLoading}
-                            onClick={handleAttendanceToggle}
-                        >
-                            <span className="hidden sm:inline">{attendanceLabel}</span>
-                        </PButton>
-                    </div>
-                )}
-
-                {/* Artist + show info */}
-                <div className={`text-center ${user ? 'pr-14 md:pr-44' : ''}`}>
-                    <h1 className="font-display font-bold text-3xl md:text-4xl lg:text-5xl leading-tight" style={{ color: 'var(--p-color-primary)' }}>
+            <div className="rounded-2xl border border-white/10 bg-[#1a1e26] overflow-hidden">
+                {/* Artist name — full-width banner */}
+                <div className="px-6 md:px-10 pt-8 pb-6">
+                    <h1 className="font-display font-bold text-3xl md:text-5xl leading-tight" style={{ color: 'var(--p-color-primary)' }}>
                         {show.artist_name}
                     </h1>
+                </div>
 
-                    <div className="mt-3">
-                        <PText size="large" align="center" color="contrast-medium">
-                            {formatDate(show.show_date)}
-                        </PText>
-                    </div>
-
-                    {show.venues && (
-                        <div className="mt-4">
-                            <PText weight="semi-bold" align="center">{show.venues.name}</PText>
-                            <PText color="contrast-medium" align="center">
-                                {show.venues.city}{show.venues.state_country ? `, ${show.venues.state_country}` : ''}
-                            </PText>
-                            {show.venues.address && (
-                                <PText size="small" color="contrast-medium" align="center">
-                                    {show.venues.address}
-                                </PText>
-                            )}
+                {/* Two-column body */}
+                <div className="border-t border-white/10 px-6 md:px-10 py-6 grid md:grid-cols-[1fr_auto] gap-8 items-start">
+                    {/* Left: Date + Venue + Tags */}
+                    <div className="space-y-4">
+                        <div className="flex items-end gap-4">
+                            <span className="font-display font-bold text-6xl leading-none text-amber-400">
+                                {parseInt(sday, 10)}
+                            </span>
+                            <div className="pb-1.5">
+                                <div className="font-semibold text-base leading-tight" style={{ color: 'var(--p-color-primary)' }}>
+                                    {showDateObj.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                                </div>
+                                <div className="text-sm mt-0.5" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                                    {showDateObj.toLocaleDateString('en-US', { weekday: 'long' })}
+                                </div>
+                            </div>
                         </div>
-                    )}
 
-                    {show.tour_name && (
-                        <div className="mt-4 flex justify-center">
-                            <PTag>{show.tour_name}</PTag>
-                        </div>
-                    )}
+                        {show.venues && (
+                            <div>
+                                <div className="font-semibold" style={{ color: 'var(--p-color-primary)' }}>
+                                    {show.venues.name}
+                                </div>
+                                <div className="text-sm" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                                    {venueCity}
+                                </div>
+                                {show.venues.address && (
+                                    <div className="text-xs mt-0.5" style={{ color: 'var(--p-color-contrast-low)' }}>
+                                        {show.venues.address}
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
-                    {(songStats.originals > 0 || songStats.covers > 0) && (
-                        <div className="mt-4 flex gap-2 justify-center flex-wrap">
+                        <div className="flex flex-wrap gap-2">
+                            {show.tour_name && <PTag>{show.tour_name}</PTag>}
                             {songStats.originals > 0 && (
                                 <PTag color="notification-success-soft">
                                     {songStats.originals} Original{songStats.originals !== 1 ? 's' : ''}
@@ -314,29 +309,41 @@ export default function ShowDetailPage() {
                                 </PTag>
                             )}
                         </div>
-                    )}
+                    </div>
 
-                    {show.source_types?.length > 0 && (
-                        <div className="mt-5">
-                            <PDivider />
-                            <div className="mt-4 flex gap-2 justify-center flex-wrap items-center">
-                                <PText size="small" color="contrast-medium">Sources:</PText>
-                                {show.source_types.map((source, i) => (
-                                    <PTag key={i}>{source}</PTag>
-                                ))}
-                            </div>
-                        </div>
-                    )}
+                    {/* Right: Attendance + Sources */}
+                    <div className="flex flex-col gap-4 md:items-end">
+                        {user && (
+                            <PButton
+                                variant={attended ? 'primary' : 'secondary'}
+                                icon={attendanceIcon}
+                                loading={attendanceLoading}
+                                onClick={handleAttendanceToggle}
+                            >
+                                {attendanceLabel}
+                            </PButton>
+                        )}
 
-                    {show.notes && (
-                        <div className="mt-5">
-                            <PDivider />
-                            <div className="mt-4 text-left">
-                                <PText size="small" color="contrast-medium">{show.notes}</PText>
+                        {show.source_types?.length > 0 && (
+                            <div className="md:text-right">
+                                <div className="text-xs font-bold uppercase tracking-widest mb-1.5" style={{ color: 'var(--p-color-contrast-low)' }}>
+                                    Sources
+                                </div>
+                                <div className="flex flex-wrap gap-1 md:justify-end">
+                                    {show.source_types.map((source, i) => (
+                                        <PTag key={i}>{source}</PTag>
+                                    ))}
+                                </div>
                             </div>
-                        </div>
-                    )}
+                        )}
+                    </div>
                 </div>
+
+                {show.notes && (
+                    <div className="border-t border-white/10 px-6 md:px-10 py-4">
+                        <PText size="small" color="contrast-medium">{show.notes}</PText>
+                    </div>
+                )}
             </div>
 
             {/* Setlist */}

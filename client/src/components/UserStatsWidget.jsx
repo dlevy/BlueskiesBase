@@ -3,6 +3,17 @@ import { Link, useSearchParams } from 'react-router-dom';
 import {
     PHeading, PText, PButton, PSpinner, PInlineNotification, PTabsBar, PDivider
 } from '@porsche-design-system/components-react';
+import { useCountUp } from '../hooks/useCountUp';
+
+function StatCard({ value, label }) {
+    const count = useCountUp(value);
+    return (
+        <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 text-center">
+            <div className="font-display font-bold text-5xl leading-none mb-2 text-amber-400">{count}</div>
+            <PText size="sm" color="contrast-medium">{label}</PText>
+        </div>
+    );
+}
 import { buildShowPath } from '../utils/showSlug';
 import { getUserStats } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -116,17 +127,10 @@ export default function UserStatsWidget() {
 
             {/* Summary Stats */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                {[
-                    { value: pastShows.length, label: 'Shows Attended' },
-                    { value: upcomingShows.length, label: 'Upcoming Shows' },
-                    { value: stats.songsSeen.length, label: 'Songs Seen Live' },
-                    { value: stats.songsNotSeen.length, label: 'Songs Not Seen Yet' },
-                ].map(({ value, label }) => (
-                    <div key={label} className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 text-center">
-                        <PHeading size="4xl" tag="p">{value}</PHeading>
-                        <PText size="sm" color="contrast-medium">{label}</PText>
-                    </div>
-                ))}
+                <StatCard value={pastShows.length} label="Shows Attended" />
+                <StatCard value={upcomingShows.length} label="Upcoming Shows" />
+                <StatCard value={stats.songsSeen.length} label="Songs Seen Live" />
+                <StatCard value={stats.songsNotSeen.length} label="Songs Not Seen Yet" />
             </div>
 
             {/* Tab Navigation */}
@@ -221,7 +225,7 @@ export default function UserStatsWidget() {
                                             <div className="flex items-center gap-2 min-w-0">
                                                 <PText weight="semi-bold">{song.title}</PText>
                                                 {!song.is_original && (
-                                                    <span className="text-xs bg-blue-900/50 text-blue-300 px-2 py-0.5 rounded border border-blue-700 whitespace-nowrap">Cover</span>
+                                                    <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-300 whitespace-nowrap">Cover</span>
                                                 )}
                                             </div>
                                             <PText size="xs" color="contrast-medium" className="whitespace-nowrap shrink-0">
@@ -254,7 +258,7 @@ export default function UserStatsWidget() {
                                             <div className="flex items-center gap-2 min-w-0">
                                                 <PText weight="semi-bold">{song.title}</PText>
                                                 {!song.is_original && (
-                                                    <span className="text-xs bg-blue-900/50 text-blue-300 px-2 py-0.5 rounded border border-blue-700 whitespace-nowrap">Cover</span>
+                                                    <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-300 whitespace-nowrap">Cover</span>
                                                 )}
                                             </div>
                                             {song.mostRecentShow && (
