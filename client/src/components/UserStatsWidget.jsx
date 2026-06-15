@@ -8,6 +8,7 @@ import { buildShowPath } from '../utils/showSlug';
 import { getUserStats } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import ShowMapShare from './ShowMapShare';
+import BadgesPanel from './BadgesPanel';
 
 function StatCard({ value, label }) {
     const count = useCountUp(value);
@@ -133,6 +134,9 @@ export default function UserStatsWidget() {
                 <StatCard value={stats.songsSeen.length} label="Songs Seen Live" />
                 <StatCard value={stats.songsNotSeen.length} label="Songs Not Seen Yet" />
             </div>
+
+            {/* Badges */}
+            <BadgesPanel showCount={pastShows.length} />
 
             {/* Show Map */}
             <ShowMapShare pastShows={pastShows} upcomingShows={upcomingShows} />

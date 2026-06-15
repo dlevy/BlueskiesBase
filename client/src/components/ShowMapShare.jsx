@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { MapContainer, TileLayer, CircleMarker, Tooltip, useMap } from 'react-leaflet';
 import html2canvas from 'html2canvas';
 import 'leaflet/dist/leaflet.css';
+import { getHighestBadge } from '../utils/badges';
 
 const GEO_CACHE_KEY = 'skysets_geocache_v1';
 
@@ -165,6 +166,7 @@ export default function ShowMapShare({ pastShows, upcomingShows }) {
     };
 
     const hasBoth = pins.some(p => p.pinType === 'both');
+    const highestBadge = getHighestBadge(pastShows.length);
 
     if (pastShows.length === 0 && upcomingShows.length === 0) return null;
 
@@ -206,7 +208,11 @@ export default function ShowMapShare({ pastShows, upcomingShows }) {
             </div>
 
             {/* Map */}
-            <div ref={mapContainerRef} className="rounded-xl overflow-hidden" style={{ height: 380 }}>
+            <div
+                ref={mapContainerRef}
+                className="rounded-xl overflow-hidden"
+                style={{ height: 380, position: 'relative' }}
+            >
                 {pins.length > 0 ? (
                     <MapContainer
                         center={[39.5, -98.35]}
@@ -252,6 +258,61 @@ export default function ShowMapShare({ pastShows, upcomingShows }) {
                         </p>
                     </div>
                 )}
+
+                {/* Overlay: always visible, captured in screenshot */}
+                <div style={{
+                    position: 'absolute',
+                    bottom: 0, left: 0, right: 0,
+                    zIndex: 1000,
+                    background: 'linear-gradient(to top, rgba(10,12,18,0.95) 0%, rgba(10,12,18,0.7) 55%, transparent 100%)',
+                    padding: '48px 14px 12px',
+                    display: 'flex',
+                    alignItems: 'flex-end',
+                    justifyContent: 'space-between',
+                    pointerEvents: 'none',
+                }}>
+                    {/* Left: logo + site info */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <img
+                            src="/logo.png"
+                            alt=""
+                            style={{ width: 34, height: 34, borderRadius: 6 }}
+                        />
+                        <div>
+                            <div style={{
+                                color: '#f59e0b',
+                                fontWeight: 700,
+                                fontSize: 15,
+                                fontFamily: 'Space Grotesk, sans-serif',
+                                lineHeight: 1,
+                            }}>
+                                SkySets.org
+                            </div>
+                            <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 10, marginTop: 3 }}>
+                                Sturgill Simpson &amp; Johnny Blue Skies setlists
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Right: badge */}
+                    {highestBadge && (
+                        <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontSize: 26, lineHeight: 1 }}>{highestBadge.emoji}</div>
+                            <div style={{
+                                color: '#f59e0b',
+                                fontWeight: 600,
+                                fontSize: 11,
+                                fontFamily: 'Space Grotesk, sans-serif',
+                                marginTop: 3,
+                            }}>
+                                {highestBadge.name}
+                            </div>
+                            <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10, marginTop: 1 }}>
+                                {pastShows.length} shows attended
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* Captured image preview */}
