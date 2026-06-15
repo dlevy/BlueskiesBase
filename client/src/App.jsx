@@ -99,15 +99,15 @@ function PublicLayout() {
         }}
       >
         <div className="max-w-6xl mx-auto px-4 md:px-6 flex items-center justify-between h-14">
-          <Link to="/" className="hover:opacity-80 transition-opacity flex items-center gap-3 min-w-0">
-            <span className="font-display font-bold text-lg leading-none shrink-0" style={{ color: 'var(--p-color-primary)' }}>
-              blueskiesbase
+          <Link to="/" className="hover:opacity-80 transition-opacity flex flex-col min-w-0">
+            <span className="font-display font-bold text-lg leading-none" style={{ color: 'var(--p-color-primary)' }}>
+              SkySets.org
             </span>
             <span
-              className="hidden md:block text-xs pl-3 border-l border-white/10 truncate"
+              className="hidden md:block text-xs mt-0.5 truncate"
               style={{ color: 'var(--p-color-contrast-low)' }}
             >
-              Sturgill Simpson &amp; Johnny Blue Skies
+              Sturgill Simpson &amp; Johnny Blue Skies setlist archive
             </span>
           </Link>
 
