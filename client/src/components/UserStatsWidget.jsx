@@ -319,10 +319,10 @@ export default function UserStatsWidget() {
                                             key={song.id}
                                             className="flex items-center justify-between gap-3 py-2 px-3 rounded-lg hover:bg-gray-800/40 transition-colors"
                                         >
-                                            <div className="min-w-0">
+                                            <div className="min-w-0 flex items-center gap-2">
                                                 <span className="font-medium text-gray-100">{song.title}</span>
                                                 {!song.is_original && (
-                                                    <span className="text-xs text-blue-400 ml-2">Cover</span>
+                                                    <span className="text-xs bg-blue-900/50 text-blue-300 px-2 py-0.5 rounded border border-blue-700 whitespace-nowrap">Cover</span>
                                                 )}
                                             </div>
                                             <span className="text-xs font-medium text-green-400 whitespace-nowrap flex-shrink-0">
@@ -356,10 +356,10 @@ export default function UserStatsWidget() {
                                             key={song.id}
                                             className="flex items-center justify-between gap-3 py-2 px-3 rounded-lg hover:bg-gray-800/40 transition-colors"
                                         >
-                                            <div className="min-w-0">
+                                            <div className="min-w-0 flex items-center gap-2">
                                                 <span className="font-medium text-gray-100">{song.title}</span>
                                                 {!song.is_original && (
-                                                    <span className="text-xs text-blue-400 ml-2">Cover</span>
+                                                    <span className="text-xs bg-blue-900/50 text-blue-300 px-2 py-0.5 rounded border border-blue-700 whitespace-nowrap">Cover</span>
                                                 )}
                                             </div>
                                             {song.mostRecentShow && (
