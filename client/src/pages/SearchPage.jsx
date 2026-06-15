@@ -17,7 +17,7 @@ const SUB_TABS = ['songs', 'mystats'];
 const selectClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-transparent";
 
 export default function SearchPage() {
-    const { user } = useAuth();
+    const { user, isAdmin } = useAuth();
 
     const [urlParams, setUrlParams] = useSearchParams();
     const activeTab = urlParams.get('tab') || 'search';
@@ -621,30 +621,42 @@ export default function SearchPage() {
                                                     </div>
                                                 </Link>
 
-                                                {/* Attendance button — outside the link */}
-                                                {user && (
-                                                    <div className="shrink-0 flex items-center px-3 border-l border-white/5">
-                                                        <button
-                                                            onClick={(e) => handleAttendanceToggle(show.id, e)}
-                                                            disabled={isLoading}
-                                                            className={`inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md text-xs font-semibold border transition-all ${
-                                                                isAttended
-                                                                    ? 'bg-amber-500/10 border-amber-500/30 text-amber-300 hover:bg-amber-500/18'
-                                                                    : 'border-white/15 hover:border-white/25 hover:bg-white/5'
-                                                            } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                                            style={!isAttended ? { color: 'var(--p-color-contrast-medium)' } : undefined}
-                                                        >
-                                                            {isLoading ? (
-                                                                <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-                                                            ) : (
-                                                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>{isAttended ? <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /> : <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />}</svg>
-                                                            )}
-                                                            <span className="hidden sm:inline">
-                                                                {isAttended
-                                                                    ? (isFutureShow ? 'Attending' : 'I Was There')
-                                                                    : (isFutureShow ? 'Going?' : 'Attended?')}
-                                                            </span>
-                                                        </button>
+                                                {/* Attendance + admin actions — outside the link */}
+                                                {(user || isAdmin) && (
+                                                    <div className="shrink-0 flex flex-col items-center justify-center px-3 border-l border-white/5 gap-1.5">
+                                                        {user && (
+                                                            <button
+                                                                onClick={(e) => handleAttendanceToggle(show.id, e)}
+                                                                disabled={isLoading}
+                                                                className={`inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md text-xs font-semibold border transition-all ${
+                                                                    isAttended
+                                                                        ? 'bg-amber-500/10 border-amber-500/30 text-amber-300 hover:bg-amber-500/18'
+                                                                        : 'border-white/15 hover:border-white/25 hover:bg-white/5'
+                                                                } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                                style={!isAttended ? { color: 'var(--p-color-contrast-medium)' } : undefined}
+                                                            >
+                                                                {isLoading ? (
+                                                                    <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                                                                ) : (
+                                                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>{isAttended ? <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /> : <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />}</svg>
+                                                                )}
+                                                                <span className="hidden sm:inline">
+                                                                    {isAttended
+                                                                        ? (isFutureShow ? 'Attending' : 'I Was There')
+                                                                        : (isFutureShow ? 'Going?' : 'Attended?')}
+                                                                </span>
+                                                            </button>
+                                                        )}
+                                                        {isAdmin && (
+                                                            <Link
+                                                                to={`/admin/shows/edit/${show.id}`}
+                                                                className="text-xs hover:opacity-80 transition-opacity"
+                                                                style={{ color: 'var(--p-color-contrast-medium)' }}
+                                                                onClick={e => e.stopPropagation()}
+                                                            >
+                                                                Edit
+                                                            </Link>
+                                                        )}
                                                     </div>
                                                 )}
                                             </div>
