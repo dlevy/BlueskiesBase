@@ -373,7 +373,7 @@ export default function UserStatsWidget() {
                                             </div>
                                             {song.mostRecentShow && (
                                                 <Link
-                                                    to={`/show/${song.mostRecentShow.id}`}
+                                                    to={buildShowPath(song.mostRecentShow)}
                                                     className="text-xs text-purple-400 hover:text-purple-300 transition-colors whitespace-nowrap flex-shrink-0"
                                                     onClick={e => e.stopPropagation()}
                                                 >

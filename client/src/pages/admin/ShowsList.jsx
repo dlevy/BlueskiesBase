@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { getShows, deleteShow } from '../../services/api';
+import { buildShowPath } from '../../utils/showSlug';
 
 export default function ShowsList() {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -129,7 +130,7 @@ export default function ShowsList() {
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                     <Link
-                                        to={`/show/${show.id}`}
+                                        to={buildShowPath(show)}
                                         className="text-blue-400 hover:text-blue-300 mr-4 transition-colors"
                                         target="_blank"
                                     >

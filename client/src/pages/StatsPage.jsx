@@ -315,7 +315,7 @@ export default function StatsPage() {
                                                 <div className="mt-2">
                                                     <div className="text-xs text-gray-400 mb-1">Last played on:</div>
                                                     <Link
-                                                        to={`/show/${song.mostRecentShow.id}`}
+                                                        to={buildShowPath(song.mostRecentShow)}
                                                         className="text-blue-400 hover:text-blue-300 transition-colors text-sm inline-block"
                                                     >
                                                         {formatDate(song.mostRecentShow.show_date)}
