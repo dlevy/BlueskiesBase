@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { buildShowSlug } from '../utils/showSlug';
+import { buildShowPath } from '../utils/showSlug';
 import { getUserStats } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import SEO from '../components/SEO';
@@ -202,7 +202,7 @@ export default function StatsPage() {
                             <div className="space-y-4">
                                 {pastShows.map((show) => (
                                     <div key={show.id} className="border border-gray-700 rounded-lg p-4 hover:border-blue-500 transition-colors">
-                                        <Link to={`/show/${buildShowSlug(show)}`} className="block">
+                                        <Link to={buildShowPath(show)} className="block">
                                             <h3 className="text-xl font-semibold text-gray-100 mb-1">
                                                 {formatDate(show.show_date)}
                                             </h3>
@@ -233,7 +233,7 @@ export default function StatsPage() {
                             <div className="space-y-4">
                                 {upcomingShows.map((show) => (
                                     <div key={show.id} className="border border-purple-800/50 rounded-lg p-4 hover:border-purple-500 transition-colors bg-purple-950/20">
-                                        <Link to={`/show/${buildShowSlug(show)}`} className="block">
+                                        <Link to={buildShowPath(show)} className="block">
                                             <h3 className="text-xl font-semibold text-gray-100 mb-1">
                                                 {formatDate(show.show_date)}
                                             </h3>

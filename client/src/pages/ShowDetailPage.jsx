@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { getShowById, checkShowAttendance, markShowAttended, unmarkShowAttended } from '../services/api';
-import { buildShowSlug, extractShowId } from '../utils/showSlug';
+import { buildShowPath, extractShowId } from '../utils/showSlug';
 import { useAuth } from '../contexts/AuthContext';
 import NotesSection from '../components/NotesSection';
 import PhotosSection from '../components/PhotosSection';
@@ -74,9 +74,9 @@ function SetList({ songs }) {
 }
 
 export default function ShowDetailPage() {
-    const { slug } = useParams();
+    const { artist, date, locationSlug } = useParams();
     const navigate = useNavigate();
-    const showId = extractShowId(slug);
+    const showId = extractShowId(locationSlug);
     const { user } = useAuth();
     const [show, setShow] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -102,14 +102,15 @@ export default function ShowDetailPage() {
         fetchShow();
     }, [showId]);
 
-    // Redirect legacy /show/123 URLs to canonical slug
+    // Redirect to canonical URL if params don't match (e.g. old links)
     useEffect(() => {
         if (!show) return;
-        const canonical = buildShowSlug(show);
-        if (slug !== canonical) {
-            navigate(`/show/${canonical}`, { replace: true });
+        const canonical = buildShowPath(show);
+        const current = `/show/${artist}/${date}/${locationSlug}`;
+        if (current !== canonical) {
+            navigate(canonical, { replace: true });
         }
-    }, [show, slug, navigate]);
+    }, [show, artist, date, locationSlug, navigate]);
 
     // Calculate song statistics when show data loads
     useEffect(() => {

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { buildShowSlug } from '../utils/showSlug';
+import { buildShowPath } from '../utils/showSlug';
 import { searchShows, getShows, checkShowAttendanceBatch, markShowAttended, unmarkShowAttended, checkShowsHaveContent } from '../services/api';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -804,7 +804,7 @@ export default function SearchPage() {
                                         )}
                                         <div className="mt-3 flex flex-wrap items-center justify-center gap-2 md:gap-3">
                                             <Link
-                                                to={`/show/${buildShowSlug(show)}`}
+                                                to={buildShowPath(show)}
                                                 className="text-blue-400 hover:text-blue-300 text-xs md:text-sm transition-colors"
                                             >
                                                 View Setlist →

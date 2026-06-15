@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { buildShowSlug } from '../utils/showSlug';
+import { buildShowPath } from '../utils/showSlug';
 import { getUserStats } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -255,7 +255,7 @@ export default function UserStatsWidget() {
                                 {pastShows.map((show) => (
                                     <Link
                                         key={show.id}
-                                        to={`/show/${buildShowSlug(show)}`}
+                                        to={buildShowPath(show)}
                                         className="block bg-gray-800/30 border border-gray-700/30 rounded-lg p-4 hover:bg-gray-750/50 hover:border-blue-500/50 transition-all group"
                                     >
                                         <h4 className="text-lg font-semibold text-gray-100 mb-1 group-hover:text-blue-400 transition-colors">
@@ -288,7 +288,7 @@ export default function UserStatsWidget() {
                                 {upcomingShows.map((show) => (
                                     <Link
                                         key={show.id}
-                                        to={`/show/${buildShowSlug(show)}`}
+                                        to={buildShowPath(show)}
                                         className="block bg-purple-950/20 border border-purple-800/50 rounded-lg p-4 hover:bg-purple-900/20 hover:border-purple-500/50 transition-all group"
                                     >
                                         <h4 className="text-lg font-semibold text-gray-100 mb-1 group-hover:text-purple-400 transition-colors">

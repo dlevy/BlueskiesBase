@@ -27,7 +27,7 @@ function App() {
           {/* Public Routes */}
           <Route path="/" element={<PublicLayout />}>
             <Route index element={<HomePage />} />
-            <Route path="show/:slug" element={<ShowDetailPage />} />
+            <Route path="show/:artist/:date/:locationSlug" element={<ShowDetailPage />} />
             <Route path="stats" element={<StatsPage />} />
           </Route>
 
