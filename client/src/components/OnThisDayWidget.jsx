@@ -70,12 +70,18 @@ export default function OnThisDayWidget() {
             const dd = String(today.getDate()).padStart(2, '0');
             const todayStr = `${yyyy}-${mm}-${dd}`;
 
+            // Build explicit date strings for this month/day across all past years.
+            // (.like() on a date column fails in PostgreSQL without an explicit text cast)
+            const pastDates = [];
+            for (let year = 2010; year < yyyy; year++) {
+                pastDates.push(`${year}-${mm}-${dd}`);
+            }
+
             const [historyRes, upcomingRes] = await Promise.allSettled([
                 supabase
                     .from('shows')
                     .select('id, show_date, artist_name, tour_name, venues(name, city, state_country)')
-                    .lt('show_date', todayStr)
-                    .like('show_date', `%-${mm}-${dd}`)
+                    .in('show_date', pastDates)
                     .order('show_date', { ascending: false }),
                 supabase
                     .from('shows')
