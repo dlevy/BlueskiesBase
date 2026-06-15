@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
+import { buildShowSlug } from '../utils/showSlug';
 import { searchShows, getShows, checkShowAttendanceBatch, markShowAttended, unmarkShowAttended, checkShowsHaveContent } from '../services/api';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -10,9 +11,21 @@ import SEO from '../components/SEO';
 export default function SearchPage() {
     const { user } = useAuth();
 
-    // Tab state
-    const [activeTab, setActiveTab] = useState('search'); // 'search' or 'stats'
-    const [statsSubTab, setStatsSubTab] = useState('songs'); // 'songs' or 'mystats'
+    // Tab state — synced to URL params for refresh persistence
+    const [urlParams, setUrlParams] = useSearchParams();
+    const activeTab = urlParams.get('tab') || 'search';
+    const statsSubTab = urlParams.get('sub') || 'songs';
+
+    const setActiveTab = (tab) => setUrlParams(prev => {
+        const next = new URLSearchParams(prev);
+        next.set('tab', tab);
+        return next;
+    });
+    const setStatsSubTab = (sub) => setUrlParams(prev => {
+        const next = new URLSearchParams(prev);
+        next.set('sub', sub);
+        return next;
+    });
 
     const [searchParams, setSearchParams] = useState({
         year: '',
@@ -791,7 +804,7 @@ export default function SearchPage() {
                                         )}
                                         <div className="mt-3 flex flex-wrap items-center justify-center gap-2 md:gap-3">
                                             <Link
-                                                to={`/show/${show.id}`}
+                                                to={`/show/${buildShowSlug(show)}`}
                                                 className="text-blue-400 hover:text-blue-300 text-xs md:text-sm transition-colors"
                                             >
                                                 View Setlist →

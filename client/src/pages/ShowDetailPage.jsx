@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { getShowById, checkShowAttendance, markShowAttended, unmarkShowAttended } from '../services/api';
+import { buildShowSlug, extractShowId } from '../utils/showSlug';
 import { useAuth } from '../contexts/AuthContext';
 import NotesSection from '../components/NotesSection';
 import PhotosSection from '../components/PhotosSection';
@@ -73,7 +74,9 @@ function SetList({ songs }) {
 }
 
 export default function ShowDetailPage() {
-    const { id } = useParams();
+    const { slug } = useParams();
+    const navigate = useNavigate();
+    const showId = extractShowId(slug);
     const { user } = useAuth();
     const [show, setShow] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -86,7 +89,7 @@ export default function ShowDetailPage() {
         const fetchShow = async () => {
             try {
                 setLoading(true);
-                const data = await getShowById(id);
+                const data = await getShowById(showId);
                 setShow(data);
             } catch (err) {
                 console.error('Error fetching show:', err);
@@ -97,7 +100,16 @@ export default function ShowDetailPage() {
         };
 
         fetchShow();
-    }, [id]);
+    }, [showId]);
+
+    // Redirect legacy /show/123 URLs to canonical slug
+    useEffect(() => {
+        if (!show) return;
+        const canonical = buildShowSlug(show);
+        if (slug !== canonical) {
+            navigate(`/show/${canonical}`, { replace: true });
+        }
+    }, [show, slug, navigate]);
 
     // Calculate song statistics when show data loads
     useEffect(() => {
@@ -142,9 +154,9 @@ export default function ShowDetailPage() {
 
     useEffect(() => {
         const checkAttendance = async () => {
-            if (user && id) {
+            if (user && showId) {
                 try {
-                    const { attended: isAttended } = await checkShowAttendance(id);
+                    const { attended: isAttended } = await checkShowAttendance(showId);
                     setAttended(isAttended);
                 } catch (err) {
                     console.error('Error checking attendance:', err);
@@ -153,7 +165,7 @@ export default function ShowDetailPage() {
         };
 
         checkAttendance();
-    }, [id, user]);
+    }, [showId, user]);
 
     const handleAttendanceToggle = async () => {
         if (!user) {
@@ -164,10 +176,10 @@ export default function ShowDetailPage() {
         setAttendanceLoading(true);
         try {
             if (attended) {
-                await unmarkShowAttended(id);
+                await unmarkShowAttended(showId);
                 setAttended(false);
             } else {
-                await markShowAttended(id);
+                await markShowAttended(showId);
                 setAttended(true);
             }
         } catch (err) {
