@@ -1,6 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Link, Outlet, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import { PButton, PButtonPure } from '@porsche-design-system/components-react'
+import { PButtonPure } from '@porsche-design-system/components-react'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { setTokenGetter } from './services/api'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -99,7 +99,7 @@ function PublicLayout() {
         }}
       >
         <div className="max-w-6xl mx-auto px-4 md:px-6 flex items-center justify-between h-14">
-          <Link to="/" className="hover:opacity-80 transition-opacity flex flex-col min-w-0">
+          <Link to="/" className="hover:opacity-80 transition-opacity flex flex-col items-start min-w-0">
             <span className="font-display font-bold text-lg leading-none" style={{ color: 'var(--p-color-primary)' }}>
               SkySets.org
             </span>
@@ -120,9 +120,14 @@ function PublicLayout() {
                 >
                   {user.email}
                 </span>
-                <PButton variant="secondary" size="small" loading={isSigningOut} onClick={handleSignOut}>
-                  Sign Out
-                </PButton>
+                <button
+                  onClick={handleSignOut}
+                  disabled={isSigningOut}
+                  className="h-7 px-3 rounded-md text-xs font-medium border border-white/15 hover:border-white/25 hover:bg-white/5 transition-all disabled:opacity-50"
+                  style={{ color: 'var(--p-color-contrast-medium)' }}
+                >
+                  {isSigningOut ? 'Signing out…' : 'Sign Out'}
+                </button>
               </>
             ) : (
               <>

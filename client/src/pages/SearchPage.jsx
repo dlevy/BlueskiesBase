@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
-    PHeading, PText, PButtonPure, PTag, PSpinner, PInlineNotification
+    PHeading, PText, PTag, PSpinner, PInlineNotification
 } from '@porsche-design-system/components-react';
 import { buildShowPath } from '../utils/showSlug';
 import { searchShows, checkShowAttendanceBatch, markShowAttended, unmarkShowAttended, checkShowsHaveContent } from '../services/api';
@@ -350,15 +350,30 @@ export default function SearchPage() {
                         {/* Collapsible form */}
                         {filterPanelOpen && (
                             <div className="border-t border-white/10 px-4 pb-4 pt-4">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-                                    <div>
-                                        <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>Year</label>
-                                        <select name="year" value={searchParams.year} onChange={handleInputChange} className={selectClass}
-                                            style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
-                                            <option value="">All Years</option>
-                                            {years.map(y => <option key={y} value={y}>{y}</option>)}
-                                        </select>
+                                {/* Year pills */}
+                                <div className="mb-4">
+                                    <label className="block text-xs font-semibold mb-2" style={{ color: 'var(--p-color-contrast-medium)' }}>Year</label>
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {years.map(y => (
+                                            <button
+                                                key={y}
+                                                type="button"
+                                                onClick={() => searchParams.year === y.toString() ? clearFilter('year') : setYearFilter(y)}
+                                                className={`px-2.5 py-1 rounded-md text-xs font-medium border transition-all ${
+                                                    searchParams.year === y.toString()
+                                                        ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
+                                                        : 'border-white/10 hover:border-amber-500/30 hover:bg-amber-500/8 hover:text-amber-300'
+                                                }`}
+                                                style={searchParams.year !== y.toString() ? { color: 'var(--p-color-contrast-medium)' } : undefined}
+                                            >
+                                                {y}
+                                            </button>
+                                        ))}
                                     </div>
+                                </div>
+
+                                {/* Month · Venue · City · Song */}
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
                                     <div>
                                         <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>Month</label>
                                         <select name="month" value={searchParams.month} onChange={handleInputChange} className={selectClass}
@@ -369,9 +384,6 @@ export default function SearchPage() {
                                             ))}
                                         </select>
                                     </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
                                     <div>
                                         <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>Venue</label>
                                         <select name="venue" value={searchParams.venue} onChange={handleInputChange} className={selectClass}
@@ -503,37 +515,38 @@ export default function SearchPage() {
                                                 key={show.id}
                                                 className="flex rounded-xl border border-white/5 bg-white/5 hover:border-amber-500/20 hover:bg-white/[0.07] hover:-translate-y-px hover:shadow-lg hover:shadow-black/20 transition-all duration-150 overflow-hidden"
                                             >
-                                                {/* Date column */}
-                                                <div className="shrink-0 flex flex-col items-center justify-center w-14 sm:w-16 py-4 bg-white/[0.02] border-r border-white/5">
-                                                    <span className="font-display font-bold text-xl sm:text-2xl leading-none text-amber-400">
-                                                        {dayNum}
-                                                    </span>
-                                                    <span className="text-[9px] uppercase tracking-widest mt-0.5" style={{ color: 'var(--p-color-contrast-medium)' }}>
-                                                        {monthStr}
-                                                    </span>
-                                                    <span className="text-[9px] mt-0.5" style={{ color: 'var(--p-color-contrast-low)' }}>
-                                                        {sy}
-                                                    </span>
-                                                </div>
+                                                {/* Date + content — single clickable link */}
+                                                <Link to={buildShowPath(show)} className="flex flex-1 min-w-0">
+                                                    {/* Date column */}
+                                                    <div className="shrink-0 flex flex-col items-center justify-center w-14 sm:w-16 py-4 bg-white/[0.02] border-r border-white/5">
+                                                        <span className="font-display font-bold text-xl sm:text-2xl leading-none text-amber-400">
+                                                            {dayNum}
+                                                        </span>
+                                                        <span className="text-[9px] uppercase tracking-widest mt-0.5" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                                                            {monthStr}
+                                                        </span>
+                                                        <span className="text-[9px] mt-0.5" style={{ color: 'var(--p-color-contrast-low)' }}>
+                                                            {sy}
+                                                        </span>
+                                                    </div>
 
-                                                {/* Content */}
-                                                <div className="flex-1 min-w-0 flex items-start justify-between gap-3 p-3 sm:p-4">
-                                                    <div className="min-w-0">
-                                                        <p className="font-semibold text-sm" style={{ color: 'var(--p-color-primary)' }}>
+                                                    {/* Text content — left-aligned */}
+                                                    <div className="flex-1 min-w-0 p-3 sm:p-4">
+                                                        <p className="font-semibold text-sm text-left" style={{ color: 'var(--p-color-primary)' }}>
                                                             {show.artist_name}
                                                         </p>
                                                         {show.venues && (
                                                             <>
-                                                                <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                                                                <p className="text-xs mt-0.5 truncate text-left" style={{ color: 'var(--p-color-contrast-medium)' }}>
                                                                     {show.venues.name}
                                                                 </p>
-                                                                <p className="text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>
-                                                                    {show.venues.city}, {show.venues.state_country}
+                                                                <p className="text-xs text-left" style={{ color: 'var(--p-color-contrast-low)' }}>
+                                                                    {show.venues.city}{show.venues.state_country ? `, ${show.venues.state_country}` : ''}
                                                                 </p>
                                                             </>
                                                         )}
                                                         {show.tour_name && (
-                                                            <p className="text-xs mt-0.5 italic" style={{ color: 'var(--p-color-contrast-low)' }}>
+                                                            <p className="text-xs mt-0.5 italic text-left" style={{ color: 'var(--p-color-contrast-low)' }}>
                                                                 {show.tour_name}
                                                             </p>
                                                         )}
@@ -550,39 +563,34 @@ export default function SearchPage() {
                                                             </div>
                                                         )}
                                                     </div>
+                                                </Link>
 
-                                                    {/* Actions */}
-                                                    <div className="shrink-0 flex flex-col items-end gap-2 pt-0.5">
-                                                        {user && (
-                                                            <button
-                                                                onClick={(e) => handleAttendanceToggle(show.id, e)}
-                                                                disabled={isLoading}
-                                                                className={`inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md text-xs font-semibold border transition-all ${
-                                                                    isAttended
-                                                                        ? 'bg-amber-500/10 border-amber-500/30 text-amber-300 hover:bg-amber-500/18'
-                                                                        : 'border-white/15 hover:border-white/25 hover:bg-white/5'
-                                                                } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                                                style={!isAttended ? { color: 'var(--p-color-contrast-medium)' } : undefined}
-                                                            >
-                                                                {isLoading ? (
-                                                                    <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-                                                                ) : (
-                                                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>{isAttended ? <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /> : <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />}</svg>
-                                                                )}
-                                                                <span className="hidden sm:inline">
-                                                                    {isAttended
-                                                                        ? (isFutureShow ? 'Attending' : 'I Was There')
-                                                                        : (isFutureShow ? 'Going?' : 'Attended?')}
-                                                                </span>
-                                                            </button>
-                                                        )}
-                                                        <Link to={buildShowPath(show)}>
-                                                            <PButtonPure icon="arrow-right" iconPosition="end" size="small">
-                                                                View
-                                                            </PButtonPure>
-                                                        </Link>
+                                                {/* Attendance button — outside the link */}
+                                                {user && (
+                                                    <div className="shrink-0 flex items-center px-3 border-l border-white/5">
+                                                        <button
+                                                            onClick={(e) => handleAttendanceToggle(show.id, e)}
+                                                            disabled={isLoading}
+                                                            className={`inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md text-xs font-semibold border transition-all ${
+                                                                isAttended
+                                                                    ? 'bg-amber-500/10 border-amber-500/30 text-amber-300 hover:bg-amber-500/18'
+                                                                    : 'border-white/15 hover:border-white/25 hover:bg-white/5'
+                                                            } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                            style={!isAttended ? { color: 'var(--p-color-contrast-medium)' } : undefined}
+                                                        >
+                                                            {isLoading ? (
+                                                                <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                                                            ) : (
+                                                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>{isAttended ? <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /> : <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />}</svg>
+                                                            )}
+                                                            <span className="hidden sm:inline">
+                                                                {isAttended
+                                                                    ? (isFutureShow ? 'Attending' : 'I Was There')
+                                                                    : (isFutureShow ? 'Going?' : 'Attended?')}
+                                                            </span>
+                                                        </button>
                                                     </div>
-                                                </div>
+                                                )}
                                             </div>
                                         );
                                     })}
