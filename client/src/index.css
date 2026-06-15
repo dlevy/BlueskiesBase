@@ -1,4 +1,4 @@
-@import "@porsche-design-system/components-react/stylesheets/index.css";
+@import "@porsche-design-system/components-react/index.css";
 
 @tailwind base;
 @tailwind components;
