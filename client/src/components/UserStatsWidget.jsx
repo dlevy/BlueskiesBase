@@ -4,19 +4,20 @@ import {
     PHeading, PText, PButton, PSpinner, PInlineNotification, PDivider
 } from '@porsche-design-system/components-react';
 import { useCountUp } from '../hooks/useCountUp';
+import { buildShowPath } from '../utils/showSlug';
+import { getUserStats } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
+import ShowMapShare from './ShowMapShare';
 
 function StatCard({ value, label }) {
     const count = useCountUp(value);
     return (
         <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 text-center">
             <div className="font-display font-bold text-5xl leading-none mb-2 text-amber-400">{count}</div>
-            <PText size="sm" color="contrast-medium">{label}</PText>
+            <PText size="sm" color="contrast-medium" align="center">{label}</PText>
         </div>
     );
 }
-import { buildShowPath } from '../utils/showSlug';
-import { getUserStats } from '../services/api';
-import { useAuth } from '../contexts/AuthContext';
 
 const TABS = ['shows', 'upcoming', 'seen', 'notSeen'];
 
@@ -132,6 +133,9 @@ export default function UserStatsWidget() {
                 <StatCard value={stats.songsSeen.length} label="Songs Seen Live" />
                 <StatCard value={stats.songsNotSeen.length} label="Songs Not Seen Yet" />
             </div>
+
+            {/* Show Map */}
+            <ShowMapShare pastShows={pastShows} upcomingShows={upcomingShows} />
 
             {/* Tab Navigation */}
             <div className="flex flex-wrap border-b border-white/[0.07]">
