@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
-    PHeading, PText, PButton, PButtonPure, PTag, PSpinner, PInlineNotification, PTabsBar, PDivider
+    PHeading, PText, PButton, PButtonPure, PTag, PSpinner, PInlineNotification, PTabsBar
 } from '@porsche-design-system/components-react';
 import { buildShowPath } from '../utils/showSlug';
-import { searchShows, getShows, checkShowAttendanceBatch, markShowAttended, unmarkShowAttended, checkShowsHaveContent } from '../services/api';
+import { searchShows, checkShowAttendanceBatch, markShowAttended, unmarkShowAttended, checkShowsHaveContent } from '../services/api';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import SongStatsWidget from '../components/SongStatsWidget';
@@ -13,6 +13,8 @@ import SEO from '../components/SEO';
 
 const MAIN_TABS = ['search', 'stats'];
 const SUB_TABS = ['songs', 'mystats'];
+
+const selectClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--p-color-info)] focus:border-transparent";
 
 export default function SearchPage() {
     const { user } = useAuth();
@@ -53,6 +55,7 @@ export default function SearchPage() {
     const [venues, setVenues] = useState([]);
     const [cities, setCities] = useState([]);
     const [songs, setSongs] = useState([]);
+    const [totalShows, setTotalShows] = useState(0);
 
     useEffect(() => {
         const fetchDropdownOptions = async () => {
@@ -64,6 +67,7 @@ export default function SearchPage() {
                 if (showsError) { setError('Failed to load search options. Please refresh the page.'); return; }
 
                 if (showsData) {
+                    setTotalShows(showsData.length);
                     setYears([...new Set(showsData.map(s => parseInt(s.show_date.split('-')[0])))].sort((a, b) => b - a));
                     setVenues([...new Set(showsData.filter(s => s.venues).map(s => s.venues.name))].sort());
                     setCities([...new Set(showsData.filter(s => s.venues).map(s => s.venues.city))].sort());
@@ -228,6 +232,12 @@ export default function SearchPage() {
         performSearch(newParams);
     };
 
+    const setYearFilter = (year) => {
+        const newParams = { ...searchParams, year: year.toString() };
+        setSearchParams(newParams);
+        performSearch(newParams);
+    };
+
     const clearFilter = (filterName) => {
         const newParams = {
             ...searchParams,
@@ -257,7 +267,9 @@ export default function SearchPage() {
         return filters;
     };
 
-    const selectClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--p-color-info)] focus:border-transparent";
+    const activeFilters = getActiveFilters();
+    const showHero = !hasActiveFilters(searchParams) && !loading;
+    const showResults = hasActiveFilters(searchParams) || loading;
 
     return (
         <div className="px-4 py-4 md:py-6 max-w-6xl mx-auto">
@@ -285,14 +297,16 @@ export default function SearchPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
                             <div>
                                 <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>Year</label>
-                                <select name="year" value={searchParams.year} onChange={handleInputChange} className={selectClass}>
+                                <select name="year" value={searchParams.year} onChange={handleInputChange} className={selectClass}
+                                    style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
                                     <option value="">All Years</option>
                                     {years.map(y => <option key={y} value={y}>{y}</option>)}
                                 </select>
                             </div>
                             <div>
                                 <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>Month</label>
-                                <select name="month" value={searchParams.month} onChange={handleInputChange} className={selectClass}>
+                                <select name="month" value={searchParams.month} onChange={handleInputChange} className={selectClass}
+                                    style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
                                     <option value="">All Months</option>
                                     {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
                                         <option key={m} value={m}>{new Date(2000, m - 1).toLocaleString('default', { month: 'long' })}</option>
@@ -304,21 +318,24 @@ export default function SearchPage() {
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
                             <div>
                                 <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>Venue</label>
-                                <select name="venue" value={searchParams.venue} onChange={handleInputChange} className={selectClass}>
+                                <select name="venue" value={searchParams.venue} onChange={handleInputChange} className={selectClass}
+                                    style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
                                     <option value="">All Venues</option>
                                     {venues.map(v => <option key={v} value={v}>{v}</option>)}
                                 </select>
                             </div>
                             <div>
                                 <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>City</label>
-                                <select name="city" value={searchParams.city} onChange={handleInputChange} className={selectClass}>
+                                <select name="city" value={searchParams.city} onChange={handleInputChange} className={selectClass}
+                                    style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
                                     <option value="">All Cities</option>
                                     {cities.map(c => <option key={c} value={c}>{c}</option>)}
                                 </select>
                             </div>
                             <div>
                                 <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>Song</label>
-                                <select name="song" value={searchParams.song} onChange={handleInputChange} className={selectClass}>
+                                <select name="song" value={searchParams.song} onChange={handleInputChange} className={selectClass}
+                                    style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
                                     <option value="">All Songs</option>
                                     {songs.map(s => <option key={s} value={s}>{s}</option>)}
                                 </select>
@@ -339,45 +356,38 @@ export default function SearchPage() {
                                             name={name}
                                             checked={searchParams[name]}
                                             onChange={handleInputChange}
-                                            className="w-3.5 h-3.5 rounded accent-[var(--p-color-info)]"
+                                            className="w-3.5 h-3.5 rounded accent-amber-400"
                                         />
-                                        <PText size="xs" color="contrast-medium">{label}</PText>
+                                        <span className="text-xs" style={{ color: 'var(--p-color-contrast-medium)' }}>{label}</span>
                                     </label>
                                 ))}
                             </div>
                         </div>
 
                         <div className="flex items-center justify-between">
-                            <PText size="xs" color="contrast-medium">
+                            <PText size="x-small" color="contrast-medium">
                                 {loading ? 'Searching…' : 'Results update automatically'}
                             </PText>
-                            {getActiveFilters().length > 0 && (
+                            {activeFilters.length > 0 && (
                                 <PButtonPure icon="close" onClick={clearAllFilters}>Clear All</PButtonPure>
                             )}
                         </div>
                     </div>
 
                     {/* Active Filter Pills */}
-                    {getActiveFilters().length > 0 && (
-                        <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-4 mb-6">
-                            <div className="flex flex-wrap gap-2">
-                                {getActiveFilters().map(filter => (
-                                    <div
-                                        key={filter.name}
-                                        className="inline-flex items-center gap-1.5 bg-blue-900/40 text-blue-200 px-3 py-1 rounded-full text-xs border border-blue-700/50"
-                                    >
-                                        <span className="font-medium">{filter.label}:</span>
-                                        <span>{filter.value}</span>
-                                        <button
-                                            onClick={() => clearFilter(filter.name)}
-                                            className="text-blue-300 hover:text-white transition-colors ml-0.5 font-bold"
-                                            aria-label={`Remove ${filter.label} filter`}
-                                        >
-                                            ×
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
+                    {activeFilters.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mb-6">
+                            {activeFilters.map(filter => (
+                                <button
+                                    key={filter.name}
+                                    onClick={() => clearFilter(filter.name)}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border border-amber-500/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 transition-colors"
+                                >
+                                    <span className="opacity-60">{filter.label}:</span>
+                                    <span>{filter.value}</span>
+                                    <span className="opacity-50 hover:opacity-100 font-bold ml-0.5">×</span>
+                                </button>
+                            ))}
                         </div>
                     )}
 
@@ -388,108 +398,158 @@ export default function SearchPage() {
                         </div>
                     )}
 
-                    {/* Results */}
-                    <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 md:p-8">
-                        <div className="flex items-center gap-3 mb-6">
-                            <PHeading size="lg" tag="h2">
-                                Results {filteredResults.length > 0 && `(${filteredResults.length})`}
-                            </PHeading>
-                            {loading && <PSpinner size="small" aria={{ 'aria-label': 'Searching' }} />}
-                        </div>
-
-                        {!hasActiveFilters(searchParams) && !loading ? (
-                            <div className="text-center py-12">
-                                <PText color="contrast-medium">Select a filter to search for shows</PText>
-                                <PText size="xs" color="contrast-low">Choose a year, venue, city, song, or other filter to get started</PText>
+                    {/* Hero state — shown when no filters are active */}
+                    {showHero && (
+                        <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-8 md:p-12">
+                            <div className="text-center space-y-2 mb-10">
+                                <div className="font-display font-bold text-8xl md:text-9xl leading-none text-amber-400">
+                                    {totalShows || '400+'}
+                                </div>
+                                <p className="text-lg font-medium" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                                    concerts archived
+                                </p>
+                                {years.length >= 2 && (
+                                    <p className="text-sm" style={{ color: 'var(--p-color-contrast-low)' }}>
+                                        {years[years.length - 1]} — {years[0]}
+                                    </p>
+                                )}
                             </div>
-                        ) : filteredResults.length === 0 && !loading ? (
-                            <PText color="contrast-medium">No shows found. Try adjusting your search criteria.</PText>
-                        ) : (
-                            <div className="space-y-4">
-                                {filteredResults.map((show) => {
-                                    const isAttended = attendanceMap[show.id] || false;
-                                    const isLoading = attendanceLoading[show.id] || false;
-                                    const hasNotes = contentMap[show.id]?.hasNotes || false;
-                                    const hasPhotos = contentMap[show.id]?.hasPhotos || false;
-                                    const hasPoster = contentMap[show.id]?.hasPoster || false;
-                                    const songStats = songStatsMap[show.id] || { originals: 0, covers: 0 };
-                                    const [sy, sm, sd] = show.show_date.split('-');
-                                    const today = new Date(); today.setHours(0, 0, 0, 0);
-                                    const isFutureShow = new Date(sy, sm - 1, sd) >= today;
-                                    const formattedDate = new Date(sy, sm - 1, sd).toLocaleDateString('en-US', {
-                                        year: 'numeric', month: 'long', day: 'numeric'
-                                    });
 
-                                    return (
-                                        <div
-                                            key={show.id}
-                                            className="relative rounded-xl border border-white/5 bg-white/5 p-5 hover:border-white/15 hover:bg-white/8 transition-all text-center"
-                                        >
-                                            {/* Attendance Button */}
-                                            {user && (
-                                                <div className="absolute top-3 right-3">
-                                                    <PButton
-                                                        variant={isAttended ? 'primary' : 'secondary'}
-                                                        size="small"
-                                                        loading={isLoading}
-                                                        onClick={(e) => handleAttendanceToggle(show.id, e)}
-                                                    >
-                                                        <span className="hidden sm:inline">
-                                                            {isAttended
-                                                                ? (isFutureShow ? "I'm Attending" : 'I Was There')
-                                                                : (isFutureShow ? 'Mark Attending' : 'Mark Attended')}
-                                                        </span>
-                                                        <span className="sm:hidden">
-                                                            {isAttended ? '✓' : '+'}
-                                                        </span>
-                                                    </PButton>
+                            {/* Quick year select */}
+                            {years.length > 0 && (
+                                <div className="space-y-3">
+                                    <p className="text-xs font-semibold uppercase tracking-widest text-center" style={{ color: 'var(--p-color-contrast-low)' }}>
+                                        Browse by year
+                                    </p>
+                                    <div className="flex flex-wrap justify-center gap-2">
+                                        {years.map(year => (
+                                            <button
+                                                key={year}
+                                                onClick={() => setYearFilter(year)}
+                                                className="px-3 py-1.5 rounded-lg text-sm font-medium border border-white/10 hover:border-amber-500/40 hover:bg-amber-500/10 hover:text-amber-300 transition-all duration-150"
+                                                style={{ color: 'var(--p-color-contrast-medium)' }}
+                                            >
+                                                {year}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Results */}
+                    {showResults && (
+                        <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 md:p-8">
+                            <div className="flex items-center gap-3 mb-6">
+                                <PHeading size="lg" tag="h2">
+                                    Results {filteredResults.length > 0 && `(${filteredResults.length})`}
+                                </PHeading>
+                                {loading && <PSpinner size="small" aria={{ 'aria-label': 'Searching' }} />}
+                            </div>
+
+                            {filteredResults.length === 0 && !loading ? (
+                                <PText color="contrast-medium">No shows found. Try adjusting your search criteria.</PText>
+                            ) : (
+                                <div className="space-y-2">
+                                    {filteredResults.map((show) => {
+                                        const isAttended = attendanceMap[show.id] || false;
+                                        const isLoading = attendanceLoading[show.id] || false;
+                                        const hasNotes = contentMap[show.id]?.hasNotes || false;
+                                        const hasPhotos = contentMap[show.id]?.hasPhotos || false;
+                                        const hasPoster = contentMap[show.id]?.hasPoster || false;
+                                        const songStats = songStatsMap[show.id] || { originals: 0, covers: 0 };
+                                        const [sy, sm, sd] = show.show_date.split('-');
+                                        const showDateObj = new Date(sy, sm - 1, sd);
+                                        const today = new Date(); today.setHours(0, 0, 0, 0);
+                                        const isFutureShow = showDateObj >= today;
+                                        const dayNum = parseInt(sd, 10);
+                                        const monthStr = showDateObj.toLocaleString('default', { month: 'short' }).toUpperCase();
+
+                                        return (
+                                            <div
+                                                key={show.id}
+                                                className="flex rounded-xl border border-white/5 bg-white/5 hover:border-amber-500/20 hover:bg-white/[0.07] hover:-translate-y-px hover:shadow-lg hover:shadow-black/20 transition-all duration-150 overflow-hidden"
+                                            >
+                                                {/* Date column */}
+                                                <div className="shrink-0 flex flex-col items-center justify-center w-14 sm:w-16 py-4 bg-white/[0.02] border-r border-white/5">
+                                                    <span className="font-display font-bold text-xl sm:text-2xl leading-none text-amber-400">
+                                                        {dayNum}
+                                                    </span>
+                                                    <span className="text-[9px] uppercase tracking-widest mt-0.5" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                                                        {monthStr}
+                                                    </span>
+                                                    <span className="text-[9px] mt-0.5" style={{ color: 'var(--p-color-contrast-low)' }}>
+                                                        {sy}
+                                                    </span>
                                                 </div>
-                                            )}
 
-                                            <div className={user ? 'pr-28 sm:pr-36' : ''}>
-                                                <PText weight="semi-bold" size="lg">{formattedDate}</PText>
-                                                <PText size="sm" color="contrast-medium">{show.artist_name}</PText>
-                                                {show.venues && (
-                                                    <PText size="xs" color="contrast-low">
-                                                        {show.venues.name} · {show.venues.city}, {show.venues.state_country}
-                                                    </PText>
-                                                )}
-
-                                                {/* Content + Cover badges */}
-                                                {(hasNotes || hasPhotos || hasPoster || songStats.covers > 0) && (
-                                                    <div className="mt-3 flex flex-wrap justify-center gap-2">
-                                                        {hasNotes && <PTag color="notification-warning-soft">Notes</PTag>}
-                                                        {hasPhotos && <PTag color="notification-info-soft">Photos</PTag>}
-                                                        {hasPoster && <PTag>Poster</PTag>}
-                                                        {songStats.covers > 0 && (
-                                                            <PTag color="notification-info-soft">
-                                                                {songStats.covers} Cover{songStats.covers !== 1 ? 's' : ''}
-                                                            </PTag>
+                                                {/* Content */}
+                                                <div className="flex-1 min-w-0 flex items-start justify-between gap-3 p-3 sm:p-4">
+                                                    <div className="min-w-0">
+                                                        <p className="font-semibold text-sm" style={{ color: 'var(--p-color-primary)' }}>
+                                                            {show.artist_name}
+                                                        </p>
+                                                        {show.venues && (
+                                                            <>
+                                                                <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                                                                    {show.venues.name}
+                                                                </p>
+                                                                <p className="text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>
+                                                                    {show.venues.city}, {show.venues.state_country}
+                                                                </p>
+                                                            </>
+                                                        )}
+                                                        {show.tour_name && (
+                                                            <p className="text-xs mt-0.5 italic" style={{ color: 'var(--p-color-contrast-low)' }}>
+                                                                {show.tour_name}
+                                                            </p>
+                                                        )}
+                                                        {(hasNotes || hasPhotos || hasPoster || songStats.covers > 0) && (
+                                                            <div className="mt-2 flex flex-wrap gap-1.5">
+                                                                {hasNotes && <PTag color="notification-warning-soft">Notes</PTag>}
+                                                                {hasPhotos && <PTag color="notification-info-soft">Photos</PTag>}
+                                                                {hasPoster && <PTag>Poster</PTag>}
+                                                                {songStats.covers > 0 && (
+                                                                    <PTag color="notification-info-soft">
+                                                                        {songStats.covers} Cover{songStats.covers !== 1 ? 's' : ''}
+                                                                    </PTag>
+                                                                )}
+                                                            </div>
                                                         )}
                                                     </div>
-                                                )}
 
-                                                {show.tour_name && (
-                                                    <PText size="xs" color="contrast-low" className="mt-1">{show.tour_name}</PText>
-                                                )}
-
-                                                <div className="mt-3 flex flex-wrap items-center justify-center gap-3">
-                                                    <Link to={buildShowPath(show)}>
-                                                        <PButtonPure icon="arrow-right" iconPosition="end">View Setlist</PButtonPure>
-                                                    </Link>
-                                                    {show.source_types?.length > 0 && (
-                                                        <PText size="xs" color="contrast-low">
-                                                            Sources: {show.source_types.join(', ')}
-                                                        </PText>
-                                                    )}
+                                                    {/* Actions */}
+                                                    <div className="shrink-0 flex flex-col items-end gap-2 pt-0.5">
+                                                        {user && (
+                                                            <PButton
+                                                                variant={isAttended ? 'primary' : 'secondary'}
+                                                                size="small"
+                                                                loading={isLoading}
+                                                                onClick={(e) => handleAttendanceToggle(show.id, e)}
+                                                            >
+                                                                <span className="hidden sm:inline">
+                                                                    {isAttended
+                                                                        ? (isFutureShow ? 'Attending' : 'I Was There')
+                                                                        : (isFutureShow ? 'Going?' : 'Attended?')}
+                                                                </span>
+                                                                <span className="sm:hidden">{isAttended ? '✓' : '+'}</span>
+                                                            </PButton>
+                                                        )}
+                                                        <Link to={buildShowPath(show)}>
+                                                            <PButtonPure icon="arrow-right" iconPosition="end" size="small">
+                                                                View
+                                                            </PButtonPure>
+                                                        </Link>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        )}
-                    </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </>
             )}
 

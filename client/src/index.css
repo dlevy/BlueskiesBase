@@ -7,11 +7,16 @@
 /* Force PDS v4 dark mode — all light-dark() tokens resolve to their dark values */
 :root {
   color-scheme: dark;
+  --color-accent: #f59e0b;
+  --color-accent-dim: rgba(245, 158, 11, 0.12);
 }
 
 @layer base {
   body {
     background-color: var(--p-color-canvas);
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   #root {

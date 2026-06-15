@@ -130,10 +130,12 @@ function PublicLayout() {
             {/* Desktop Layout */}
             <div className="hidden md:flex justify-between items-center">
               <Link to="/" className="hover:opacity-80 transition-opacity">
-                <PHeading size="xl" tag="h1">Johnny Blue Skies &amp; the Dark Clouds</PHeading>
-                <PText size="xs" color="contrast-medium">
+                <h1 className="font-display font-bold text-xl md:text-2xl leading-tight" style={{ color: 'var(--p-color-primary)' }}>
+                  Johnny Blue Skies &amp; the Dark Clouds
+                </h1>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--p-color-contrast-low)' }}>
                   A concert archive for fans of Sturgill Simpson, Johnny Blue Skies, and the Dark Clouds
-                </PText>
+                </p>
               </Link>
               <div className="flex items-center gap-3">
                 {user ? (

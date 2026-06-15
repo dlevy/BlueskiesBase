@@ -14,40 +14,39 @@ import SEO from '../components/SEO';
 
 function SongRow({ song, position, isChained }) {
     return (
-        <li className={`flex gap-3 py-1.5 ${isChained ? 'ml-8 pl-3 border-l-2 border-gray-600' : ''}`}>
-            <span className={`font-mono text-sm mt-0.5 shrink-0 text-gray-500 ${isChained ? 'w-4' : 'w-7 text-right'}`}>
-                {isChained ? '›' : `${position}.`}
+        <li className={`flex gap-3 py-2 ${isChained ? 'ml-10 pl-3 border-l-2 border-white/10' : ''}`}>
+            <span className={`shrink-0 font-mono text-sm leading-relaxed ${isChained ? 'w-4 text-white/25' : 'w-6 text-right font-bold text-amber-400'}`}>
+                {isChained ? '›' : position}
             </span>
             <div className="flex-1 min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                    <PText size="medium" weight={isChained ? 'normal' : 'semi-bold'}>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className={`text-sm leading-relaxed ${isChained ? '' : 'font-semibold'}`}
+                        style={{ color: isChained ? 'var(--p-color-contrast-medium)' : 'var(--p-color-primary)' }}>
                         {song.title}
-                    </PText>
+                    </span>
                     {song.performance_type === 'tease' && (
-                        <PTag color="notification-warning-soft">Tease</PTag>
+                        <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400">
+                            tease
+                        </span>
                     )}
                     {song.performance_type === 'partial' && (
-                        <PTag color="notification-warning-soft">Partial</PTag>
+                        <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400">
+                            partial
+                        </span>
                     )}
                     {song.is_original === false && (
-                        <PTag color="notification-info-soft">Cover</PTag>
+                        <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-300">
+                            cover
+                        </span>
                     )}
                     {song.jams_into && (
-                        <PTag color="primary">›</PTag>
+                        <span className="font-bold text-amber-400 text-sm">→</span>
                     )}
                 </div>
                 {(song.original_artist || song.notes) && (
-                    <div className="mt-0.5 text-sm space-x-2">
-                        {song.original_artist && (
-                            <PText size="small" color="contrast-medium" tag="span">
-                                ({song.original_artist})
-                            </PText>
-                        )}
-                        {song.notes && (
-                            <PText size="small" color="contrast-medium" tag="span">
-                                <em>{song.notes}</em>
-                            </PText>
-                        )}
+                    <div className="mt-0.5 flex flex-wrap gap-x-2 text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>
+                        {song.original_artist && <span>({song.original_artist})</span>}
+                        {song.notes && <span className="italic">{song.notes}</span>}
                     </div>
                 )}
             </div>
@@ -272,9 +271,9 @@ export default function ShowDetailPage() {
 
                 {/* Artist + show info */}
                 <div className={`text-center ${user ? 'pr-14 md:pr-44' : ''}`}>
-                    <PHeading size="xx-large" tag="h1" align="center">
+                    <h1 className="font-display font-bold text-3xl md:text-4xl lg:text-5xl leading-tight" style={{ color: 'var(--p-color-primary)' }}>
                         {show.artist_name}
-                    </PHeading>
+                    </h1>
 
                     <div className="mt-3">
                         <PText size="large" align="center" color="contrast-medium">
@@ -342,41 +341,43 @@ export default function ShowDetailPage() {
 
             {/* Setlist */}
             <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 md:p-10">
-                <PHeading size="large" tag="h2">Setlist</PHeading>
+                <div className="flex items-baseline justify-between mb-1">
+                    <PHeading size="large" tag="h2">Setlist</PHeading>
+                    {sets.length > 0 && (
+                        <span className="text-xs font-display" style={{ color: 'var(--p-color-contrast-low)' }}>
+                            {[...(show.setlist?.set1||[]), ...(show.setlist?.set2||[]), ...(show.setlist?.set3||[]), ...(show.setlist?.encore||[])].length} songs
+                        </span>
+                    )}
+                </div>
 
-                {/* Legend */}
-                <div className="mt-4 mb-6 flex flex-wrap gap-x-6 gap-y-2">
-                    <div className="flex items-center gap-2">
-                        <PTag color="notification-warning-soft">Tease</PTag>
-                        <PText size="x-small" color="contrast-low">Brief snippet without full vocals</PText>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <PTag color="notification-warning-soft">Partial</PTag>
-                        <PText size="x-small" color="contrast-low">Incomplete performance</PText>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <PTag color="primary">›</PTag>
-                        <PText size="x-small" color="contrast-low">Segues into next song</PText>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <span className="inline-block w-px h-4 bg-gray-500 mr-1" />
-                        <PText size="x-small" color="contrast-low">Played inside another song</PText>
-                    </div>
+                {/* Compact legend */}
+                <div className="mt-2 mb-6 flex flex-wrap gap-x-4 gap-y-1 text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>
+                    <span>
+                        <span className="inline bg-amber-500/10 text-amber-400 px-1 py-0.5 rounded font-bold uppercase tracking-wide text-[9px] mr-1">tease</span>
+                        brief snippet
+                    </span>
+                    <span>
+                        <span className="inline bg-amber-500/10 text-amber-400 px-1 py-0.5 rounded font-bold uppercase tracking-wide text-[9px] mr-1">partial</span>
+                        incomplete
+                    </span>
+                    <span><span className="font-bold text-amber-400 mr-0.5">→</span> segues into next</span>
+                    <span><span className="inline-block w-px h-3 bg-white/20 mr-1 align-middle" />played inside another song</span>
                 </div>
 
                 {sets.length > 0 ? (
                     <div className="space-y-8">
                         {sets.map(({ key, label }, idx) => (
                             <div key={key}>
-                                {idx > 0 && (
-                                    <div className="mb-6">
-                                        <PDivider />
-                                    </div>
-                                )}
-                                <PHeading size="small" tag="h3">{label}</PHeading>
-                                <div className="mt-3">
-                                    <SetList songs={show.setlist[key]} />
+                                {idx > 0 && <div className="mb-6"><PDivider /></div>}
+                                <div className="flex items-baseline gap-3 mb-3">
+                                    <span className="text-xs font-bold font-display uppercase tracking-widest text-amber-400">
+                                        {label}
+                                    </span>
+                                    <span className="text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>
+                                        {show.setlist[key].length} song{show.setlist[key].length !== 1 ? 's' : ''}
+                                    </span>
                                 </div>
+                                <SetList songs={show.setlist[key]} />
                             </div>
                         ))}
                     </div>
