@@ -130,24 +130,24 @@ export default function SongForm({ song, onClose }) {
                         placeholder="e.g., John Lennon, Paul McCartney" className={inputClass} />
                 </div>
 
-                {formData.is_original && (
-                    <div>
-                        <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>Album</label>
-                        <select name="album_id" value={formData.album_id} onChange={handleChange}
-                            className={selectClass}
-                            style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
-                            <option value="">-- No Album / Unreleased --</option>
-                            {albums.map(album => (
-                                <option key={album.id} value={album.id}>
-                                    {album.title} ({new Date(album.release_date).getFullYear()}) - {album.album_type}
-                                </option>
-                            ))}
-                        </select>
-                        <PText size="x-small" color="contrast-low">
-                            Select the album this song appears on (leave blank if unreleased)
-                        </PText>
-                    </div>
-                )}
+                <div>
+                    <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>Album</label>
+                    <select name="album_id" value={formData.album_id} onChange={handleChange}
+                        className={selectClass}
+                        style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
+                        <option value="">-- No Album / Unreleased --</option>
+                        {albums.map(album => (
+                            <option key={album.id} value={album.id}>
+                                {album.title} ({new Date(album.release_date).getFullYear()}) - {album.album_type}
+                            </option>
+                        ))}
+                    </select>
+                    <PText size="x-small" color="contrast-low">
+                        {formData.is_original
+                            ? 'Select the album this song appears on (leave blank if unreleased)'
+                            : 'Select an album if this cover was officially released by this artist'}
+                    </PText>
+                </div>
 
                 <div>
                     <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>Lyrics</label>
