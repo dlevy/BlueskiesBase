@@ -9,6 +9,7 @@ import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import SongStatsWidget from '../components/SongStatsWidget';
 import UserStatsWidget from '../components/UserStatsWidget';
+import OnThisDayWidget from '../components/OnThisDayWidget';
 import SEO from '../components/SEO';
 
 const MAIN_TABS = ['search', 'stats'];
@@ -502,28 +503,16 @@ export default function SearchPage() {
 
                     {/* Hero state — shown when no filters are active */}
                     {showHero && (
-                        <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-8 md:p-12">
-                            <div className="text-center space-y-2 mb-10">
-                                <div className="font-display font-bold text-8xl md:text-9xl leading-none text-amber-400">
-                                    {totalShows || '400+'}
-                                </div>
-                                <p className="text-lg font-medium" style={{ color: 'var(--p-color-contrast-medium)' }}>
-                                    concerts archived
-                                </p>
-                                {years.length >= 2 && (
-                                    <p className="text-sm" style={{ color: 'var(--p-color-contrast-low)' }}>
-                                        {years[years.length - 1]} — {years[0]}
-                                    </p>
-                                )}
-                            </div>
+                        <div className="space-y-4">
+                            <OnThisDayWidget />
 
-                            {/* Quick year select */}
+                            {/* Browse by year */}
                             {years.length > 0 && (
-                                <div className="space-y-3">
-                                    <p className="text-xs font-semibold uppercase tracking-widest text-center" style={{ color: 'var(--p-color-contrast-low)' }}>
+                                <div className="rounded-2xl border border-white/10 bg-[#1a1e26] px-6 py-5">
+                                    <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: 'var(--p-color-contrast-low)' }}>
                                         Browse by year
                                     </p>
-                                    <div className="flex flex-wrap justify-center gap-2">
+                                    <div className="flex flex-wrap gap-2">
                                         {years.map(year => (
                                             <button
                                                 key={year}
