@@ -336,7 +336,7 @@ router.post('/', async (req, res) => {
 
         const { data: song, error } = await supabase
             .from('songs')
-            .insert([{ title, original_artist, is_original, written_by, lyrics, notes, album_id }])
+            .insert([{ title, original_artist, is_original, written_by, lyrics, notes, album_id: album_id || null }])
             .select()
             .single();
 
@@ -366,7 +366,7 @@ router.put('/:id', async (req, res) => {
 
         const { data: song, error } = await supabase
             .from('songs')
-            .update({ title, original_artist, is_original, written_by, lyrics, notes, album_id, track_order, updated_at: new Date() })
+            .update({ title, original_artist, is_original, written_by, lyrics, notes, album_id: album_id || null, track_order, updated_at: new Date() })
             .eq('id', id)
             .select()
             .single();
