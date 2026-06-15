@@ -1,10 +1,20 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { PHeading, PText, PButton, PButtonPure, PInlineNotification, PSpinner } from '@porsche-design-system/components-react';
 import { createAlbum, updateAlbum, deleteAlbum, getSongs, updateSong } from '../../services/api';
 
 const inputClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--p-color-info)] focus:border-transparent placeholder:text-gray-500";
 const selectClass = "w-full rounded-lg border border-white/10 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--p-color-info)] focus:border-transparent";
 const labelClass = "block text-xs font-medium mb-1.5";
+
+function GripIcon() {
+    return (
+        <svg width="12" height="16" viewBox="0 0 12 16" fill="currentColor">
+            <circle cx="3.5" cy="3" r="1.3" /><circle cx="8.5" cy="3" r="1.3" />
+            <circle cx="3.5" cy="8" r="1.3" /><circle cx="8.5" cy="8" r="1.3" />
+            <circle cx="3.5" cy="13" r="1.3" /><circle cx="8.5" cy="13" r="1.3" />
+        </svg>
+    );
+}
 
 export default function AlbumForm({ album, onClose }) {
     const [formData, setFormData] = useState({
@@ -27,6 +37,10 @@ export default function AlbumForm({ album, onClose }) {
     const [songsLoading, setSongsLoading] = useState(false);
     const [songError, setSongError] = useState(null);
 
+    // Drag state
+    const dragIndexRef = useRef(null);
+    const [dragOverIndex, setDragOverIndex] = useState(null);
+
     useEffect(() => {
         if (album) {
             setFormData({
@@ -48,7 +62,15 @@ export default function AlbumForm({ album, onClose }) {
             const data = await getSongs();
             const songs = data.songs || [];
             setAllSongs(songs);
-            setAlbumSongs(songs.filter(s => s.album_id === album.id));
+            const filtered = songs.filter(s => s.album_id === album.id);
+            filtered.sort((a, b) => {
+                if (a.track_order != null && b.track_order != null) return a.track_order - b.track_order;
+                if (a.track_order != null) return -1;
+                if (b.track_order != null) return 1;
+                if (a.is_original !== b.is_original) return b.is_original - a.is_original;
+                return a.title.localeCompare(b.title);
+            });
+            setAlbumSongs(filtered);
         } catch (err) {
             setSongError('Failed to load songs');
         } finally {
@@ -58,6 +80,18 @@ export default function AlbumForm({ album, onClose }) {
 
     useEffect(() => { loadSongs(); }, [loadSongs]);
 
+    const songPayload = (song, overrides = {}) => ({
+        title: song.title,
+        is_original: song.is_original,
+        original_artist: song.original_artist || '',
+        written_by: song.written_by || '',
+        lyrics: song.lyrics || '',
+        notes: song.notes || '',
+        album_id: song.album_id,
+        track_order: song.track_order ?? null,
+        ...overrides,
+    });
+
     const handleAddSong = async () => {
         if (!selectedSongId) return;
         const song = allSongs.find(s => s.id === selectedSongId);
@@ -65,15 +99,10 @@ export default function AlbumForm({ album, onClose }) {
         setSongsLoading(true);
         setSongError(null);
         try {
-            await updateSong(selectedSongId, {
-                title: song.title,
-                is_original: song.is_original,
-                original_artist: song.original_artist || '',
-                written_by: song.written_by || '',
-                lyrics: song.lyrics || '',
-                notes: song.notes || '',
-                album_id: album.id
-            });
+            await updateSong(selectedSongId, songPayload(song, {
+                album_id: album.id,
+                track_order: albumSongs.length + 1,
+            }));
             setSelectedSongId('');
             setSongSearch('');
             await loadSongs();
@@ -84,23 +113,64 @@ export default function AlbumForm({ album, onClose }) {
     };
 
     const handleRemoveSong = async (songId) => {
-        const song = allSongs.find(s => s.id === songId);
+        const song = albumSongs.find(s => s.id === songId);
         if (!song) return;
         setSongsLoading(true);
         setSongError(null);
         try {
-            await updateSong(songId, {
-                title: song.title,
-                is_original: song.is_original,
-                original_artist: song.original_artist || '',
-                written_by: song.written_by || '',
-                lyrics: song.lyrics || '',
-                notes: song.notes || '',
-                album_id: null
-            });
+            await updateSong(songId, songPayload(song, { album_id: null, track_order: null }));
+            // Reassign track_order for remaining songs
+            const remaining = albumSongs.filter(s => s.id !== songId);
+            if (remaining.length > 0) {
+                await Promise.all(remaining.map((s, idx) =>
+                    updateSong(s.id, songPayload(s, { track_order: idx + 1 }))
+                ));
+            }
             await loadSongs();
         } catch (err) {
             setSongError('Failed to remove song from album');
+            setSongsLoading(false);
+        }
+    };
+
+    // Drag handlers
+    const handleDragStart = (e, index) => {
+        dragIndexRef.current = index;
+        e.dataTransfer.effectAllowed = 'move';
+    };
+
+    const handleDragOver = (e, index) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        setDragOverIndex(index);
+    };
+
+    const handleDragLeave = () => setDragOverIndex(null);
+    const handleDragEnd = () => { setDragOverIndex(null); dragIndexRef.current = null; };
+
+    const handleDrop = async (e, dropIndex) => {
+        e.preventDefault();
+        setDragOverIndex(null);
+        const dragIndex = dragIndexRef.current;
+        dragIndexRef.current = null;
+        if (dragIndex === null || dragIndex === dropIndex) return;
+
+        // Optimistic reorder
+        const reordered = [...albumSongs];
+        const [moved] = reordered.splice(dragIndex, 1);
+        reordered.splice(dropIndex, 0, moved);
+        setAlbumSongs(reordered);
+
+        // Persist
+        setSongsLoading(true);
+        try {
+            await Promise.all(reordered.map((song, idx) =>
+                updateSong(song.id, songPayload(song, { track_order: idx + 1 }))
+            ));
+        } catch (err) {
+            setSongError('Failed to save order. Reloading…');
+            await loadSongs();
+        } finally {
             setSongsLoading(false);
         }
     };
@@ -228,49 +298,74 @@ export default function AlbumForm({ album, onClose }) {
             {/* Songs on this album — only shown when editing */}
             {album && (
                 <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 space-y-4">
-                    <PHeading size="lg" tag="h2">Songs on this Album</PHeading>
+                    <div className="flex items-center justify-between">
+                        <PHeading size="lg" tag="h2">Songs on this Album</PHeading>
+                        {albumSongs.length > 0 && (
+                            <PText size="x-small" color="contrast-low">Drag to reorder</PText>
+                        )}
+                    </div>
 
                     {songError && (
                         <PInlineNotification heading="Error" description={songError} state="error" dismissButton={false} />
                     )}
 
-                    {songsLoading ? (
+                    {songsLoading && albumSongs.length === 0 ? (
                         <div className="flex items-center gap-3 py-2">
                             <PSpinner size="small" aria={{ 'aria-label': 'Loading songs' }} />
                             <PText size="small" color="contrast-medium">Loading…</PText>
                         </div>
                     ) : (
                         <>
-                            {/* Current song list */}
+                            {/* Draggable song list */}
                             {albumSongs.length > 0 ? (
                                 <div className="space-y-1">
-                                    {[...albumSongs]
-                                        .sort((a, b) => {
-                                            if (a.is_original !== b.is_original) return b.is_original - a.is_original;
-                                            return a.title.localeCompare(b.title);
-                                        })
-                                        .map(song => (
-                                            <div key={song.id} className="flex items-center justify-between gap-3 py-2 px-3 rounded-lg border border-white/5 bg-white/[0.02] hover:bg-white/[0.04]">
-                                                <div className="flex items-center gap-2 min-w-0">
-                                                    <span className="text-sm font-medium truncate" style={{ color: 'var(--p-color-primary)' }}>
-                                                        {song.title}
-                                                    </span>
-                                                    {!song.is_original && (
-                                                        <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-300 whitespace-nowrap shrink-0">
-                                                            Cover{song.original_artist ? ` · ${song.original_artist}` : ''}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleRemoveSong(song.id)}
-                                                    className="shrink-0 text-xs px-2 py-1 rounded border border-white/10 hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-400 transition-all"
-                                                    style={{ color: 'var(--p-color-contrast-low)' }}
-                                                >
-                                                    Remove
-                                                </button>
+                                    {albumSongs.map((song, idx) => (
+                                        <div
+                                            key={song.id}
+                                            draggable
+                                            onDragStart={(e) => handleDragStart(e, idx)}
+                                            onDragOver={(e) => handleDragOver(e, idx)}
+                                            onDragLeave={handleDragLeave}
+                                            onDrop={(e) => handleDrop(e, idx)}
+                                            onDragEnd={handleDragEnd}
+                                            className={`flex items-center gap-3 py-2 px-3 rounded-lg border transition-colors select-none ${
+                                                dragOverIndex === idx
+                                                    ? 'border-amber-500/40 bg-amber-500/10'
+                                                    : 'border-white/5 bg-white/[0.02] hover:bg-white/[0.04]'
+                                            }`}
+                                        >
+                                            {/* Grip handle */}
+                                            <div className="shrink-0 cursor-grab active:cursor-grabbing" style={{ color: 'var(--p-color-contrast-low)' }}>
+                                                <GripIcon />
                                             </div>
-                                        ))}
+
+                                            {/* Track number */}
+                                            <span className="shrink-0 text-xs w-5 text-right tabular-nums" style={{ color: 'var(--p-color-contrast-low)' }}>
+                                                {idx + 1}
+                                            </span>
+
+                                            {/* Song info */}
+                                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                <span className="text-sm font-medium truncate" style={{ color: 'var(--p-color-primary)' }}>
+                                                    {song.title}
+                                                </span>
+                                                {!song.is_original && (
+                                                    <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-300 whitespace-nowrap shrink-0">
+                                                        Cover{song.original_artist ? ` · ${song.original_artist}` : ''}
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => handleRemoveSong(song.id)}
+                                                className="shrink-0 text-xs px-2 py-1 rounded border border-white/10 hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-400 transition-all"
+                                                style={{ color: 'var(--p-color-contrast-low)' }}
+                                            >
+                                                Remove
+                                            </button>
+                                        </div>
+                                    ))}
                                 </div>
                             ) : (
                                 <PText size="small" color="contrast-medium">No songs associated with this album yet.</PText>
@@ -283,7 +378,7 @@ export default function AlbumForm({ album, onClose }) {
                                     type="text"
                                     placeholder="Search songs…"
                                     value={songSearch}
-                                    onChange={e => setSongSearch(e.target.value)}
+                                    onChange={e => { setSongSearch(e.target.value); setSelectedSongId(''); }}
                                     className={inputClass}
                                 />
                                 <div className="flex gap-2">
@@ -304,7 +399,7 @@ export default function AlbumForm({ album, onClose }) {
                                         type="button"
                                         variant="secondary"
                                         size="small"
-                                        disabled={!selectedSongId}
+                                        disabled={!selectedSongId || songsLoading}
                                         onClick={handleAddSong}
                                     >
                                         Add

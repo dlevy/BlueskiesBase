@@ -349,13 +349,13 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const { title, original_artist, is_original, written_by, lyrics, notes, album_id } = req.body;
+        const { title, original_artist, is_original, written_by, lyrics, notes, album_id, track_order } = req.body;
 
         // TODO: Add authentication middleware to verify admin status
 
         const { data: song, error } = await supabase
             .from('songs')
-            .update({ title, original_artist, is_original, written_by, lyrics, notes, album_id, updated_at: new Date() })
+            .update({ title, original_artist, is_original, written_by, lyrics, notes, album_id, track_order, updated_at: new Date() })
             .eq('id', id)
             .select()
             .single();
