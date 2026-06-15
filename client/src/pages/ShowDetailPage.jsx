@@ -410,17 +410,17 @@ export default function ShowDetailPage() {
 
             {/* Notes Section */}
             <div className="mt-8">
-                <NotesSection showId={id} />
+                <NotesSection showId={showId} />
             </div>
 
             {/* Poster Section */}
             <div className="mt-8">
-                <PostersSection showId={id} />
+                <PostersSection showId={showId} />
             </div>
 
             {/* Photos Section */}
             <div className="mt-8">
-                <PhotosSection showId={id} />
+                <PhotosSection showId={showId} />
             </div>
 
             {/* Back Button at Bottom */}
