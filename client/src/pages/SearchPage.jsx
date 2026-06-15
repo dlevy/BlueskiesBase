@@ -410,28 +410,6 @@ export default function SearchPage() {
                         {/* Collapsible form */}
                         {filterPanelOpen && (
                             <div className="border-t border-white/10 px-4 pb-4 pt-4">
-                                {/* Year pills */}
-                                <div className="mb-4">
-                                    <label className="block text-xs font-semibold mb-2" style={{ color: 'var(--p-color-contrast-medium)' }}>Year</label>
-                                    <div className="flex flex-wrap gap-1.5">
-                                        {years.map(y => (
-                                            <button
-                                                key={y}
-                                                type="button"
-                                                onClick={() => searchParams.year === y.toString() ? clearFilter('year') : setYearFilter(y)}
-                                                className={`px-2.5 py-1 rounded-md text-xs font-medium border transition-all ${
-                                                    searchParams.year === y.toString()
-                                                        ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
-                                                        : 'border-white/10 hover:border-amber-500/30 hover:bg-amber-500/8 hover:text-amber-300'
-                                                }`}
-                                                style={searchParams.year !== y.toString() ? { color: 'var(--p-color-contrast-medium)' } : undefined}
-                                            >
-                                                {y}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-
                                 {/* Month pills */}
                                 <div className="mb-4">
                                     <label className="block text-xs font-semibold mb-2" style={{ color: 'var(--p-color-contrast-medium)' }}>Month</label>
