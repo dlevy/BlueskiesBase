@@ -1,13 +1,21 @@
+@import "@porsche-design-system/components-react/stylesheets/index.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* Force PDS v4 dark mode — all light-dark() tokens resolve to their dark values */
+:root {
+  color-scheme: dark;
+}
+
 @layer base {
   body {
-    @apply bg-black;
+    background-color: var(--p-color-canvas);
   }
 
   #root {
-    @apply bg-black min-h-screen;
+    background-color: var(--p-color-canvas);
+    min-height: 100vh;
   }
 }

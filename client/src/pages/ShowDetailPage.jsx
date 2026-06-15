@@ -20,7 +20,7 @@ function SongRow({ song, position, isChained }) {
             </span>
             <div className="flex-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                    <PText size="medium" weight={isChained ? 'regular' : 'semi-bold'}>
+                    <PText size="medium" weight={isChained ? 'normal' : 'semi-bold'}>
                         {song.title}
                     </PText>
                     {song.performance_type === 'tease' && (
