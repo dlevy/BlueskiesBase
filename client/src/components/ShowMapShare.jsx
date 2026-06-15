@@ -1,21 +1,31 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { MapContainer, TileLayer, CircleMarker, Tooltip, useMap } from 'react-leaflet';
-import html2canvas from 'html2canvas';
+import { feature } from 'topojson-client';
 import 'leaflet/dist/leaflet.css';
 import { getHighestBadge } from '../utils/badges';
+import { supabase } from '../services/supabase';
+
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const GEO_CACHE_KEY = 'skysets_geocache_v1';
+let worldAtlasCache = null;
+
+const PIN_COLORS = {
+    attended: '#f59e0b',
+    upcoming: '#38bdf8',
+    both: '#a78bfa',
+};
+
+// ─── Geocoding ────────────────────────────────────────────────────────────────
 
 function getGeoCache() {
     try { return JSON.parse(localStorage.getItem(GEO_CACHE_KEY) || '{}'); }
     catch { return {}; }
 }
-
-function setGeoCache(cache) {
+function saveGeoCache(cache) {
     try { localStorage.setItem(GEO_CACHE_KEY, JSON.stringify(cache)); }
     catch {}
 }
-
 async function fetchCoords(query) {
     try {
         const res = await fetch(
@@ -28,53 +38,267 @@ async function fetchCoords(query) {
     return null;
 }
 
+// ─── World atlas (CDN, module-level cache) ────────────────────────────────────
+
+async function loadWorldAtlas() {
+    if (worldAtlasCache) return worldAtlasCache;
+    const res = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/land-110m.json');
+    worldAtlasCache = await res.json();
+    return worldAtlasCache;
+}
+
+// ─── Mercator projection ──────────────────────────────────────────────────────
+
+function mercatorNorm(lat, lng) {
+    const x = (lng + 180) / 360;
+    const sin = Math.sin((lat * Math.PI) / 180);
+    const y = 0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI);
+    return [x, y];
+}
+
+// ─── Canvas image generation ──────────────────────────────────────────────────
+
+async function buildShareImage({ pins, pastCount, upcomingCount, highestBadge }) {
+    const W = 900, OVERLAY_H = 68, MAP_H = 440, H = MAP_H + OVERLAY_H;
+
+    const [topoData, logoImg] = await Promise.all([
+        loadWorldAtlas(),
+        new Promise(res => {
+            const img = new Image();
+            img.onload = () => res(img);
+            img.onerror = () => res(null);
+            img.src = window.location.origin + '/logo.png';
+        }),
+    ]);
+
+    const land = feature(topoData, topoData.objects.land);
+
+    // Compute bounding box from pins
+    const norms = pins.map(p => mercatorNorm(p.lat, p.lng));
+    let minX = 1, maxX = 0, minY = 1, maxY = 0;
+    norms.forEach(([x, y]) => {
+        if (x < minX) minX = x; if (x > maxX) maxX = x;
+        if (y < minY) minY = y; if (y > maxY) maxY = y;
+    });
+    if (!pins.length) { minX = 0.1; maxX = 0.9; minY = 0.15; maxY = 0.85; }
+
+    // Pad and enforce minimum extent
+    const MIN_EXT = 0.12, PAD = 0.05;
+    const extX = Math.max(maxX - minX, MIN_EXT);
+    const extY = Math.max(maxY - minY, MIN_EXT);
+    const cX = (minX + maxX) / 2, cY = (minY + maxY) / 2;
+    minX = Math.max(0, cX - extX / 2 - PAD);
+    maxX = Math.min(1, cX + extX / 2 + PAD);
+    minY = Math.max(0, cY - extY / 2 - PAD);
+    maxY = Math.min(1, cY + extY / 2 + PAD);
+
+    // Letterbox to canvas aspect
+    const dataAR = (maxX - minX) / (maxY - minY);
+    const canvasAR = W / MAP_H;
+    if (dataAR > canvasAR) {
+        const newH = (maxX - minX) / canvasAR;
+        const c = (minY + maxY) / 2;
+        minY = Math.max(0, c - newH / 2); maxY = Math.min(1, c + newH / 2);
+    } else {
+        const newW = (maxY - minY) * canvasAR;
+        const c = (minX + maxX) / 2;
+        minX = Math.max(0, c - newW / 2); maxX = Math.min(1, c + newW / 2);
+    }
+
+    const toXY = (lat, lng) => {
+        const [nx, ny] = mercatorNorm(lat, lng);
+        return [((nx - minX) / (maxX - minX)) * W, ((ny - minY) / (maxY - minY)) * MAP_H];
+    };
+
+    const canvas = document.createElement('canvas');
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext('2d');
+
+    // Background
+    ctx.fillStyle = '#0e1117';
+    ctx.fillRect(0, 0, W, H);
+
+    // Land
+    const drawGeom = (geom) => {
+        const drawRing = (ring) => {
+            ctx.beginPath();
+            ring.forEach(([lng, lat], i) => {
+                const [x, y] = toXY(lat, lng);
+                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            });
+            ctx.closePath();
+        };
+        if (geom.type === 'Polygon') geom.coordinates.forEach(drawRing);
+        else if (geom.type === 'MultiPolygon') geom.coordinates.flat().forEach(drawRing);
+    };
+    drawGeom(land.geometry);
+    ctx.fillStyle = '#1c2540';
+    ctx.fill();
+    ctx.strokeStyle = '#263360';
+    ctx.lineWidth = 0.6;
+    ctx.stroke();
+
+    // Subtle graticule
+    ctx.strokeStyle = 'rgba(255,255,255,0.035)';
+    ctx.lineWidth = 0.5;
+    for (let lat = -80; lat <= 80; lat += 30) {
+        const [, y] = toXY(lat, 0);
+        if (y >= 0 && y <= MAP_H) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+    }
+    for (let lng = -150; lng <= 180; lng += 60) {
+        const [x] = toXY(0, lng);
+        if (x >= 0 && x <= W) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, MAP_H); ctx.stroke(); }
+    }
+
+    // Pins
+    pins.forEach(pin => {
+        const [x, y] = toXY(pin.lat, pin.lng);
+        if (x < -30 || x > W + 30 || y < -30 || y > MAP_H + 30) return;
+        const color = PIN_COLORS[pin.pinType];
+        // Glow
+        const grd = ctx.createRadialGradient(x, y, 0, x, y, 20);
+        grd.addColorStop(0, color + '55');
+        grd.addColorStop(1, 'transparent');
+        ctx.beginPath(); ctx.arc(x, y, 20, 0, Math.PI * 2);
+        ctx.fillStyle = grd; ctx.fill();
+        // Dot
+        ctx.beginPath(); ctx.arc(x, y, 8, 0, Math.PI * 2);
+        ctx.fillStyle = color; ctx.fill();
+        ctx.strokeStyle = '#0e1117'; ctx.lineWidth = 2; ctx.stroke();
+    });
+
+    // Footer gradient
+    const footerGrd = ctx.createLinearGradient(0, MAP_H - 60, 0, MAP_H);
+    footerGrd.addColorStop(0, 'rgba(10,12,20,0)');
+    footerGrd.addColorStop(1, 'rgba(10,12,20,0.97)');
+    ctx.fillStyle = footerGrd;
+    ctx.fillRect(0, MAP_H - 60, W, 60);
+
+    // Footer bar
+    ctx.fillStyle = 'rgba(10,12,20,1)';
+    ctx.fillRect(0, MAP_H, W, OVERLAY_H);
+    ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, MAP_H); ctx.lineTo(W, MAP_H); ctx.stroke();
+
+    // Logo
+    const LOGO = 38, LX = 16, LY = MAP_H + (OVERLAY_H - LOGO) / 2;
+    if (logoImg) {
+        ctx.save();
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(LX, LY, LOGO, LOGO, 6); else ctx.rect(LX, LY, LOGO, LOGO);
+        ctx.clip();
+        ctx.drawImage(logoImg, LX, LY, LOGO, LOGO);
+        ctx.restore();
+    }
+
+    // Site name + tagline
+    const TX = LX + LOGO + 10;
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#f59e0b';
+    ctx.font = '700 16px system-ui, sans-serif';
+    ctx.fillText('SkySets.org', TX, MAP_H + 26);
+    ctx.fillStyle = 'rgba(255,255,255,0.38)';
+    ctx.font = '400 11px system-ui, sans-serif';
+    ctx.fillText('Sturgill Simpson & Johnny Blue Skies setlists', TX, MAP_H + 44);
+
+    // Legend (centered)
+    const legendItems = [
+        ...(pastCount > 0 ? [{ type: 'attended', label: `${pastCount} Attended` }] : []),
+        ...(upcomingCount > 0 ? [{ type: 'upcoming', label: `${upcomingCount} Upcoming` }] : []),
+    ];
+    ctx.font = '500 11px system-ui, sans-serif';
+    const DOT_R = 5, DOT_GAP = 8, ITEM_GAP = 22;
+    let legendW = legendItems.reduce((acc, { label }, i) =>
+        acc + DOT_R * 2 + DOT_GAP + ctx.measureText(label).width + (i < legendItems.length - 1 ? ITEM_GAP : 0), 0);
+    let lx = (W - legendW) / 2;
+    const ly = MAP_H + OVERLAY_H / 2;
+    legendItems.forEach(({ type, label }, i) => {
+        ctx.beginPath(); ctx.arc(lx + DOT_R, ly, DOT_R, 0, Math.PI * 2);
+        ctx.fillStyle = PIN_COLORS[type]; ctx.fill();
+        lx += DOT_R * 2 + DOT_GAP;
+        ctx.fillStyle = 'rgba(255,255,255,0.6)';
+        ctx.fillText(label, lx, ly + 4);
+        lx += ctx.measureText(label).width + (i < legendItems.length - 1 ? ITEM_GAP : 0);
+    });
+
+    // Badge (right)
+    if (highestBadge) {
+        ctx.textAlign = 'right';
+        const RX = W - 14;
+        ctx.font = '26px sans-serif';
+        ctx.fillText(highestBadge.emoji, RX, MAP_H + 30);
+        ctx.font = '600 11px system-ui, sans-serif';
+        ctx.fillStyle = '#f59e0b';
+        ctx.fillText(highestBadge.name, RX, MAP_H + 46);
+        ctx.font = '400 10px system-ui, sans-serif';
+        ctx.fillStyle = 'rgba(255,255,255,0.3)';
+        ctx.fillText(`${pastCount} shows attended`, RX, MAP_H + 60);
+        ctx.textAlign = 'left';
+    }
+
+    return canvas.toDataURL('image/png');
+}
+
+// ─── Sharing helpers ──────────────────────────────────────────────────────────
+
+async function blobFromDataUrl(dataUrl) {
+    const res = await fetch(dataUrl);
+    return res.blob();
+}
+
+async function uploadToSupabase(blob) {
+    const filename = `maps/${Date.now()}_${Math.random().toString(36).slice(2)}.png`;
+    try {
+        const { error } = await supabase.storage
+            .from('map-shares')
+            .upload(filename, blob, { contentType: 'image/png', upsert: false });
+        if (error) return null;
+        const { data } = supabase.storage.from('map-shares').getPublicUrl(filename);
+        return data.publicUrl;
+    } catch {
+        return null;
+    }
+}
+
+// ─── Leaflet helpers ──────────────────────────────────────────────────────────
+
 function FitBounds({ pins }) {
     const map = useMap();
     useEffect(() => {
-        if (pins.length === 0) return;
-        if (pins.length === 1) {
-            map.setView([pins[0].lat, pins[0].lng], 7);
-        } else {
-            map.fitBounds(pins.map(p => [p.lat, p.lng]), { padding: [36, 36] });
-        }
+        if (!pins.length) return;
+        if (pins.length === 1) { map.setView([pins[0].lat, pins[0].lng], 7); return; }
+        map.fitBounds(pins.map(p => [p.lat, p.lng]), { padding: [36, 36] });
     }, [pins, map]);
     return null;
 }
 
-const PIN_COLORS = {
-    attended: '#f59e0b',
-    upcoming: '#38bdf8',
-    both: '#a78bfa',
-};
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function ShowMapShare({ pastShows, upcomingShows }) {
     const [pins, setPins] = useState([]);
     const [geocoding, setGeocoding] = useState(false);
     const [progress, setProgress] = useState({ done: 0, total: 0 });
-    const [mapImage, setMapImage] = useState(null);
-    const [capturing, setCapturing] = useState(false);
-    const [captureError, setCaptureError] = useState(false);
-    const mapContainerRef = useRef(null);
+    const [modalImage, setModalImage] = useState(null);
+    const [generating, setGenerating] = useState(false);
+    const [fbUploading, setFbUploading] = useState(false);
+    const [shareError, setShareError] = useState(null);
+    const dialogRef = useRef(null);
 
+    // ── Geocoding ──────────────────────────────────────────────────────────────
     useEffect(() => {
         const venueMap = new Map();
-
-        const addToMap = (show, type) => {
+        const add = (show, type) => {
             if (!show.venues?.city) return;
             const key = `${show.venues.city}|${show.venues.state_country || ''}`;
-            const existing = venueMap.get(key);
-            if (!existing) {
-                venueMap.set(key, { city: show.venues.city, stateCountry: show.venues.state_country, types: new Set([type]) });
-            } else {
-                existing.types.add(type);
-            }
+            const ex = venueMap.get(key);
+            if (!ex) venueMap.set(key, { city: show.venues.city, stateCountry: show.venues.state_country, types: new Set([type]) });
+            else ex.types.add(type);
         };
+        pastShows.forEach(s => add(s, 'attended'));
+        upcomingShows.forEach(s => add(s, 'upcoming'));
 
-        pastShows.forEach(s => addToMap(s, 'attended'));
-        upcomingShows.forEach(s => addToMap(s, 'upcoming'));
-
-        const venues = [...venueMap.entries()].map(([key, v]) => ({
-            key,
+        const venues = [...venueMap.entries()].map(([, v]) => ({
             city: v.city,
             stateCountry: v.stateCountry,
             pinType: v.types.has('attended') && v.types.has('upcoming') ? 'both'
@@ -84,89 +308,104 @@ export default function ShowMapShare({ pastShows, upcomingShows }) {
         const buildPins = async () => {
             const cache = getGeoCache();
             const uncached = venues.filter(v => !cache[`${v.city}|${v.stateCountry || ''}`]);
-
-            if (uncached.length > 0) {
-                setGeocoding(true);
-                setProgress({ done: 0, total: uncached.length });
-            }
+            if (uncached.length > 0) { setGeocoding(true); setProgress({ done: 0, total: uncached.length }); }
 
             const result = [];
-            let geocodedCount = 0;
-
+            let done = 0;
             for (const venue of venues) {
-                const cacheKey = `${venue.city}|${venue.stateCountry || ''}`;
-                let coords = cache[cacheKey];
-
+                const key = `${venue.city}|${venue.stateCountry || ''}`;
+                let coords = cache[key];
                 if (!coords) {
-                    if (geocodedCount > 0) await new Promise(r => setTimeout(r, 1100));
-                    const q = [venue.city, venue.stateCountry].filter(Boolean).join(', ');
-                    coords = await fetchCoords(q);
-                    if (coords) {
-                        cache[cacheKey] = coords;
-                        setGeoCache(cache);
-                    }
-                    geocodedCount++;
-                    setProgress({ done: geocodedCount, total: uncached.length });
+                    if (done > 0) await new Promise(r => setTimeout(r, 1100));
+                    coords = await fetchCoords([venue.city, venue.stateCountry].filter(Boolean).join(', '));
+                    if (coords) { cache[key] = coords; saveGeoCache(cache); }
+                    done++;
+                    setProgress({ done, total: uncached.length });
                 }
-
                 if (coords) result.push({ ...coords, ...venue });
             }
-
             setPins(result);
             setGeocoding(false);
         };
-
         buildPins();
     }, [pastShows, upcomingShows]);
 
-    const captureMap = useCallback(async () => {
-        if (!mapContainerRef.current) return;
-        setCapturing(true);
-        setCaptureError(false);
+    const highestBadge = getHighestBadge(pastShows.length);
+    const hasBoth = pins.some(p => p.pinType === 'both');
+
+    // ── Generate + open modal ─────────────────────────────────────────────────
+    const openShareModal = useCallback(async () => {
+        setGenerating(true);
+        setShareError(null);
         try {
-            await new Promise(r => setTimeout(r, 600));
-            const canvas = await html2canvas(mapContainerRef.current, {
-                useCORS: true,
-                allowTaint: false,
-                scale: 2,
-                backgroundColor: '#141820',
-                logging: false,
+            const img = await buildShareImage({
+                pins,
+                pastCount: pastShows.length,
+                upcomingCount: upcomingShows.length,
+                highestBadge,
             });
-            setMapImage(canvas.toDataURL('image/png'));
-        } catch {
-            setCaptureError(true);
+            setModalImage(img);
+            dialogRef.current?.showModal();
+        } catch (err) {
+            console.error(err);
+            setShareError('Could not generate map image. Please try again.');
         }
-        setCapturing(false);
-    }, []);
+        setGenerating(false);
+    }, [pins, pastShows.length, upcomingShows.length, highestBadge]);
 
-    const shareOnFacebook = () => {
-        const url = encodeURIComponent('https://skysets.org');
-        window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}`, '_blank', 'width=600,height=400');
-    };
+    const closeModal = () => { dialogRef.current?.close(); };
 
-    const shareToInstagram = async () => {
-        if (!mapImage) return;
-        const text = 'Check out my Sturgill Simpson / Johnny Blue Skies show history! Track yours at skysets.org';
+    // ── Share actions ─────────────────────────────────────────────────────────
+    const downloadImage = useCallback(() => {
+        if (!modalImage) return;
+        const a = document.createElement('a');
+        a.href = modalImage;
+        a.download = 'my-skysets-shows.png';
+        a.click();
+    }, [modalImage]);
 
-        if (navigator.share) {
+    const shareToInstagram = useCallback(async () => {
+        if (!modalImage) return;
+        const blob = await blobFromDataUrl(modalImage);
+        const file = new File([blob], 'my-skysets-shows.png', { type: 'image/png' });
+        if (navigator.share && navigator.canShare?.({ files: [file] })) {
             try {
-                const blob = await (await fetch(mapImage)).blob();
-                const file = new File([blob], 'my-skysets-shows.png', { type: 'image/png' });
-                if (navigator.canShare?.({ files: [file] })) {
-                    await navigator.share({ files: [file], text });
-                    return;
-                }
+                await navigator.share({
+                    files: [file],
+                    text: 'Track your Sturgill Simpson / Johnny Blue Skies shows at skysets.org',
+                });
+                return;
+            } catch {}
+        }
+        downloadImage();
+    }, [modalImage, downloadImage]);
+
+    const shareToFacebook = useCallback(async () => {
+        if (!modalImage) return;
+        const blob = await blobFromDataUrl(modalImage);
+        const file = new File([blob], 'my-skysets-shows.png', { type: 'image/png' });
+
+        // Mobile: Web Share API (opens native share sheet including Facebook)
+        if (navigator.share && navigator.canShare?.({ files: [file] })) {
+            try {
+                await navigator.share({ files: [file], text: 'Track your shows at skysets.org', url: 'https://skysets.org' });
+                return;
             } catch {}
         }
 
-        const a = document.createElement('a');
-        a.href = mapImage;
-        a.download = 'my-skysets-shows.png';
-        a.click();
-    };
+        // Desktop: upload to Supabase Storage → share public URL on Facebook
+        setFbUploading(true);
+        const publicUrl = await uploadToSupabase(blob);
+        setFbUploading(false);
 
-    const hasBoth = pins.some(p => p.pinType === 'both');
-    const highestBadge = getHighestBadge(pastShows.length);
+        if (publicUrl) {
+            window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(publicUrl)}`, '_blank', 'width=600,height=400');
+        } else {
+            // Fallback: download the image
+            downloadImage();
+            window.open('https://www.facebook.com', '_blank');
+        }
+    }, [modalImage, downloadImage]);
 
     if (pastShows.length === 0 && upcomingShows.length === 0) return null;
 
@@ -192,27 +431,23 @@ export default function ShowMapShare({ pastShows, upcomingShows }) {
             {/* Legend */}
             <div className="flex items-center gap-5">
                 <div className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: PIN_COLORS.attended, display: 'inline-block' }} />
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0 inline-block" style={{ background: PIN_COLORS.attended }} />
                     <span className="text-xs" style={{ color: 'var(--p-color-contrast-medium)' }}>Attended</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: PIN_COLORS.upcoming, display: 'inline-block' }} />
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0 inline-block" style={{ background: PIN_COLORS.upcoming }} />
                     <span className="text-xs" style={{ color: 'var(--p-color-contrast-medium)' }}>Upcoming</span>
                 </div>
                 {hasBoth && (
                     <div className="flex items-center gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: PIN_COLORS.both, display: 'inline-block' }} />
+                        <span className="w-2.5 h-2.5 rounded-full shrink-0 inline-block" style={{ background: PIN_COLORS.both }} />
                         <span className="text-xs" style={{ color: 'var(--p-color-contrast-medium)' }}>Both</span>
                     </div>
                 )}
             </div>
 
-            {/* Map */}
-            <div
-                ref={mapContainerRef}
-                className="rounded-xl overflow-hidden"
-                style={{ height: 380, position: 'relative' }}
-            >
+            {/* Interactive Leaflet map */}
+            <div className="rounded-xl overflow-hidden" style={{ height: 360, position: 'relative' }}>
                 {pins.length > 0 ? (
                     <MapContainer
                         center={[39.5, -98.35]}
@@ -225,7 +460,6 @@ export default function ShowMapShare({ pastShows, upcomingShows }) {
                             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
                             subdomains="abcd"
                             maxZoom={19}
-                            crossOrigin="anonymous"
                         />
                         <FitBounds pins={pins} />
                         {pins.map((pin, i) => (
@@ -233,165 +467,141 @@ export default function ShowMapShare({ pastShows, upcomingShows }) {
                                 key={i}
                                 center={[pin.lat, pin.lng]}
                                 radius={9}
-                                pathOptions={{
-                                    fillColor: PIN_COLORS[pin.pinType],
-                                    color: '#0d0f14',
-                                    weight: 2,
-                                    fillOpacity: 0.9,
-                                }}
+                                pathOptions={{ fillColor: PIN_COLORS[pin.pinType], color: '#0d0f14', weight: 2, fillOpacity: 0.9 }}
                             >
-                                <Tooltip>
-                                    {pin.city}{pin.stateCountry ? `, ${pin.stateCountry}` : ''}
-                                </Tooltip>
+                                <Tooltip>{pin.city}{pin.stateCountry ? `, ${pin.stateCountry}` : ''}</Tooltip>
                             </CircleMarker>
                         ))}
                     </MapContainer>
                 ) : (
-                    <div
-                        className="h-full flex items-center justify-center"
-                        style={{ background: '#141820' }}
-                    >
+                    <div className="h-full flex items-center justify-center" style={{ background: '#141820' }}>
                         <p className="text-sm" style={{ color: 'var(--p-color-contrast-low)' }}>
-                            {geocoding
-                                ? `Locating venues… ${progress.done}/${progress.total}`
-                                : 'No venue location data available'}
+                            {geocoding ? `Locating venues… ${progress.done}/${progress.total}` : 'No venue data available'}
                         </p>
                     </div>
                 )}
 
-                {/* Overlay: always visible, captured in screenshot */}
+                {/* Branding overlay on interactive map */}
                 <div style={{
-                    position: 'absolute',
-                    bottom: 0, left: 0, right: 0,
-                    zIndex: 1000,
-                    background: 'linear-gradient(to top, rgba(10,12,18,0.95) 0%, rgba(10,12,18,0.7) 55%, transparent 100%)',
-                    padding: '48px 14px 12px',
-                    display: 'flex',
-                    alignItems: 'flex-end',
-                    justifyContent: 'space-between',
+                    position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 800,
+                    background: 'linear-gradient(to top, rgba(10,12,18,0.92) 0%, rgba(10,12,18,0.5) 55%, transparent 100%)',
+                    padding: '40px 12px 10px',
+                    display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between',
                     pointerEvents: 'none',
                 }}>
-                    {/* Left: logo + site info */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <img
-                            src="/logo.png"
-                            alt=""
-                            style={{ width: 34, height: 34, borderRadius: 6 }}
-                        />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <img src="/logo.png" alt="" style={{ width: 28, height: 28, borderRadius: 4 }} />
                         <div>
-                            <div style={{
-                                color: '#f59e0b',
-                                fontWeight: 700,
-                                fontSize: 15,
-                                fontFamily: 'Space Grotesk, sans-serif',
-                                lineHeight: 1,
-                            }}>
-                                SkySets.org
-                            </div>
-                            <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 10, marginTop: 3 }}>
-                                Sturgill Simpson &amp; Johnny Blue Skies setlists
+                            <div style={{ color: '#f59e0b', fontWeight: 700, fontSize: 13, lineHeight: 1 }}>SkySets.org</div>
+                            <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10, marginTop: 2 }}>
+                                Sturgill Simpson &amp; Johnny Blue Skies
                             </div>
                         </div>
                     </div>
-
-                    {/* Right: badge */}
                     {highestBadge && (
                         <div style={{ textAlign: 'right' }}>
-                            <div style={{ fontSize: 26, lineHeight: 1 }}>{highestBadge.emoji}</div>
-                            <div style={{
-                                color: '#f59e0b',
-                                fontWeight: 600,
-                                fontSize: 11,
-                                fontFamily: 'Space Grotesk, sans-serif',
-                                marginTop: 3,
-                            }}>
-                                {highestBadge.name}
-                            </div>
-                            <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10, marginTop: 1 }}>
-                                {pastShows.length} shows attended
-                            </div>
+                            <div style={{ fontSize: 20 }}>{highestBadge.emoji}</div>
+                            <div style={{ color: '#f59e0b', fontWeight: 600, fontSize: 10 }}>{highestBadge.name}</div>
                         </div>
                     )}
                 </div>
             </div>
 
-            {/* Captured image preview */}
-            {mapImage && (
-                <div className="rounded-xl overflow-hidden border border-white/10">
-                    <img src={mapImage} alt="My show map" className="w-full block" />
-                </div>
-            )}
-
-            {/* Action buttons */}
+            {/* Actions */}
             <div className="flex flex-wrap gap-3">
-                {pins.length > 0 && !mapImage && (
-                    <button
-                        onClick={captureMap}
-                        disabled={capturing || geocoding}
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border border-white/15 hover:border-white/25 hover:bg-white/5 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                        style={{ color: 'var(--p-color-contrast-medium)' }}
-                    >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        {capturing ? 'Generating…' : geocoding ? 'Wait for venues…' : 'Generate Map Image'}
-                    </button>
-                )}
-
-                {mapImage && (
-                    <button
-                        onClick={() => { setMapImage(null); setCaptureError(false); }}
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border border-white/10 hover:border-white/20 transition-all"
-                        style={{ color: 'var(--p-color-contrast-low)' }}
-                    >
-                        Regenerate
-                    </button>
-                )}
-
                 <button
-                    onClick={shareOnFacebook}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
-                    style={{
-                        background: 'rgba(24,119,242,0.1)',
-                        border: '1px solid rgba(24,119,242,0.25)',
-                        color: '#93c5fd',
-                    }}
+                    onClick={openShareModal}
+                    disabled={generating || geocoding || !pins.length}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.3)', color: '#f59e0b' }}
                 >
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
                     </svg>
-                    Share on Facebook
+                    {generating ? 'Building image…' : geocoding ? 'Wait for venues…' : 'Share My Map'}
                 </button>
-
-                {mapImage && (
-                    <button
-                        onClick={shareToInstagram}
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
-                        style={{
-                            background: 'linear-gradient(135deg, rgba(131,58,180,0.1), rgba(253,29,29,0.1))',
-                            border: '1px solid rgba(131,58,180,0.28)',
-                            color: '#d8b4fe',
-                        }}
-                    >
-                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
-                        </svg>
-                        Share to Instagram
-                    </button>
-                )}
             </div>
 
-            {captureError && (
-                <p className="text-xs" style={{ color: '#fbbf24' }}>
-                    Image capture failed — try taking a screenshot of the map above, or use the Facebook button to share a link.
-                </p>
+            {shareError && (
+                <p className="text-xs" style={{ color: '#fbbf24' }}>{shareError}</p>
             )}
 
-            {!mapImage && !captureError && pins.length > 0 && !geocoding && (
-                <p className="text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>
-                    Generate the map image to share it. The Facebook button shares a link to skysets.org.
-                </p>
-            )}
+            {/* Share modal */}
+            <dialog
+                ref={dialogRef}
+                className="rounded-2xl p-0 border-0 max-w-[95vw] w-full"
+                style={{
+                    background: '#1a1e26',
+                    border: '1px solid rgba(255,255,255,0.12)',
+                    maxWidth: 600,
+                    boxShadow: '0 25px 60px rgba(0,0,0,0.7)',
+                }}
+                onClick={e => { if (e.target === dialogRef.current) closeModal(); }}
+            >
+                <div className="p-5 space-y-4">
+                    <div className="flex items-center justify-between">
+                        <h3 className="font-display font-bold text-base" style={{ color: 'var(--p-color-primary)' }}>
+                            Share Your Map
+                        </h3>
+                        <button
+                            onClick={closeModal}
+                            className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-white/10 transition-colors"
+                            style={{ color: 'var(--p-color-contrast-low)' }}
+                        >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    {modalImage && (
+                        <div className="rounded-xl overflow-hidden border border-white/10">
+                            <img src={modalImage} alt="My show map" className="w-full block" />
+                        </div>
+                    )}
+
+                    <div className="flex flex-wrap gap-3">
+                        <button
+                            onClick={shareToFacebook}
+                            disabled={fbUploading}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all disabled:opacity-60"
+                            style={{ background: 'rgba(24,119,242,0.1)', border: '1px solid rgba(24,119,242,0.28)', color: '#93c5fd' }}
+                        >
+                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                            </svg>
+                            {fbUploading ? 'Uploading…' : 'Share on Facebook'}
+                        </button>
+
+                        <button
+                            onClick={shareToInstagram}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
+                            style={{ background: 'linear-gradient(135deg,rgba(131,58,180,0.1),rgba(253,29,29,0.1))', border: '1px solid rgba(131,58,180,0.28)', color: '#d8b4fe' }}
+                        >
+                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
+                            </svg>
+                            Share to Instagram
+                        </button>
+
+                        <button
+                            onClick={downloadImage}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border border-white/10 hover:border-white/20 hover:bg-white/5 transition-all"
+                            style={{ color: 'var(--p-color-contrast-medium)' }}
+                        >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                            Download
+                        </button>
+                    </div>
+
+                    <p className="text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>
+                        On mobile, both buttons share the image directly via your device's share sheet.
+                        On desktop, Facebook uploads the image to share it — Instagram will download it.
+                    </p>
+                </div>
+            </dialog>
         </div>
     );
 }
