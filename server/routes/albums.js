@@ -50,21 +50,23 @@ router.get('/:id', async (req, res) => {
             return res.status(404).json({ error: 'Album not found' });
         }
 
-        // Get all songs from this album
-        const { data: songs, error: songsError } = await supabase
-            .from('songs')
-            .select('*')
+        // Get songs via album_songs junction table
+        const { data: albumSongsData, error: songsError } = await supabase
+            .from('album_songs')
+            .select('track_order, songs(*)')
             .eq('album_id', id)
-            .order('title');
+            .order('track_order', { ascending: true, nullsFirst: false });
 
         if (songsError) {
             console.error('Error fetching album songs:', songsError);
             return res.status(500).json({ error: 'Failed to fetch album songs' });
         }
 
+        const songs = (albumSongsData || []).map(row => ({ ...row.songs, track_order: row.track_order }));
+
         res.json({
             album,
-            songs: songs || []
+            songs
         });
 
     } catch (error) {
@@ -175,6 +177,102 @@ router.delete('/:id', async (req, res) => {
 
     } catch (error) {
         console.error('Error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * GET /api/albums/:id/songs
+ * Get songs for an album in track order
+ */
+router.get('/:id/songs', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { data, error } = await supabase
+            .from('album_songs')
+            .select('track_order, songs(*)')
+            .eq('album_id', id)
+            .order('track_order', { ascending: true, nullsFirst: false });
+
+        if (error) return res.status(500).json({ error: 'Failed to fetch album songs' });
+
+        const songs = (data || []).map(row => ({ ...row.songs, track_order: row.track_order }));
+        res.json({ songs });
+    } catch (err) {
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * POST /api/albums/:id/songs
+ * Add a song to an album
+ */
+router.post('/:id/songs', async (req, res) => {
+    try {
+        const { id: album_id } = req.params;
+        const { song_id, track_order } = req.body;
+
+        const { data, error } = await supabase
+            .from('album_songs')
+            .insert([{ album_id, song_id, track_order }])
+            .select()
+            .single();
+
+        if (error) {
+            if (error.code === '23505') return res.status(409).json({ error: 'Song is already on this album' });
+            return res.status(500).json({ error: 'Failed to add song to album' });
+        }
+
+        res.status(201).json(data);
+    } catch (err) {
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * PUT /api/albums/:id/songs/order
+ * Save track order — must be defined before /:id/songs/:songId to avoid route collision
+ * Body: { songs: [{ song_id, track_order }] }
+ */
+router.put('/:id/songs/order', async (req, res) => {
+    try {
+        const { id: album_id } = req.params;
+        const { songs } = req.body;
+
+        if (!Array.isArray(songs)) return res.status(400).json({ error: 'songs must be an array' });
+
+        const updates = await Promise.all(
+            songs.map(({ song_id, track_order }) =>
+                supabase.from('album_songs').update({ track_order }).eq('album_id', album_id).eq('song_id', song_id)
+            )
+        );
+
+        if (updates.some(r => r.error)) return res.status(500).json({ error: 'Failed to update song order' });
+
+        res.json({ message: 'Order updated' });
+    } catch (err) {
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * DELETE /api/albums/:id/songs/:songId
+ * Remove a song from an album
+ */
+router.delete('/:id/songs/:songId', async (req, res) => {
+    try {
+        const { id: album_id, songId: song_id } = req.params;
+
+        const { error } = await supabase
+            .from('album_songs')
+            .delete()
+            .eq('album_id', album_id)
+            .eq('song_id', song_id);
+
+        if (error) return res.status(500).json({ error: 'Failed to remove song from album' });
+
+        res.json({ message: 'Song removed from album' });
+    } catch (err) {
         res.status(500).json({ error: 'Internal server error' });
     }
 });

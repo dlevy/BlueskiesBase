@@ -79,7 +79,7 @@ export default function SearchPage() {
                     while (hasMore) {
                         const { data: pageData, error: songsError, count } = await supabase
                             .from('setlist_songs')
-                            .select('songs!setlist_songs_song_id_fkey!inner(id, title, is_original, album_id, albums(id, title, release_date))', { count: 'exact' })
+                            .select('songs!setlist_songs_song_id_fkey!inner(id, title, is_original, album_songs(album_id, track_order, albums(id, title, release_date)))', { count: 'exact' })
                             .in('show_id', showIds)
                             .range(rangeStart, rangeStart + PAGE_SIZE - 1);
 
@@ -103,14 +103,26 @@ export default function SearchPage() {
                                 .map(s => s.title)
                         );
 
-                        // Originals — grouped by album, newest album first
+                        // Originals — grouped by album via junction table, newest album first
+                        // A song may appear in multiple albums
                         const albumMap = new Map();
                         uniqueSongs.filter(s => s.is_original === true).forEach(song => {
-                            const key = song.album_id || '__none__';
-                            const albumTitle = song.albums?.title || 'Other';
-                            const releaseDate = song.albums?.release_date || '';
-                            if (!albumMap.has(key)) albumMap.set(key, { name: albumTitle, releaseDate, songs: [] });
-                            albumMap.get(key).songs.push(song.title);
+                            const assocs = song.album_songs && song.album_songs.length > 0 ? song.album_songs : null;
+                            if (assocs) {
+                                assocs.forEach(as => {
+                                    const key = as.album_id;
+                                    const albumTitle = as.albums?.title || 'Other';
+                                    const releaseDate = as.albums?.release_date || '';
+                                    if (!albumMap.has(key)) albumMap.set(key, { name: albumTitle, releaseDate, songs: [] });
+                                    if (!albumMap.get(key).songs.includes(song.title)) {
+                                        albumMap.get(key).songs.push(song.title);
+                                    }
+                                });
+                            } else {
+                                const key = '__none__';
+                                if (!albumMap.has(key)) albumMap.set(key, { name: 'Other', releaseDate: '', songs: [] });
+                                albumMap.get(key).songs.push(song.title);
+                            }
                         });
                         setOriginalsByAlbum(
                             [...albumMap.values()]

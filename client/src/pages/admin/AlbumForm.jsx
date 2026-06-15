@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { PHeading, PText, PButton, PButtonPure, PInlineNotification, PSpinner } from '@porsche-design-system/components-react';
-import { createAlbum, updateAlbum, deleteAlbum, getSongs, updateSong } from '../../services/api';
+import { createAlbum, updateAlbum, deleteAlbum, getSongs, getAlbumSongs, addSongToAlbum, removeSongFromAlbum, reorderAlbumSongs } from '../../services/api';
 
 const inputClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--p-color-info)] focus:border-transparent placeholder:text-gray-500";
 const selectClass = "w-full rounded-lg border border-white/10 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--p-color-info)] focus:border-transparent";
@@ -59,18 +59,12 @@ export default function AlbumForm({ album, onClose }) {
         setSongsLoading(true);
         setSongError(null);
         try {
-            const data = await getSongs();
-            const songs = data.songs || [];
-            setAllSongs(songs);
-            const filtered = songs.filter(s => s.album_id === album.id);
-            filtered.sort((a, b) => {
-                if (a.track_order != null && b.track_order != null) return a.track_order - b.track_order;
-                if (a.track_order != null) return -1;
-                if (b.track_order != null) return 1;
-                if (a.is_original !== b.is_original) return b.is_original - a.is_original;
-                return a.title.localeCompare(b.title);
-            });
-            setAlbumSongs(filtered);
+            const [albumData, allSongsData] = await Promise.all([
+                getAlbumSongs(album.id),
+                getSongs(),
+            ]);
+            setAlbumSongs(albumData.songs || []);
+            setAllSongs(allSongsData.songs || []);
         } catch (err) {
             setSongError('Failed to load songs');
         } finally {
@@ -80,51 +74,32 @@ export default function AlbumForm({ album, onClose }) {
 
     useEffect(() => { loadSongs(); }, [loadSongs]);
 
-    const songPayload = (song, overrides = {}) => ({
-        title: song.title,
-        is_original: song.is_original,
-        original_artist: song.original_artist || '',
-        written_by: song.written_by || '',
-        lyrics: song.lyrics || '',
-        notes: song.notes || '',
-        album_id: song.album_id,
-        track_order: song.track_order ?? null,
-        ...overrides,
-    });
-
     const handleAddSong = async () => {
         if (!selectedSongId) return;
-        const song = allSongs.find(s => s.id === selectedSongId);
-        if (!song) return;
         setSongsLoading(true);
         setSongError(null);
         try {
-            await updateSong(selectedSongId, songPayload(song, {
-                album_id: album.id,
-                track_order: albumSongs.length + 1,
-            }));
+            await addSongToAlbum(album.id, selectedSongId, albumSongs.length + 1);
             setSelectedSongId('');
             setSongSearch('');
             await loadSongs();
         } catch (err) {
-            setSongError('Failed to add song to album');
+            setSongError(err.message || 'Failed to add song to album');
             setSongsLoading(false);
         }
     };
 
     const handleRemoveSong = async (songId) => {
-        const song = albumSongs.find(s => s.id === songId);
-        if (!song) return;
         setSongsLoading(true);
         setSongError(null);
         try {
-            await updateSong(songId, songPayload(song, { album_id: null, track_order: null }));
-            // Reassign track_order for remaining songs
+            await removeSongFromAlbum(album.id, songId);
             const remaining = albumSongs.filter(s => s.id !== songId);
             if (remaining.length > 0) {
-                await Promise.all(remaining.map((s, idx) =>
-                    updateSong(s.id, songPayload(s, { track_order: idx + 1 }))
-                ));
+                await reorderAlbumSongs(album.id, remaining.map((s, idx) => ({
+                    song_id: s.id,
+                    track_order: idx + 1,
+                })));
             }
             await loadSongs();
         } catch (err) {
@@ -164,9 +139,10 @@ export default function AlbumForm({ album, onClose }) {
         // Persist
         setSongsLoading(true);
         try {
-            await Promise.all(reordered.map((song, idx) =>
-                updateSong(song.id, songPayload(song, { track_order: idx + 1 }))
-            ));
+            await reorderAlbumSongs(album.id, reordered.map((song, idx) => ({
+                song_id: song.id,
+                track_order: idx + 1,
+            })));
         } catch (err) {
             setSongError('Failed to save order. Reloading…');
             await loadSongs();
@@ -175,8 +151,9 @@ export default function AlbumForm({ album, onClose }) {
         }
     };
 
+    const albumSongIds = new Set(albumSongs.map(s => s.id));
     const availableSongs = allSongs.filter(s =>
-        s.album_id !== album?.id &&
+        !albumSongIds.has(s.id) &&
         (songSearch === '' || s.title.toLowerCase().includes(songSearch.toLowerCase()))
     ).sort((a, b) => {
         if (a.is_original !== b.is_original) return b.is_original - a.is_original;

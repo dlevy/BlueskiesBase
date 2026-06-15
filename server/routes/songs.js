@@ -10,7 +10,7 @@ router.get('/', async (req, res) => {
     try {
         const { data: songs, error } = await supabase
             .from('songs')
-            .select('*')
+            .select('*, album_songs(album_id, albums(id, title))')
             .order('title');
 
         if (error) {

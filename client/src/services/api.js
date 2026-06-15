@@ -245,6 +245,60 @@ export const deleteAlbum = async (id) => {
 };
 
 /**
+ * Get songs for an album (ordered by track_order)
+ */
+export const getAlbumSongs = async (albumId) => {
+    const response = await fetch(`${API_BASE_URL}/api/albums/${albumId}/songs`);
+    if (!response.ok) throw new Error('Failed to fetch album songs');
+    return response.json();
+};
+
+/**
+ * Add a song to an album
+ */
+export const addSongToAlbum = async (albumId, songId, trackOrder) => {
+    const token = await getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/api/albums/${albumId}/songs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }) },
+        body: JSON.stringify({ song_id: songId, track_order: trackOrder }),
+    });
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to add song to album');
+    }
+    return response.json();
+};
+
+/**
+ * Remove a song from an album
+ */
+export const removeSongFromAlbum = async (albumId, songId) => {
+    const token = await getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/api/albums/${albumId}/songs/${songId}`, {
+        method: 'DELETE',
+        headers: { ...(token && { Authorization: `Bearer ${token}` }) },
+    });
+    if (!response.ok) throw new Error('Failed to remove song from album');
+    return response.json();
+};
+
+/**
+ * Save track order for songs in an album
+ * songs: [{ song_id, track_order }]
+ */
+export const reorderAlbumSongs = async (albumId, songs) => {
+    const token = await getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/api/albums/${albumId}/songs/order`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }) },
+        body: JSON.stringify({ songs }),
+    });
+    if (!response.ok) throw new Error('Failed to reorder album songs');
+    return response.json();
+};
+
+/**
  * Get all venues
  */
 export const getVenues = async () => {

@@ -117,7 +117,7 @@ export default function SongsList() {
                     <table className="w-full">
                         <thead className="border-b border-white/10" style={{ background: 'var(--p-color-canvas)' }}>
                             <tr>
-                                {['Title', 'Type', 'Original Artist', 'Written By', 'Shows', 'Actions'].map((h, i) => (
+                                {['Title', 'Type', 'Original Artist', 'Album', 'Shows', 'Actions'].map((h, i) => (
                                     <th key={h}
                                         className={`px-4 py-3 text-xs font-medium uppercase tracking-wider ${i >= 4 ? 'text-right' : 'text-left'}`}
                                         style={{ color: 'var(--p-color-contrast-medium)' }}>
@@ -148,7 +148,11 @@ export default function SongsList() {
                                             <PText size="small" color="contrast-medium">{song.original_artist || '-'}</PText>
                                         </td>
                                         <td className="px-4 py-3">
-                                            <PText size="small" color="contrast-medium">{song.written_by || '-'}</PText>
+                                            <PText size="small" color="contrast-medium">
+                                                {song.album_songs?.length > 0
+                                                    ? song.album_songs.map(as => as.albums?.title).filter(Boolean).join(', ')
+                                                    : '-'}
+                                            </PText>
                                         </td>
                                         <td className="px-4 py-3 text-right">
                                             {song.performance_count > 0 ? (
@@ -159,7 +163,7 @@ export default function SongsList() {
                                                     {song.performance_count}
                                                 </Link>
                                             ) : (
-                                                <PText size="small" color="contrast-low">0</PText>
+                                                <span className="text-sm font-medium" style={{ color: 'var(--p-color-contrast-low)' }}>0</span>
                                             )}
                                         </td>
                                         <td className="px-4 py-3 text-right">
