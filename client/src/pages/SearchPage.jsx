@@ -468,7 +468,7 @@ export default function SearchPage() {
                                 </div>
 
                                 <div>
-                                    <label className="block text-xs font-semibold mb-2" style={{ color: 'var(--p-color-contrast-medium)' }}>Filter by Content</label>
+                                    <label className="block text-xs font-semibold mb-2" style={{ color: 'var(--p-color-contrast-medium)' }}>FILTER BY CONTENT</label>
                                     <div className="flex flex-wrap gap-4">
                                         {[
                                             { name: 'hasNotes', label: 'Notes' },
