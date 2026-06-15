@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-    PHeading, PText, PButtonPure, PSpinner, PInlineNotification, PTabsBar, PDivider, PTag
+    PHeading, PText, PButtonPure, PSpinner, PInlineNotification, PDivider, PTag
 } from '@porsche-design-system/components-react';
 import { useCountUp } from '../hooks/useCountUp';
 
@@ -112,15 +112,25 @@ export default function StatsPage() {
             </div>
 
             {/* Tabs */}
-            <PTabsBar
-                activeTabIndex={activeTabIndex}
-                onUpdate={(e) => setActiveTab(TABS[e.detail.activeTabIndex])}
-            >
-                <button>Past Shows ({pastShows.length})</button>
-                <button>Upcoming ({upcomingShows.length})</button>
-                <button>Songs Seen ({stats.totalSongsSeen})</button>
-                <button>Not Seen ({stats.totalSongsNotSeen})</button>
-            </PTabsBar>
+            <div className="flex flex-wrap border-b border-white/[0.07]">
+                {[
+                    ['shows', `Past Shows (${pastShows.length})`],
+                    ['upcoming', `Upcoming (${upcomingShows.length})`],
+                    ['seen', `Songs Seen (${stats.totalSongsSeen})`],
+                    ['notSeen', `Not Seen (${stats.totalSongsNotSeen})`],
+                ].map(([id, label]) => (
+                    <button
+                        key={id}
+                        onClick={() => setActiveTab(id)}
+                        className={`h-9 px-4 text-sm font-medium transition-colors -mb-px border-b-2 whitespace-nowrap ${
+                            activeTab === id ? 'border-amber-400 text-amber-300' : 'border-transparent'
+                        }`}
+                        style={{ color: activeTab === id ? undefined : 'var(--p-color-contrast-medium)' }}
+                    >
+                        {label}
+                    </button>
+                ))}
+            </div>
 
             {/* Tab Content */}
             <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 md:p-8">

@@ -24,3 +24,24 @@
     min-height: 100vh;
   }
 }
+
+/* Compact PDS button sizing via ::part() — works if PDS v4 exposes the part */
+p-button::part(button) {
+  min-height: 32px;
+  height: 32px;
+  padding-block: 0;
+  padding-inline: 14px;
+  font-size: 13px;
+}
+
+p-button[size="small"]::part(button) {
+  min-height: 28px;
+  height: 28px;
+  padding-inline: 10px;
+  font-size: 12px;
+}
+
+p-button-pure::part(button) {
+  min-height: 28px;
+  font-size: 13px;
+}

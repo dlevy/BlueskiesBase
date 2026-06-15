@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-    PHeading, PText, PButton, PButtonPure, PTag, PSpinner,
+    PHeading, PText, PButtonPure, PTag, PSpinner,
     PInlineNotification, PDivider
 } from '@porsche-design-system/components-react';
 import { getShowBySlug, checkShowAttendance, markShowAttended, unmarkShowAttended } from '../services/api';
@@ -314,14 +314,23 @@ export default function ShowDetailPage() {
                     {/* Right: Attendance + Sources */}
                     <div className="flex flex-col gap-4 md:items-end">
                         {user && (
-                            <PButton
-                                variant={attended ? 'primary' : 'secondary'}
-                                icon={attendanceIcon}
-                                loading={attendanceLoading}
+                            <button
                                 onClick={handleAttendanceToggle}
+                                disabled={attendanceLoading}
+                                className={`inline-flex items-center gap-2 h-8 px-4 rounded-lg text-sm font-semibold border transition-all ${
+                                    attended
+                                        ? 'bg-amber-500/10 border-amber-500/30 text-amber-300 hover:bg-amber-500/18'
+                                        : 'border-white/15 hover:border-white/25 hover:bg-white/5'
+                                } ${attendanceLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                style={!attended ? { color: 'var(--p-color-contrast-medium)' } : undefined}
                             >
+                                {attendanceLoading ? (
+                                    <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                                ) : (
+                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>{attended ? <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /> : <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />}</svg>
+                                )}
                                 {attendanceLabel}
-                            </PButton>
+                            </button>
                         )}
 
                         {show.source_types?.length > 0 && (

@@ -130,7 +130,9 @@ function PublicLayout() {
                   <PButtonPure>Login</PButtonPure>
                 </Link>
                 <Link to="/signup">
-                  <PButton size="small">Sign Up</PButton>
+                  <button className="h-8 px-3 rounded-lg text-sm font-semibold bg-amber-500 text-black hover:bg-amber-400 transition-colors">
+                    Sign Up
+                  </button>
                 </Link>
               </>
             )}

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
-    PHeading, PText, PButton, PButtonPure, PTag, PSpinner, PInlineNotification, PTabsBar
+    PHeading, PText, PButtonPure, PTag, PSpinner, PInlineNotification
 } from '@porsche-design-system/components-react';
 import { buildShowPath } from '../utils/showSlug';
 import { searchShows, checkShowAttendanceBatch, markShowAttended, unmarkShowAttended, checkShowsHaveContent } from '../services/api';
@@ -14,7 +14,7 @@ import SEO from '../components/SEO';
 const MAIN_TABS = ['search', 'stats'];
 const SUB_TABS = ['songs', 'mystats'];
 
-const selectClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--p-color-info)] focus:border-transparent";
+const selectClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-transparent";
 
 export default function SearchPage() {
     const { user } = useAuth();
@@ -280,14 +280,19 @@ export default function SearchPage() {
             />
 
             {/* Main Tabs */}
-            <div className="mb-6">
-                <PTabsBar
-                    activeTabIndex={mainTabIndex}
-                    onUpdate={(e) => setActiveTab(MAIN_TABS[e.detail.activeTabIndex])}
-                >
-                    <button>Search</button>
-                    <button>Stats</button>
-                </PTabsBar>
+            <div className="flex border-b border-white/[0.07] mb-6">
+                {[['search', 'Search'], ['stats', 'Stats']].map(([id, label]) => (
+                    <button
+                        key={id}
+                        onClick={() => setActiveTab(id)}
+                        className={`h-9 px-4 text-sm font-medium transition-colors -mb-px border-b-2 ${
+                            activeTab === id ? 'border-amber-400 text-amber-300' : 'border-transparent'
+                        }`}
+                        style={{ color: activeTab === id ? undefined : 'var(--p-color-contrast-medium)' }}
+                    >
+                        {label}
+                    </button>
+                ))}
             </div>
 
             {/* Search Tab */}
@@ -301,9 +306,9 @@ export default function SearchPage() {
                                 onClick={() => setFilterPanelOpen(o => !o)}
                                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all shrink-0"
                                 style={{
-                                    borderColor: filterPanelOpen ? 'var(--p-color-info)' : 'rgba(255,255,255,0.15)',
-                                    color: filterPanelOpen ? 'var(--p-color-info)' : 'var(--p-color-contrast-medium)',
-                                    background: filterPanelOpen ? 'rgba(0,120,255,0.08)' : 'transparent',
+                                    borderColor: filterPanelOpen ? 'rgba(245,158,11,0.4)' : 'rgba(255,255,255,0.15)',
+                                    color: filterPanelOpen ? '#fbbf24' : 'var(--p-color-contrast-medium)',
+                                    background: filterPanelOpen ? 'rgba(245,158,11,0.08)' : 'transparent',
                                 }}
                             >
                                 <svg
@@ -549,19 +554,27 @@ export default function SearchPage() {
                                                     {/* Actions */}
                                                     <div className="shrink-0 flex flex-col items-end gap-2 pt-0.5">
                                                         {user && (
-                                                            <PButton
-                                                                variant={isAttended ? 'primary' : 'secondary'}
-                                                                size="small"
-                                                                loading={isLoading}
+                                                            <button
                                                                 onClick={(e) => handleAttendanceToggle(show.id, e)}
+                                                                disabled={isLoading}
+                                                                className={`inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md text-xs font-semibold border transition-all ${
+                                                                    isAttended
+                                                                        ? 'bg-amber-500/10 border-amber-500/30 text-amber-300 hover:bg-amber-500/18'
+                                                                        : 'border-white/15 hover:border-white/25 hover:bg-white/5'
+                                                                } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                                style={!isAttended ? { color: 'var(--p-color-contrast-medium)' } : undefined}
                                                             >
+                                                                {isLoading ? (
+                                                                    <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                                                                ) : (
+                                                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>{isAttended ? <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /> : <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />}</svg>
+                                                                )}
                                                                 <span className="hidden sm:inline">
                                                                     {isAttended
                                                                         ? (isFutureShow ? 'Attending' : 'I Was There')
                                                                         : (isFutureShow ? 'Going?' : 'Attended?')}
                                                                 </span>
-                                                                <span className="sm:hidden">{isAttended ? '✓' : '+'}</span>
-                                                            </PButton>
+                                                            </button>
                                                         )}
                                                         <Link to={buildShowPath(show)}>
                                                             <PButtonPure icon="arrow-right" iconPosition="end" size="small">
@@ -583,13 +596,20 @@ export default function SearchPage() {
             {/* Stats Tab */}
             {activeTab === 'stats' && (
                 <div className="space-y-6">
-                    <PTabsBar
-                        activeTabIndex={subTabIndex}
-                        onUpdate={(e) => setStatsSubTab(SUB_TABS[e.detail.activeTabIndex])}
-                    >
-                        <button>Song Stats</button>
-                        <button>My Stats</button>
-                    </PTabsBar>
+                    <div className="flex border-b border-white/[0.07]">
+                        {[['songs', 'Song Stats'], ['mystats', 'My Stats']].map(([id, label]) => (
+                            <button
+                                key={id}
+                                onClick={() => setStatsSubTab(id)}
+                                className={`h-9 px-4 text-sm font-medium transition-colors -mb-px border-b-2 ${
+                                    statsSubTab === id ? 'border-amber-400 text-amber-300' : 'border-transparent'
+                                }`}
+                                style={{ color: statsSubTab === id ? undefined : 'var(--p-color-contrast-medium)' }}
+                            >
+                                {label}
+                            </button>
+                        ))}
+                    </div>
 
                     {statsSubTab === 'songs' && <SongStatsWidget />}
                     {statsSubTab === 'mystats' && <UserStatsWidget />}
