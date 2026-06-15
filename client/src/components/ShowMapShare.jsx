@@ -118,20 +118,23 @@ async function buildShareImage({ pins, pastCount, upcomingCount, highestBadge })
     ctx.fillStyle = '#0e1117';
     ctx.fillRect(0, 0, W, H);
 
-    // Land
-    const drawGeom = (geom) => {
-        const drawRing = (ring) => {
-            ctx.beginPath();
+    // Land — feature() returns FeatureCollection when topology object is a GeometryCollection
+    const addGeomToPath = (geom) => {
+        if (!geom) return;
+        const drawRings = (polygon) => polygon.forEach(ring => {
             ring.forEach(([lng, lat], i) => {
                 const [x, y] = toXY(lat, lng);
                 if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
             });
             ctx.closePath();
-        };
-        if (geom.type === 'Polygon') geom.coordinates.forEach(drawRing);
-        else if (geom.type === 'MultiPolygon') geom.coordinates.flat().forEach(drawRing);
+        });
+        if (geom.type === 'Polygon') drawRings(geom.coordinates);
+        else if (geom.type === 'MultiPolygon') geom.coordinates.forEach(drawRings);
     };
-    drawGeom(land.geometry);
+
+    ctx.beginPath();
+    if (land.type === 'FeatureCollection') land.features.forEach(f => addGeomToPath(f.geometry));
+    else addGeomToPath(land.geometry);
     ctx.fillStyle = '#1c2540';
     ctx.fill();
     ctx.strokeStyle = '#263360';
@@ -347,7 +350,7 @@ export default function ShowMapShare({ pastShows, upcomingShows }) {
             setModalImage(img);
             dialogRef.current?.showModal();
         } catch (err) {
-            console.error(err);
+            console.error('[ShowMapShare] buildShareImage failed:', err);
             setShareError('Could not generate map image. Please try again.');
         }
         setGenerating(false);
