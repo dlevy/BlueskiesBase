@@ -1,6 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Link, Outlet, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import { PHeading, PText, PButton, PButtonPure } from '@porsche-design-system/components-react'
+import { PButton, PButtonPure } from '@porsche-design-system/components-react'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { setTokenGetter } from './services/api'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -87,103 +87,85 @@ function PublicLayout() {
   };
 
   return (
-    <div className="min-h-screen" style={{ background: 'var(--p-color-canvas)' }}>
-      <div className="container mx-auto px-4">
-        <header
-          className="py-4 md:py-6 shadow-xl border-b border-white/10 rounded-t-2xl mt-4"
-          style={{ background: 'var(--p-color-surface)' }}
-        >
-          <div className="px-4 md:px-6">
-            {/* Mobile Layout */}
-            <div className="md:hidden">
-              <div className="flex justify-between items-center mb-3">
-                <Link to="/" className="hover:opacity-80 transition-opacity">
-                  <PHeading size="lg" tag="h1">blueskiesbase</PHeading>
+    <div className="min-h-screen flex flex-col" style={{ background: 'var(--p-color-canvas)' }}>
+      {/* Header — full-bleed, sticky */}
+      <header
+        className="sticky top-0 z-50"
+        style={{
+          background: 'color-mix(in srgb, var(--p-color-canvas) 88%, transparent)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          borderBottom: '1px solid rgba(255,255,255,0.07)',
+        }}
+      >
+        <div className="max-w-6xl mx-auto px-4 md:px-6 flex items-center justify-between h-14">
+          <Link to="/" className="hover:opacity-80 transition-opacity flex items-center gap-3 min-w-0">
+            <span className="font-display font-bold text-lg leading-none shrink-0" style={{ color: 'var(--p-color-primary)' }}>
+              blueskiesbase
+            </span>
+            <span
+              className="hidden md:block text-xs pl-3 border-l border-white/10 truncate"
+              style={{ color: 'var(--p-color-contrast-low)' }}
+            >
+              Sturgill Simpson &amp; Johnny Blue Skies
+            </span>
+          </Link>
+
+          <div className="flex items-center gap-2 md:gap-3 shrink-0">
+            {user ? (
+              <>
+                <span
+                  className="hidden md:block text-sm truncate max-w-[180px]"
+                  style={{ color: 'var(--p-color-contrast-medium)' }}
+                >
+                  {user.email}
+                </span>
+                <PButton variant="secondary" size="small" loading={isSigningOut} onClick={handleSignOut}>
+                  Sign Out
+                </PButton>
+              </>
+            ) : (
+              <>
+                <Link to="/member-login">
+                  <PButtonPure>Login</PButtonPure>
                 </Link>
-              </div>
-              {user ? (
-                <div className="flex items-center justify-between gap-2">
-                  <PText size="xs" color="contrast-medium" className="truncate max-w-[180px]">
-                    {user.email}
-                  </PText>
-                  <PButton
-                    variant="secondary"
-                    size="small"
-                    loading={isSigningOut}
-                    onClick={handleSignOut}
-                  >
-                    Sign Out
-                  </PButton>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <Link to="/member-login">
-                    <PButtonPure>Login</PButtonPure>
-                  </Link>
-                  <Link to="/signup">
-                    <PButton size="small">Sign Up</PButton>
-                  </Link>
-                </div>
-              )}
-            </div>
-
-            {/* Desktop Layout */}
-            <div className="hidden md:flex justify-between items-center">
-              <Link to="/" className="hover:opacity-80 transition-opacity">
-                <h1 className="font-display font-bold text-xl md:text-2xl leading-tight" style={{ color: 'var(--p-color-primary)' }}>
-                  Johnny Blue Skies &amp; the Dark Clouds
-                </h1>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--p-color-contrast-low)' }}>
-                  A concert archive for fans of Sturgill Simpson, Johnny Blue Skies, and the Dark Clouds
-                </p>
-              </Link>
-              <div className="flex items-center gap-3">
-                {user ? (
-                  <>
-                    <PText size="sm" color="contrast-medium">{user.email}</PText>
-                    <PButton
-                      variant="secondary"
-                      loading={isSigningOut}
-                      onClick={handleSignOut}
-                    >
-                      Sign Out
-                    </PButton>
-                  </>
-                ) : (
-                  <>
-                    <Link to="/member-login">
-                      <PButtonPure>Login</PButtonPure>
-                    </Link>
-                    <Link to="/signup">
-                      <PButton>Sign Up</PButton>
-                    </Link>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        </header>
-
-        <main style={{ background: 'var(--p-color-canvas)' }}>
-          <Outlet />
-        </main>
-
-        <footer
-          className="py-6 border-t border-white/10 rounded-b-2xl mb-4"
-          style={{ background: 'var(--p-color-surface)' }}
-        >
-          <div className="px-4 text-center space-y-1">
-            <PText size="xs" color="contrast-medium">blueskiesbase — your concert setlist archive</PText>
-            {isAdmin && (
-              <div>
-                <Link to="/admin" className="text-[var(--p-color-info)] hover:opacity-80 transition-opacity text-xs">
-                  Admin Panel
+                <Link to="/signup">
+                  <PButton size="small">Sign Up</PButton>
                 </Link>
-              </div>
+              </>
             )}
           </div>
-        </footer>
-      </div>
+        </div>
+      </header>
+
+      {/* Main content */}
+      <main className="flex-1">
+        <Outlet />
+      </main>
+
+      {/* Footer — full-bleed */}
+      <footer style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+        <div className="max-w-6xl mx-auto px-4 md:px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <span className="font-display font-semibold text-sm" style={{ color: 'var(--p-color-contrast-low)' }}>
+            blueskiesbase
+          </span>
+          <div className="flex items-center gap-4">
+            <span className="text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>
+              A fan archive. Not affiliated with Sturgill Simpson.
+            </span>
+            {isAdmin && (
+              <Link
+                to="/admin"
+                className="text-xs hover:opacity-80 transition-opacity"
+                style={{ color: 'var(--p-color-info)' }}
+              >
+                Admin
+              </Link>
+            )}
+          </div>
+        </div>
+      </footer>
+
       <ChatWidget />
     </div>
   );
