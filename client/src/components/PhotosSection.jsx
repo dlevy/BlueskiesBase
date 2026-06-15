@@ -1,11 +1,22 @@
 import { useState, useEffect, useCallback } from 'react';
-import { PHeading, PText, PButton, PButtonPure, PInlineNotification, PDivider } from '@porsche-design-system/components-react';
+import { PHeading, PText, PButtonPure, PInlineNotification, PDivider } from '@porsche-design-system/components-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getShowPhotos, uploadPhoto, deletePhoto } from '../services/api';
 import Lightbox from 'yet-another-react-lightbox';
 import 'yet-another-react-lightbox/styles.css';
 
-const inputClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--p-color-info)] focus:border-transparent placeholder:text-gray-500";
+const inputClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-transparent placeholder:text-gray-500";
+const btnPrimary = "inline-flex items-center gap-1.5 h-7 px-3 rounded-lg text-xs font-medium border border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/18 transition-all disabled:opacity-50 disabled:cursor-not-allowed";
+const btnSecondary = "inline-flex items-center gap-1.5 h-7 px-3 rounded-lg text-xs font-medium border border-white/15 hover:border-white/25 hover:bg-white/5 transition-all disabled:opacity-50 disabled:cursor-not-allowed";
+
+function Spinner() {
+    return (
+        <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+        </svg>
+    );
+}
 
 export default function PhotosSection({ showId }) {
     const { user, isAdmin } = useAuth();
@@ -72,18 +83,22 @@ export default function PhotosSection({ showId }) {
 
     return (
         <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 space-y-4">
-            <div className="flex items-center justify-between">
-                <PHeading size="lg" tag="h2">Photos</PHeading>
-                {user && !showUploadForm && (
-                    <PButton variant="secondary" size="small" onClick={() => setShowUploadForm(true)}>
-                        Upload Photo
-                    </PButton>
-                )}
-            </div>
+            <PHeading size="lg" tag="h2">Photos</PHeading>
             <PDivider />
 
             {error && (
                 <PInlineNotification heading="Error" description={error} state="error" dismissButton={false} />
+            )}
+
+            {/* Upload trigger — left-aligned, shown when form is closed */}
+            {user && !showUploadForm && (
+                <button
+                    className={btnSecondary}
+                    style={{ color: 'var(--p-color-contrast-medium)' }}
+                    onClick={() => setShowUploadForm(true)}
+                >
+                    Upload Photo
+                </button>
             )}
 
             {/* Upload Form */}
@@ -110,13 +125,18 @@ export default function PhotosSection({ showId }) {
                             placeholder="Add a caption…" className={inputClass} />
                     </div>
                     <div className="flex gap-2">
-                        <PButton size="small" loading={uploading} disabled={!selectedFile} onClick={handleUpload}>
-                            Upload
-                        </PButton>
-                        <PButton variant="secondary" size="small" disabled={uploading}
-                            onClick={() => { setShowUploadForm(false); setSelectedFile(null); setCaption(''); setError(null); }}>
+                        <button className={btnPrimary} disabled={uploading || !selectedFile} onClick={handleUpload}>
+                            {uploading && <Spinner />}
+                            {uploading ? 'Uploading…' : 'Upload'}
+                        </button>
+                        <button
+                            className={btnSecondary}
+                            style={{ color: 'var(--p-color-contrast-medium)' }}
+                            disabled={uploading}
+                            onClick={() => { setShowUploadForm(false); setSelectedFile(null); setCaption(''); setError(null); }}
+                        >
                             Cancel
-                        </PButton>
+                        </button>
                     </div>
                 </div>
             )}

@@ -1,9 +1,20 @@
 import { useState, useEffect, useCallback } from 'react';
-import { PHeading, PText, PButton, PButtonPure, PInlineNotification, PDivider, PSpinner } from '@porsche-design-system/components-react';
+import { PHeading, PText, PButtonPure, PInlineNotification, PDivider, PSpinner } from '@porsche-design-system/components-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getShowNotes, getUserNote, saveNote, deleteNote } from '../services/api';
 
-const textareaClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--p-color-info)] focus:border-transparent placeholder:text-gray-500 resize-none";
+const textareaClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-transparent placeholder:text-gray-500 resize-none";
+const btnPrimary = "inline-flex items-center gap-1.5 h-7 px-3 rounded-lg text-xs font-medium border border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/18 transition-all disabled:opacity-50 disabled:cursor-not-allowed";
+const btnSecondary = "inline-flex items-center gap-1.5 h-7 px-3 rounded-lg text-xs font-medium border border-white/15 hover:border-white/25 hover:bg-white/5 transition-all disabled:opacity-50 disabled:cursor-not-allowed";
+
+function Spinner() {
+    return (
+        <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+        </svg>
+    );
+}
 
 export default function NotesSection({ showId }) {
     const { user, isAdmin } = useAuth();
@@ -95,17 +106,17 @@ export default function NotesSection({ showId }) {
                     <PHeading size="sm" tag="h3">Your Note</PHeading>
 
                     {!isEditing && !userNote && (
-                        <PButton variant="secondary" size="small" onClick={() => setIsEditing(true)}>
+                        <button className={btnSecondary} style={{ color: 'var(--p-color-contrast-medium)' }} onClick={() => setIsEditing(true)}>
                             Add Your Note
-                        </PButton>
+                        </button>
                     )}
 
                     {!isEditing && userNote && (
                         <div className="space-y-3">
                             <PText size="sm">{userNote.note_text}</PText>
                             <div className="flex gap-2">
-                                <PButton variant="secondary" size="small" onClick={() => setIsEditing(true)}>Edit</PButton>
-                                <PButton variant="secondary" size="small" onClick={() => handleDelete(userNote.id)}>Delete</PButton>
+                                <button className={btnSecondary} style={{ color: 'var(--p-color-contrast-medium)' }} onClick={() => setIsEditing(true)}>Edit</button>
+                                <button className={btnSecondary} style={{ color: 'var(--p-color-contrast-medium)' }} onClick={() => handleDelete(userNote.id)}>Delete</button>
                             </div>
                         </div>
                     )}
@@ -120,8 +131,11 @@ export default function NotesSection({ showId }) {
                                 rows="4"
                             />
                             <div className="flex gap-2">
-                                <PButton size="small" loading={saving} onClick={handleSave}>Save Note</PButton>
-                                <PButton variant="secondary" size="small" disabled={saving} onClick={handleCancel}>Cancel</PButton>
+                                <button className={btnPrimary} disabled={saving} onClick={handleSave}>
+                                    {saving && <Spinner />}
+                                    {saving ? 'Saving…' : 'Save Note'}
+                                </button>
+                                <button className={btnSecondary} style={{ color: 'var(--p-color-contrast-medium)' }} disabled={saving} onClick={handleCancel}>Cancel</button>
                             </div>
                         </div>
                     )}
