@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { PHeading, PText, PButton, PButtonPure, PInlineNotification } from '@porsche-design-system/components-react';
 import { useAuth } from '../contexts/AuthContext';
+
+const inputClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--p-color-info)] focus:border-transparent placeholder:text-gray-500";
 
 export default function MemberLoginPage() {
     const [email, setEmail] = useState('');
@@ -10,21 +13,16 @@ export default function MemberLoginPage() {
     const { signIn } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
-
     const from = location.state?.from?.pathname || '/';
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
         setLoading(true);
-
         try {
-            console.log('[MemberLoginPage] Attempting sign in...');
             await signIn(email, password);
-            console.log('[MemberLoginPage] Sign in successful, navigating...');
             navigate(from, { replace: true });
         } catch (err) {
-            console.error('[MemberLoginPage] Login error:', err);
             setError(err.message || 'Failed to sign in. Please check your credentials.');
         } finally {
             setLoading(false);
@@ -32,78 +30,51 @@ export default function MemberLoginPage() {
     };
 
     return (
-        <div className="min-h-screen bg-black flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-md w-full space-y-8 bg-gray-800 p-8 rounded-lg shadow-2xl border border-gray-700">
-                <div>
-                    <h2 className="mt-6 text-center text-3xl font-extrabold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
-                        Member Login
-                    </h2>
-                    <p className="mt-2 text-center text-sm text-gray-400">
-                        Sign in to your blueskiesbase account
-                    </p>
+        <div className="min-h-screen flex items-center justify-center py-12 px-4" style={{ background: 'var(--p-color-canvas)' }}>
+            <div className="w-full max-w-sm space-y-6 rounded-2xl border border-white/10 bg-[#1a1e26] p-8">
+                <div className="text-center space-y-1">
+                    <PHeading size="xl" tag="h1" align="center">Member Login</PHeading>
+                    <PText size="sm" color="contrast-medium" align="center">Sign in to your blueskiesbase account</PText>
                 </div>
-                <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+
+                <form onSubmit={handleSubmit} className="space-y-4">
                     {error && (
-                        <div className="bg-red-900/50 border border-red-700 text-red-200 px-4 py-3 rounded-lg">
-                            {error}
-                        </div>
+                        <PInlineNotification heading="Sign in failed" description={error} state="error" dismissButton={false} />
                     )}
-                    <div className="space-y-4">
+
+                    <div className="space-y-3">
                         <div>
-                            <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-1">
+                            <label htmlFor="email" className="block text-xs font-medium mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>
                                 Email address
                             </label>
-                            <input
-                                id="email"
-                                name="email"
-                                type="email"
-                                autoComplete="email"
-                                required
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                className="appearance-none relative block w-full px-3 py-2 border border-gray-600 placeholder-gray-500 text-gray-100 bg-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                                placeholder="your@email.com"
-                            />
+                            <input id="email" name="email" type="email" autoComplete="email" required
+                                value={email} onChange={(e) => setEmail(e.target.value)}
+                                placeholder="your@email.com" className={inputClass} />
                         </div>
                         <div>
-                            <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-1">
+                            <label htmlFor="password" className="block text-xs font-medium mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>
                                 Password
                             </label>
-                            <input
-                                id="password"
-                                name="password"
-                                type="password"
-                                autoComplete="current-password"
-                                required
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="appearance-none relative block w-full px-3 py-2 border border-gray-600 placeholder-gray-500 text-gray-100 bg-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                                placeholder="Your password"
-                            />
+                            <input id="password" name="password" type="password" autoComplete="current-password" required
+                                value={password} onChange={(e) => setPassword(e.target.value)}
+                                placeholder="Your password" className={inputClass} />
                         </div>
                     </div>
 
-                    <div>
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 transition-colors"
-                        >
-                            {loading ? 'Signing in...' : 'Sign in'}
-                        </button>
-                    </div>
-
-                    <div className="text-center">
-                        <p className="text-sm text-gray-400">
-                            Don't have an account?{' '}
-                            <Link to="/signup" className="text-blue-400 hover:text-blue-300 transition-colors">
-                                Sign up
-                            </Link>
-                        </p>
-                    </div>
+                    <PButton type="submit" loading={loading} className="w-full">
+                        Sign in
+                    </PButton>
                 </form>
+
+                <div className="text-center">
+                    <PText size="xs" color="contrast-medium">
+                        Don't have an account?{' '}
+                        <Link to="/signup" className="text-[var(--p-color-info)] hover:opacity-80 transition-opacity">
+                            Sign up
+                        </Link>
+                    </PText>
+                </div>
             </div>
         </div>
     );
 }
-

@@ -1,8 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
+import { PHeading, PText, PButton, PButtonPure, PInlineNotification, PDivider } from '@porsche-design-system/components-react';
 import { useAuth } from '../contexts/AuthContext';
-import { getShowPhotos, uploadPhoto, updatePhotoCaption, deletePhoto } from '../services/api';
+import { getShowPhotos, uploadPhoto, deletePhoto } from '../services/api';
 import Lightbox from 'yet-another-react-lightbox';
 import 'yet-another-react-lightbox/styles.css';
+
+const inputClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--p-color-info)] focus:border-transparent placeholder:text-gray-500";
 
 export default function PhotosSection({ showId }) {
     const { user, isAdmin } = useAuth();
@@ -25,34 +28,19 @@ export default function PhotosSection({ showId }) {
         }
     }, [showId]);
 
-    useEffect(() => {
-        loadPhotos();
-    }, [loadPhotos]);
+    useEffect(() => { loadPhotos(); }, [loadPhotos]);
 
     const handleFileSelect = (e) => {
         const file = e.target.files[0];
-        if (file) {
-            // Check file size (5MB limit)
-            if (file.size > 5 * 1024 * 1024) {
-                setError('File size must be less than 5MB');
-                return;
-            }
-            // Check file type
-            if (!file.type.startsWith('image/')) {
-                setError('Only image files are allowed');
-                return;
-            }
-            setSelectedFile(file);
-            setError(null);
-        }
+        if (!file) return;
+        if (file.size > 5 * 1024 * 1024) { setError('File size must be less than 5MB'); return; }
+        if (!file.type.startsWith('image/')) { setError('Only image files are allowed'); return; }
+        setSelectedFile(file);
+        setError(null);
     };
 
     const handleUpload = async () => {
-        if (!selectedFile) {
-            setError('Please select a photo');
-            return;
-        }
-
+        if (!selectedFile) { setError('Please select a photo'); return; }
         try {
             setUploading(true);
             setError(null);
@@ -70,10 +58,7 @@ export default function PhotosSection({ showId }) {
     };
 
     const handleDelete = async (photoId) => {
-        if (!confirm('Are you sure you want to delete this photo?')) {
-            return;
-        }
-
+        if (!confirm('Are you sure you want to delete this photo?')) return;
         try {
             await deletePhoto(photoId);
             await loadPhotos();
@@ -83,186 +68,116 @@ export default function PhotosSection({ showId }) {
         }
     };
 
-    const openLightbox = (index) => {
-        setCurrentPhotoIndex(index);
-        setLightboxOpen(true);
-    };
-
-    const lightboxSlides = photos.map(photo => ({
-        src: photo.photo_url,
-        alt: photo.caption || 'Show photo',
-        title: photo.caption,
-    }));
+    const lightboxSlides = photos.map(p => ({ src: p.photo_url, alt: p.caption || 'Show photo', title: p.caption }));
 
     return (
-        <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-            <div className="flex justify-between items-center mb-4">
-                <h2 className="text-2xl font-bold text-blue-400">Photos</h2>
+        <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 space-y-4">
+            <div className="flex items-center justify-between">
+                <PHeading size="lg" tag="h2">Photos</PHeading>
                 {user && !showUploadForm && (
-                    <button
-                        onClick={() => setShowUploadForm(true)}
-                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors text-sm"
-                    >
+                    <PButton variant="secondary" size="small" onClick={() => setShowUploadForm(true)}>
                         Upload Photo
-                    </button>
+                    </PButton>
                 )}
             </div>
+            <PDivider />
 
             {error && (
-                <div className="bg-red-900/50 border border-red-700 text-red-200 px-4 py-3 rounded mb-4">
-                    {error}
-                </div>
+                <PInlineNotification heading="Error" description={error} state="error" dismissButton={false} />
             )}
 
             {/* Upload Form */}
             {showUploadForm && (
-                <div className="mb-6 bg-gray-900 rounded-lg p-4 border border-blue-700">
-                    <h3 className="text-lg font-semibold text-blue-300 mb-3">Upload Photo</h3>
-                    
-                    <div className="space-y-3">
-                        <div>
-                            <label className="block text-gray-300 mb-2 text-sm">
-                                Select Photo (max 5MB)
-                            </label>
-                            <input
-                                type="file"
-                                accept="image/*"
-                                onChange={handleFileSelect}
-                                className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700"
-                            />
-                        </div>
-
+                <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
+                    <PHeading size="sm" tag="h3">Upload Photo</PHeading>
+                    <div>
+                        <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                            Select Photo (max 5MB)
+                        </label>
+                        <input type="file" accept="image/*" onChange={handleFileSelect}
+                            className="w-full text-sm file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-white/10 file:text-white hover:file:bg-white/20 file:cursor-pointer" />
                         {selectedFile && (
-                            <div className="text-sm text-gray-400">
-                                Selected: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
-                            </div>
+                            <PText size="xs" color="contrast-low" className="mt-1">
+                                {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                            </PText>
                         )}
-
-                        <div>
-                            <label className="block text-gray-300 mb-2 text-sm">
-                                Caption (optional)
-                            </label>
-                            <input
-                                type="text"
-                                value={caption}
-                                onChange={(e) => setCaption(e.target.value)}
-                                placeholder="Add a caption..."
-                                className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-                        </div>
-
-                        <div className="flex gap-2">
-                            <button
-                                onClick={handleUpload}
-                                disabled={uploading || !selectedFile}
-                                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white rounded-md transition-colors"
-                            >
-                                {uploading ? 'Uploading...' : 'Upload'}
-                            </button>
-                            <button
-                                onClick={() => {
-                                    setShowUploadForm(false);
-                                    setSelectedFile(null);
-                                    setCaption('');
-                                    setError(null);
-                                }}
-                                disabled={uploading}
-                                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-600 text-white rounded-md transition-colors"
-                            >
-                                Cancel
-                            </button>
-                        </div>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                            Caption (optional)
+                        </label>
+                        <input type="text" value={caption} onChange={(e) => setCaption(e.target.value)}
+                            placeholder="Add a caption…" className={inputClass} />
+                    </div>
+                    <div className="flex gap-2">
+                        <PButton size="small" loading={uploading} disabled={!selectedFile} onClick={handleUpload}>
+                            Upload
+                        </PButton>
+                        <PButton variant="secondary" size="small" disabled={uploading}
+                            onClick={() => { setShowUploadForm(false); setSelectedFile(null); setCaption(''); setError(null); }}>
+                            Cancel
+                        </PButton>
                     </div>
                 </div>
             )}
 
-            {/* Photos Display */}
+            {/* Photo Display */}
             {photos.length > 0 ? (
-                <div>
-                    {/* Current Photo Display */}
-                    <div className="mb-4">
-                        <div 
-                            className="relative cursor-pointer group"
-                            onClick={() => openLightbox(currentPhotoIndex)}
-                        >
-                            <img
-                                src={photos[currentPhotoIndex].photo_url}
-                                alt={photos[currentPhotoIndex].caption || 'Show photo'}
-                                className="w-full h-96 object-cover rounded-lg"
-                            />
-                            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all rounded-lg flex items-center justify-center">
-                                <span className="text-white opacity-0 group-hover:opacity-100 text-lg font-semibold">
-                                    Click to view full size
-                                </span>
-                            </div>
-                        </div>
-
-                        {/* Photo Info */}
-                        <div className="mt-3 flex justify-between items-start">
-                            <div>
-                                {photos[currentPhotoIndex].caption && (
-                                    <p className="text-gray-300 mb-1">{photos[currentPhotoIndex].caption}</p>
-                                )}
-                                <p className="text-sm text-gray-500">
-                                    By {photos[currentPhotoIndex].profiles?.username || 'Anonymous'} • {' '}
-                                    {new Date(photos[currentPhotoIndex].created_at).toLocaleDateString()}
-                                </p>
-                            </div>
-                            {(isAdmin || (user && photos[currentPhotoIndex].user_id === user.id)) && (
-                                <button
-                                    onClick={() => handleDelete(photos[currentPhotoIndex].id)}
-                                    className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm transition-colors"
-                                >
-                                    Delete
-                                </button>
-                            )}
+                <div className="space-y-3">
+                    <div className="relative cursor-pointer group" onClick={() => setLightboxOpen(true)}>
+                        <img src={photos[currentPhotoIndex].photo_url}
+                            alt={photos[currentPhotoIndex].caption || 'Show photo'}
+                            className="w-full h-96 object-cover rounded-xl" />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all rounded-xl flex items-center justify-center">
+                            <PText className="opacity-0 group-hover:opacity-100 transition-opacity text-white">
+                                Click to view full size
+                            </PText>
                         </div>
                     </div>
 
-                    {/* Thumbnail Navigation */}
+                    <div className="flex items-start justify-between gap-3">
+                        <div>
+                            {photos[currentPhotoIndex].caption && (
+                                <PText size="sm">{photos[currentPhotoIndex].caption}</PText>
+                            )}
+                            <PText size="xs" color="contrast-low">
+                                By {photos[currentPhotoIndex].profiles?.username || 'Anonymous'} · {new Date(photos[currentPhotoIndex].created_at).toLocaleDateString()}
+                            </PText>
+                        </div>
+                        {(isAdmin || (user && photos[currentPhotoIndex].user_id === user.id)) && (
+                            <PButtonPure size="x-small" icon="delete" onClick={() => handleDelete(photos[currentPhotoIndex].id)}>
+                                Delete
+                            </PButtonPure>
+                        )}
+                    </div>
+
                     {photos.length > 1 && (
                         <div>
-                            <p className="text-gray-400 text-sm mb-2">
+                            <PText size="xs" color="contrast-low" className="mb-2">
                                 Photo {currentPhotoIndex + 1} of {photos.length}
-                            </p>
-                            <div className="flex gap-2 overflow-x-auto pb-2">
+                            </PText>
+                            <div className="flex gap-2 overflow-x-auto pb-1">
                                 {photos.map((photo, index) => (
-                                    <img
-                                        key={photo.id}
-                                        src={photo.photo_url}
-                                        alt={`Thumbnail ${index + 1}`}
+                                    <img key={photo.id} src={photo.photo_url} alt={`Thumbnail ${index + 1}`}
                                         onClick={() => setCurrentPhotoIndex(index)}
-                                        className={`w-20 h-20 object-cover rounded cursor-pointer transition-all ${
-                                            index === currentPhotoIndex
-                                                ? 'ring-2 ring-blue-500 opacity-100'
-                                                : 'opacity-60 hover:opacity-100'
-                                        }`}
-                                    />
+                                        className={`w-20 h-20 object-cover rounded-lg cursor-pointer transition-all shrink-0 ${
+                                            index === currentPhotoIndex ? 'ring-2 ring-[var(--p-color-primary)]' : 'opacity-60 hover:opacity-100'
+                                        }`} />
                                 ))}
                             </div>
                         </div>
                     )}
                 </div>
             ) : (
-                <div className="text-center py-8">
-                    <p className="text-gray-400 mb-4">No photos yet</p>
-                    {!user && (
-                        <p className="text-gray-500 text-sm">Sign in to upload the first photo!</p>
-                    )}
+                <div className="text-center py-8 space-y-2">
+                    <PText color="contrast-medium">No photos yet</PText>
+                    {!user && <PText size="xs" color="contrast-low">Sign in to upload the first photo!</PText>}
                 </div>
             )}
 
-            {/* Lightbox */}
-            <Lightbox
-                open={lightboxOpen}
-                close={() => setLightboxOpen(false)}
-                slides={lightboxSlides}
-                index={currentPhotoIndex}
-                on={{
-                    view: ({ index }) => setCurrentPhotoIndex(index),
-                }}
-            />
+            <Lightbox open={lightboxOpen} close={() => setLightboxOpen(false)}
+                slides={lightboxSlides} index={currentPhotoIndex}
+                on={{ view: ({ index }) => setCurrentPhotoIndex(index) }} />
         </div>
     );
 }
-

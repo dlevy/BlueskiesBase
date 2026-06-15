@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
+import { PHeading, PText, PButton, PButtonPure, PInlineNotification, PDivider, PSpinner } from '@porsche-design-system/components-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getShowNotes, getUserNote, saveNote, deleteNote } from '../services/api';
+
+const textareaClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--p-color-info)] focus:border-transparent placeholder:text-gray-500 resize-none";
 
 export default function NotesSection({ showId }) {
     const { user, isAdmin } = useAuth();
@@ -16,18 +19,12 @@ export default function NotesSection({ showId }) {
         try {
             setLoading(true);
             setError(null);
-
-            // Load all notes for the show
             const { notes: allNotes } = await getShowNotes(showId);
             setNotes(allNotes || []);
-
-            // Load user's note if logged in
             if (user) {
                 const { note } = await getUserNote(showId);
                 setUserNote(note);
-                if (note) {
-                    setNoteText(note.note_text);
-                }
+                if (note) setNoteText(note.note_text);
             }
         } catch (err) {
             console.error('Error loading notes:', err);
@@ -37,23 +34,16 @@ export default function NotesSection({ showId }) {
         }
     }, [showId, user]);
 
-    useEffect(() => {
-        loadNotes();
-    }, [loadNotes]);
+    useEffect(() => { loadNotes(); }, [loadNotes]);
 
     const handleSave = async () => {
-        if (!noteText.trim()) {
-            setError('Note cannot be empty');
-            return;
-        }
-
+        if (!noteText.trim()) { setError('Note cannot be empty'); return; }
         try {
             setSaving(true);
             setError(null);
             const { note } = await saveNote(showId, noteText);
             setUserNote(note);
             setIsEditing(false);
-            // Reload all notes to show the updated note
             await loadNotes();
         } catch (err) {
             console.error('Error saving note:', err);
@@ -64,17 +54,10 @@ export default function NotesSection({ showId }) {
     };
 
     const handleDelete = async (noteId) => {
-        if (!confirm('Are you sure you want to delete this note?')) {
-            return;
-        }
-
+        if (!confirm('Are you sure you want to delete this note?')) return;
         try {
             await deleteNote(noteId);
-            if (userNote && userNote.id === noteId) {
-                setUserNote(null);
-                setNoteText('');
-                setIsEditing(false);
-            }
+            if (userNote?.id === noteId) { setUserNote(null); setNoteText(''); setIsEditing(false); }
             await loadNotes();
         } catch (err) {
             console.error('Error deleting note:', err);
@@ -90,136 +73,90 @@ export default function NotesSection({ showId }) {
 
     if (loading) {
         return (
-            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-                <h2 className="text-2xl font-bold text-blue-400 mb-4">Notes</h2>
-                <p className="text-gray-400">Loading notes...</p>
+            <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 flex items-center gap-3">
+                <PSpinner size="small" aria={{ 'aria-label': 'Loading notes' }} />
+                <PText color="contrast-medium">Loading notes…</PText>
             </div>
         );
     }
 
     return (
-        <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-            <h2 className="text-2xl font-bold text-blue-400 mb-4">Notes</h2>
+        <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 space-y-4">
+            <PHeading size="lg" tag="h2">Notes</PHeading>
+            <PDivider />
 
             {error && (
-                <div className="bg-red-900/50 border border-red-700 text-red-200 px-4 py-3 rounded mb-4">
-                    {error}
-                </div>
+                <PInlineNotification heading="Error" description={error} state="error" dismissButton={false} />
             )}
 
-            {/* User's Note Section */}
+            {/* User's own note */}
             {user && (
-                <div className="mb-6 bg-gray-900 rounded-lg p-4 border border-blue-700">
-                    <h3 className="text-lg font-semibold text-blue-300 mb-3">Your Note</h3>
-                    
+                <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
+                    <PHeading size="sm" tag="h3">Your Note</PHeading>
+
                     {!isEditing && !userNote && (
-                        <button
-                            onClick={() => setIsEditing(true)}
-                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
-                        >
+                        <PButton variant="secondary" size="small" onClick={() => setIsEditing(true)}>
                             Add Your Note
-                        </button>
+                        </PButton>
                     )}
 
                     {!isEditing && userNote && (
-                        <div>
-                            <p className="text-gray-300 whitespace-pre-wrap mb-3">{userNote.note_text}</p>
+                        <div className="space-y-3">
+                            <PText size="sm">{userNote.note_text}</PText>
                             <div className="flex gap-2">
-                                <button
-                                    onClick={() => setIsEditing(true)}
-                                    className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded-md text-sm transition-colors"
-                                >
-                                    Edit
-                                </button>
-                                <button
-                                    onClick={() => handleDelete(userNote.id)}
-                                    className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm transition-colors"
-                                >
-                                    Delete
-                                </button>
+                                <PButton variant="secondary" size="small" onClick={() => setIsEditing(true)}>Edit</PButton>
+                                <PButton variant="secondary" size="small" onClick={() => handleDelete(userNote.id)}>Delete</PButton>
                             </div>
                         </div>
                     )}
 
                     {isEditing && (
-                        <div>
+                        <div className="space-y-3">
                             <textarea
                                 value={noteText}
                                 onChange={(e) => setNoteText(e.target.value)}
-                                placeholder="Share your memories from this show..."
-                                className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3"
+                                placeholder="Share your memories from this show…"
+                                className={textareaClass}
                                 rows="4"
                             />
                             <div className="flex gap-2">
-                                <button
-                                    onClick={handleSave}
-                                    disabled={saving}
-                                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white rounded-md transition-colors"
-                                >
-                                    {saving ? 'Saving...' : 'Save Note'}
-                                </button>
-                                <button
-                                    onClick={handleCancel}
-                                    disabled={saving}
-                                    className="px-4 py-2 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-600 text-white rounded-md transition-colors"
-                                >
-                                    Cancel
-                                </button>
+                                <PButton size="small" loading={saving} onClick={handleSave}>Save Note</PButton>
+                                <PButton variant="secondary" size="small" disabled={saving} onClick={handleCancel}>Cancel</PButton>
                             </div>
                         </div>
                     )}
                 </div>
             )}
 
-            {/* All Notes Section */}
+            {/* Community notes */}
             {notes.length > 0 && (
-                <div>
-                    <h3 className="text-lg font-semibold text-gray-300 mb-3">
-                        Community Notes ({notes.length})
-                    </h3>
-                    <div className="space-y-4">
-                        {notes.map((note) => (
-                            <div
-                                key={note.id}
-                                className="bg-gray-900 rounded-lg p-4 border border-gray-700"
-                            >
-                                <div className="flex justify-between items-start mb-2">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-blue-400 font-medium">
-                                            {note.profiles?.username || 'Anonymous'}
-                                        </span>
-                                        <span className="text-gray-500 text-sm">
-                                            {new Date(note.created_at).toLocaleDateString()}
-                                        </span>
-                                    </div>
-                                    {isAdmin && (
-                                        <button
-                                            onClick={() => handleDelete(note.id)}
-                                            className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs transition-colors"
-                                        >
-                                            Delete
-                                        </button>
-                                    )}
+                <div className="space-y-3">
+                    <PHeading size="sm" tag="h3">Community Notes ({notes.length})</PHeading>
+                    {notes.map((note) => (
+                        <div key={note.id} className="rounded-xl border border-white/5 bg-white/5 p-4 space-y-2">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <PText size="xs" weight="semi-bold">{note.profiles?.username || 'Anonymous'}</PText>
+                                    <PText size="xs" color="contrast-low">{new Date(note.created_at).toLocaleDateString()}</PText>
                                 </div>
-                                <p className="text-gray-300 whitespace-pre-wrap">{note.note_text}</p>
+                                {isAdmin && (
+                                    <PButtonPure size="x-small" icon="delete" onClick={() => handleDelete(note.id)}>
+                                        Delete
+                                    </PButtonPure>
+                                )}
                             </div>
-                        ))}
-                    </div>
+                            <PText size="sm">{note.note_text}</PText>
+                        </div>
+                    ))}
                 </div>
             )}
 
             {notes.length === 0 && !user && (
-                <p className="text-gray-400 text-center py-4">
-                    No notes yet. Sign in to add the first note!
-                </p>
+                <PText color="contrast-medium" align="center">No notes yet. Sign in to add the first note!</PText>
             )}
-
             {notes.length === 0 && user && !userNote && !isEditing && (
-                <p className="text-gray-400 text-center py-4">
-                    No notes yet. Be the first to add one!
-                </p>
+                <PText color="contrast-medium" align="center">No notes yet. Be the first to add one!</PText>
             )}
         </div>
     );
 }
-

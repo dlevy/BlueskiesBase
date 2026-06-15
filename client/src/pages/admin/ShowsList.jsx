@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { PHeading, PText, PButton, PButtonPure, PInlineNotification, PSpinner } from '@porsche-design-system/components-react';
 import { getShows, deleteShow } from '../../services/api';
 import { buildShowPath } from '../../utils/showSlug';
 
@@ -10,16 +11,13 @@ export default function ShowsList() {
     const [error, setError] = useState(null);
     const [pagination, setPagination] = useState(null);
 
-    // Get page from URL or default to 1
     const page = parseInt(searchParams.get('page') || '1', 10);
 
     const fetchShows = useCallback(async () => {
         try {
-            console.log('[ShowsList] Fetching shows for page', page);
             setLoading(true);
             setError(null);
             const data = await getShows(page, 20);
-            console.log('[ShowsList] Received', data.shows?.length, 'shows');
             setShows(data.shows || []);
             setPagination(data.pagination);
         } catch (err) {
@@ -35,13 +33,10 @@ export default function ShowsList() {
     }, [fetchShows]);
 
     const handleDelete = async (id, showDate, artistName) => {
-        if (!confirm(`Are you sure you want to delete the show on ${showDate} by ${artistName}?`)) {
-            return;
-        }
-
+        if (!confirm(`Are you sure you want to delete the show on ${showDate} by ${artistName}?`)) return;
         try {
             await deleteShow(id);
-            fetchShows(); // Refresh the list
+            fetchShows();
         } catch (err) {
             console.error('Error deleting show:', err);
             alert('Failed to delete show');
@@ -49,141 +44,110 @@ export default function ShowsList() {
     };
 
     const formatDate = (dateString) => {
-        // Parse date as local date to avoid timezone issues
-        // Date string format: "YYYY-MM-DD"
         const [year, month, day] = dateString.split('-');
         const date = new Date(year, month - 1, day);
-        return date.toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        });
+        return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
     };
 
     if (loading && shows.length === 0) {
-        return <div className="text-center py-8 text-gray-300">Loading...</div>;
+        return <div className="flex justify-center items-center py-12"><PSpinner size="medium" /></div>;
     }
 
     return (
-        <div>
-            <div className="flex justify-between items-center mb-6">
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">Manage Shows</h1>
-                <Link
-                    to="/admin/shows/new"
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
-                >
-                    + Add New Show
+        <div className="space-y-6">
+            <div className="flex justify-between items-center">
+                <PHeading size="2xl" tag="h1">Manage Shows</PHeading>
+                <Link to="/admin/shows/new">
+                    <PButton>+ Add New Show</PButton>
                 </Link>
             </div>
 
             {error && (
-                <div className="bg-red-900/50 border border-red-700 text-red-200 px-4 py-3 rounded-lg mb-4">
-                    {error}
-                </div>
+                <PInlineNotification heading="Error" description={error} state="error" dismissButton={false} />
             )}
 
-            <div className="bg-gray-800 shadow-2xl rounded-lg overflow-hidden border border-gray-700">
-                <table className="min-w-full divide-y divide-gray-700">
-                    <thead className="bg-gray-900">
-                        <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                                Date
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                                Artist
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                                Venue
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                                Tour
-                            </th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
-                                Actions
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody className="bg-gray-800 divide-y divide-gray-700">
-                        {shows.map((show) => (
-                            <tr key={show.id} className="hover:bg-gray-750 transition-colors">
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-200">
-                                    {formatDate(show.show_date)}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-100">
-                                    {show.artist_name}
-                                </td>
-                                <td className="px-6 py-4 text-sm text-gray-200">
-                                    {show.venues ? (
-                                        <>
-                                            {show.venues.name}
-                                            <br />
-                                            <span className="text-gray-400">
-                                                {show.venues.city}, {show.venues.state_country}
-                                            </span>
-                                        </>
-                                    ) : (
-                                        <span className="text-gray-500">No venue</span>
-                                    )}
-                                </td>
-                                <td className="px-6 py-4 text-sm text-gray-400">
-                                    {show.tour_name || '-'}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <Link
-                                        to={buildShowPath(show)}
-                                        className="text-blue-400 hover:text-blue-300 mr-4 transition-colors"
-                                        target="_blank"
-                                    >
-                                        View
-                                    </Link>
-                                    <Link
-                                        to={`/admin/shows/edit/${show.id}`}
-                                        className="text-indigo-400 hover:text-indigo-300 mr-4 transition-colors"
-                                    >
-                                        Edit
-                                    </Link>
-                                    <button
-                                        onClick={() => handleDelete(show.id, formatDate(show.show_date), show.artist_name)}
-                                        className="text-red-400 hover:text-red-300 transition-colors"
-                                    >
-                                        Delete
-                                    </button>
-                                </td>
+            <div className="rounded-2xl border border-white/10 overflow-hidden" style={{ background: 'var(--p-color-surface)' }}>
+                <div className="overflow-x-auto">
+                    <table className="w-full">
+                        <thead className="border-b border-white/10" style={{ background: 'var(--p-color-canvas)' }}>
+                            <tr>
+                                {['Date', 'Artist', 'Venue', 'Tour', 'Actions'].map((h, i) => (
+                                    <th key={h}
+                                        className={`px-4 py-3 text-xs font-medium uppercase tracking-wider ${i === 4 ? 'text-right' : 'text-left'}`}
+                                        style={{ color: 'var(--p-color-contrast-medium)' }}>
+                                        {h}
+                                    </th>
+                                ))}
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
-
-                {shows.length === 0 && !loading && (
-                    <div className="text-center py-8 text-gray-400">
-                        No shows found. Add your first show!
-                    </div>
-                )}
+                        </thead>
+                        <tbody className="divide-y divide-white/5">
+                            {shows.map((show) => (
+                                <tr key={show.id} className="hover:bg-white/5 transition-colors">
+                                    <td className="px-4 py-3 whitespace-nowrap">
+                                        <PText size="small">{formatDate(show.show_date)}</PText>
+                                    </td>
+                                    <td className="px-4 py-3 whitespace-nowrap">
+                                        <PText size="small" weight="semi-bold">{show.artist_name}</PText>
+                                    </td>
+                                    <td className="px-4 py-3">
+                                        {show.venues ? (
+                                            <div>
+                                                <PText size="small">{show.venues.name}</PText>
+                                                <PText size="x-small" color="contrast-medium">
+                                                    {show.venues.city}, {show.venues.state_country}
+                                                </PText>
+                                            </div>
+                                        ) : (
+                                            <PText size="small" color="contrast-low">No venue</PText>
+                                        )}
+                                    </td>
+                                    <td className="px-4 py-3">
+                                        <PText size="small" color="contrast-medium">{show.tour_name || '-'}</PText>
+                                    </td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-right">
+                                        <div className="flex items-center justify-end gap-3">
+                                            <Link to={buildShowPath(show)} target="_blank">
+                                                <PButtonPure size="x-small">View</PButtonPure>
+                                            </Link>
+                                            <Link to={`/admin/shows/edit/${show.id}`}>
+                                                <PButtonPure size="x-small">Edit</PButtonPure>
+                                            </Link>
+                                            <PButtonPure size="x-small"
+                                                onClick={() => handleDelete(show.id, formatDate(show.show_date), show.artist_name)}
+                                                style={{ color: 'var(--p-color-error)' }}>
+                                                Delete
+                                            </PButtonPure>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                    {shows.length === 0 && !loading && (
+                        <div className="text-center py-8">
+                            <PText color="contrast-medium">No shows found. Add your first show!</PText>
+                        </div>
+                    )}
+                </div>
             </div>
 
-            {/* Pagination */}
             {pagination && pagination.totalPages > 1 && (
-                <div className="mt-6 flex justify-center gap-2">
-                    <button
-                        onClick={() => setSearchParams({ page: (page - 1).toString() })}
+                <div className="flex justify-center items-center gap-4">
+                    <PButton variant="secondary" size="small"
                         disabled={page === 1}
-                        className="px-4 py-2 bg-gray-800 border border-gray-700 text-gray-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-700 transition-colors"
-                    >
+                        onClick={() => setSearchParams({ page: (page - 1).toString() })}>
                         Previous
-                    </button>
-                    <span className="px-4 py-2 text-gray-300">
+                    </PButton>
+                    <PText size="small" color="contrast-medium">
                         Page {page} of {pagination.totalPages}
-                    </span>
-                    <button
-                        onClick={() => setSearchParams({ page: (page + 1).toString() })}
+                    </PText>
+                    <PButton variant="secondary" size="small"
                         disabled={page === pagination.totalPages}
-                        className="px-4 py-2 bg-gray-800 border border-gray-700 text-gray-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-700 transition-colors"
-                    >
+                        onClick={() => setSearchParams({ page: (page + 1).toString() })}>
                         Next
-                    </button>
+                    </PButton>
                 </div>
             )}
         </div>
     );
 }
-

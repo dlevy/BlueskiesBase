@@ -1,6 +1,14 @@
 import { useState, useEffect } from 'react';
+import { PHeading, PText, PButton, PButtonPure, PTag, PInlineNotification, PSpinner } from '@porsche-design-system/components-react';
 import { getAlbums } from '../../services/api';
 import AlbumForm from './AlbumForm';
+
+const ALBUM_TYPE_COLORS = {
+    studio: 'notification-info',
+    live: 'notification-success',
+    compilation: 'notification-warning',
+    ep: 'notification-success',
+};
 
 export default function AlbumsList() {
     const [albums, setAlbums] = useState([]);
@@ -9,9 +17,7 @@ export default function AlbumsList() {
     const [showForm, setShowForm] = useState(false);
     const [editingAlbum, setEditingAlbum] = useState(null);
 
-    useEffect(() => {
-        fetchAlbums();
-    }, []);
+    useEffect(() => { fetchAlbums(); }, []);
 
     const fetchAlbums = async () => {
         try {
@@ -27,142 +33,80 @@ export default function AlbumsList() {
         }
     };
 
-    const handleEdit = (album) => {
-        setEditingAlbum(album);
-        setShowForm(true);
-    };
-
-    const handleNew = () => {
-        setEditingAlbum(null);
-        setShowForm(true);
-    };
-
-    const handleFormClose = () => {
-        setShowForm(false);
-        setEditingAlbum(null);
-        fetchAlbums(); // Refresh the list
-    };
+    const handleEdit = (album) => { setEditingAlbum(album); setShowForm(true); };
+    const handleNew = () => { setEditingAlbum(null); setShowForm(true); };
+    const handleFormClose = () => { setShowForm(false); setEditingAlbum(null); fetchAlbums(); };
 
     const formatDate = (dateString) => {
         if (!dateString) return 'Unknown';
         const date = new Date(dateString);
-        return date.toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        });
+        return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
     };
 
-    if (loading) {
-        return (
-            <div className="flex justify-center items-center py-12">
-                <div className="text-gray-400">Loading albums...</div>
-            </div>
-        );
-    }
-
-    if (error) {
-        return (
-            <div className="bg-red-900/20 border border-red-700 text-red-400 px-4 py-3 rounded">
-                {error}
-            </div>
-        );
-    }
-
-    if (showForm) {
-        return <AlbumForm album={editingAlbum} onClose={handleFormClose} />;
-    }
+    if (loading) return <div className="flex justify-center items-center py-12"><PSpinner size="medium" /></div>;
+    if (error) return <PInlineNotification heading="Error" description={error} state="error" dismissButton={false} />;
+    if (showForm) return <AlbumForm album={editingAlbum} onClose={handleFormClose} />;
 
     return (
         <div className="space-y-6">
-            {/* Header */}
             <div className="flex justify-between items-center">
                 <div>
-                    <h1 className="text-3xl font-bold text-white">Albums</h1>
-                    <p className="text-gray-400 mt-1">
+                    <PHeading size="2xl" tag="h1">Albums</PHeading>
+                    <PText size="small" color="contrast-medium">
                         Manage albums for associating with original songs
-                    </p>
+                    </PText>
                 </div>
-                <button
-                    onClick={handleNew}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-                >
-                    + Add Album
-                </button>
+                <PButton onClick={handleNew}>+ Add Album</PButton>
             </div>
 
-            {/* Stats */}
-            <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
-                <div className="text-2xl font-bold text-blue-400">{albums.length}</div>
-                <div className="text-sm text-gray-400">Total Albums</div>
+            <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-4">
+                <div className="text-3xl font-bold" style={{ color: 'var(--p-color-info)' }}>{albums.length}</div>
+                <PText size="small" color="contrast-medium">Total Albums</PText>
             </div>
 
-            {/* Albums List */}
-            <div className="bg-gray-800 border border-gray-700 rounded-lg overflow-hidden">
+            <div className="rounded-2xl border border-white/10 overflow-hidden" style={{ background: 'var(--p-color-surface)' }}>
                 <div className="overflow-x-auto">
                     <table className="w-full">
-                        <thead className="bg-gray-900 border-b border-gray-700">
+                        <thead className="border-b border-white/10" style={{ background: 'var(--p-color-canvas)' }}>
                             <tr>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                                    Album Title
-                                </th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                                    Artist
-                                </th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                                    Release Date
-                                </th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                                    Type
-                                </th>
-                                <th className="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
-                                    Actions
-                                </th>
+                                {['Album Title', 'Artist', 'Release Date', 'Type', 'Actions'].map((h, i) => (
+                                    <th key={h}
+                                        className={`px-4 py-3 text-xs font-medium uppercase tracking-wider ${i === 4 ? 'text-right' : 'text-left'}`}
+                                        style={{ color: 'var(--p-color-contrast-medium)' }}>
+                                        {h}
+                                    </th>
+                                ))}
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-700">
+                        <tbody className="divide-y divide-white/5">
                             {albums.length === 0 ? (
                                 <tr>
-                                    <td colSpan="5" className="px-4 py-8 text-center text-gray-400">
-                                        No albums found. Click "Add Album" to create one.
+                                    <td colSpan="5" className="px-4 py-8 text-center">
+                                        <PText color="contrast-medium">No albums found. Click "Add Album" to create one.</PText>
                                     </td>
                                 </tr>
                             ) : (
                                 albums.map((album) => (
-                                    <tr
-                                        key={album.id}
-                                        className="hover:bg-gray-750 transition-colors"
-                                    >
+                                    <tr key={album.id} className="hover:bg-white/5 transition-colors">
                                         <td className="px-4 py-4">
-                                            <div className="text-white font-medium">{album.title}</div>
+                                            <PText size="small" weight="semi-bold">{album.title}</PText>
                                             {album.notes && (
-                                                <div className="text-xs text-gray-500 mt-1">{album.notes}</div>
+                                                <PText size="x-small" color="contrast-low">{album.notes}</PText>
                                             )}
                                         </td>
-                                        <td className="px-4 py-4 text-gray-300">
-                                            {album.artist_name}
-                                        </td>
-                                        <td className="px-4 py-4 text-gray-300">
-                                            {formatDate(album.release_date)}
+                                        <td className="px-4 py-4">
+                                            <PText size="small" color="contrast-medium">{album.artist_name}</PText>
                                         </td>
                                         <td className="px-4 py-4">
-                                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                                album.album_type === 'studio' ? 'bg-blue-900/50 text-blue-300' :
-                                                album.album_type === 'live' ? 'bg-purple-900/50 text-purple-300' :
-                                                album.album_type === 'compilation' ? 'bg-yellow-900/50 text-yellow-300' :
-                                                album.album_type === 'ep' ? 'bg-green-900/50 text-green-300' :
-                                                'bg-gray-700 text-gray-300'
-                                            }`}>
+                                            <PText size="small" color="contrast-medium">{formatDate(album.release_date)}</PText>
+                                        </td>
+                                        <td className="px-4 py-4">
+                                            <PTag color={ALBUM_TYPE_COLORS[album.album_type] || 'background-surface'}>
                                                 {album.album_type || 'unknown'}
-                                            </span>
+                                            </PTag>
                                         </td>
                                         <td className="px-4 py-4 text-right">
-                                            <button
-                                                onClick={() => handleEdit(album)}
-                                                className="text-blue-400 hover:text-blue-300 transition-colors"
-                                            >
-                                                Edit
-                                            </button>
+                                            <PButtonPure size="x-small" onClick={() => handleEdit(album)}>Edit</PButtonPure>
                                         </td>
                                     </tr>
                                 ))
@@ -174,4 +118,3 @@ export default function AlbumsList() {
         </div>
     );
 }
-

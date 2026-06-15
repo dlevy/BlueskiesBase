@@ -1,5 +1,10 @@
 import { useState, useEffect } from 'react';
+import { PHeading, PText, PButton, PButtonPure, PInlineNotification } from '@porsche-design-system/components-react';
 import { createSong, updateSong, deleteSong, getAlbums } from '../../services/api';
+
+const inputClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--p-color-info)] focus:border-transparent placeholder:text-gray-500";
+const selectClass = "w-full rounded-lg border border-white/10 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--p-color-info)] focus:border-transparent";
+const labelClass = "block text-xs font-medium mb-1.5";
 
 export default function SongForm({ song, onClose }) {
     const [formData, setFormData] = useState({
@@ -17,7 +22,6 @@ export default function SongForm({ song, onClose }) {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
     useEffect(() => {
-        // Fetch albums for dropdown
         const fetchAlbums = async () => {
             try {
                 const data = await getAlbums();
@@ -45,17 +49,13 @@ export default function SongForm({ song, onClose }) {
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
-        setFormData(prev => ({
-            ...prev,
-            [name]: type === 'checkbox' ? checked : value
-        }));
+        setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
         setError(null);
-
         try {
             if (song) {
                 await updateSong(song.id, formData);
@@ -74,7 +74,6 @@ export default function SongForm({ song, onClose }) {
     const handleDelete = async () => {
         setLoading(true);
         setError(null);
-
         try {
             await deleteSong(song.id);
             onClose();
@@ -89,103 +88,54 @@ export default function SongForm({ song, onClose }) {
 
     return (
         <div className="space-y-6">
-            {/* Header */}
             <div className="flex justify-between items-center">
-                <h1 className="text-3xl font-bold text-white">
-                    {song ? 'Edit Song' : 'Add New Song'}
-                </h1>
-                <button
-                    onClick={onClose}
-                    className="text-gray-400 hover:text-white transition-colors"
-                >
-                    ✕ Close
-                </button>
+                <PHeading size="2xl" tag="h1">{song ? 'Edit Song' : 'Add New Song'}</PHeading>
+                <PButtonPure icon="close" onClick={onClose}>Close</PButtonPure>
             </div>
 
-            {/* Error Message */}
             {error && (
-                <div className="bg-red-900/20 border border-red-700 text-red-400 px-4 py-3 rounded">
-                    {error}
-                </div>
+                <PInlineNotification heading="Error" description={error} state="error" dismissButton={false} />
             )}
 
-            {/* Form */}
-            <form onSubmit={handleSubmit} className="bg-gray-800 border border-gray-700 rounded-lg p-6 space-y-6">
-                {/* Title */}
+            <form onSubmit={handleSubmit} className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 space-y-6">
                 <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Song Title <span className="text-red-400">*</span>
+                    <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>
+                        Song Title <span style={{ color: 'var(--p-color-error)' }}>*</span>
                     </label>
-                    <input
-                        type="text"
-                        name="title"
-                        value={formData.title}
-                        onChange={handleChange}
-                        required
-                        className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
-                        placeholder="Enter song title"
-                    />
+                    <input type="text" name="title" value={formData.title} onChange={handleChange}
+                        required placeholder="Enter song title" className={inputClass} />
                 </div>
 
-                {/* Is Original Checkbox */}
-                <div className="flex items-center gap-3 p-4 bg-gray-900 rounded border border-gray-700">
-                    <input
-                        type="checkbox"
-                        name="is_original"
-                        id="is_original"
-                        checked={formData.is_original}
-                        onChange={handleChange}
-                        className="w-4 h-4"
-                    />
-                    <label htmlFor="is_original" className="text-gray-300 cursor-pointer">
-                        This is an original song (not a cover)
+                <div className="flex items-center gap-3 p-3 rounded-xl border border-white/10 bg-white/5">
+                    <input type="checkbox" name="is_original" id="is_original"
+                        checked={formData.is_original} onChange={handleChange} className="w-4 h-4" />
+                    <label htmlFor="is_original" className="cursor-pointer">
+                        <PText size="small">This is an original song (not a cover)</PText>
                     </label>
                 </div>
 
-                {/* Original Artist (shown if not original) */}
                 {!formData.is_original && (
                     <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                        <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>
                             Original Artist
                         </label>
-                        <input
-                            type="text"
-                            name="original_artist"
-                            value={formData.original_artist}
-                            onChange={handleChange}
-                            className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
-                            placeholder="e.g., The Beatles, Bob Dylan"
-                        />
+                        <input type="text" name="original_artist" value={formData.original_artist}
+                            onChange={handleChange} placeholder="e.g., The Beatles, Bob Dylan" className={inputClass} />
                     </div>
                 )}
 
-                {/* Written By */}
                 <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Written By
-                    </label>
-                    <input
-                        type="text"
-                        name="written_by"
-                        value={formData.written_by}
-                        onChange={handleChange}
-                        className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
-                        placeholder="e.g., John Lennon, Paul McCartney"
-                    />
+                    <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>Written By</label>
+                    <input type="text" name="written_by" value={formData.written_by} onChange={handleChange}
+                        placeholder="e.g., John Lennon, Paul McCartney" className={inputClass} />
                 </div>
 
-                {/* Album (shown only for originals) */}
                 {formData.is_original && (
                     <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">
-                            Album
-                        </label>
-                        <select
-                            name="album_id"
-                            value={formData.album_id}
-                            onChange={handleChange}
-                            className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
-                        >
+                        <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>Album</label>
+                        <select name="album_id" value={formData.album_id} onChange={handleChange}
+                            className={selectClass}
+                            style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
                             <option value="">-- No Album / Unreleased --</option>
                             {albums.map(album => (
                                 <option key={album.id} value={album.id}>
@@ -193,99 +143,60 @@ export default function SongForm({ song, onClose }) {
                                 </option>
                             ))}
                         </select>
-                        <p className="text-xs text-gray-500 mt-1">
+                        <PText size="x-small" color="contrast-low">
                             Select the album this song appears on (leave blank if unreleased)
-                        </p>
+                        </PText>
                     </div>
                 )}
 
-                {/* Lyrics */}
                 <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Lyrics
-                    </label>
-                    <textarea
-                        name="lyrics"
-                        value={formData.lyrics}
-                        onChange={handleChange}
-                        rows="8"
-                        className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500 font-mono text-sm"
+                    <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>Lyrics</label>
+                    <textarea name="lyrics" value={formData.lyrics} onChange={handleChange} rows="8"
                         placeholder="Enter song lyrics (optional)"
-                    />
+                        className={inputClass + ' resize-none font-mono'} />
                 </div>
 
-                {/* Notes */}
                 <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Notes
-                    </label>
-                    <textarea
-                        name="notes"
-                        value={formData.notes}
-                        onChange={handleChange}
-                        rows="3"
-                        className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                    <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>Notes</label>
+                    <textarea name="notes" value={formData.notes} onChange={handleChange} rows="3"
                         placeholder="Any additional notes about this song"
-                    />
+                        className={inputClass + ' resize-none'} />
                 </div>
 
-                {/* Action Buttons */}
-                <div className="flex justify-between items-center pt-4 border-t border-gray-700">
+                <div className="flex justify-between items-center pt-4 border-t border-white/10">
                     <div>
                         {song && (
-                            <button
-                                type="button"
-                                onClick={() => setShowDeleteConfirm(true)}
-                                className="text-red-400 hover:text-red-300 font-medium transition-colors"
-                            >
+                            <PButtonPure onClick={() => setShowDeleteConfirm(true)}
+                                style={{ color: 'var(--p-color-error)' }}>
                                 Delete Song
-                            </button>
+                            </PButtonPure>
                         )}
                     </div>
                     <div className="flex gap-3">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="px-6 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {loading ? 'Saving...' : (song ? 'Update Song' : 'Create Song')}
-                        </button>
+                        <PButton type="button" variant="secondary" onClick={onClose}>Cancel</PButton>
+                        <PButton type="submit" loading={loading}>
+                            {song ? 'Update Song' : 'Create Song'}
+                        </PButton>
                     </div>
                 </div>
             </form>
 
-            {/* Delete Confirmation Modal */}
             {showDeleteConfirm && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                    <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 max-w-md w-full mx-4">
-                        <h3 className="text-xl font-bold text-white mb-4">Delete Song?</h3>
-                        <p className="text-gray-300 mb-6">
+                    <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 max-w-md w-full mx-4 space-y-4">
+                        <PHeading size="lg" tag="h3">Delete Song?</PHeading>
+                        <PText>
                             Are you sure you want to delete "{song?.title}"? This action cannot be undone.
-                        </p>
-                        <p className="text-sm text-yellow-400 mb-6">
+                        </PText>
+                        <PText size="small" style={{ color: 'var(--p-color-warning)' }}>
                             Note: Songs that are used in setlists cannot be deleted.
-                        </p>
-                        <div className="flex gap-3 justify-end">
-                            <button
-                                onClick={() => setShowDeleteConfirm(false)}
-                                className="px-4 py-2 border border-gray-600 text-gray-300 rounded hover:bg-gray-700 transition-colors"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleDelete}
-                                disabled={loading}
-                                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded font-medium transition-colors disabled:opacity-50"
-                            >
-                                {loading ? 'Deleting...' : 'Delete'}
-                            </button>
+                        </PText>
+                        <div className="flex gap-3 justify-end pt-2">
+                            <PButton variant="secondary" onClick={() => setShowDeleteConfirm(false)}>Cancel</PButton>
+                            <PButton loading={loading} onClick={handleDelete}
+                                style={{ '--p-button-primary-bg': 'var(--p-color-error)', '--p-button-primary-bg-hover': 'var(--p-color-error)' }}>
+                                Delete
+                            </PButton>
                         </div>
                     </div>
                 </div>
@@ -293,4 +204,3 @@ export default function SongForm({ song, onClose }) {
         </div>
     );
 }
-

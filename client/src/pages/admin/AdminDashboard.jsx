@@ -1,79 +1,43 @@
 import { Link } from 'react-router-dom';
+import { PHeading, PText, PButton } from '@porsche-design-system/components-react';
+
+const cards = [
+    { to: '/admin/shows', label: 'Shows', description: 'Manage concert shows, setlists, and performance details' },
+    { to: '/admin/songs', label: 'Songs', description: 'Manage song catalog and track performance history' },
+    { to: '/admin/albums', label: 'Albums', description: 'Manage album catalog and tracklists' },
+    { to: '/admin/venues', label: 'Venues', description: 'Manage venue information and locations' },
+];
 
 export default function AdminDashboard() {
     return (
-        <div>
-            <h1 className="text-3xl font-bold mb-6 bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">Admin Dashboard</h1>
+        <div className="space-y-8">
+            <PHeading size="2xl" tag="h1">Admin Dashboard</PHeading>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Shows Card */}
-                <Link to="/admin/shows" className="bg-gray-800 p-6 rounded-lg shadow-2xl border border-gray-700 hover:border-blue-500 transition-all">
-                    <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-xl font-semibold text-gray-100">Shows</h2>
-                        <span className="text-3xl">🎸</span>
-                    </div>
-                    <p className="text-gray-400 mb-4">
-                        Manage concert shows, setlists, and performance details
-                    </p>
-                    <div className="text-blue-400 font-medium">
-                        Manage Shows →
-                    </div>
-                </Link>
-
-                {/* Songs Card */}
-                <Link to="/admin/songs" className="bg-gray-800 p-6 rounded-lg shadow-2xl border border-gray-700 hover:border-blue-500 transition-all">
-                    <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-xl font-semibold text-gray-100">Songs</h2>
-                        <span className="text-3xl">🎵</span>
-                    </div>
-                    <p className="text-gray-400 mb-4">
-                        Manage song catalog and track performance history
-                    </p>
-                    <div className="text-blue-400 font-medium">
-                        Manage Songs →
-                    </div>
-                </Link>
-
-                {/* Venues Card */}
-                <Link to="/admin/venues" className="bg-gray-800 p-6 rounded-lg shadow-2xl border border-gray-700 hover:border-blue-500 transition-all">
-                    <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-xl font-semibold text-gray-100">Venues</h2>
-                        <span className="text-3xl">🏛️</span>
-                    </div>
-                    <p className="text-gray-400 mb-4">
-                        Manage venue information and locations
-                    </p>
-                    <div className="text-blue-400 font-medium">
-                        Manage Venues →
-                    </div>
-                </Link>
+            {/* Nav Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {cards.map(({ to, label, description }) => (
+                    <Link
+                        key={to}
+                        to={to}
+                        className="block rounded-2xl border border-white/10 bg-[#1a1e26] p-6 hover:border-white/25 hover:bg-white/5 transition-all space-y-2"
+                    >
+                        <PHeading size="md" tag="h2">{label}</PHeading>
+                        <PText size="sm" color="contrast-medium">{description}</PText>
+                        <PText size="xs" color="contrast-low">Manage {label} →</PText>
+                    </Link>
+                ))}
             </div>
 
-            {/* Quick Stats */}
-            <div className="mt-8 bg-gray-800 p-6 rounded-lg shadow-2xl border border-gray-700">
-                <h2 className="text-2xl font-bold mb-4 text-gray-100">Quick Actions</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <Link
-                        to="/admin/shows/new"
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg text-center font-medium transition-colors"
-                    >
-                        + Add New Show
-                    </Link>
-                    <Link
-                        to="/admin/songs/new"
-                        className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg text-center font-medium transition-colors"
-                    >
-                        + Add New Song
-                    </Link>
-                    <Link
-                        to="/admin/venues/new"
-                        className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg text-center font-medium transition-colors"
-                    >
-                        + Add New Venue
-                    </Link>
+            {/* Quick Actions */}
+            <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 space-y-4">
+                <PHeading size="lg" tag="h2">Quick Actions</PHeading>
+                <div className="flex flex-wrap gap-3">
+                    <Link to="/admin/shows/new"><PButton>+ Add New Show</PButton></Link>
+                    <Link to="/admin/songs"><PButton variant="secondary">+ Add New Song</PButton></Link>
+                    <Link to="/admin/albums"><PButton variant="secondary">+ Add New Album</PButton></Link>
+                    <Link to="/admin/venues"><PButton variant="secondary">+ Add New Venue</PButton></Link>
                 </div>
             </div>
         </div>
     );
 }
-

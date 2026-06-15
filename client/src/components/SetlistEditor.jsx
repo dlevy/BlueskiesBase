@@ -1,13 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
+import { PHeading, PText, PButton } from '@porsche-design-system/components-react';
 import { getSongs } from '../services/api';
 
+const inputClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--p-color-info)] focus:border-transparent placeholder:text-gray-500";
+const selectClass = "w-full rounded-lg border border-white/10 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--p-color-info)] focus:border-transparent";
+
 export default function SetlistEditor({ initialSetlist = {}, onChange }) {
-    const [setlist, setSetlist] = useState({
-        set1: [],
-        set2: [],
-        set3: [],
-        encore: []
-    });
+    const [setlist, setSetlist] = useState({ set1: [], set2: [], set3: [], encore: [] });
     const [allSongs, setAllSongs] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedSet, setSelectedSet] = useState('set1');
@@ -23,13 +22,7 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
     }, []);
 
     const convertInitialSetlist = useCallback((initial) => {
-        const converted = {
-            set1: [],
-            set2: [],
-            set3: [],
-            encore: []
-        };
-
+        const converted = { set1: [], set2: [], set3: [], encore: [] };
         Object.entries(initial).forEach(([setKey, songs]) => {
             if (songs && Array.isArray(songs)) {
                 converted[setKey] = songs.map((song, index) => ({
@@ -39,19 +32,15 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
                     is_cover: song.is_cover || false,
                     original_artist: song.original_artist || null,
                     notes: song.notes || '',
-                    jams_into: song.jams_into || null,  // UUID or null, NOT false
+                    jams_into: song.jams_into || null,
                     order: index
                 }));
             }
         });
-
         setSetlist(converted);
     }, []);
 
-    useEffect(() => {
-        fetchSongs();
-    }, [fetchSongs]);
-
+    useEffect(() => { fetchSongs(); }, [fetchSongs]);
     useEffect(() => {
         if (initialSetlist && Object.keys(initialSetlist).length > 0) {
             convertInitialSetlist(initialSetlist);
@@ -60,25 +49,18 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
 
     const handleAddSong = (song) => {
         const newSong = {
-            id: `temp-${Date.now()}`, // Temporary ID for new songs
+            id: `temp-${Date.now()}`,
             song_id: song.id,
             title: song.title,
-            // Song metadata comes from songs table
             is_original: song.is_original,
             original_artist: song.original_artist,
             written_by: song.written_by,
-            // Performance-specific fields only
             notes: '',
-            jams_into: null,  // UUID or null, NOT false
-            performance_type: 'full',  // Default to full performance
+            jams_into: null,
+            performance_type: 'full',
             order: setlist[selectedSet].length
         };
-
-        const updatedSetlist = {
-            ...setlist,
-            [selectedSet]: [...setlist[selectedSet], newSong]
-        };
-
+        const updatedSetlist = { ...setlist, [selectedSet]: [...setlist[selectedSet], newSong] };
         setSetlist(updatedSetlist);
         notifyChange(updatedSetlist);
         setShowSongPicker(false);
@@ -86,12 +68,7 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
     };
 
     const handleRemoveSong = (setKey, index) => {
-        const updatedSet = setlist[setKey].filter((_, i) => i !== index);
-        const updatedSetlist = {
-            ...setlist,
-            [setKey]: updatedSet
-        };
-
+        const updatedSetlist = { ...setlist, [setKey]: setlist[setKey].filter((_, i) => i !== index) };
         setSetlist(updatedSetlist);
         notifyChange(updatedSetlist);
     };
@@ -99,76 +76,44 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
     const handleMoveSong = (setKey, index, direction) => {
         const newIndex = direction === 'up' ? index - 1 : index + 1;
         if (newIndex < 0 || newIndex >= setlist[setKey].length) return;
-
         const updatedSet = [...setlist[setKey]];
         [updatedSet[index], updatedSet[newIndex]] = [updatedSet[newIndex], updatedSet[index]];
-
-        const updatedSetlist = {
-            ...setlist,
-            [setKey]: updatedSet
-        };
-
+        const updatedSetlist = { ...setlist, [setKey]: updatedSet };
         setSetlist(updatedSetlist);
         notifyChange(updatedSetlist);
     };
 
     const handleUpdateSong = (setKey, index, field, value) => {
         const updatedSet = [...setlist[setKey]];
-
-        // Special handling for jams_into checkbox
         if (field === 'jams_into') {
-            if (value) {
-                // When checked, set to the UUID of the next song in the setlist
-                const nextSong = updatedSet[index + 1];
-                updatedSet[index] = {
-                    ...updatedSet[index],
-                    [field]: nextSong ? nextSong.song_id : null
-                };
-            } else {
-                // When unchecked, set to null
-                updatedSet[index] = {
-                    ...updatedSet[index],
-                    [field]: null
-                };
-            }
+            const nextSong = updatedSet[index + 1];
+            updatedSet[index] = { ...updatedSet[index], [field]: value ? (nextSong ? nextSong.song_id : null) : null };
         } else {
-            updatedSet[index] = {
-                ...updatedSet[index],
-                [field]: value
-            };
+            updatedSet[index] = { ...updatedSet[index], [field]: value };
         }
-
-        const updatedSetlist = {
-            ...setlist,
-            [setKey]: updatedSet
-        };
-
+        const updatedSetlist = { ...setlist, [setKey]: updatedSet };
         setSetlist(updatedSetlist);
         notifyChange(updatedSetlist);
     };
 
     const notifyChange = (updatedSetlist) => {
         if (onChange) {
-            // Convert to API format
-            // Only send junction table fields - song metadata comes from songs table
             const apiFormat = [];
             Object.entries(updatedSetlist).forEach(([setKey, songs]) => {
                 const setNumber = setKey === 'encore' ? 1 : parseInt(setKey.replace('set', ''));
                 const isEncore = setKey === 'encore';
-
                 songs.forEach((song, index) => {
                     apiFormat.push({
                         song_id: song.song_id,
                         set_number: setNumber,
                         song_order: index + 1,
                         is_encore: isEncore,
-                        notes: song.notes || null,  // Performance-specific notes only
-                        jams_into: song.jams_into || null,  // UUID or null, NOT false
-                        performance_type: song.performance_type || 'full'  // full, tease, or partial
+                        notes: song.notes || null,
+                        jams_into: song.jams_into || null,
+                        performance_type: song.performance_type || 'full'
                     });
                 });
             });
-
             onChange(apiFormat);
         }
     };
@@ -177,53 +122,38 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
         song.title.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    const setLabels = {
-        set1: 'Set 1',
-        set2: 'Set 2',
-        set3: 'Set 3',
-        encore: 'Encore'
-    };
+    const setLabels = { set1: 'Set 1', set2: 'Set 2', set3: 'Set 3', encore: 'Encore' };
 
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
-                <h3 className="text-lg font-bold text-gray-100">Setlist Editor</h3>
-                <button
-                    type="button"
-                    onClick={() => setShowSongPicker(true)}
-                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                >
-                    + Add Song
-                </button>
+                <PHeading size="lg" tag="h3">Setlist Editor</PHeading>
+                <PButton type="button" onClick={() => setShowSongPicker(true)}>+ Add Song</PButton>
             </div>
 
             {/* Song Picker Modal */}
             {showSongPicker && (
-                <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-                    <div className="bg-gray-800 rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col border border-gray-700">
+                <div className="fixed inset-0 bg-black/75 flex items-center justify-center z-50">
+                    <div className="rounded-2xl border border-white/10 p-6 max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col mx-4"
+                        style={{ background: 'var(--p-color-canvas)' }}>
                         <div className="flex justify-between items-center mb-4">
-                            <h4 className="text-xl font-bold text-gray-100">Add Song to {setLabels[selectedSet]}</h4>
-                            <button
-                                onClick={() => {
-                                    setShowSongPicker(false);
-                                    setSearchTerm('');
-                                }}
-                                className="text-gray-400 hover:text-gray-200 text-2xl transition-colors"
-                            >
-                                ×
+                            <PHeading size="lg" tag="h4">Add Song to {setLabels[selectedSet]}</PHeading>
+                            <button onClick={() => { setShowSongPicker(false); setSearchTerm(''); }}
+                                className="p-1 rounded-lg hover:bg-white/10 transition-colors"
+                                style={{ color: 'var(--p-color-contrast-medium)' }}>
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
                             </button>
                         </div>
 
-                        {/* Set Selector */}
                         <div className="mb-4">
-                            <label className="block text-sm font-medium text-gray-300 mb-2">
+                            <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>
                                 Add to:
                             </label>
-                            <select
-                                value={selectedSet}
-                                onChange={(e) => setSelectedSet(e.target.value)}
-                                className="border border-gray-600 bg-gray-700 text-gray-100 rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            >
+                            <select value={selectedSet} onChange={e => setSelectedSet(e.target.value)}
+                                className={selectClass}
+                                style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
                                 <option value="set1">Set 1</option>
                                 <option value="set2">Set 2</option>
                                 <option value="set3">Set 3</option>
@@ -231,35 +161,24 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
                             </select>
                         </div>
 
-                        {/* Search */}
-                        <input
-                            type="text"
-                            placeholder="Search songs..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="border border-gray-600 bg-gray-700 text-gray-100 placeholder-gray-400 rounded px-4 py-2 mb-4 w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            autoFocus
-                        />
+                        <input type="text" placeholder="Search songs..." value={searchTerm}
+                            onChange={e => setSearchTerm(e.target.value)}
+                            className={inputClass + ' mb-4'} autoFocus />
 
-                        {/* Song List */}
-                        <div className="flex-1 overflow-y-auto border border-gray-700 rounded bg-gray-900">
+                        <div className="flex-1 overflow-y-auto rounded-xl border border-white/10"
+                            style={{ background: 'var(--p-color-surface)' }}>
                             {filteredSongs.map(song => (
-                                <button
-                                    key={song.id}
-                                    onClick={() => handleAddSong(song)}
-                                    className="w-full text-left px-4 py-3 hover:bg-gray-800 border-b border-gray-700 last:border-b-0 transition-colors"
-                                >
-                                    <div className="font-medium text-gray-100">{song.title}</div>
+                                <button key={song.id} onClick={() => handleAddSong(song)}
+                                    className="w-full text-left px-4 py-3 hover:bg-white/5 border-b border-white/5 last:border-b-0 transition-colors">
+                                    <PText size="small" weight="semi-bold">{song.title}</PText>
                                     {song.original_artist && (
-                                        <div className="text-sm text-gray-400">
-                                            Cover of {song.original_artist}
-                                        </div>
+                                        <PText size="x-small" color="contrast-medium">Cover of {song.original_artist}</PText>
                                     )}
                                 </button>
                             ))}
                             {filteredSongs.length === 0 && (
-                                <div className="text-center py-8 text-gray-400">
-                                    No songs found
+                                <div className="text-center py-8">
+                                    <PText color="contrast-medium">No songs found</PText>
                                 </div>
                             )}
                         </div>
@@ -270,11 +189,12 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
             {/* Setlist Display */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {Object.entries(setlist).map(([setKey, songs]) => (
-                    <div key={setKey} className="border border-gray-700 rounded-lg p-4 bg-gray-900">
-                        <h4 className="font-bold text-gray-100 mb-3">{setLabels[setKey]}</h4>
+                    <div key={setKey} className="rounded-xl border border-white/10 p-4"
+                        style={{ background: 'var(--p-color-surface)' }}>
+                        <PHeading size="sm" tag="h4" className="mb-3">{setLabels[setKey]}</PHeading>
 
                         {songs.length === 0 ? (
-                            <p className="text-gray-500 text-sm italic">No songs yet</p>
+                            <PText size="small" color="contrast-low">No songs yet</PText>
                         ) : (
                             <div className="space-y-2">
                                 {songs.map((song, index) => (
@@ -303,123 +223,104 @@ function SetlistSongItem({ song, index, setKey, isFirst, isLast, onRemove, onMov
     const [isExpanded, setIsExpanded] = useState(false);
 
     return (
-        <div className="border border-gray-700 rounded p-2 bg-gray-800">
+        <div className="rounded-lg border border-white/10 p-2" style={{ background: 'var(--p-color-canvas)' }}>
             <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 flex-1">
-                    <span className="text-gray-400 text-sm font-mono w-6">{index + 1}.</span>
-                    <span className="font-medium text-gray-200">{song.title}</span>
-                    {/* Show song metadata from songs table (read-only) */}
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <span className="text-xs font-mono shrink-0" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                        {index + 1}.
+                    </span>
+                    <span className="text-sm font-medium truncate" style={{ color: 'var(--p-color-primary)' }}>
+                        {song.title}
+                    </span>
                     {song.is_original === true && (
-                        <span className="text-xs bg-green-900/50 text-green-300 px-2 py-0.5 rounded border border-green-700">
+                        <span className="shrink-0 text-xs px-1.5 py-0.5 rounded border"
+                            style={{ color: 'var(--p-color-success)', borderColor: 'var(--p-color-success)', background: 'color-mix(in srgb, var(--p-color-success) 10%, transparent)' }}>
                             Original
                         </span>
                     )}
                     {song.is_original === false && (
-                        <span className="text-xs bg-blue-900/50 text-blue-300 px-2 py-0.5 rounded border border-blue-700">
+                        <span className="shrink-0 text-xs px-1.5 py-0.5 rounded border"
+                            style={{ color: 'var(--p-color-info)', borderColor: 'var(--p-color-info)', background: 'color-mix(in srgb, var(--p-color-info) 10%, transparent)' }}>
                             Cover
                         </span>
                     )}
                     {song.jams_into && (
-                        <span className="text-xs bg-purple-900/50 text-purple-300 px-1.5 py-0.5 rounded border border-purple-700 font-bold">
+                        <span className="shrink-0 text-xs px-1 py-0.5 rounded font-bold"
+                            style={{ color: 'var(--p-color-primary)', borderColor: 'currentColor', border: '1px solid' }}>
                             &gt;
                         </span>
                     )}
                 </div>
-                <div className="flex gap-1">
-                    <button
-                        type="button"
-                        onClick={() => setIsExpanded(!isExpanded)}
-                        className="text-gray-400 hover:text-gray-200 px-2 transition-colors"
-                        title="Edit details"
-                    >
-                        ⚙️
+                <div className="flex gap-1 shrink-0">
+                    <button type="button" onClick={() => setIsExpanded(!isExpanded)}
+                        className="px-1.5 py-0.5 rounded hover:bg-white/10 transition-colors text-xs"
+                        style={{ color: 'var(--p-color-contrast-medium)' }} title="Edit details">
+                        ⚙
                     </button>
-                    <button
-                        type="button"
-                        onClick={() => onMove('up')}
-                        disabled={isFirst}
-                        className="text-gray-400 hover:text-gray-200 px-2 disabled:opacity-30 transition-colors"
-                        title="Move up"
-                    >
+                    <button type="button" onClick={() => onMove('up')} disabled={isFirst}
+                        className="px-1.5 py-0.5 rounded hover:bg-white/10 transition-colors text-sm disabled:opacity-30"
+                        style={{ color: 'var(--p-color-contrast-medium)' }} title="Move up">
                         ↑
                     </button>
-                    <button
-                        type="button"
-                        onClick={() => onMove('down')}
-                        disabled={isLast}
-                        className="text-gray-400 hover:text-gray-200 px-2 disabled:opacity-30 transition-colors"
-                        title="Move down"
-                    >
+                    <button type="button" onClick={() => onMove('down')} disabled={isLast}
+                        className="px-1.5 py-0.5 rounded hover:bg-white/10 transition-colors text-sm disabled:opacity-30"
+                        style={{ color: 'var(--p-color-contrast-medium)' }} title="Move down">
                         ↓
                     </button>
-                    <button
-                        type="button"
-                        onClick={onRemove}
-                        className="text-red-400 hover:text-red-300 px-2 transition-colors"
-                        title="Remove"
-                    >
+                    <button type="button" onClick={onRemove}
+                        className="px-1.5 py-0.5 rounded hover:bg-white/10 transition-colors text-sm"
+                        style={{ color: 'var(--p-color-error)' }} title="Remove">
                         ×
                     </button>
                 </div>
             </div>
 
             {isExpanded && (
-                <div className="mt-2 pt-2 border-t border-gray-700 space-y-2">
-                    {/* Song metadata from songs table (read-only display) */}
+                <div className="mt-2 pt-2 border-t border-white/10 space-y-2">
                     {song.original_artist && (
-                        <div className="text-sm text-gray-400">
+                        <PText size="x-small" color="contrast-medium">
                             <span className="font-semibold">Original Artist:</span> {song.original_artist}
-                        </div>
+                        </PText>
                     )}
                     {song.written_by && (
-                        <div className="text-sm text-gray-400">
+                        <PText size="x-small" color="contrast-medium">
                             <span className="font-semibold">Written By:</span> {song.written_by}
-                        </div>
+                        </PText>
                     )}
 
-                    {/* Performance-specific fields (editable) */}
-                    <div className="pt-2 border-t border-gray-600 space-y-2">
+                    <div className="pt-2 border-t border-white/10 space-y-2">
                         <div>
-                            <label className="block text-sm text-gray-300 mb-1">
+                            <label className="block text-xs mb-1" style={{ color: 'var(--p-color-contrast-medium)' }}>
                                 Performance Type
                             </label>
-                            <select
-                                value={song.performance_type || 'full'}
-                                onChange={(e) => onUpdate('performance_type', e.target.value)}
-                                className="border border-gray-600 bg-gray-700 text-gray-100 rounded px-2 py-1 text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            >
+                            <select value={song.performance_type || 'full'}
+                                onChange={e => onUpdate('performance_type', e.target.value)}
+                                className="w-full rounded border border-white/10 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-[var(--p-color-info)]"
+                                style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
                                 <option value="full">Full Performance</option>
                                 <option value="tease">Tease</option>
                                 <option value="partial">Partial</option>
                             </select>
                         </div>
 
-                        <label className="flex items-center text-sm text-gray-300">
-                            <input
-                                type="checkbox"
-                                checked={!!song.jams_into}
-                                onChange={(e) => onUpdate('jams_into', e.target.checked)}
-                                className="mr-2"
-                            />
-                            Jams into next song <span className="ml-1 text-purple-400 font-bold">&gt;</span>
+                        <label className="flex items-center gap-2 text-xs cursor-pointer"
+                            style={{ color: 'var(--p-color-contrast-medium)' }}>
+                            <input type="checkbox" checked={!!song.jams_into}
+                                onChange={e => onUpdate('jams_into', e.target.checked)} className="w-3 h-3" />
+                            Jams into next song
+                            <span className="font-bold" style={{ color: 'var(--p-color-primary)' }}>&gt;</span>
                         </label>
 
-                        <input
-                            type="text"
-                            placeholder="Performance notes (e.g., 'with guest', 'acoustic version')"
-                            value={song.notes || ''}
-                            onChange={(e) => onUpdate('notes', e.target.value)}
-                            className="border border-gray-600 bg-gray-700 text-gray-100 placeholder-gray-400 rounded px-2 py-1 text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
+                        <input type="text" placeholder="Performance notes (e.g., 'with guest', 'acoustic version')"
+                            value={song.notes || ''} onChange={e => onUpdate('notes', e.target.value)}
+                            className="w-full rounded border border-white/10 bg-white/5 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-[var(--p-color-info)] placeholder:text-gray-500" />
                     </div>
 
-                    {/* Help text */}
-                    <div className="text-xs text-gray-500 italic pt-2 border-t border-gray-600">
-                        💡 To change song metadata (original/cover, artist, writer), edit the song in the Songs admin panel.
-                    </div>
+                    <PText size="x-small" color="contrast-low" className="pt-1 border-t border-white/10">
+                        To change song metadata, edit the song in the Songs admin panel.
+                    </PText>
                 </div>
             )}
         </div>
     );
 }
-

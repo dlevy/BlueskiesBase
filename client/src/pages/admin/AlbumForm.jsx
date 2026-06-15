@@ -1,5 +1,10 @@
 import { useState, useEffect } from 'react';
+import { PHeading, PText, PButton, PButtonPure, PInlineNotification } from '@porsche-design-system/components-react';
 import { createAlbum, updateAlbum, deleteAlbum } from '../../services/api';
+
+const inputClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--p-color-info)] focus:border-transparent placeholder:text-gray-500";
+const selectClass = "w-full rounded-lg border border-white/10 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--p-color-info)] focus:border-transparent";
+const labelClass = "block text-xs font-medium mb-1.5";
 
 export default function AlbumForm({ album, onClose }) {
     const [formData, setFormData] = useState({
@@ -29,17 +34,13 @@ export default function AlbumForm({ album, onClose }) {
 
     const handleChange = (e) => {
         const { name, value } = e.target;
-        setFormData(prev => ({
-            ...prev,
-            [name]: value
-        }));
+        setFormData(prev => ({ ...prev, [name]: value }));
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
         setError(null);
-
         try {
             if (album) {
                 await updateAlbum(album.id, formData);
@@ -58,7 +59,6 @@ export default function AlbumForm({ album, onClose }) {
     const handleDelete = async () => {
         setLoading(true);
         setError(null);
-
         try {
             await deleteAlbum(album.id);
             onClose();
@@ -73,86 +73,45 @@ export default function AlbumForm({ album, onClose }) {
 
     return (
         <div className="space-y-6">
-            {/* Header */}
             <div className="flex justify-between items-center">
-                <h1 className="text-3xl font-bold text-white">
-                    {album ? 'Edit Album' : 'Add New Album'}
-                </h1>
-                <button
-                    onClick={onClose}
-                    className="text-gray-400 hover:text-white transition-colors"
-                >
-                    ✕ Close
-                </button>
+                <PHeading size="2xl" tag="h1">{album ? 'Edit Album' : 'Add New Album'}</PHeading>
+                <PButtonPure icon="close" onClick={onClose}>Close</PButtonPure>
             </div>
 
-            {/* Error Message */}
             {error && (
-                <div className="bg-red-900/20 border border-red-700 text-red-400 px-4 py-3 rounded">
-                    {error}
-                </div>
+                <PInlineNotification heading="Error" description={error} state="error" dismissButton={false} />
             )}
 
-            {/* Form */}
-            <form onSubmit={handleSubmit} className="bg-gray-800 border border-gray-700 rounded-lg p-6 space-y-6">
-                {/* Title */}
+            <form onSubmit={handleSubmit} className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 space-y-6">
                 <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Album Title <span className="text-red-400">*</span>
+                    <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>
+                        Album Title <span style={{ color: 'var(--p-color-error)' }}>*</span>
                     </label>
-                    <input
-                        type="text"
-                        name="title"
-                        value={formData.title}
-                        onChange={handleChange}
-                        required
-                        className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
-                        placeholder="e.g., Passage Du Desir"
-                    />
+                    <input type="text" name="title" value={formData.title} onChange={handleChange}
+                        required placeholder="e.g., Passage Du Desir" className={inputClass} />
                 </div>
 
-                {/* Artist Name */}
                 <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Artist Name <span className="text-red-400">*</span>
+                    <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>
+                        Artist Name <span style={{ color: 'var(--p-color-error)' }}>*</span>
                     </label>
-                    <input
-                        type="text"
-                        name="artist_name"
-                        value={formData.artist_name}
-                        onChange={handleChange}
-                        required
-                        className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
-                        placeholder="e.g., Johnny Blue Skies, Sturgill Simpson"
-                    />
+                    <input type="text" name="artist_name" value={formData.artist_name} onChange={handleChange}
+                        required placeholder="e.g., Johnny Blue Skies, Sturgill Simpson" className={inputClass} />
                 </div>
 
-                {/* Release Date */}
                 <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Release Date
-                    </label>
-                    <input
-                        type="date"
-                        name="release_date"
-                        value={formData.release_date}
-                        onChange={handleChange}
-                        className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
-                    />
+                    <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>Release Date</label>
+                    <input type="date" name="release_date" value={formData.release_date}
+                        onChange={handleChange} className={inputClass} />
                 </div>
 
-                {/* Album Type */}
                 <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Album Type <span className="text-red-400">*</span>
+                    <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>
+                        Album Type <span style={{ color: 'var(--p-color-error)' }}>*</span>
                     </label>
-                    <select
-                        name="album_type"
-                        value={formData.album_type}
-                        onChange={handleChange}
-                        required
-                        className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
-                    >
+                    <select name="album_type" value={formData.album_type} onChange={handleChange} required
+                        className={selectClass}
+                        style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
                         <option value="studio">Studio</option>
                         <option value="live">Live</option>
                         <option value="compilation">Compilation</option>
@@ -161,95 +120,58 @@ export default function AlbumForm({ album, onClose }) {
                     </select>
                 </div>
 
-                {/* Album Art URL */}
                 <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Album Art URL
-                    </label>
-                    <input
-                        type="url"
-                        name="album_art_url"
-                        value={formData.album_art_url}
-                        onChange={handleChange}
-                        className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
-                        placeholder="https://example.com/album-cover.jpg"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                        Optional: URL to album artwork image
-                    </p>
+                    <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>Album Art URL</label>
+                    <input type="url" name="album_art_url" value={formData.album_art_url} onChange={handleChange}
+                        placeholder="https://example.com/album-cover.jpg" className={inputClass} />
+                    <PText size="x-small" color="contrast-low">Optional: URL to album artwork image</PText>
                 </div>
 
-                {/* Notes */}
                 <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Notes
-                    </label>
-                    <textarea
-                        name="notes"
-                        value={formData.notes}
-                        onChange={handleChange}
-                        rows={3}
-                        className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                    <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>Notes</label>
+                    <textarea name="notes" value={formData.notes} onChange={handleChange} rows={3}
                         placeholder="Additional notes about this album..."
-                    />
+                        className={inputClass + ' resize-none'} />
                 </div>
 
-                {/* Action Buttons */}
-                <div className="flex gap-3 pt-4">
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white rounded-lg transition-colors"
-                    >
-                        {loading ? 'Saving...' : (album ? 'Update Album' : 'Create Album')}
-                    </button>
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        disabled={loading}
-                        className="px-4 py-2 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-600 text-white rounded-lg transition-colors"
-                    >
+                <div className="flex gap-3 pt-4 border-t border-white/10">
+                    <PButton type="submit" loading={loading}>
+                        {album ? 'Update Album' : 'Create Album'}
+                    </PButton>
+                    <PButton type="button" variant="secondary" disabled={loading} onClick={onClose}>
                         Cancel
-                    </button>
+                    </PButton>
                 </div>
             </form>
 
-            {/* Delete Section */}
             {album && (
-                <div className="bg-gray-800 border border-red-700 rounded-lg p-6">
-                    <h2 className="text-lg font-semibold text-red-400 mb-2">Danger Zone</h2>
-                    <p className="text-gray-400 text-sm mb-4">
-                        Deleting this album will remove it from all associated songs. Songs will not be deleted, but their album association will be removed.
-                    </p>
-                    
+                <div className="rounded-2xl border p-6 space-y-4" style={{ borderColor: 'var(--p-color-error)' }}>
+                    <PHeading size="lg" tag="h2" style={{ color: 'var(--p-color-error)' }}>Danger Zone</PHeading>
+                    <PText size="small" color="contrast-medium">
+                        Deleting this album will remove it from all associated songs. Songs will not be deleted,
+                        but their album association will be removed.
+                    </PText>
+
                     {!showDeleteConfirm ? (
-                        <button
+                        <PButton variant="secondary" disabled={loading}
                             onClick={() => setShowDeleteConfirm(true)}
-                            disabled={loading}
-                            className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white rounded-lg transition-colors"
-                        >
+                            style={{ '--p-button-secondary-color': 'var(--p-color-error)', '--p-button-secondary-border-color': 'var(--p-color-error)' }}>
                             Delete Album
-                        </button>
+                        </PButton>
                     ) : (
                         <div className="space-y-3">
-                            <p className="text-red-400 font-medium">
+                            <PText weight="semi-bold" style={{ color: 'var(--p-color-error)' }}>
                                 Are you sure? This action cannot be undone.
-                            </p>
+                            </PText>
                             <div className="flex gap-3">
-                                <button
-                                    onClick={handleDelete}
-                                    disabled={loading}
-                                    className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white rounded-lg transition-colors"
-                                >
+                                <PButton loading={loading} onClick={handleDelete}
+                                    style={{ '--p-button-primary-bg': 'var(--p-color-error)' }}>
                                     {loading ? 'Deleting...' : 'Yes, Delete Album'}
-                                </button>
-                                <button
-                                    onClick={() => setShowDeleteConfirm(false)}
-                                    disabled={loading}
-                                    className="px-4 py-2 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-600 text-white rounded-lg transition-colors"
-                                >
+                                </PButton>
+                                <PButton variant="secondary" disabled={loading}
+                                    onClick={() => setShowDeleteConfirm(false)}>
                                     Cancel
-                                </button>
+                                </PButton>
                             </div>
                         </div>
                     )}
@@ -258,4 +180,3 @@ export default function AlbumForm({ album, onClose }) {
         </div>
     );
 }
-

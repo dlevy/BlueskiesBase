@@ -1,80 +1,87 @@
+import { PHeading, PText } from '@porsche-design-system/components-react';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function AuthDebugPage() {
     const { user, profile, isAdmin, loading } = useAuth();
 
     return (
-        <div className="px-4 py-8 max-w-4xl mx-auto">
-            <h1 className="text-3xl font-bold text-gray-100 mb-6">Auth Debug Info</h1>
-            
-            <div className="space-y-4">
-                {/* Loading State */}
-                <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
-                    <h2 className="text-xl font-semibold text-gray-100 mb-2">Loading State</h2>
-                    <p className="text-gray-300">
-                        Loading: <span className={loading ? 'text-yellow-400' : 'text-green-400'}>
-                            {loading ? 'TRUE (still loading...)' : 'FALSE (loaded)'}
-                        </span>
-                    </p>
-                </div>
+        <div className="px-4 py-8 max-w-4xl mx-auto space-y-4">
+            <PHeading size="2xl" tag="h1">Auth Debug Info</PHeading>
 
-                {/* User State */}
-                <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
-                    <h2 className="text-xl font-semibold text-gray-100 mb-2">User State</h2>
-                    {user ? (
-                        <div className="text-gray-300 space-y-1">
-                            <p>✅ User is logged in</p>
-                            <p>Email: <span className="text-blue-400">{user.email}</span></p>
-                            <p>ID: <span className="text-gray-500 text-sm">{user.id}</span></p>
+            {[
+                {
+                    title: 'Loading State',
+                    content: (
+                        <PText size="small">
+                            Loading:{' '}
+                            <span style={{ color: loading ? 'var(--p-color-warning)' : 'var(--p-color-success)' }}>
+                                {loading ? 'TRUE (still loading...)' : 'FALSE (loaded)'}
+                            </span>
+                        </PText>
+                    )
+                },
+                {
+                    title: 'User State',
+                    content: user ? (
+                        <div className="space-y-1">
+                            <PText size="small" style={{ color: 'var(--p-color-success)' }}>✅ User is logged in</PText>
+                            <PText size="small">Email: <span style={{ color: 'var(--p-color-info)' }}>{user.email}</span></PText>
+                            <PText size="x-small" color="contrast-low">ID: {user.id}</PText>
                         </div>
                     ) : (
-                        <p className="text-red-400">❌ No user logged in</p>
-                    )}
-                </div>
-
-                {/* Profile State */}
-                <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
-                    <h2 className="text-xl font-semibold text-gray-100 mb-2">Profile State</h2>
-                    {profile ? (
-                        <div className="text-gray-300 space-y-1">
-                            <p>✅ Profile loaded</p>
-                            <p>Username: <span className="text-blue-400">{profile.username}</span></p>
-                            <p>Is Admin: <span className={profile.is_admin ? 'text-green-400' : 'text-red-400'}>
-                                {profile.is_admin ? 'YES ✅' : 'NO ❌'}
-                            </span></p>
-                            <p>Created: <span className="text-gray-500 text-sm">
-                                {new Date(profile.created_at).toLocaleString()}
-                            </span></p>
+                        <PText size="small" style={{ color: 'var(--p-color-error)' }}>❌ No user logged in</PText>
+                    )
+                },
+                {
+                    title: 'Profile State',
+                    content: profile ? (
+                        <div className="space-y-1">
+                            <PText size="small" style={{ color: 'var(--p-color-success)' }}>✅ Profile loaded</PText>
+                            <PText size="small">Username: <span style={{ color: 'var(--p-color-info)' }}>{profile.username}</span></PText>
+                            <PText size="small">
+                                Is Admin:{' '}
+                                <span style={{ color: profile.is_admin ? 'var(--p-color-success)' : 'var(--p-color-error)' }}>
+                                    {profile.is_admin ? 'YES ✅' : 'NO ❌'}
+                                </span>
+                            </PText>
+                            <PText size="x-small" color="contrast-low">
+                                Created: {new Date(profile.created_at).toLocaleString()}
+                            </PText>
                         </div>
                     ) : (
-                        <p className="text-yellow-400">⚠️ No profile loaded</p>
-                    )}
+                        <PText size="small" style={{ color: 'var(--p-color-warning)' }}>⚠️ No profile loaded</PText>
+                    )
+                },
+                {
+                    title: 'Admin Status',
+                    content: (
+                        <PText size="small">
+                            isAdmin:{' '}
+                            <span style={{ color: isAdmin ? 'var(--p-color-success)' : 'var(--p-color-error)' }}>
+                                {isAdmin ? 'TRUE ✅' : 'FALSE ❌'}
+                            </span>
+                        </PText>
+                    )
+                },
+                {
+                    title: 'Raw Data (JSON)',
+                    content: (
+                        <pre className="text-xs overflow-auto" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                            {JSON.stringify({
+                                loading,
+                                user: user ? { id: user.id, email: user.email } : null,
+                                profile,
+                                isAdmin
+                            }, null, 2)}
+                        </pre>
+                    )
+                }
+            ].map(({ title, content }) => (
+                <div key={title} className="rounded-2xl border border-white/10 bg-[#1a1e26] p-4 space-y-2">
+                    <PHeading size="md" tag="h2">{title}</PHeading>
+                    {content}
                 </div>
-
-                {/* Admin Status */}
-                <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
-                    <h2 className="text-xl font-semibold text-gray-100 mb-2">Admin Status</h2>
-                    <p className="text-gray-300">
-                        isAdmin: <span className={isAdmin ? 'text-green-400' : 'text-red-400'}>
-                            {isAdmin ? 'TRUE ✅' : 'FALSE ❌'}
-                        </span>
-                    </p>
-                </div>
-
-                {/* Raw Data */}
-                <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
-                    <h2 className="text-xl font-semibold text-gray-100 mb-2">Raw Data (JSON)</h2>
-                    <pre className="text-xs text-gray-400 overflow-auto">
-                        {JSON.stringify({ 
-                            loading, 
-                            user: user ? { id: user.id, email: user.email } : null,
-                            profile,
-                            isAdmin 
-                        }, null, 2)}
-                    </pre>
-                </div>
-            </div>
+            ))}
         </div>
     );
 }
-
