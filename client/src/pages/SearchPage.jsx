@@ -412,7 +412,7 @@ export default function SearchPage() {
                             <div className="border-t border-white/10 px-4 pb-4 pt-4">
                                 {/* Month pills */}
                                 <div className="mb-4">
-                                    <label className="block text-xs font-semibold mb-2" style={{ color: 'var(--p-color-contrast-medium)' }}>Month</label>
+                                    <label className="block text-xs font-semibold mb-2" style={{ color: 'var(--p-color-contrast-medium)' }}>BROWSE BY MONTH</label>
                                     <div className="flex flex-wrap gap-1.5">
                                         {Array.from({ length: 12 }, (_, i) => i + 1).map(m => {
                                             const isSelected = searchParams.month === m.toString();
@@ -437,7 +437,7 @@ export default function SearchPage() {
 
                                 {/* Song search */}
                                 <div className="mb-4">
-                                    <label className="block text-xs font-semibold mb-0.5" style={{ color: 'var(--p-color-contrast-medium)' }}>Find shows by song played</label>
+                                    <label className="block text-xs font-semibold mb-0.5" style={{ color: 'var(--p-color-contrast-medium)' }}>FIND SHOWS BY SONG PLAYED</label>
                                     <p className="text-xs mb-2" style={{ color: 'var(--p-color-contrast-low)' }}>Find every show where a specific song was performed</p>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         <div>
