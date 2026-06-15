@@ -52,7 +52,8 @@ export default function SearchPage() {
     const lastCalculatedShowIds = useRef(null);
 
     const [years, setYears] = useState([]);
-    const [songs, setSongs] = useState([]);
+    const [originalsByAlbum, setOriginalsByAlbum] = useState([]);
+    const [coverSongs, setCoverSongs] = useState([]);
     const [totalShows, setTotalShows] = useState(0);
     const [filterPanelOpen, setFilterPanelOpen] = useState(true);
 
@@ -78,7 +79,7 @@ export default function SearchPage() {
                     while (hasMore) {
                         const { data: pageData, error: songsError, count } = await supabase
                             .from('setlist_songs')
-                            .select('songs!setlist_songs_song_id_fkey!inner(title)', { count: 'exact' })
+                            .select('songs!setlist_songs_song_id_fkey!inner(id, title, is_original, album_id, albums(id, title, release_date))', { count: 'exact' })
                             .in('show_id', showIds)
                             .range(rangeStart, rangeStart + PAGE_SIZE - 1);
 
@@ -91,7 +92,35 @@ export default function SearchPage() {
                     }
 
                     if (allSetlistSongs.length > 0) {
-                        setSongs([...new Set(allSetlistSongs.map(ss => ss.songs?.title).filter(Boolean))].sort());
+                        const songDetails = allSetlistSongs.map(ss => ss.songs).filter(Boolean);
+                        const uniqueSongs = [...new Map(songDetails.map(s => [s.id, s])).values()];
+
+                        // Covers — flat alphabetical list
+                        setCoverSongs(
+                            uniqueSongs
+                                .filter(s => s.is_original === false)
+                                .sort((a, b) => a.title.localeCompare(b.title))
+                                .map(s => s.title)
+                        );
+
+                        // Originals — grouped by album, newest album first
+                        const albumMap = new Map();
+                        uniqueSongs.filter(s => s.is_original === true).forEach(song => {
+                            const key = song.album_id || '__none__';
+                            const albumTitle = song.albums?.title || 'Other';
+                            const releaseDate = song.albums?.release_date || '';
+                            if (!albumMap.has(key)) albumMap.set(key, { name: albumTitle, releaseDate, songs: [] });
+                            albumMap.get(key).songs.push(song.title);
+                        });
+                        setOriginalsByAlbum(
+                            [...albumMap.values()]
+                                .sort((a, b) => {
+                                    if (!a.releaseDate) return 1;
+                                    if (!b.releaseDate) return -1;
+                                    return b.releaseDate.localeCompare(a.releaseDate);
+                                })
+                                .map(album => ({ ...album, songs: [...album.songs].sort((a, b) => a.localeCompare(b)) }))
+                        );
                     }
                 }
             } catch (err) {
@@ -397,13 +426,31 @@ export default function SearchPage() {
                                     </div>
                                 </div>
 
-                                {/* Song */}
+                                {/* Originals by album */}
                                 <div className="mb-4">
-                                    <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>Song</label>
+                                    <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>Originals</label>
                                     <select name="song" value={searchParams.song} onChange={handleInputChange} className={selectClass}
                                         style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
-                                        <option value="">All Songs</option>
-                                        {songs.map(s => <option key={s} value={s}>{s}</option>)}
+                                        <option value="">All Originals</option>
+                                        {originalsByAlbum.map(album => (
+                                            <optgroup key={album.name} label={album.name}>
+                                                {album.songs.map(title => (
+                                                    <option key={title} value={title}>{title}</option>
+                                                ))}
+                                            </optgroup>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {/* Covers */}
+                                <div className="mb-4">
+                                    <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>Covers</label>
+                                    <select name="song" value={searchParams.song} onChange={handleInputChange} className={selectClass}
+                                        style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
+                                        <option value="">All Covers</option>
+                                        {coverSongs.map(title => (
+                                            <option key={title} value={title}>{title}</option>
+                                        ))}
                                     </select>
                                 </div>
 
