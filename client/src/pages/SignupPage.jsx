@@ -40,7 +40,7 @@ export default function SignupPage() {
             <div className="w-full max-w-sm space-y-6 rounded-2xl border border-white/10 bg-[#1a1e26] p-8">
                 <div className="text-center space-y-1">
                     <PHeading size="xl" tag="h1" align="center">Create Your Account</PHeading>
-                    <PText size="sm" color="contrast-medium" align="center">Join blueskiesbase to track your shows</PText>
+                    <PText size="sm" color="contrast-medium" align="center">Join SkySets.org to track your shows</PText>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-4">

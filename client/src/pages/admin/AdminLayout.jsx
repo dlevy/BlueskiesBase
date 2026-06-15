@@ -33,7 +33,7 @@ export default function AdminLayout() {
                     <div className="px-4 flex justify-between items-center">
                         <div>
                             <Link to="/admin" className="hover:opacity-80 transition-opacity">
-                                <PHeading size="lg" tag="h1">blueskiesbase admin</PHeading>
+                                <PHeading size="lg" tag="h1">SkySets.org admin</PHeading>
                             </Link>
                             <PText size="xs" color="contrast-low">Logged in as: {user?.email}</PText>
                         </div>

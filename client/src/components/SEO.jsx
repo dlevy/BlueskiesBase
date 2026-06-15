@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
 
-const SITE_NAME = 'blueskiesbase';
+const SITE_NAME = 'SkySets.org';
 const DEFAULT_TITLE = `${SITE_NAME} – Sturgill Simpson & Johnny Blue Skies Setlists`;
-const DEFAULT_DESC = 'The complete Sturgill Simpson and Johnny Blue Skies setlist database. Search 400+ concerts from 2012 to present, including the Why Not? and Who the F**k Is Johnny Blue Skies? tours.';
+const DEFAULT_DESC = 'The definitive Sturgill Simpson | Johnny Blue Skies & The Dark Clouds concert setlist archive';
 
 function setMeta(selector, attr, value) {
     const el = document.querySelector(selector);

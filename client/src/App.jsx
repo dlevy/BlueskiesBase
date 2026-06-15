@@ -99,16 +99,19 @@ function PublicLayout() {
         }}
       >
         <div className="max-w-6xl mx-auto px-4 md:px-6 flex items-center justify-between h-14">
-          <Link to="/" className="hover:opacity-80 transition-opacity flex flex-col items-start min-w-0">
-            <span className="font-display font-bold text-lg leading-none" style={{ color: 'var(--p-color-primary)' }}>
-              SkySets.org
-            </span>
-            <span
-              className="hidden md:block text-xs mt-0.5 truncate"
-              style={{ color: 'var(--p-color-contrast-low)' }}
-            >
-              Sturgill Simpson &amp; Johnny Blue Skies setlist archive
-            </span>
+          <Link to="/" className="hover:opacity-80 transition-opacity flex items-center gap-2.5 min-w-0">
+            <img src="/logo.svg" alt="" className="h-9 w-9 shrink-0" />
+            <div className="flex flex-col items-start min-w-0">
+              <span className="font-display font-bold text-lg leading-none" style={{ color: 'var(--p-color-primary)' }}>
+                SkySets.org
+              </span>
+              <span
+                className="hidden md:block text-xs mt-0.5 truncate"
+                style={{ color: 'var(--p-color-contrast-low)' }}
+              >
+                Sturgill Simpson &amp; Johnny Blue Skies setlist archive
+              </span>
+            </div>
           </Link>
 
           <div className="flex items-center gap-2 md:gap-3 shrink-0">
@@ -154,7 +157,7 @@ function PublicLayout() {
       <footer style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
         <div className="max-w-6xl mx-auto px-4 md:px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-3">
           <span className="font-display font-semibold text-sm" style={{ color: 'var(--p-color-contrast-low)' }}>
-            blueskiesbase
+            SkySets.org
           </span>
           <div className="flex items-center gap-4">
             <span className="text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>
