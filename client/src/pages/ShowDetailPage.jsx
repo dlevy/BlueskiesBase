@@ -254,102 +254,86 @@ export default function ShowDetailPage() {
             </PButtonPure>
 
             {/* Show header */}
-            <div className="rounded-2xl border border-white/10 bg-[#1a1e26] overflow-hidden">
-                {/* Artist name — full-width banner */}
-                <div className="px-6 md:px-10 pt-8 pb-6">
-                    <h1 className="font-display font-bold text-3xl md:text-5xl leading-tight" style={{ color: 'var(--p-color-primary)' }}>
+            <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 md:p-8">
+                {/* Artist name + attendance button */}
+                <div className="flex items-start justify-between gap-4">
+                    <h1 className="font-display font-bold text-2xl md:text-4xl leading-tight" style={{ color: 'var(--p-color-primary)' }}>
                         {show.artist_name}
                     </h1>
+                    {user && (
+                        <button
+                            onClick={handleAttendanceToggle}
+                            disabled={attendanceLoading}
+                            className={`shrink-0 inline-flex items-center gap-2 h-8 px-4 rounded-lg text-sm font-semibold border transition-all ${
+                                attended
+                                    ? 'bg-amber-500/10 border-amber-500/30 text-amber-300 hover:bg-amber-500/18'
+                                    : 'border-white/15 hover:border-white/25 hover:bg-white/5'
+                            } ${attendanceLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            style={!attended ? { color: 'var(--p-color-contrast-medium)' } : undefined}
+                        >
+                            {attendanceLoading ? (
+                                <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                            ) : (
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>{attended ? <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /> : <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />}</svg>
+                            )}
+                            {attendanceLabel}
+                        </button>
+                    )}
                 </div>
 
-                {/* Two-column body */}
-                <div className="border-t border-white/10 px-6 md:px-10 py-6 grid md:grid-cols-[1fr_auto] gap-8 items-start">
-                    {/* Left: Date + Venue + Tags */}
-                    <div className="space-y-4">
-                        <div className="flex items-end gap-4">
-                            <span className="font-display font-bold text-6xl leading-none text-amber-400">
-                                {parseInt(sday, 10)}
-                            </span>
-                            <div className="pb-1.5">
-                                <div className="font-semibold text-base leading-tight" style={{ color: 'var(--p-color-primary)' }}>
-                                    {showDateObj.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                                </div>
-                                <div className="text-sm mt-0.5" style={{ color: 'var(--p-color-contrast-medium)' }}>
-                                    {showDateObj.toLocaleDateString('en-US', { weekday: 'long' })}
-                                </div>
-                            </div>
-                        </div>
-
-                        {show.venues && (
-                            <div>
-                                <div className="font-semibold" style={{ color: 'var(--p-color-primary)' }}>
-                                    {show.venues.name}
-                                </div>
-                                <div className="text-sm" style={{ color: 'var(--p-color-contrast-medium)' }}>
-                                    {venueCity}
-                                </div>
-                                {show.venues.address && (
-                                    <div className="text-xs mt-0.5" style={{ color: 'var(--p-color-contrast-low)' }}>
-                                        {show.venues.address}
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        <div className="flex flex-wrap gap-2">
-                            {show.tour_name && <PTag>{show.tour_name}</PTag>}
-                            {songStats.originals > 0 && (
-                                <PTag color="notification-success-soft">
-                                    {songStats.originals} Original{songStats.originals !== 1 ? 's' : ''}
-                                </PTag>
-                            )}
-                            {songStats.covers > 0 && (
-                                <PTag color="notification-info-soft">
-                                    {songStats.covers} Cover{songStats.covers !== 1 ? 's' : ''}
-                                </PTag>
-                            )}
-                        </div>
+                {/* Date */}
+                <div className="mt-5">
+                    <div className="flex items-baseline gap-2.5">
+                        <span className="font-display font-bold text-3xl leading-none text-amber-400">
+                            {parseInt(sday, 10)}
+                        </span>
+                        <span className="font-semibold" style={{ color: 'var(--p-color-primary)' }}>
+                            {showDateObj.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                        </span>
                     </div>
+                    <p className="text-sm mt-1" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                        {showDateObj.toLocaleDateString('en-US', { weekday: 'long' })}
+                    </p>
+                </div>
 
-                    {/* Right: Attendance + Sources */}
-                    <div className="flex flex-col gap-4 md:items-end">
-                        {user && (
-                            <button
-                                onClick={handleAttendanceToggle}
-                                disabled={attendanceLoading}
-                                className={`inline-flex items-center gap-2 h-8 px-4 rounded-lg text-sm font-semibold border transition-all ${
-                                    attended
-                                        ? 'bg-amber-500/10 border-amber-500/30 text-amber-300 hover:bg-amber-500/18'
-                                        : 'border-white/15 hover:border-white/25 hover:bg-white/5'
-                                } ${attendanceLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                style={!attended ? { color: 'var(--p-color-contrast-medium)' } : undefined}
-                            >
-                                {attendanceLoading ? (
-                                    <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-                                ) : (
-                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>{attended ? <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /> : <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />}</svg>
-                                )}
-                                {attendanceLabel}
-                            </button>
-                        )}
-
-                        {show.source_types?.length > 0 && (
-                            <div className="md:text-right">
-                                <div className="text-xs font-bold uppercase tracking-widest mb-1.5" style={{ color: 'var(--p-color-contrast-low)' }}>
-                                    Sources
-                                </div>
-                                <div className="flex flex-wrap gap-1 md:justify-end">
-                                    {show.source_types.map((source, i) => (
-                                        <PTag key={i}>{source}</PTag>
-                                    ))}
-                                </div>
+                {/* Venue */}
+                {show.venues && (
+                    <div className="mt-4">
+                        <div className="font-semibold" style={{ color: 'var(--p-color-primary)' }}>
+                            {show.venues.name}
+                        </div>
+                        <div className="text-sm mt-0.5" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                            {venueCity}
+                        </div>
+                        {show.venues.address && (
+                            <div className="text-xs mt-0.5" style={{ color: 'var(--p-color-contrast-low)' }}>
+                                {show.venues.address}
                             </div>
                         )}
                     </div>
-                </div>
+                )}
 
+                {/* Tags + Sources */}
+                {(show.tour_name || songStats.originals > 0 || songStats.covers > 0 || show.source_types?.length > 0) && (
+                    <div className="mt-5 pt-4 border-t border-white/[0.07] flex flex-wrap items-center gap-2">
+                        {show.tour_name && <PTag>{show.tour_name}</PTag>}
+                        {songStats.originals > 0 && (
+                            <PTag color="notification-success-soft">
+                                {songStats.originals} Original{songStats.originals !== 1 ? 's' : ''}
+                            </PTag>
+                        )}
+                        {songStats.covers > 0 && (
+                            <PTag color="notification-info-soft">
+                                {songStats.covers} Cover{songStats.covers !== 1 ? 's' : ''}
+                            </PTag>
+                        )}
+                        {show.source_types?.map((source, i) => <PTag key={i}>{source}</PTag>)}
+                    </div>
+                )}
+
+                {/* Notes */}
                 {show.notes && (
-                    <div className="border-t border-white/10 px-6 md:px-10 py-4">
+                    <div className="mt-5 pt-4 border-t border-white/[0.07]">
                         <PText size="small" color="contrast-medium">{show.notes}</PText>
                     </div>
                 )}
