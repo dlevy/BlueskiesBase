@@ -148,11 +148,14 @@ export default function SongsList() {
                                             <PText size="small" color="contrast-medium">{song.original_artist || '-'}</PText>
                                         </td>
                                         <td className="px-4 py-3">
-                                            <PText size="small" color="contrast-medium">
-                                                {song.album_songs?.length > 0
-                                                    ? song.album_songs.map(as => as.albums?.title).filter(Boolean).join(', ')
-                                                    : '-'}
-                                            </PText>
+                                            {song.album_songs?.length > 0
+                                                ? <div className="flex flex-col gap-0.5">
+                                                    {song.album_songs.map(as => as.albums?.title).filter(Boolean).map(title => (
+                                                        <PText key={title} size="small" color="contrast-medium">{title}</PText>
+                                                    ))}
+                                                  </div>
+                                                : <PText size="small" color="contrast-medium">-</PText>
+                                            }
                                         </td>
                                         <td className="px-4 py-3 text-right">
                                             {song.performance_count > 0 ? (
