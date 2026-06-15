@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { PHeading, PText, PSpinner, PInlineNotification, PDivider } from '@porsche-design-system/components-react';
-import { getGlobalSongStats } from '../services/api';
+import { getGlobalSongStats, getSongs } from '../services/api';
 import { useCountUp } from '../hooks/useCountUp';
 
 export default function SongStatsWidget() {
     const [stats, setStats] = useState(null);
+    const [holyGrails, setHolyGrails] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
@@ -12,8 +13,49 @@ export default function SongStatsWidget() {
         const fetchStats = async () => {
             try {
                 setLoading(true);
-                const data = await getGlobalSongStats();
-                setStats(data);
+                const [statsData, songsData] = await Promise.all([
+                    getGlobalSongStats(),
+                    getSongs(),
+                ]);
+                setStats(statsData);
+
+                // Compute Holy Grails: original songs never played live
+                const unplayed = (songsData.songs || []).filter(
+                    s => s.is_original === true && s.performance_count === 0
+                );
+
+                // Group by album, sorted newest release first; unalbumed go last
+                const albumMap = new Map();
+                unplayed.forEach(song => {
+                    const assocs = song.album_songs?.filter(as => as.albums) || [];
+                    if (assocs.length > 0) {
+                        assocs.forEach(as => {
+                            const key = as.albums.id;
+                            if (!albumMap.has(key)) {
+                                albumMap.set(key, {
+                                    title: as.albums.title,
+                                    releaseDate: as.albums.release_date || '',
+                                    songs: [],
+                                });
+                            }
+                            albumMap.get(key).songs.push(song.title);
+                        });
+                    } else {
+                        const key = '__none__';
+                        if (!albumMap.has(key)) albumMap.set(key, { title: 'Unreleased', releaseDate: '', songs: [] });
+                        albumMap.get(key).songs.push(song.title);
+                    }
+                });
+
+                setHolyGrails(
+                    [...albumMap.values()]
+                        .sort((a, b) => {
+                            if (!a.releaseDate) return 1;
+                            if (!b.releaseDate) return -1;
+                            return b.releaseDate.localeCompare(a.releaseDate);
+                        })
+                        .map(album => ({ ...album, songs: album.songs.sort((a, b) => a.localeCompare(b)) }))
+                );
             } catch (err) {
                 console.error('Error fetching song stats:', err);
                 setError(err.message);
@@ -125,6 +167,35 @@ export default function SongStatsWidget() {
                     maxPlays={maxCoversPlays}
                 />
             </div>
+
+            {/* Holy Grails */}
+            {holyGrails.length > 0 && (
+                <div className="rounded-2xl border border-amber-500/20 bg-[#1a1e26] p-6 space-y-5">
+                    <div>
+                        <PHeading size="lg" tag="h3">Holy Grails</PHeading>
+                        <PText size="small" color="contrast-medium">Original songs that have never been played live</PText>
+                        <div className="mt-3"><PDivider /></div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-6">
+                        {holyGrails.map(album => (
+                            <div key={album.title}>
+                                <PText size="xs" weight="semi-bold" className="uppercase tracking-wide mb-2" style={{ color: '#f59e0b' }}>
+                                    {album.title}
+                                </PText>
+                                <ul className="space-y-1.5 mt-2">
+                                    {album.songs.map(title => (
+                                        <li key={title} className="flex items-start gap-2">
+                                            <span className="mt-1.5 shrink-0 w-1.5 h-1.5 rounded-full bg-amber-500/50" />
+                                            <PText size="small" color="contrast-medium">{title}</PText>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             <PText size="xs" color="contrast-low" align="center">
                 Data as of {formatDate(new Date().toISOString())}
             </PText>
