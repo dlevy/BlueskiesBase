@@ -1,5 +1,9 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
+import {
+    PHeading, PText, PButton, PButtonPure, PTag, PSpinner,
+    PInlineNotification, PDivider
+} from '@porsche-design-system/components-react';
 import { getShowBySlug, checkShowAttendance, markShowAttended, unmarkShowAttended } from '../services/api';
 import { buildShowPath } from '../utils/showSlug';
 import { useAuth } from '../contexts/AuthContext';
@@ -10,43 +14,39 @@ import SEO from '../components/SEO';
 
 function SongRow({ song, position, isChained }) {
     return (
-        <li className={`flex gap-3 text-gray-200 ${isChained ? 'ml-6 pl-3 border-l-2 border-purple-700/60' : ''}`}>
-            <span className={`font-mono text-sm mt-1 shrink-0 ${isChained ? 'text-purple-400 w-4' : 'text-gray-500 w-8'}`}>
+        <li className={`flex gap-3 py-1.5 ${isChained ? 'ml-8 pl-3 border-l-2 border-gray-600' : ''}`}>
+            <span className={`font-mono text-sm mt-0.5 shrink-0 text-gray-500 ${isChained ? 'w-4' : 'w-7 text-right'}`}>
                 {isChained ? '›' : `${position}.`}
             </span>
             <div className="flex-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                    <span className={`font-medium text-lg leading-snug ${isChained ? 'text-gray-300' : ''}`}>
+                    <PText size="medium" weight={isChained ? 'regular' : 'semi-bold'}>
                         {song.title}
-                    </span>
+                    </PText>
                     {song.performance_type === 'tease' && (
-                        <span className="text-xs bg-yellow-900/50 text-yellow-300 px-2 py-0.5 rounded border border-yellow-700 whitespace-nowrap">
-                            Tease
-                        </span>
+                        <PTag color="notification-warning-soft">Tease</PTag>
                     )}
                     {song.performance_type === 'partial' && (
-                        <span className="text-xs bg-orange-900/50 text-orange-300 px-2 py-0.5 rounded border border-orange-700 whitespace-nowrap">
-                            Partial
-                        </span>
+                        <PTag color="notification-warning-soft">Partial</PTag>
                     )}
                     {song.is_original === false && (
-                        <span className="text-xs bg-blue-900/50 text-blue-300 px-2 py-0.5 rounded border border-blue-700 whitespace-nowrap">
-                            Cover
-                        </span>
+                        <PTag color="notification-info-soft">Cover</PTag>
                     )}
                     {song.jams_into && (
-                        <span className="text-xs bg-purple-900/50 text-purple-300 px-1.5 py-0.5 rounded border border-purple-700 font-bold whitespace-nowrap">
-                            &gt;
-                        </span>
+                        <PTag color="primary">›</PTag>
                     )}
                 </div>
                 {(song.original_artist || song.notes) && (
                     <div className="mt-0.5 text-sm space-x-2">
                         {song.original_artist && (
-                            <span className="text-gray-400">({song.original_artist})</span>
+                            <PText size="small" color="contrast-medium" tag="span">
+                                ({song.original_artist})
+                            </PText>
                         )}
                         {song.notes && (
-                            <span className="text-gray-400 italic">{song.notes}</span>
+                            <PText size="small" color="contrast-medium" tag="span">
+                                <em>{song.notes}</em>
+                            </PText>
                         )}
                     </div>
                 )}
@@ -57,7 +57,7 @@ function SongRow({ song, position, isChained }) {
 
 function SetList({ songs }) {
     return (
-        <ol className="space-y-2">
+        <ol className="space-y-1">
             {songs.map((song, index) => {
                 const isChained = index > 0 && songs[index - 1].jams_into != null;
                 return (
@@ -110,50 +110,33 @@ export default function ShowDetailPage() {
         }
     }, [show, artist, date, locationSlug, navigate]);
 
-    // Calculate song statistics when show data loads
+    // Calculate song stats when setlist loads
     useEffect(() => {
-        if (!show || !show.setlist) {
+        if (!show?.setlist) {
             setSongStats({ originals: 0, covers: 0 });
             return;
         }
-
-        // Collect all songs from all sets
         const allSongs = [
             ...(show.setlist.set1 || []),
             ...(show.setlist.set2 || []),
             ...(show.setlist.set3 || []),
             ...(show.setlist.encore || [])
         ];
-
-        // Track unique songs by song_id
-        const uniqueSongIds = new Set();
-        let originals = 0;
-        let covers = 0;
-
+        const seen = new Set();
+        let originals = 0, covers = 0;
         allSongs.forEach(song => {
-            const songId = song.song_id;
-            if (!songId || uniqueSongIds.has(songId)) {
-                return; // Skip if no song_id or already counted
-            }
-
-            uniqueSongIds.add(songId);
-
-            // Use ONLY songs.is_original as master source of truth
-            const isOriginal = song.is_original === true;
-
-            if (isOriginal) {
-                originals++;
-            } else {
-                covers++;
-            }
+            if (!song.song_id || seen.has(song.song_id)) return;
+            seen.add(song.song_id);
+            if (song.is_original === true) originals++;
+            else covers++;
         });
-
         setSongStats({ originals, covers });
     }, [show]);
 
+    // Check attendance after show loads
     useEffect(() => {
         if (!user || !show?.id) return;
-        const checkAttendance = async () => {
+        const check = async () => {
             try {
                 const { attended: isAttended } = await checkShowAttendance(show.id);
                 setAttended(isAttended);
@@ -161,15 +144,14 @@ export default function ShowDetailPage() {
                 console.error('Error checking attendance:', err);
             }
         };
-        checkAttendance();
+        check();
     }, [show?.id, user]);
 
     const handleAttendanceToggle = async () => {
-        if (!user) {
+        if (!user || !show) {
             alert('Please log in to mark shows as attended');
             return;
         }
-
         setAttendanceLoading(true);
         try {
             if (attended) {
@@ -189,53 +171,53 @@ export default function ShowDetailPage() {
 
     if (loading) {
         return (
-            <div className="px-4 py-8 max-w-6xl mx-auto">
-                <div className="text-center">
-                    <div className="text-xl text-gray-300">Loading...</div>
-                </div>
+            <div className="min-h-[60vh] flex items-center justify-center">
+                <PSpinner size="large" aria={{ 'aria-label': 'Loading show details' }} />
             </div>
         );
     }
 
     if (error || !show) {
         return (
-            <div className="px-4 py-8 max-w-6xl mx-auto">
-                <div className="bg-red-900/50 border border-red-700 text-red-200 px-4 py-3 rounded-lg">
-                    {error || 'Show not found'}
-                </div>
-                <Link to="/" className="text-blue-400 hover:text-blue-300 mt-4 inline-block transition-colors">
-                    ← Back to Search
-                </Link>
+            <div className="px-4 py-8 max-w-4xl mx-auto space-y-4">
+                <PInlineNotification
+                    heading="Could not load show"
+                    description={error || 'Show not found'}
+                    state="error"
+                    dismissButton={false}
+                />
+                <PButtonPure icon="arrow-left" onClick={() => navigate('/')}>
+                    Back to Search
+                </PButtonPure>
             </div>
         );
     }
 
     const formatDate = (dateString) => {
         const [year, month, day] = dateString.split('-');
-        const date = new Date(year, month - 1, day);
-        return date.toLocaleDateString('en-US', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
+        return new Date(year, month - 1, day).toLocaleDateString('en-US', {
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
         });
     };
 
-    const allSongs = [
-        ...(show.setlist?.set1 || []),
-        ...(show.setlist?.set2 || []),
-        ...(show.setlist?.set3 || []),
-        ...(show.setlist?.encore || []),
-    ];
     const venueName = show.venues?.name || '';
-    const venueCity = show.venues ? `${show.venues.city}${show.venues.state_country ? ', ' + show.venues.state_country : ''}` : '';
+    const venueCity = show.venues
+        ? `${show.venues.city}${show.venues.state_country ? ', ' + show.venues.state_country : ''}`
+        : '';
     const [syear, smonth, sday] = show.show_date.split('-');
     const showDateObj = new Date(syear, smonth - 1, sday);
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const isFutureShow = showDateObj >= today;
     const longDate = showDateObj.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
     const seoTitle = `${show.artist_name} at ${venueName} – ${longDate} Setlist`;
-    const firstFive = allSongs.slice(0, 5).map(s => s.title).filter(Boolean).join(', ');
+    const allSongsFlat = [
+        ...(show.setlist?.set1 || []),
+        ...(show.setlist?.set2 || []),
+        ...(show.setlist?.set3 || []),
+        ...(show.setlist?.encore || []),
+    ];
+    const firstFive = allSongsFlat.slice(0, 5).map(s => s.title).filter(Boolean).join(', ');
     const seoDescription = `${show.artist_name} performed at ${venueName} in ${venueCity} on ${longDate}.${firstFive ? ' Setlist: ' + firstFive + '.' : ''}`;
     const jsonLd = {
         '@context': 'https://schema.org',
@@ -251,182 +233,167 @@ export default function ShowDetailPage() {
         ...(show.tour_name ? { subEvent: { '@type': 'Event', name: show.tour_name } } : {})
     };
 
-    return (
-        <div className="px-4 py-8 max-w-6xl mx-auto">
-            <SEO title={seoTitle} description={seoDescription} jsonLd={jsonLd} />
-            {/* Back Button */}
-            <Link to="/" className="text-blue-400 hover:text-blue-300 mb-4 inline-block transition-colors">
-                ← Back to Search
-            </Link>
+    const attendanceLabel = attended
+        ? (isFutureShow ? "I'm Attending" : 'I Was There')
+        : (isFutureShow ? 'Mark as Attending' : 'Mark as Attended');
+    const attendanceIcon = attended ? 'check' : 'plus';
 
-            {/* Show Header */}
-            <div className="bg-gray-800 shadow-2xl rounded-lg p-4 md:p-6 mb-6 border border-gray-700 relative text-center">
-                {/* Attendance Button - responsive positioning */}
+    const sets = [
+        { key: 'set1', label: 'Set 1' },
+        { key: 'set2', label: 'Set 2' },
+        { key: 'set3', label: 'Set 3' },
+        { key: 'encore', label: 'Encore' },
+    ].filter(({ key }) => show.setlist?.[key]?.length);
+
+    return (
+        <div className="px-4 py-8 max-w-4xl mx-auto space-y-6">
+            <SEO title={seoTitle} description={seoDescription} jsonLd={jsonLd} />
+
+            {/* Back navigation */}
+            <PButtonPure icon="arrow-left" onClick={() => navigate('/')}>
+                Back to Search
+            </PButtonPure>
+
+            {/* Show header */}
+            <div className="relative rounded-2xl border border-white/10 bg-[#1a1e26] p-6 md:p-10">
+                {/* Attendance button */}
                 {user && (
-                    <div className="absolute top-2 right-2 md:top-6 md:right-6">
-                        <button
+                    <div className="absolute top-4 right-4 md:top-6 md:right-6">
+                        <PButton
+                            variant={attended ? 'primary' : 'secondary'}
+                            icon={attendanceIcon}
+                            loading={attendanceLoading}
                             onClick={handleAttendanceToggle}
-                            disabled={attendanceLoading}
-                            className={`px-3 py-2 md:px-6 md:py-3 rounded-lg font-medium text-xs md:text-base transition-all whitespace-nowrap ${
-                                attended
-                                    ? 'bg-green-900/50 text-green-200 border-2 border-green-700 hover:bg-green-900/70'
-                                    : 'bg-blue-900/50 text-blue-200 border-2 border-blue-700 hover:bg-blue-900/70'
-                            } disabled:opacity-50`}
                         >
-                            {attendanceLoading ? '...' : attended ? '✓' : '+'}
-                            <span className="hidden sm:inline ml-1">
-                                {attended
-                                    ? (isFutureShow ? "I'm Attending" : 'I Was There')
-                                    : (isFutureShow ? 'Mark as Attending' : 'Mark as Attended')}
-                            </span>
-                        </button>
+                            <span className="hidden sm:inline">{attendanceLabel}</span>
+                        </PButton>
                     </div>
                 )}
 
-                {/* Centered content - add padding on mobile to avoid button overlap */}
-                <div className={user ? 'pr-20 md:pr-0' : ''}>
-                    <h1 className="text-2xl md:text-4xl font-bold mb-2 bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">{show.artist_name}</h1>
-                    <p className="text-lg md:text-2xl text-gray-300 mb-2">{formatDate(show.show_date)}</p>
+                {/* Artist + show info */}
+                <div className={`text-center ${user ? 'pr-14 md:pr-44' : ''}`}>
+                    <PHeading size="xx-large" tag="h1" align="center">
+                        {show.artist_name}
+                    </PHeading>
+
+                    <div className="mt-3">
+                        <PText size="large" align="center" color="contrast-medium">
+                            {formatDate(show.show_date)}
+                        </PText>
+                    </div>
 
                     {show.venues && (
-                        <div className="text-sm md:text-lg text-gray-400 mb-2">
-                            <p className="font-semibold text-gray-200">{show.venues.name}</p>
-                            <p>{show.venues.city}, {show.venues.state_country}</p>
+                        <div className="mt-4">
+                            <PText weight="semi-bold" align="center">{show.venues.name}</PText>
+                            <PText color="contrast-medium" align="center">
+                                {show.venues.city}{show.venues.state_country ? `, ${show.venues.state_country}` : ''}
+                            </PText>
                             {show.venues.address && (
-                                <p className="text-xs md:text-sm">{show.venues.address}</p>
+                                <PText size="small" color="contrast-medium" align="center">
+                                    {show.venues.address}
+                                </PText>
                             )}
                         </div>
                     )}
 
                     {show.tour_name && (
-                        <p className="text-sm md:text-lg italic text-gray-400 mb-2">
-                            Tour: {show.tour_name}
-                        </p>
+                        <div className="mt-4 flex justify-center">
+                            <PTag>{show.tour_name}</PTag>
+                        </div>
                     )}
 
-                    {/* Song Stats Badges */}
                     {(songStats.originals > 0 || songStats.covers > 0) && (
-                        <div className="mt-3 flex items-center justify-center gap-2 flex-wrap">
+                        <div className="mt-4 flex gap-2 justify-center flex-wrap">
                             {songStats.originals > 0 && (
-                                <span className="text-xs bg-green-900/50 text-green-300 px-2 py-1 rounded border border-green-700">
+                                <PTag color="notification-success-soft">
                                     {songStats.originals} Original{songStats.originals !== 1 ? 's' : ''}
-                                </span>
+                                </PTag>
                             )}
                             {songStats.covers > 0 && (
-                                <span className="text-xs bg-blue-900/50 text-blue-300 px-2 py-1 rounded border border-blue-700">
+                                <PTag color="notification-info-soft">
                                     {songStats.covers} Cover{songStats.covers !== 1 ? 's' : ''}
-                                </span>
+                                </PTag>
                             )}
                         </div>
                     )}
+
+                    {show.source_types?.length > 0 && (
+                        <div className="mt-5">
+                            <PDivider />
+                            <div className="mt-4 flex gap-2 justify-center flex-wrap items-center">
+                                <PText size="small" color="contrast-medium">Sources:</PText>
+                                {show.source_types.map((source, i) => (
+                                    <PTag key={i}>{source}</PTag>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {show.notes && (
+                        <div className="mt-5">
+                            <PDivider />
+                            <div className="mt-4 text-left">
+                                <PText size="small" color="contrast-medium">{show.notes}</PText>
+                            </div>
+                        </div>
+                    )}
                 </div>
-
-                {/* Source Types */}
-                {show.source_types && show.source_types.length > 0 && (
-                    <div className="mt-4">
-                        <span className="font-semibold text-gray-300">Available Sources: </span>
-                        {show.source_types.map((source, index) => (
-                            <span
-                                key={index}
-                                className="inline-block bg-blue-900/50 text-blue-200 px-3 py-1 rounded-full text-sm mr-2 mb-2 border border-blue-700"
-                            >
-                                {source}
-                            </span>
-                        ))}
-                    </div>
-                )}
-
-                {show.has_images && (
-                    <div className="mt-2">
-                        <span className="inline-block bg-green-900/50 text-green-300 px-3 py-1 rounded-full text-sm border border-green-700">
-                            📸 Has Images
-                        </span>
-                    </div>
-                )}
-
-                {show.notes && (
-                    <div className="mt-4 p-4 bg-gray-900/50 rounded-lg border border-gray-700">
-                        <p className="font-semibold text-gray-300 mb-2">Notes:</p>
-                        <p className="text-gray-400">{show.notes}</p>
-                    </div>
-                )}
             </div>
 
             {/* Setlist */}
-            <div className="bg-gray-800 shadow-2xl rounded-lg p-6 border border-gray-700 text-left">
-                <h2 className="text-3xl font-bold mb-6 bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent text-left">Setlist</h2>
+            <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 md:p-10">
+                <PHeading size="large" tag="h2">Setlist</PHeading>
 
                 {/* Legend */}
-                <div className="mb-4 p-3 bg-gray-900/50 rounded-lg border border-gray-700 text-sm text-gray-400">
-                    <div className="flex flex-wrap gap-4">
-                        <div className="flex items-center gap-2">
-                            <span className="text-xs bg-yellow-900/50 text-yellow-300 px-2 py-0.5 rounded border border-yellow-700 whitespace-nowrap">
-                                Tease
-                            </span>
-                            <span>= Brief snippet without full vocals</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <span className="text-xs bg-orange-900/50 text-orange-300 px-2 py-0.5 rounded border border-orange-700 whitespace-nowrap">
-                                Partial
-                            </span>
-                            <span>= Incomplete performance</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <span className="text-xs bg-purple-900/50 text-purple-300 px-1.5 py-0.5 rounded border border-purple-700 font-bold whitespace-nowrap">
-                                &gt;
-                            </span>
-                            <span>= Segues into next song</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <span className="inline-block w-3 h-4 border-l-2 border-purple-600 mr-1" />
-                            <span>= Song played inside another song</span>
-                        </div>
+                <div className="mt-4 mb-6 flex flex-wrap gap-x-6 gap-y-2">
+                    <div className="flex items-center gap-2">
+                        <PTag color="notification-warning-soft">Tease</PTag>
+                        <PText size="x-small" color="contrast-low">Brief snippet without full vocals</PText>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <PTag color="notification-warning-soft">Partial</PTag>
+                        <PText size="x-small" color="contrast-low">Incomplete performance</PText>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <PTag color="primary">›</PTag>
+                        <PText size="x-small" color="contrast-low">Segues into next song</PText>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <span className="inline-block w-px h-4 bg-gray-500 mr-1" />
+                        <PText size="x-small" color="contrast-low">Played inside another song</PText>
                     </div>
                 </div>
 
-                {show.setlist && Object.keys(show.setlist).length > 0 ? (
-                    <div className="space-y-6 text-left">
-                        {[
-                            { key: 'set1', label: 'Set 1', labelColor: 'text-blue-400' },
-                            { key: 'set2', label: 'Set 2', labelColor: 'text-blue-400' },
-                            { key: 'set3', label: 'Set 3', labelColor: 'text-blue-400' },
-                            { key: 'encore', label: 'Encore', labelColor: 'text-purple-400' },
-                        ].map(({ key, label, labelColor }) =>
-                            show.setlist[key] ? (
-                                <div key={key}>
-                                    <h3 className={`text-xl font-semibold mb-3 ${labelColor} text-left`}>{label}</h3>
+                {sets.length > 0 ? (
+                    <div className="space-y-8">
+                        {sets.map(({ key, label }, idx) => (
+                            <div key={key}>
+                                {idx > 0 && (
+                                    <div className="mb-6">
+                                        <PDivider />
+                                    </div>
+                                )}
+                                <PHeading size="small" tag="h3">{label}</PHeading>
+                                <div className="mt-3">
                                     <SetList songs={show.setlist[key]} />
                                 </div>
-                            ) : null
-                        )}
+                            </div>
+                        ))}
                     </div>
                 ) : (
-                    <p className="text-gray-400">No setlist information available for this show.</p>
+                    <PText color="contrast-medium">No setlist information available for this show.</PText>
                 )}
             </div>
 
-            {/* Notes Section */}
-            <div className="mt-8">
-                <NotesSection showId={show.id} />
-            </div>
+            {/* Notes, Posters, Photos */}
+            <NotesSection showId={show.id} />
+            <PostersSection showId={show.id} />
+            <PhotosSection showId={show.id} />
 
-            {/* Poster Section */}
-            <div className="mt-8">
-                <PostersSection showId={show.id} />
-            </div>
-
-            {/* Photos Section */}
-            <div className="mt-8">
-                <PhotosSection showId={show.id} />
-            </div>
-
-            {/* Back Button at Bottom */}
-            <div className="mt-6">
-                <Link to="/" className="text-blue-400 hover:text-blue-300 transition-colors">
-                    ← Back to Search
-                </Link>
-            </div>
+            {/* Bottom back link */}
+            <PButtonPure icon="arrow-left" onClick={() => navigate('/')}>
+                Back to Search
+            </PButtonPure>
         </div>
     );
 }
-
