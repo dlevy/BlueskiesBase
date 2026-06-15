@@ -421,10 +421,10 @@ export default function SearchPage() {
                                                     key={m}
                                                     type="button"
                                                     onClick={() => isSelected ? clearFilter('month') : setMonthFilter(m)}
-                                                    className={`px-2.5 py-1 rounded-md text-xs font-medium border transition-all ${
+                                                    className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all duration-150 ${
                                                         isSelected
                                                             ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
-                                                            : 'border-white/10 hover:border-amber-500/30 hover:bg-amber-500/8 hover:text-amber-300'
+                                                            : 'border-white/10 hover:border-amber-500/40 hover:bg-amber-500/10 hover:text-amber-300'
                                                     }`}
                                                     style={!isSelected ? { color: 'var(--p-color-contrast-medium)' } : undefined}
                                                 >
@@ -435,32 +435,36 @@ export default function SearchPage() {
                                     </div>
                                 </div>
 
-                                {/* Originals by album */}
+                                {/* Song search */}
                                 <div className="mb-4">
-                                    <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>Originals</label>
-                                    <select name="song" value={searchParams.song} onChange={handleInputChange} className={selectClass}
-                                        style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
-                                        <option value="">All Originals</option>
-                                        {originalsByAlbum.map(album => (
-                                            <optgroup key={album.name} label={album.name}>
-                                                {album.songs.map(title => (
+                                    <label className="block text-xs font-semibold mb-0.5" style={{ color: 'var(--p-color-contrast-medium)' }}>Find shows by song played</label>
+                                    <p className="text-xs mb-2" style={{ color: 'var(--p-color-contrast-low)' }}>Find every show where a specific song was performed</p>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="block text-xs mb-1" style={{ color: 'var(--p-color-contrast-low)' }}>Originals</label>
+                                            <select name="song" value={searchParams.song} onChange={handleInputChange} className={selectClass}
+                                                style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
+                                                <option value="">Select an original…</option>
+                                                {originalsByAlbum.map(album => (
+                                                    <optgroup key={album.name} label={album.name}>
+                                                        {album.songs.map(title => (
+                                                            <option key={title} value={title}>{title}</option>
+                                                        ))}
+                                                    </optgroup>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs mb-1" style={{ color: 'var(--p-color-contrast-low)' }}>Covers</label>
+                                            <select name="song" value={searchParams.song} onChange={handleInputChange} className={selectClass}
+                                                style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
+                                                <option value="">Select a cover…</option>
+                                                {coverSongs.map(title => (
                                                     <option key={title} value={title}>{title}</option>
                                                 ))}
-                                            </optgroup>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                {/* Covers */}
-                                <div className="mb-4">
-                                    <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>Covers</label>
-                                    <select name="song" value={searchParams.song} onChange={handleInputChange} className={selectClass}
-                                        style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
-                                        <option value="">All Covers</option>
-                                        {coverSongs.map(title => (
-                                            <option key={title} value={title}>{title}</option>
-                                        ))}
-                                    </select>
+                                            </select>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <div>
