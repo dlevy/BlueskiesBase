@@ -51,6 +51,8 @@ export default function SearchPage() {
     const [songStatsLoading, setSongStatsLoading] = useState(false);
     const lastCalculatedShowIds = useRef(null);
 
+    const [sortOrder, setSortOrder] = useState('newest');
+
     const [years, setYears] = useState([]);
     const [originalsByAlbum, setOriginalsByAlbum] = useState([]);
     const [coverSongs, setCoverSongs] = useState([]);
@@ -541,18 +543,40 @@ export default function SearchPage() {
                     {/* Results */}
                     {showResults && (
                         <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 md:p-8">
-                            <div className="flex items-center gap-3 mb-6">
+                            <div className="flex items-center gap-3 mb-6 flex-wrap">
                                 <PHeading size="lg" tag="h2">
                                     Results {filteredResults.length > 0 && `(${filteredResults.length})`}
                                 </PHeading>
                                 {loading && <PSpinner size="small" aria={{ 'aria-label': 'Searching' }} />}
+                                {filteredResults.length > 0 && (
+                                    <div className="ml-auto flex items-center gap-1 rounded-lg border border-white/10 p-0.5">
+                                        {['newest', 'oldest'].map(order => (
+                                            <button
+                                                key={order}
+                                                onClick={() => setSortOrder(order)}
+                                                className={`px-3 py-1 rounded-md text-xs font-medium transition-all capitalize ${
+                                                    sortOrder === order
+                                                        ? 'bg-amber-500/15 text-amber-300'
+                                                        : 'hover:bg-white/5'
+                                                }`}
+                                                style={sortOrder !== order ? { color: 'var(--p-color-contrast-medium)' } : undefined}
+                                            >
+                                                {order}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
 
                             {filteredResults.length === 0 && !loading ? (
                                 <PText color="contrast-medium">No shows found. Try adjusting your search criteria.</PText>
                             ) : (
                                 <div className="space-y-2">
-                                    {filteredResults.map((show) => {
+                                    {[...filteredResults].sort((a, b) =>
+                                        sortOrder === 'newest'
+                                            ? b.show_date.localeCompare(a.show_date)
+                                            : a.show_date.localeCompare(b.show_date)
+                                    ).map((show) => {
                                         const isAttended = attendanceMap[show.id] || false;
                                         const isLoading = attendanceLoading[show.id] || false;
                                         const hasNotes = contentMap[show.id]?.hasNotes || false;
