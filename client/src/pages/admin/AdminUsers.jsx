@@ -39,6 +39,54 @@ const CustomTooltip = ({ active, payload, label }) => {
     );
 };
 
+const FILTERS = [
+    { id: 'all',               label: 'All users' },
+    { id: 'confirmed-no-signin', label: 'Confirmed, never signed in' },
+    { id: 'unconfirmed',       label: 'Never confirmed' },
+    { id: 'inactive',          label: 'Inactive >' },
+];
+
+function applyFilter(users, filterMode, inactiveDays) {
+    const now = Date.now();
+    switch (filterMode) {
+        case 'confirmed-no-signin':
+            return users.filter(u => u.confirmed && !u.last_sign_in_at);
+        case 'unconfirmed':
+            return users.filter(u => !u.confirmed);
+        case 'inactive': {
+            const cutoff = now - inactiveDays * 86_400_000;
+            return users.filter(u => {
+                if (u.last_sign_in_at) return new Date(u.last_sign_in_at).getTime() < cutoff;
+                // Never signed in — count from signup date
+                return new Date(u.created_at).getTime() < cutoff;
+            });
+        }
+        default:
+            return users;
+    }
+}
+
+function exportCsv(rows, filterLabel) {
+    const headers = ['Email', 'Signed Up', 'Last Sign In', 'Status'];
+    const fmt = str => str ? new Date(str).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Never';
+    const lines = [
+        headers.join(','),
+        ...rows.map(u => [
+            `"${u.email}"`,
+            `"${fmt(u.created_at)}"`,
+            `"${fmt(u.last_sign_in_at)}"`,
+            u.confirmed ? 'Confirmed' : 'Unconfirmed',
+        ].join(',')),
+    ];
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `skysets-users-${filterLabel.toLowerCase().replace(/\s+/g, '-')}-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
 export default function AdminUsers() {
     const { getToken } = useAuth();
     const [users, setUsers] = useState([]);
@@ -47,6 +95,8 @@ export default function AdminUsers() {
     const [resending, setResending] = useState(null);
     const [resendStatus, setResendStatus] = useState({});
     const [search, setSearch] = useState('');
+    const [filterMode, setFilterMode] = useState('all');
+    const [inactiveDays, setInactiveDays] = useState(90);
 
     const fetchUsers = async () => {
         setLoading(true);
@@ -86,13 +136,19 @@ export default function AdminUsers() {
         }
     };
 
-    const filtered = users.filter(u =>
+    const filterApplied = applyFilter(users, filterMode, inactiveDays);
+    const filtered = filterApplied.filter(u =>
         !search || u.email.toLowerCase().includes(search.toLowerCase())
     );
 
-    const confirmed = users.filter(u => u.confirmed).length;
+    const confirmed   = users.filter(u => u.confirmed).length;
     const unconfirmed = users.length - confirmed;
+    // Chart always uses the full user list — unaffected by filters
     const weeklyData = buildWeeklyChart(users);
+
+    const activeFilterLabel = filterMode === 'inactive'
+        ? `Inactive >${inactiveDays}d`
+        : (FILTERS.find(f => f.id === filterMode)?.label ?? 'All users');
 
     const formatDate = (str) => {
         if (!str) return '—';
@@ -172,16 +228,63 @@ export default function AdminUsers() {
 
             {/* User table */}
             <div className="rounded-2xl border border-white/10 bg-[#1a1e26] overflow-hidden">
-                <div className="p-4 border-b border-white/10 flex items-center gap-3">
-                    <input
-                        type="text"
-                        placeholder="Search by email…"
-                        value={search}
-                        onChange={e => setSearch(e.target.value)}
-                        className="flex-1 rounded-lg px-3 py-1.5 text-sm bg-white/5 border border-white/10 outline-none focus:border-white/25 transition-colors"
-                        style={{ color: 'var(--p-color-primary)' }}
-                    />
-                    <PText size="xs" color="contrast-low">{filtered.length} shown</PText>
+                {/* Filter pills */}
+                <div className="px-4 pt-4 pb-3 border-b border-white/10 space-y-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                        {FILTERS.map(f => {
+                            const active = filterMode === f.id;
+                            return (
+                                <button
+                                    key={f.id}
+                                    onClick={() => setFilterMode(f.id)}
+                                    className="text-xs px-3 py-1.5 rounded-full border transition-all"
+                                    style={active
+                                        ? { background: 'rgba(245,158,11,0.18)', color: '#f59e0b', borderColor: 'rgba(245,158,11,0.45)' }
+                                        : { background: 'transparent', color: 'rgba(255,255,255,0.45)', borderColor: 'rgba(255,255,255,0.12)' }
+                                    }
+                                >
+                                    {f.label}
+                                    {f.id === 'inactive' && filterMode === 'inactive' && (
+                                        <input
+                                            type="number"
+                                            min={1}
+                                            max={3650}
+                                            value={inactiveDays}
+                                            onClick={e => e.stopPropagation()}
+                                            onChange={e => setInactiveDays(Math.max(1, parseInt(e.target.value) || 1))}
+                                            className="ml-1.5 w-12 rounded bg-black/30 border border-white/20 text-center text-xs outline-none px-1"
+                                            style={{ color: '#f59e0b' }}
+                                        />
+                                    )}
+                                    {f.id === 'inactive' && filterMode === 'inactive' && (
+                                        <span className="ml-0.5">days</span>
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    {/* Search + count + export row */}
+                    <div className="flex items-center gap-3">
+                        <input
+                            type="text"
+                            placeholder="Search by email…"
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
+                            className="flex-1 rounded-lg px-3 py-1.5 text-sm bg-white/5 border border-white/10 outline-none focus:border-white/25 transition-colors"
+                            style={{ color: 'var(--p-color-primary)' }}
+                        />
+                        <PText size="xs" color="contrast-low">{filtered.length} shown</PText>
+                        <button
+                            onClick={() => exportCsv(filtered, activeFilterLabel)}
+                            disabled={filtered.length === 0}
+                            className="text-xs px-3 py-1.5 rounded-lg border transition-all disabled:opacity-40"
+                            style={{ borderColor: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.6)' }}
+                            title={`Export ${filtered.length} rows as CSV`}
+                        >
+                            Export CSV
+                        </button>
+                    </div>
                 </div>
 
                 <div className="overflow-x-auto">
