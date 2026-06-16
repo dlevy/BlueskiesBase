@@ -70,15 +70,18 @@ router.post('/users/:userId/resend-confirmation', requireAdmin, async (req, res)
 
         const email = userData.user.email;
 
-        // Generate a new confirmation link
-        const { data, error } = await supabase.auth.admin.generateLink({
+        // Resend the confirmation email via Supabase's resend API
+        const { error } = await supabase.auth.resend({
             type: 'signup',
             email,
+            options: {
+                emailRedirectTo: `${process.env.FRONTEND_URL || 'https://www.skysets.org'}/member-login`,
+            },
         });
 
         if (error) {
-            console.error('[admin/resend-confirmation] generateLink error:', error);
-            return res.status(500).json({ error: 'Failed to generate confirmation link' });
+            console.error('[admin/resend-confirmation] resend error:', error);
+            return res.status(500).json({ error: 'Failed to resend confirmation email' });
         }
 
         res.json({ success: true, email });
