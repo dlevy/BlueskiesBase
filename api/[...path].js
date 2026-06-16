@@ -20,6 +20,7 @@ app.use('/api/albums', require('../server/routes/albums'));
 app.use('/api/venues', require('../server/routes/venues'));
 app.use('/api/search', require('../server/routes/search'));
 app.use('/api/users', require('../server/routes/users'));
+app.use('/api/admin', require('../server/routes/admin'));
 app.use('/api/notes', require('../server/routes/notes'));
 app.use('/api/photos', require('../server/routes/photos'));
 app.use('/api/posters', require('../server/routes/posters'));
