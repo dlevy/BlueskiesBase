@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { MapContainer, TileLayer, CircleMarker, Tooltip, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, CircleMarker, Tooltip, GeoJSON, useMap } from 'react-leaflet';
 import { feature } from 'topojson-client';
 import 'leaflet/dist/leaflet.css';
 import { getHighestBadge } from '../utils/badges';
@@ -9,6 +9,8 @@ import { supabase } from '../services/supabase';
 
 const GEO_CACHE_KEY = 'skysets_geocache_v1';
 let worldAtlasCache = null;
+let usAtlasCache = null;
+let usStatesGeoCache = null;
 
 const PIN_COLORS = {
     attended: '#f59e0b',
@@ -38,13 +40,64 @@ async function fetchCoords(query) {
     return null;
 }
 
-// ─── World atlas (CDN, module-level cache) ────────────────────────────────────
+// ─── Atlas loaders (CDN, module-level cache) ──────────────────────────────────
 
 async function loadWorldAtlas() {
     if (worldAtlasCache) return worldAtlasCache;
     const res = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/land-110m.json');
     worldAtlasCache = await res.json();
     return worldAtlasCache;
+}
+
+async function loadUsAtlas() {
+    if (usAtlasCache) return usAtlasCache;
+    const res = await fetch('https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json');
+    usAtlasCache = await res.json();
+    return usAtlasCache;
+}
+
+// ─── Inverse Albers equal-area conic (lower-48 Albers USA parameters) ─────────
+// us-atlas stores coordinates in Albers screen-space, not lat/lng.
+// These are the exact D3 albersUsa parameters for the lower-48 inset.
+
+function albersInverse(px, py) {
+    const D = Math.PI / 180;
+    const phi1 = 29.5 * D, phi2 = 45.5 * D, phi0 = 37.5 * D, lam0 = -96 * D;
+    const k = 1070, tx = 487.5, ty = 305;
+    const n = (Math.sin(phi1) + Math.sin(phi2)) / 2;
+    const C = Math.cos(phi1) ** 2 + 2 * n * Math.sin(phi1);
+    const rho0 = Math.sqrt(C - 2 * n * Math.sin(phi0)) / n;
+    const x = (px - tx) / k;
+    const y = -(py - ty) / k;
+    const rho = Math.sqrt(x * x + (rho0 - y) ** 2);
+    const theta = Math.atan2(x, rho0 - y);
+    const lat = Math.asin(Math.min(1, Math.max(-1, (C - rho * rho * n * n) / (2 * n)))) / D;
+    const lng = (theta / n + lam0) / D;
+    return [lng, lat];
+}
+
+function convertAlbersGeomToWGS84(geom) {
+    if (!geom) return geom;
+    const convRing = ring => ring.map(([x, y]) => albersInverse(x, y));
+    const convRings = rings => rings.map(convRing);
+    if (geom.type === 'Polygon') return { ...geom, coordinates: convRings(geom.coordinates) };
+    if (geom.type === 'MultiPolygon') return { ...geom, coordinates: geom.coordinates.map(convRings) };
+    return geom;
+}
+
+// Convert full us-atlas to WGS84 GeoJSON for Leaflet (cached)
+async function loadUsStatesWGS84() {
+    if (usStatesGeoCache) return usStatesGeoCache;
+    const topo = await loadUsAtlas();
+    const fc = feature(topo, topo.objects.states);
+    // Alaska (id=2) and Hawaii (id=15) have wrong screen positions in Albers USA insets — skip them
+    usStatesGeoCache = {
+        type: 'FeatureCollection',
+        features: fc.features
+            .filter(f => f.id !== 2 && f.id !== 15)
+            .map(f => ({ ...f, geometry: convertAlbersGeomToWGS84(f.geometry) })),
+    };
+    return usStatesGeoCache;
 }
 
 // ─── Mercator projection ──────────────────────────────────────────────────────
@@ -59,10 +112,11 @@ function mercatorNorm(lat, lng) {
 // ─── Canvas image generation ──────────────────────────────────────────────────
 
 async function buildShareImage({ pins, pastCount, upcomingCount, highestBadge }) {
-    const W = 900, OVERLAY_H = 68, MAP_H = 440, H = MAP_H + OVERLAY_H;
+    const W = 900, OVERLAY_H = 80, MAP_H = 440, H = MAP_H + OVERLAY_H;
 
-    const [topoData, logoImg] = await Promise.all([
+    const [topoData, usAtlasData, logoImg] = await Promise.all([
         loadWorldAtlas(),
+        loadUsAtlas(),
         new Promise(res => {
             const img = new Image();
             img.onload = () => res(img);
@@ -82,7 +136,6 @@ async function buildShareImage({ pins, pastCount, upcomingCount, highestBadge })
     });
     if (!pins.length) { minX = 0.1; maxX = 0.9; minY = 0.15; maxY = 0.85; }
 
-    // Pad and enforce minimum extent
     const MIN_EXT = 0.12, PAD = 0.05;
     const extX = Math.max(maxX - minX, MIN_EXT);
     const extY = Math.max(maxY - minY, MIN_EXT);
@@ -118,7 +171,7 @@ async function buildShareImage({ pins, pastCount, upcomingCount, highestBadge })
     ctx.fillStyle = '#0e1117';
     ctx.fillRect(0, 0, W, H);
 
-    // Land — feature() returns FeatureCollection when topology object is a GeometryCollection
+    // Land fill
     const addGeomToPath = (geom) => {
         if (!geom) return;
         const drawRings = (polygon) => polygon.forEach(ring => {
@@ -141,6 +194,29 @@ async function buildShareImage({ pins, pastCount, upcomingCount, highestBadge })
     ctx.lineWidth = 0.6;
     ctx.stroke();
 
+    // US state borders — convert Albers screen coords → lat/lng → canvas XY
+    const usStates = feature(usAtlasData, usAtlasData.objects.states);
+    ctx.beginPath();
+    usStates.features
+        .filter(f => f.id !== 2 && f.id !== 15)
+        .forEach(f => {
+            const geom = f.geometry;
+            if (!geom) return;
+            const drawUsRings = rings => rings.forEach(ring => {
+                ring.forEach(([ax, ay], i) => {
+                    const [lng, lat] = albersInverse(ax, ay);
+                    const [x, y] = toXY(lat, lng);
+                    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+                });
+                ctx.closePath();
+            });
+            if (geom.type === 'Polygon') drawUsRings(geom.coordinates);
+            else if (geom.type === 'MultiPolygon') geom.coordinates.forEach(drawUsRings);
+        });
+    ctx.strokeStyle = 'rgba(200,185,140,0.3)';
+    ctx.lineWidth = 0.5;
+    ctx.stroke();
+
     // Subtle graticule
     ctx.strokeStyle = 'rgba(255,255,255,0.035)';
     ctx.lineWidth = 0.5;
@@ -158,13 +234,11 @@ async function buildShareImage({ pins, pastCount, upcomingCount, highestBadge })
         const [x, y] = toXY(pin.lat, pin.lng);
         if (x < -30 || x > W + 30 || y < -30 || y > MAP_H + 30) return;
         const color = PIN_COLORS[pin.pinType];
-        // Glow
         const grd = ctx.createRadialGradient(x, y, 0, x, y, 20);
         grd.addColorStop(0, color + '55');
         grd.addColorStop(1, 'transparent');
         ctx.beginPath(); ctx.arc(x, y, 20, 0, Math.PI * 2);
         ctx.fillStyle = grd; ctx.fill();
-        // Dot
         ctx.beginPath(); ctx.arc(x, y, 8, 0, Math.PI * 2);
         ctx.fillStyle = color; ctx.fill();
         ctx.strokeStyle = '#0e1117'; ctx.lineWidth = 2; ctx.stroke();
@@ -200,10 +274,10 @@ async function buildShareImage({ pins, pastCount, upcomingCount, highestBadge })
     ctx.textAlign = 'left';
     ctx.fillStyle = '#f59e0b';
     ctx.font = '700 16px system-ui, sans-serif';
-    ctx.fillText('SkySets.org', TX, MAP_H + 26);
+    ctx.fillText('SkySets.org', TX, MAP_H + 30);
     ctx.fillStyle = 'rgba(255,255,255,0.38)';
     ctx.font = '400 11px system-ui, sans-serif';
-    ctx.fillText('Sturgill Simpson & Johnny Blue Skies setlists', TX, MAP_H + 44);
+    ctx.fillText('Sturgill Simpson & Johnny Blue Skies setlists', TX, MAP_H + 48);
 
     // Legend (centered)
     const legendItems = [
@@ -225,18 +299,23 @@ async function buildShareImage({ pins, pastCount, upcomingCount, highestBadge })
         lx += ctx.measureText(label).width + (i < legendItems.length - 1 ? ITEM_GAP : 0);
     });
 
-    // Badge (right)
+    // Badge (right-aligned) — "Latest badge unlocked:"
     if (highestBadge) {
         ctx.textAlign = 'right';
         const RX = W - 14;
-        ctx.font = '26px sans-serif';
-        ctx.fillText(highestBadge.emoji, RX, MAP_H + 30);
-        ctx.font = '600 11px system-ui, sans-serif';
+
+        ctx.font = '400 9px system-ui, sans-serif';
+        ctx.fillStyle = 'rgba(255,255,255,0.38)';
+        ctx.fillText('Latest badge unlocked:', RX, MAP_H + 18);
+
+        ctx.font = '700 13px system-ui, sans-serif';
         ctx.fillStyle = '#f59e0b';
-        ctx.fillText(highestBadge.name, RX, MAP_H + 46);
+        ctx.fillText(`${highestBadge.emoji} ${highestBadge.name}`, RX, MAP_H + 38);
+
         ctx.font = '400 10px system-ui, sans-serif';
-        ctx.fillStyle = 'rgba(255,255,255,0.3)';
-        ctx.fillText(`${pastCount} shows attended`, RX, MAP_H + 60);
+        ctx.fillStyle = 'rgba(255,255,255,0.28)';
+        ctx.fillText(`${pastCount} shows attended`, RX, MAP_H + 54);
+
         ctx.textAlign = 'left';
     }
 
@@ -276,17 +355,29 @@ function FitBounds({ pins }) {
     return null;
 }
 
+const stateStyle = () => ({
+    color: 'rgba(220,195,140,0.3)',
+    weight: 0.8,
+    fillOpacity: 0,
+});
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function ShowMapShare({ pastShows, upcomingShows }) {
     const [pins, setPins] = useState([]);
     const [geocoding, setGeocoding] = useState(false);
     const [progress, setProgress] = useState({ done: 0, total: 0 });
+    const [usStatesGeo, setUsStatesGeo] = useState(null);
     const [modalImage, setModalImage] = useState(null);
     const [generating, setGenerating] = useState(false);
     const [fbUploading, setFbUploading] = useState(false);
     const [shareError, setShareError] = useState(null);
     const dialogRef = useRef(null);
+
+    // Load US states WGS84 GeoJSON for Leaflet overlay
+    useEffect(() => {
+        loadUsStatesWGS84().then(setUsStatesGeo).catch(() => {});
+    }, []);
 
     // ── Geocoding ──────────────────────────────────────────────────────────────
     useEffect(() => {
@@ -388,7 +479,6 @@ export default function ShowMapShare({ pastShows, upcomingShows }) {
         const blob = await blobFromDataUrl(modalImage);
         const file = new File([blob], 'my-skysets-shows.png', { type: 'image/png' });
 
-        // Mobile: Web Share API (opens native share sheet including Facebook)
         if (navigator.share && navigator.canShare?.({ files: [file] })) {
             try {
                 await navigator.share({ files: [file], text: 'Track your shows at skysets.org', url: 'https://skysets.org' });
@@ -396,7 +486,6 @@ export default function ShowMapShare({ pastShows, upcomingShows }) {
             } catch {}
         }
 
-        // Desktop: upload to Supabase Storage → share public URL on Facebook
         setFbUploading(true);
         const publicUrl = await uploadToSupabase(blob);
         setFbUploading(false);
@@ -404,7 +493,6 @@ export default function ShowMapShare({ pastShows, upcomingShows }) {
         if (publicUrl) {
             window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(publicUrl)}`, '_blank', 'width=600,height=400');
         } else {
-            // Fallback: download the image
             downloadImage();
             window.open('https://www.facebook.com', '_blank');
         }
@@ -464,6 +552,13 @@ export default function ShowMapShare({ pastShows, upcomingShows }) {
                             subdomains="abcd"
                             maxZoom={19}
                         />
+                        {usStatesGeo && (
+                            <GeoJSON
+                                key="us-states"
+                                data={usStatesGeo}
+                                style={stateStyle}
+                            />
+                        )}
                         <FitBounds pins={pins} />
                         {pins.map((pin, i) => (
                             <CircleMarker
@@ -484,7 +579,7 @@ export default function ShowMapShare({ pastShows, upcomingShows }) {
                     </div>
                 )}
 
-                {/* Branding overlay on interactive map */}
+                {/* Branding overlay */}
                 <div style={{
                     position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 800,
                     background: 'linear-gradient(to top, rgba(10,12,18,0.92) 0%, rgba(10,12,18,0.5) 55%, transparent 100%)',
@@ -503,8 +598,13 @@ export default function ShowMapShare({ pastShows, upcomingShows }) {
                     </div>
                     {highestBadge && (
                         <div style={{ textAlign: 'right' }}>
-                            <div style={{ fontSize: 20 }}>{highestBadge.emoji}</div>
-                            <div style={{ color: '#f59e0b', fontWeight: 600, fontSize: 10 }}>{highestBadge.name}</div>
+                            <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 9, lineHeight: 1.3, marginBottom: 3 }}>
+                                Latest badge unlocked:
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'flex-end' }}>
+                                <span style={{ fontSize: 16, lineHeight: 1 }}>{highestBadge.emoji}</span>
+                                <span style={{ color: '#f59e0b', fontWeight: 700, fontSize: 11 }}>{highestBadge.name}</span>
+                            </div>
                         </div>
                     )}
                 </div>
