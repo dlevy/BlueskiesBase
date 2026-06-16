@@ -17,6 +17,7 @@ import ShowsList from './pages/admin/ShowsList'
 import ShowForm from './pages/admin/ShowForm'
 import SongsList from './pages/admin/SongsList'
 import AlbumsList from './pages/admin/AlbumsList'
+import AdminUsers from './pages/admin/AdminUsers'
 import ChatWidget from './components/ChatWidget'
 import './App.css'
 
@@ -54,6 +55,7 @@ function App() {
             <Route path="shows/edit/:id" element={<ShowForm />} />
             <Route path="songs" element={<SongsList />} />
             <Route path="albums" element={<AlbumsList />} />
+            <Route path="users" element={<AdminUsers />} />
           </Route>
         </Routes>
       </Router>

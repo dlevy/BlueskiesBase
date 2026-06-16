@@ -57,6 +57,7 @@ export default function AdminLayout() {
                             { to: '/admin/songs', label: 'Songs' },
                             { to: '/admin/albums', label: 'Albums' },
                             { to: '/admin/venues', label: 'Venues' },
+                            { to: '/admin/users', label: 'Users' },
                         ].map(({ to, label }) => (
                             <li key={to}>
                                 <Link to={to} className={navLinkClass} style={{ color: 'var(--p-color-primary)' }}>

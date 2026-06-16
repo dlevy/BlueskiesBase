@@ -6,6 +6,7 @@ const cards = [
     { to: '/admin/songs', label: 'Songs', description: 'Manage song catalog and track performance history' },
     { to: '/admin/albums', label: 'Albums', description: 'Manage album catalog and tracklists' },
     { to: '/admin/venues', label: 'Venues', description: 'Manage venue information and locations' },
+    { to: '/admin/users', label: 'Users', description: 'View user signups, confirmation status, and resend activation emails' },
 ];
 
 export default function AdminDashboard() {

@@ -99,6 +99,7 @@ export default function SongStatsWidget() {
 
     const SongColumn = ({ title, data, accentColor, maxPlays }) => {
         const animatedTotal = useCountUp(data.total);
+        const uniqueLabel = title === 'Originals' ? 'Unique Songs Played Live' : 'Unique Covers Played Live';
         return (
         <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 space-y-6">
             <div>
@@ -109,8 +110,8 @@ export default function SongStatsWidget() {
             {/* Summary */}
             <div className="rounded-xl border border-white/5 bg-white/5 p-5 text-center">
                 <div className="font-display font-bold text-5xl leading-none mb-1 text-amber-400">{animatedTotal}</div>
-                <PText size="sm" color="contrast-medium">Unique Songs</PText>
-                <PText size="xs" color="contrast-low">{totalPlays(data.top5)} total plays (top 5)</PText>
+                <PText size="sm" color="contrast-medium" align="center">{uniqueLabel}</PText>
+                <PText size="xs" color="contrast-low" align="center">{totalPlays(data.top5)} total plays (top 5)</PText>
             </div>
 
             {/* Top 5 */}
