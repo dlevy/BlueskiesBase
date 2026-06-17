@@ -31,7 +31,9 @@ export const AuthProvider = ({ children }) => {
 
         const initAuth = async () => {
             try {
+                console.log('[Auth] getSession starting');
                 const { data: { session } } = await supabase.auth.getSession();
+                console.log('[Auth] getSession resolved, session:', session ? session.user?.email : 'none');
                 if (!mounted) return;
                 setSession(session);
                 setUser(session?.user ?? null);
@@ -42,11 +44,12 @@ export const AuthProvider = ({ children }) => {
                         .then(p => { if (mounted) setProfile(p); })
                         .catch(() => { if (mounted) setProfile(null); });
                 }
-            } catch {
-                // getSession errors are non-fatal
+            } catch (err) {
+                console.log('[Auth] getSession error:', err?.message);
             } finally {
                 // Guaranteed to fire as soon as getSession() resolves, regardless
                 // of whether the profile fetch above completes.
+                console.log('[Auth] setLoading(false) firing');
                 if (mounted) setLoading(false);
             }
         };
@@ -57,6 +60,7 @@ export const AuthProvider = ({ children }) => {
         // this tab or any other tab via localStorage storage event).
         // autoRefreshToken:true handles all renewal — no manual intervals needed.
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+            console.log('[Auth] onAuthStateChange event:', event, session ? session.user?.email : 'no session');
             if (event === 'INITIAL_SESSION') return;
             if (!mounted) return;
             setSession(session);
