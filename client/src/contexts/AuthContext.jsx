@@ -28,57 +28,65 @@ export const AuthProvider = ({ children }) => {
 
     useEffect(() => {
         let mounted = true;
+        let loadingTimer = null;
 
-        const initAuth = async () => {
-            try {
-                console.log('[Auth] getSession starting');
-                const { data: { session } } = await supabase.auth.getSession();
-                console.log('[Auth] getSession resolved, session:', session ? session.user?.email : 'none');
-                if (!mounted) return;
-                setSession(session);
-                setUser(session?.user ?? null);
+        // Drive all auth state from onAuthStateChange — never call getSession()
+        // separately because it races with another tab's refresh token lock and
+        // returns null even while a valid session exists in another tab.
+        //
+        // INITIAL_SESSION fires after Supabase's own initialize() completes.
+        // SIGNED_IN fires when localStorage is updated by another tab's refresh.
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+            if (!mounted) return;
+
+            setSession(session);
+            setUser(session?.user ?? null);
+
+            if (event === 'INITIAL_SESSION') {
                 if (session?.user) {
-                    // Fire profile fetch without awaiting — loading clears immediately
-                    // once session is known; profile state updates when it resolves.
+                    // Valid session on init — clear loading immediately.
+                    setLoading(false);
+                    fetchProfile(session.user.id)
+                        .then(p => { if (mounted) setProfile(p); })
+                        .catch(() => { if (mounted) setProfile(null); });
+                } else {
+                    // No session yet. Another tab may be mid-refresh (rotating token
+                    // race): its SIGNED_IN will fire via the storage event within ~1s.
+                    // Keep loading=true briefly so ProtectedRoute doesn't redirect to
+                    // /login during that window. Fall through after 1.5s at most.
+                    loadingTimer = setTimeout(() => {
+                        if (mounted) setLoading(false);
+                    }, 1500);
+                }
+                return;
+            }
+
+            if (event === 'SIGNED_IN') {
+                // Covers both direct login and cross-tab token sync.
+                if (loadingTimer) { clearTimeout(loadingTimer); loadingTimer = null; }
+                setLoading(false);
+                if (session?.user) {
                     fetchProfile(session.user.id)
                         .then(p => { if (mounted) setProfile(p); })
                         .catch(() => { if (mounted) setProfile(null); });
                 }
-            } catch (err) {
-                console.log('[Auth] getSession error:', err?.message);
-            } finally {
-                // Guaranteed to fire as soon as getSession() resolves, regardless
-                // of whether the profile fetch above completes.
-                console.log('[Auth] setLoading(false) firing');
-                if (mounted) setLoading(false);
+                return;
             }
-        };
 
-        initAuth();
-
-        // Listen for subsequent changes (sign-in, sign-out, token refresh from
-        // this tab or any other tab via localStorage storage event).
-        // autoRefreshToken:true handles all renewal — no manual intervals needed.
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-            console.log('[Auth] onAuthStateChange event:', event, session ? session.user?.email : 'no session');
-            if (event === 'INITIAL_SESSION') return;
-            if (!mounted) return;
-            setSession(session);
-            setUser(session?.user ?? null);
-            if (session?.user) {
-                try {
-                    const p = await fetchProfile(session.user.id);
-                    if (mounted) setProfile(p);
-                } catch {
-                    if (mounted) setProfile(null);
-                }
-            } else {
+            if (event === 'SIGNED_OUT') {
                 setProfile(null);
+                setLoading(false);
+                return;
             }
+
+            // TOKEN_REFRESHED / USER_UPDATED — session/user already set above;
+            // profile unchanged (avoid spurious re-fetches and risk of clearing it
+            // if the fetch fails during a refresh).
         });
 
         return () => {
             mounted = false;
+            if (loadingTimer) clearTimeout(loadingTimer);
             subscription.unsubscribe();
         };
     }, []);
