@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '../services/supabase';
 
 const AuthContext = createContext({});
@@ -27,37 +27,56 @@ export const AuthProvider = ({ children }) => {
     const [session, setSession] = useState(null);
 
     useEffect(() => {
-        // Step 1: resolve initial session synchronously so loading clears immediately.
-        // This is the reliable path — getSession() reads localStorage directly.
-        supabase.auth.getSession().then(async ({ data: { session } }) => {
-            setSession(session);
-            setUser(session?.user ?? null);
-            if (session?.user) {
-                setProfile(await fetchProfile(session.user.id));
+        let mounted = true;
+
+        const initAuth = async () => {
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!mounted) return;
+                setSession(session);
+                setUser(session?.user ?? null);
+                if (session?.user) {
+                    // Fire profile fetch without awaiting — loading clears immediately
+                    // once session is known; profile state updates when it resolves.
+                    fetchProfile(session.user.id)
+                        .then(p => { if (mounted) setProfile(p); })
+                        .catch(() => { if (mounted) setProfile(null); });
+                }
+            } catch {
+                // getSession errors are non-fatal
+            } finally {
+                // Guaranteed to fire as soon as getSession() resolves, regardless
+                // of whether the profile fetch above completes.
+                if (mounted) setLoading(false);
             }
-            setLoading(false);
-        }).catch(() => {
-            setLoading(false);
-        });
+        };
 
-        // Step 2: listen for subsequent changes (sign-in, sign-out, token refresh
-        // from this tab or any other tab via localStorage storage event).
-        // autoRefreshToken:true in the client handles all renewal — no manual
-        // intervals needed, and manual intervals cause multi-tab token conflicts.
+        initAuth();
+
+        // Listen for subsequent changes (sign-in, sign-out, token refresh from
+        // this tab or any other tab via localStorage storage event).
+        // autoRefreshToken:true handles all renewal — no manual intervals needed.
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-            // INITIAL_SESSION duplicates what getSession() already handled above.
             if (event === 'INITIAL_SESSION') return;
-
+            if (!mounted) return;
             setSession(session);
             setUser(session?.user ?? null);
             if (session?.user) {
-                setProfile(await fetchProfile(session.user.id));
+                try {
+                    const p = await fetchProfile(session.user.id);
+                    if (mounted) setProfile(p);
+                } catch {
+                    if (mounted) setProfile(null);
+                }
             } else {
                 setProfile(null);
             }
         });
 
-        return () => subscription.unsubscribe();
+        return () => {
+            mounted = false;
+            subscription.unsubscribe();
+        };
     }, []);
 
     const signIn = async (email, password) => {
@@ -84,10 +103,12 @@ export const AuthProvider = ({ children }) => {
         if (error) throw error;
     };
 
-    const getToken = async () => {
+    // Stable reference via useCallback so PublicLayout's useEffect([getToken])
+    // only re-runs when it genuinely needs to (i.e. never after mount).
+    const getToken = useCallback(async () => {
         const { data: { session } } = await supabase.auth.getSession();
         return session?.access_token ?? null;
-    };
+    }, []);
 
     const value = {
         user,
