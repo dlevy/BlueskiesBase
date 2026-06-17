@@ -12,6 +12,18 @@ import PhotosSection from '../components/PhotosSection';
 import PostersSection from '../components/PostersSection';
 import SEO from '../components/SEO';
 
+function getYouTubeId(url) {
+    try {
+        const u = new URL(url);
+        if (u.hostname === 'youtu.be') return u.pathname.slice(1).split('?')[0];
+        if (u.hostname.includes('youtube.com')) {
+            if (u.pathname.startsWith('/shorts/')) return u.pathname.split('/')[2];
+            return u.searchParams.get('v');
+        }
+    } catch {}
+    return null;
+}
+
 function SongRow({ song, position, isChained }) {
     return (
         <li className={`flex gap-3 py-2 ${isChained ? 'ml-10 pl-3 border-l-2 border-white/10' : ''}`}>
@@ -313,6 +325,24 @@ export default function ShowDetailPage() {
                     </div>
                 )}
 
+                {/* Support act context */}
+                {(show.opened_for || show.opening_act) && (
+                    <div className="mt-4 flex flex-col gap-1.5">
+                        {show.opened_for && (
+                            <p className="text-sm" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                                <span style={{ color: 'var(--p-color-contrast-low)' }}>Opening for </span>
+                                <span className="font-semibold" style={{ color: 'var(--p-color-primary)' }}>{show.opened_for.name}</span>
+                            </p>
+                        )}
+                        {show.opening_act && (
+                            <p className="text-sm" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                                <span style={{ color: 'var(--p-color-contrast-low)' }}>Opening act </span>
+                                <span className="font-semibold" style={{ color: 'var(--p-color-primary)' }}>{show.opening_act.name}</span>
+                            </p>
+                        )}
+                    </div>
+                )}
+
                 {/* Tags + Sources */}
                 {(show.tour_name || songStats.originals > 0 || songStats.covers > 0 || show.source_types?.length > 0) && (
                     <div className="mt-5 pt-4 border-t border-white/[0.07] flex flex-wrap items-center gap-2">
@@ -385,6 +415,40 @@ export default function ShowDetailPage() {
                     <PText color="contrast-medium">No setlist information available for this show.</PText>
                 )}
             </div>
+
+            {/* Videos & Links */}
+            {show.links?.length > 0 && (
+                <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 md:p-10">
+                    <PHeading size="large" tag="h2">Videos &amp; Links</PHeading>
+                    <div className="mt-6 space-y-8">
+                        {show.links.map((link, i) => {
+                            const ytId = getYouTubeId(link.url);
+                            return ytId ? (
+                                <div key={i}>
+                                    {link.description && (
+                                        <p className="text-sm mb-3" style={{ color: 'var(--p-color-contrast-medium)' }}>{link.description}</p>
+                                    )}
+                                    <div className="relative w-full rounded-xl overflow-hidden" style={{ paddingTop: '56.25%' }}>
+                                        <iframe
+                                            className="absolute inset-0 w-full h-full"
+                                            src={`https://www.youtube.com/embed/${ytId}`}
+                                            title={link.description || 'YouTube video'}
+                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                            allowFullScreen
+                                        />
+                                    </div>
+                                </div>
+                            ) : (
+                                <a key={i} href={link.url} target="_blank" rel="noopener noreferrer"
+                                    className="flex items-center gap-2 text-sm text-amber-400 hover:underline break-all">
+                                    <span className="shrink-0">→</span>
+                                    <span>{link.description || link.url}</span>
+                                </a>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
 
             {/* Notes, Posters, Photos */}
             <NotesSection showId={show.id} />

@@ -91,7 +91,7 @@ export default function AlbumsList() {
                                         <td className="px-4 py-4">
                                             <PText size="small" weight="semi-bold">{album.title}</PText>
                                             {album.notes && (
-                                                <PText size="x-small" color="contrast-low">{album.notes}</PText>
+                                                <PText size="x-small" color="contrast-medium">{album.notes}</PText>
                                             )}
                                         </td>
                                         <td className="px-4 py-4">

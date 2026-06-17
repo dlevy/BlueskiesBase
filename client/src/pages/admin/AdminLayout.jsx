@@ -35,7 +35,7 @@ export default function AdminLayout() {
                             <Link to="/admin" className="hover:opacity-80 transition-opacity">
                                 <PHeading size="lg" tag="h1">SkySets.org admin</PHeading>
                             </Link>
-                            <PText size="xs" color="contrast-low">Logged in as: {user?.email}</PText>
+                            <PText size="xs" color="contrast-medium">Logged in as: {user?.email}</PText>
                         </div>
                         <div className="flex items-center gap-4">
                             <Link to="/">

@@ -274,7 +274,7 @@ export default function AdminUsers() {
                             className="flex-1 rounded-lg px-3 py-1.5 text-sm bg-white/5 border border-white/10 outline-none focus:border-white/25 transition-colors"
                             style={{ color: 'var(--p-color-primary)' }}
                         />
-                        <PText size="xs" color="contrast-low">{filtered.length} shown</PText>
+                        <PText size="xs" color="contrast-medium">{filtered.length} shown</PText>
                         <button
                             onClick={() => exportCsv(filtered, activeFilterLabel)}
                             disabled={filtered.length === 0}
@@ -355,7 +355,7 @@ export default function AdminUsers() {
                             {filtered.length === 0 && (
                                 <tr>
                                     <td colSpan={5} className="px-4 py-8 text-center">
-                                        <PText color="contrast-low">No users match your search.</PText>
+                                        <PText color="contrast-medium">No users match your search.</PText>
                                     </td>
                                 </tr>
                             )}

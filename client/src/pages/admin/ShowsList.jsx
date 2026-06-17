@@ -98,7 +98,7 @@ export default function ShowsList() {
                                                 </PText>
                                             </div>
                                         ) : (
-                                            <PText size="small" color="contrast-low">No venue</PText>
+                                            <PText size="small" color="contrast-medium">No venue</PText>
                                         )}
                                     </td>
                                     <td className="px-4 py-3">

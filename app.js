@@ -41,6 +41,7 @@ app.use('/api/admin', require('./server/routes/admin'));
 app.use('/api/notes', require('./server/routes/notes'));
 app.use('/api/photos', require('./server/routes/photos'));
 app.use('/api/posters', require('./server/routes/posters'));
+app.use('/api/bands',  require('./server/routes/bands'));
 
 // Error handling middleware
 app.use((err, req, res, next) => {

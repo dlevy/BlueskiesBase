@@ -4,6 +4,10 @@ import {
     PHeading, PText, PButtonPure, PSpinner, PInlineNotification, PDivider, PTag
 } from '@porsche-design-system/components-react';
 import { useCountUp } from '../hooks/useCountUp';
+import { buildShowPath } from '../utils/showSlug';
+import { getUserStats } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
+import SEO from '../components/SEO';
 
 function StatCard({ value, label }) {
     const count = useCountUp(value);
@@ -14,10 +18,77 @@ function StatCard({ value, label }) {
         </div>
     );
 }
-import { buildShowPath } from '../utils/showSlug';
-import { getUserStats } from '../services/api';
-import { useAuth } from '../contexts/AuthContext';
-import SEO from '../components/SEO';
+
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const DAYS   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+function computeFunStats(pastShows, songsSeen) {
+    if (!pastShows.length) return null;
+    const sorted = [...pastShows].sort((a, b) => a.show_date.localeCompare(b.show_date));
+
+    const cityCounts  = {};
+    const venueCounts = {};
+    const monthCounts = {};
+    const dowCounts   = {};
+    const yearCounts  = {};
+    const cities   = new Set();
+    const regions  = new Set();
+
+    for (const show of pastShows) {
+        const [y, m, d] = show.show_date.split('-');
+        const date = new Date(Number(y), Number(m) - 1, Number(d));
+        const city      = show.venues?.city  || 'Unknown';
+        const venueName = show.venues?.name  || 'Unknown';
+        const venueKey  = `${venueName}||${city}`;
+        const month = MONTHS[date.getMonth()];
+        const dow   = DAYS[date.getDay()];
+
+        cityCounts[city] = (cityCounts[city] || 0) + 1;
+        if (!venueCounts[venueKey]) venueCounts[venueKey] = { name: venueName, city, count: 0 };
+        venueCounts[venueKey].count++;
+        monthCounts[month] = (monthCounts[month] || 0) + 1;
+        dowCounts[dow]     = (dowCounts[dow]     || 0) + 1;
+        yearCounts[y]      = (yearCounts[y]       || 0) + 1;
+        cities.add(city);
+        if (show.venues?.state_country) regions.add(show.venues.state_country);
+    }
+
+    const topCity  = Object.entries(cityCounts).sort((a, b) => b[1] - a[1])[0];
+    const topVenue = Object.values(venueCounts).sort((a, b) => b.count - a.count)[0];
+    const topMonth = Object.entries(monthCounts).sort((a, b) => b[1] - a[1])[0];
+    const topDow   = Object.entries(dowCounts).sort((a, b)   => b[1] - a[1])[0];
+    const topSong  = songsSeen?.length
+        ? [...songsSeen].sort((a, b) => b.playCount - a.playCount)[0]
+        : null;
+
+    const yearRows = Object.entries(yearCounts)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([year, count]) => ({ year, count }));
+    const maxYearCount = Math.max(...yearRows.map(r => r.count));
+
+    return {
+        firstShow: sorted[0],
+        topCity:   topCity  ? { name: topCity[0],  count: topCity[1]  } : null,
+        topVenue,
+        topMonth:  topMonth ? { name: topMonth[0], count: topMonth[1] } : null,
+        topDow:    topDow   ? { name: topDow[0],   count: topDow[1]   } : null,
+        topSong,
+        uniqueCities:  cities.size,
+        uniqueRegions: regions.size,
+        yearRows,
+        maxYearCount,
+    };
+}
+
+function FactCard({ label, value, sub }) {
+    return (
+        <div className="rounded-xl border border-white/10 bg-[#1a1e26] px-4 py-3 space-y-0.5">
+            <PText size="xs" color="contrast-low" style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</PText>
+            <div className="text-sm font-semibold" style={{ color: 'var(--p-color-primary)' }}>{value}</div>
+            {sub && <PText size="xs" color="contrast-medium">{sub}</PText>}
+        </div>
+    );
+}
 
 const TABS = ['shows', 'upcoming', 'seen', 'notSeen'];
 
@@ -90,6 +161,7 @@ export default function StatsPage() {
     const isUpcoming = (d) => { const [y, m, day] = d.split('-'); return new Date(y, m - 1, day) >= today; };
     const upcomingShows = stats.attendedShows.filter(s => isUpcoming(s.show_date)).sort((a, b) => a.show_date.localeCompare(b.show_date));
     const pastShows = stats.attendedShows.filter(s => !isUpcoming(s.show_date)).sort((a, b) => b.show_date.localeCompare(a.show_date));
+    const funStats = computeFunStats(pastShows, stats.songsSeen);
 
     return (
         <div className="px-4 py-8 max-w-6xl mx-auto space-y-8">
@@ -110,6 +182,93 @@ export default function StatsPage() {
                 <StatCard value={stats.totalSongsSeen} label="Songs Seen Live" />
                 <StatCard value={stats.totalSongsNotSeen} label="Songs Not Yet Seen" />
             </div>
+
+            {/* Fun Stats */}
+            {funStats && (
+                <div className="space-y-4">
+                    <PHeading size="md" tag="h2">By the Numbers</PHeading>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                        {funStats.firstShow && (
+                            <FactCard
+                                label="First Show"
+                                value={formatDate(funStats.firstShow.show_date)}
+                                sub={funStats.firstShow.venues ? `${funStats.firstShow.venues.name}, ${funStats.firstShow.venues.city}` : undefined}
+                            />
+                        )}
+                        {funStats.topCity && (
+                            <FactCard
+                                label="Favorite City"
+                                value={funStats.topCity.name}
+                                sub={`${funStats.topCity.count} show${funStats.topCity.count !== 1 ? 's' : ''}`}
+                            />
+                        )}
+                        {funStats.topVenue && (
+                            <FactCard
+                                label="Top Venue"
+                                value={funStats.topVenue.name}
+                                sub={`${funStats.topVenue.city} · ${funStats.topVenue.count}x`}
+                            />
+                        )}
+                        {funStats.uniqueCities > 0 && (
+                            <FactCard
+                                label="Cities Visited"
+                                value={`${funStats.uniqueCities} cities`}
+                                sub={`across ${funStats.uniqueRegions} state${funStats.uniqueRegions !== 1 ? 's' : ''} & countries`}
+                            />
+                        )}
+                        {funStats.topMonth && (
+                            <FactCard
+                                label="Favorite Month"
+                                value={funStats.topMonth.name}
+                                sub={`${funStats.topMonth.count} show${funStats.topMonth.count !== 1 ? 's' : ''} in ${funStats.topMonth.name}`}
+                            />
+                        )}
+                        {funStats.topDow && (
+                            <FactCard
+                                label="Favorite Day"
+                                value={`${funStats.topDow.name}s`}
+                                sub={`${funStats.topDow.count} show${funStats.topDow.count !== 1 ? 's' : ''} on a ${funStats.topDow.name}`}
+                            />
+                        )}
+                        {funStats.topSong && (
+                            <FactCard
+                                label="Most-Played Song"
+                                value={funStats.topSong.title}
+                                sub={`Seen live ${funStats.topSong.playCount}x`}
+                            />
+                        )}
+                        {stats.totalSongsSeen > 0 && stats.totalSongsNotSeen >= 0 && (
+                            <FactCard
+                                label="Song Completion"
+                                value={`${Math.round(stats.totalSongsSeen / (stats.totalSongsSeen + stats.totalSongsNotSeen) * 100)}%`}
+                                sub={`${stats.totalSongsSeen} of ${stats.totalSongsSeen + stats.totalSongsNotSeen} songs`}
+                            />
+                        )}
+                    </div>
+
+                    {/* Shows by Year */}
+                    {funStats.yearRows.length > 1 && (
+                        <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-5 space-y-3">
+                            <PText size="xs" color="contrast-low" style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>Shows by Year</PText>
+                            <div className="space-y-2">
+                                {funStats.yearRows.map(({ year, count }) => (
+                                    <div key={year} className="flex items-center gap-3">
+                                        <span className="text-xs w-10 shrink-0 text-right" style={{ color: 'var(--p-color-contrast-medium)' }}>{year}</span>
+                                        <div className="flex-1 h-5 rounded bg-white/5 overflow-hidden">
+                                            <div
+                                                className="h-full rounded bg-amber-400/80 transition-all duration-700"
+                                                style={{ width: `${(count / funStats.maxYearCount) * 100}%` }}
+                                            />
+                                        </div>
+                                        <span className="text-xs w-4 shrink-0" style={{ color: 'var(--p-color-contrast-medium)' }}>{count}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* Tabs */}
             <div className="flex flex-wrap border-b border-white/[0.07]">

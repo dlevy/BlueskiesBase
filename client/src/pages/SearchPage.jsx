@@ -4,7 +4,7 @@ import {
     PHeading, PText, PTag, PSpinner, PInlineNotification
 } from '@porsche-design-system/components-react';
 import { buildShowPath } from '../utils/showSlug';
-import { searchShows, checkShowAttendanceBatch, markShowAttended, unmarkShowAttended, checkShowsHaveContent } from '../services/api';
+import { searchShows, checkShowAttendanceBatch, markShowAttended, unmarkShowAttended, checkShowsHaveContent, getBands } from '../services/api';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import SongStatsWidget from '../components/SongStatsWidget';
@@ -545,6 +545,10 @@ export default function SearchPage() {
                                         const hasPhotos = contentMap[show.id]?.hasPhotos || false;
                                         const hasPoster = contentMap[show.id]?.hasPoster || false;
                                         const songStats = songStatsMap[show.id] || { originals: 0, covers: 0 };
+                                        const openedFor = show.opened_for?.name;
+                                        const openingAct = show.opening_act?.name;
+                                        const hasVideo = show.links?.some(l => l.url?.includes('youtube.com') || l.url?.includes('youtu.be'));
+                                        const hasLinks = show.links?.some(l => l.url && !l.url.includes('youtube.com') && !l.url.includes('youtu.be'));
                                         const [sy, sm, sd] = show.show_date.split('-');
                                         const showDateObj = new Date(sy, sm - 1, sd);
                                         const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -592,8 +596,12 @@ export default function SearchPage() {
                                                                 {show.tour_name}
                                                             </p>
                                                         )}
-                                                        {(hasNotes || hasPhotos || hasPoster || songStats.covers > 0) && (
+                                                        {(hasNotes || hasPhotos || hasPoster || songStats.covers > 0 || openedFor || openingAct || hasVideo || hasLinks) && (
                                                             <div className="mt-2 flex flex-wrap gap-1.5">
+                                                                {openedFor && <PTag color="notification-warning-soft">Opening for {openedFor}</PTag>}
+                                                                {openingAct && <PTag color="notification-neutral-soft">Opener: {openingAct}</PTag>}
+                                                                {hasVideo && <PTag color="notification-error-soft">Video</PTag>}
+                                                                {hasLinks && <PTag color="notification-neutral-soft">Links</PTag>}
                                                                 {hasNotes && <PTag color="notification-warning-soft">Notes</PTag>}
                                                                 {hasPhotos && <PTag color="notification-info-soft">Photos</PTag>}
                                                                 {hasPoster && <PTag>Poster</PTag>}

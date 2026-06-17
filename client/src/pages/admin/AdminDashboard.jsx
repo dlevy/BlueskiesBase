@@ -24,7 +24,7 @@ export default function AdminDashboard() {
                     >
                         <PHeading size="md" tag="h2">{label}</PHeading>
                         <PText size="sm" color="contrast-medium">{description}</PText>
-                        <PText size="xs" color="contrast-low">Manage {label} →</PText>
+                        <PText size="xs" color="contrast-medium">Manage {label} →</PText>
                     </Link>
                 ))}
             </div>

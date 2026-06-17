@@ -107,7 +107,7 @@ export default function SongsList() {
                         </select>
                     </div>
                 </div>
-                <PText size="x-small" color="contrast-low">
+                <PText size="x-small" color="contrast-medium">
                     Showing {filteredSongs.length} of {songs.length} songs
                 </PText>
             </div>

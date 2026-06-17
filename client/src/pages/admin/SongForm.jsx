@@ -142,7 +142,7 @@ export default function SongForm({ song, onClose }) {
                             </option>
                         ))}
                     </select>
-                    <PText size="x-small" color="contrast-low">
+                    <PText size="x-small" color="contrast-medium">
                         {formData.is_original
                             ? 'Select the album this song appears on (leave blank if unreleased)'
                             : 'Select an album if this cover was officially released by this artist'}

@@ -358,6 +358,29 @@ export const searchSongs = async (filters = {}) => {
 };
 
 // ============================================
+// BANDS API
+// ============================================
+
+export const getBands = async () => {
+    const response = await fetch(`${API_BASE_URL}/api/bands`);
+    if (!response.ok) throw new Error('Failed to fetch bands');
+    return response.json();
+};
+
+export const createBand = async (name) => {
+    const response = await fetch(`${API_BASE_URL}/api/bands`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+    });
+    if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to create band');
+    }
+    return response.json();
+};
+
+// ============================================
 // ADMIN FUNCTIONS
 // ============================================
 

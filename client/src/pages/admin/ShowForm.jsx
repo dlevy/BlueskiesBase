@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { PHeading, PText, PButton, PButtonPure, PInlineNotification, PSpinner } from '@porsche-design-system/components-react';
-import { getShowById, createShow, updateShow, getVenues, updateSetlist, createVenue } from '../../services/api';
+import { getShowById, createShow, updateShow, deleteShow, getVenues, updateSetlist, createVenue, getBands, createBand } from '../../services/api';
 import SetlistEditor from '../../components/SetlistEditor';
 
 const inputClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--p-color-info)] focus:border-transparent placeholder:text-gray-500";
@@ -17,11 +17,20 @@ export default function ShowForm() {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
     const [venues, setVenues] = useState([]);
+    const [bands, setBands] = useState([]);
     const [setlistData, setSetlistData] = useState([]);
     const [initialSetlist, setInitialSetlist] = useState({});
     const [showVenueForm, setShowVenueForm] = useState(false);
     const [venueFormData, setVenueFormData] = useState({ name: '', city: '', state_country: '', address: '' });
     const [venueFormError, setVenueFormError] = useState('');
+    const [showOpenedForForm, setShowOpenedForForm] = useState(false);
+    const [showOpeningActForm, setShowOpeningActForm] = useState(false);
+    const [newBandName, setNewBandName] = useState('');
+    const [bandFormError, setBandFormError] = useState('');
+    const [showLinkForm, setShowLinkForm] = useState(false);
+    const [newLinkUrl, setNewLinkUrl] = useState('');
+    const [newLinkDescription, setNewLinkDescription] = useState('');
+    const [linkFormError, setLinkFormError] = useState('');
 
     const [formData, setFormData] = useState({
         venue_id: '',
@@ -30,13 +39,17 @@ export default function ShowForm() {
         tour_name: '',
         notes: '',
         has_images: false,
-        source_types: []
+        source_types: [],
+        opened_for_id: '',
+        opening_act_id: '',
+        links: [],
     });
 
     const sourceTypeOptions = ['SBD', 'AUD', 'Matrix', 'FM', 'Video'];
 
     useEffect(() => {
         fetchVenues();
+        fetchBands();
         if (isEdit) fetchShow();
     }, [id]);
 
@@ -49,18 +62,30 @@ export default function ShowForm() {
         }
     };
 
+    const fetchBands = async () => {
+        try {
+            const data = await getBands();
+            setBands(data.bands || []);
+        } catch (err) {
+            console.error('Error fetching bands:', err);
+        }
+    };
+
     const fetchShow = async () => {
         try {
             setLoading(true);
             const show = await getShowById(id);
             setFormData({
-                venue_id: show.venue_id || '',
-                show_date: show.show_date || '',
-                artist_name: show.artist_name || '',
-                tour_name: show.tour_name || '',
-                notes: show.notes || '',
-                has_images: show.has_images || false,
-                source_types: show.source_types || []
+                venue_id:       show.venue_id       || '',
+                show_date:      show.show_date       || '',
+                artist_name:    show.artist_name     || '',
+                tour_name:      show.tour_name       || '',
+                notes:          show.notes           || '',
+                has_images:     show.has_images      || false,
+                source_types:   show.source_types    || [],
+                opened_for_id:  show.opened_for_id   || '',
+                opening_act_id: show.opening_act_id  || '',
+                links:          show.links           || [],
             });
             setInitialSetlist(show.setlist || {});
         } catch (err) {
@@ -109,6 +134,45 @@ export default function ShowForm() {
         setShowVenueForm(false);
         setVenueFormError('');
         setVenueFormData({ name: '', city: '', state_country: '', address: '' });
+    };
+
+    const handleAddBand = async (field, closeForm) => {
+        setBandFormError('');
+        try {
+            const band = await createBand(newBandName.trim());
+            setBands(prev => [...prev, band].sort((a, b) => a.name.localeCompare(b.name)));
+            setFormData(prev => ({ ...prev, [field]: band.id }));
+            setNewBandName('');
+            closeForm(false);
+        } catch (err) {
+            setBandFormError(err.message || 'Failed to create band');
+        }
+    };
+
+    const handleAddLink = () => {
+        const url = newLinkUrl.trim();
+        if (!url) { setLinkFormError('URL is required'); return; }
+        try { new URL(url); } catch { setLinkFormError('Please enter a valid URL'); return; }
+        setLinkFormError('');
+        setFormData(prev => ({ ...prev, links: [...prev.links, { url, description: newLinkDescription.trim() }] }));
+        setNewLinkUrl('');
+        setNewLinkDescription('');
+        setShowLinkForm(false);
+    };
+
+    const removeLink = (index) => {
+        setFormData(prev => ({ ...prev, links: prev.links.filter((_, i) => i !== index) }));
+    };
+
+    const handleDelete = async () => {
+        if (!confirm(`Permanently delete this show? This cannot be undone.`)) return;
+        try {
+            await deleteShow(id);
+            navigate('/admin/shows');
+        } catch (err) {
+            console.error('Error deleting show:', err);
+            setError(err.message || 'Failed to delete show');
+        }
     };
 
     const handleSubmit = async (e) => {
@@ -227,6 +291,72 @@ export default function ShowForm() {
                         <input type="text" name="tour_name" value={formData.tour_name}
                             onChange={handleChange} className={inputClass} />
                     </div>
+
+                    {/* Opened For */}
+                    <div>
+                        <div className="flex justify-between items-center mb-1.5">
+                            <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)', marginBottom: 0 }}>
+                                Opened For
+                            </label>
+                            {!showOpenedForForm && (
+                                <PButtonPure type="button" size="x-small" onClick={() => { setShowOpenedForForm(true); setBandFormError(''); setNewBandName(''); }}>
+                                    + Add New Band
+                                </PButtonPure>
+                            )}
+                        </div>
+                        {!showOpenedForForm ? (
+                            <select name="opened_for_id" value={formData.opened_for_id} onChange={handleChange}
+                                className={selectClass}
+                                style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
+                                <option value="">— None —</option>
+                                {bands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                            </select>
+                        ) : (
+                            <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
+                                <PHeading size="sm" tag="h3">Add Band</PHeading>
+                                {bandFormError && <PInlineNotification heading="Error" description={bandFormError} state="error" dismissButton={false} />}
+                                <input type="text" value={newBandName} onChange={e => setNewBandName(e.target.value)}
+                                    placeholder="Band name" className={inputClass} />
+                                <div className="flex gap-2">
+                                    <PButton type="button" size="small" onClick={() => handleAddBand('opened_for_id', setShowOpenedForForm)}>Add</PButton>
+                                    <PButton type="button" variant="secondary" size="small" onClick={() => { setShowOpenedForForm(false); setBandFormError(''); }}>Cancel</PButton>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Opening Act */}
+                    <div>
+                        <div className="flex justify-between items-center mb-1.5">
+                            <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)', marginBottom: 0 }}>
+                                Opening Act
+                            </label>
+                            {!showOpeningActForm && (
+                                <PButtonPure type="button" size="x-small" onClick={() => { setShowOpeningActForm(true); setBandFormError(''); setNewBandName(''); }}>
+                                    + Add New Band
+                                </PButtonPure>
+                            )}
+                        </div>
+                        {!showOpeningActForm ? (
+                            <select name="opening_act_id" value={formData.opening_act_id} onChange={handleChange}
+                                className={selectClass}
+                                style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
+                                <option value="">— None —</option>
+                                {bands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                            </select>
+                        ) : (
+                            <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
+                                <PHeading size="sm" tag="h3">Add Band</PHeading>
+                                {bandFormError && <PInlineNotification heading="Error" description={bandFormError} state="error" dismissButton={false} />}
+                                <input type="text" value={newBandName} onChange={e => setNewBandName(e.target.value)}
+                                    placeholder="Band name" className={inputClass} />
+                                <div className="flex gap-2">
+                                    <PButton type="button" size="small" onClick={() => handleAddBand('opening_act_id', setShowOpeningActForm)}>Add</PButton>
+                                    <PButton type="button" variant="secondary" size="small" onClick={() => { setShowOpeningActForm(false); setBandFormError(''); }}>Cancel</PButton>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 <div>
@@ -256,13 +386,76 @@ export default function ShowForm() {
                     </label>
                 </div>
 
-                <div className="flex gap-3 pt-2 border-t border-white/10">
-                    <PButton type="submit" loading={saving}>
-                        {isEdit ? 'Update Show' : 'Create Show'}
-                    </PButton>
-                    <PButton type="button" variant="secondary" onClick={() => navigate('/admin/shows')}>
-                        Cancel
-                    </PButton>
+                {/* Links */}
+                <div>
+                    <div className="flex justify-between items-center mb-2">
+                        <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)', marginBottom: 0 }}>
+                            Links
+                        </label>
+                        {!showLinkForm && (
+                            <PButtonPure type="button" size="x-small" onClick={() => { setShowLinkForm(true); setNewLinkUrl(''); setNewLinkDescription(''); setLinkFormError(''); }}>
+                                + Add Link
+                            </PButtonPure>
+                        )}
+                    </div>
+
+                    {formData.links.length > 0 && (
+                        <div className="space-y-2 mb-3">
+                            {formData.links.map((link, i) => (
+                                <div key={i} className="flex items-start justify-between gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+                                    <div className="min-w-0">
+                                        <p className="text-xs text-amber-400 truncate">{link.url}</p>
+                                        {link.description && (
+                                            <p className="text-xs mt-0.5" style={{ color: 'var(--p-color-contrast-medium)' }}>{link.description}</p>
+                                        )}
+                                    </div>
+                                    <PButtonPure type="button" size="x-small" onClick={() => removeLink(i)}
+                                        style={{ color: 'var(--p-color-notification-error)', flexShrink: 0 }}>
+                                        Remove
+                                    </PButtonPure>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {showLinkForm && (
+                        <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
+                            <PHeading size="sm" tag="h3">Add Link</PHeading>
+                            {linkFormError && <PInlineNotification heading="Error" description={linkFormError} state="error" dismissButton={false} />}
+                            <div>
+                                <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>URL</label>
+                                <input type="url" value={newLinkUrl} onChange={e => setNewLinkUrl(e.target.value)}
+                                    placeholder="https://youtube.com/watch?v=..." className={inputClass} />
+                            </div>
+                            <div>
+                                <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>Description <span style={{ color: 'var(--p-color-contrast-medium)', fontWeight: 'normal' }}>(optional for YouTube)</span></label>
+                                <input type="text" value={newLinkDescription} onChange={e => setNewLinkDescription(e.target.value)}
+                                    placeholder="e.g. Full show recording" className={inputClass} />
+                            </div>
+                            <div className="flex gap-2">
+                                <PButton type="button" size="small" onClick={handleAddLink}>Add</PButton>
+                                <PButton type="button" variant="secondary" size="small" onClick={() => { setShowLinkForm(false); setLinkFormError(''); }}>Cancel</PButton>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                <div className="flex items-center justify-between gap-3 pt-2 border-t border-white/10">
+                    <div className="flex gap-3">
+                        <PButton type="submit" loading={saving}>
+                            {isEdit ? 'Update Show' : 'Create Show'}
+                        </PButton>
+                        <PButton type="button" variant="secondary" onClick={() => navigate('/admin/shows')}>
+                            Cancel
+                        </PButton>
+                    </div>
+                    {isEdit && (
+                        <button type="button" onClick={handleDelete}
+                            className="rounded-lg border px-4 py-2 text-sm font-medium transition-colors hover:bg-red-500/10"
+                            style={{ color: 'var(--p-color-notification-error)', borderColor: 'var(--p-color-notification-error)' }}>
+                            Delete Show
+                        </button>
+                    )}
                 </div>
             </form>
 

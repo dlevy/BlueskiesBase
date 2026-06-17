@@ -252,7 +252,7 @@ export default function AlbumForm({ album, onClose }) {
                     <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>Album Art URL</label>
                     <input type="url" name="album_art_url" value={formData.album_art_url} onChange={handleChange}
                         placeholder="https://example.com/album-cover.jpg" className={inputClass} />
-                    <PText size="x-small" color="contrast-low">Optional: URL to album artwork image</PText>
+                    <PText size="x-small" color="contrast-medium">Optional: URL to album artwork image</PText>
                 </div>
 
                 <div>
@@ -278,7 +278,7 @@ export default function AlbumForm({ album, onClose }) {
                     <div className="flex items-center justify-between">
                         <PHeading size="lg" tag="h2">Songs on this Album</PHeading>
                         {albumSongs.length > 0 && (
-                            <PText size="x-small" color="contrast-low">Drag to reorder</PText>
+                            <PText size="x-small" color="contrast-medium">Drag to reorder</PText>
                         )}
                     </div>
 
@@ -383,7 +383,7 @@ export default function AlbumForm({ album, onClose }) {
                                     </PButton>
                                 </div>
                                 {songSearch && availableSongs.length === 0 && (
-                                    <PText size="x-small" color="contrast-low">No matching songs found.</PText>
+                                    <PText size="x-small" color="contrast-medium">No matching songs found.</PText>
                                 )}
                             </div>
                         </>

@@ -119,13 +119,9 @@ router.get('/shows', async (req, res) => {
             .from('shows')
             .select(`
                 *,
-                venues (
-                    id,
-                    name,
-                    city,
-                    state_country,
-                    address
-                )
+                venues (id, name, city, state_country, address),
+                opened_for:bands!shows_opened_for_id_fkey(id, name),
+                opening_act:bands!shows_opening_act_id_fkey(id, name)
             `)
             .order('show_date', { ascending: false });
 

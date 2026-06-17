@@ -104,13 +104,9 @@ router.get('/:id', async (req, res) => {
             .from('shows')
             .select(`
                 *,
-                venues (
-                    id,
-                    name,
-                    city,
-                    state_country,
-                    address
-                )
+                venues (id, name, city, state_country, address),
+                opened_for:bands!shows_opened_for_id_fkey(id, name),
+                opening_act:bands!shows_opening_act_id_fkey(id, name)
             `)
             .eq('id', id)
             .single();
@@ -208,7 +204,7 @@ router.get('/:id', async (req, res) => {
  */
 router.post('/', async (req, res) => {
     try {
-        const { venue_id, show_date, artist_name, tour_name, notes, has_images, source_types } = req.body;
+        const { venue_id, show_date, artist_name, tour_name, notes, has_images, source_types, opened_for_id, opening_act_id, links } = req.body;
 
         // TODO: Add authentication middleware to verify admin status
 
@@ -221,7 +217,9 @@ router.post('/', async (req, res) => {
                 tour_name,
                 notes,
                 has_images,
-                source_types
+                source_types,
+                opened_for_id:  opened_for_id  || null,
+                opening_act_id: opening_act_id || null,
             }])
             .select()
             .single();
@@ -231,7 +229,16 @@ router.post('/', async (req, res) => {
             return res.status(500).json({ error: 'Failed to create show' });
         }
 
-        res.status(201).json(show);
+        // Save links via RPC to bypass PostgREST schema cache
+        if (links?.length) {
+            const { error: linksError } = await supabase.rpc('update_show_links', {
+                p_show_id: show.id,
+                p_links: links,
+            });
+            if (linksError) console.error('Error saving show links:', linksError);
+        }
+
+        res.status(201).json({ ...show, links: links ?? [] });
 
     } catch (error) {
         console.error('Error:', error);
@@ -246,7 +253,7 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const { venue_id, show_date, artist_name, tour_name, notes, has_images, source_types } = req.body;
+        const { venue_id, show_date, artist_name, tour_name, notes, has_images, source_types, opened_for_id, opening_act_id, links } = req.body;
 
         // TODO: Add authentication middleware to verify admin status
 
@@ -259,7 +266,9 @@ router.put('/:id', async (req, res) => {
                 tour_name,
                 notes,
                 has_images,
-                source_types
+                source_types,
+                opened_for_id:  opened_for_id  || null,
+                opening_act_id: opening_act_id || null,
             })
             .eq('id', id)
             .select()
@@ -270,7 +279,16 @@ router.put('/:id', async (req, res) => {
             return res.status(500).json({ error: 'Failed to update show' });
         }
 
-        res.json(show);
+        // Update links via RPC to bypass PostgREST schema cache
+        const { error: linksError } = await supabase.rpc('update_show_links', {
+            p_show_id: id,
+            p_links: links ?? [],
+        });
+        if (linksError) {
+            console.error('Error updating show links:', linksError);
+        }
+
+        res.json({ ...show, links: links ?? [] });
 
     } catch (error) {
         console.error('Error:', error);
@@ -288,6 +306,16 @@ router.delete('/:id', async (req, res) => {
 
         // TODO: Add authentication middleware to verify admin status
 
+        // Delete dependent rows first to avoid FK constraint failures
+        const dependents = ['setlist_songs', 'user_notes', 'user_photos', 'user_posters'];
+        for (const table of dependents) {
+            const { error: depError } = await supabase.from(table).delete().eq('show_id', id);
+            if (depError) {
+                console.error(`Error deleting ${table} for show ${id}:`, depError);
+                return res.status(500).json({ error: `Failed to delete related ${table}`, detail: depError.message });
+            }
+        }
+
         const { error } = await supabase
             .from('shows')
             .delete()
@@ -295,7 +323,7 @@ router.delete('/:id', async (req, res) => {
 
         if (error) {
             console.error('Error deleting show:', error);
-            return res.status(500).json({ error: 'Failed to delete show' });
+            return res.status(500).json({ error: 'Failed to delete show', detail: error.message });
         }
 
         res.json({ message: 'Show deleted successfully' });

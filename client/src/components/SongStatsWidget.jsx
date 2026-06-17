@@ -1,11 +1,60 @@
 import { useState, useEffect } from 'react';
 import { PHeading, PText, PSpinner, PInlineNotification, PDivider } from '@porsche-design-system/components-react';
 import { getGlobalSongStats, getSongs } from '../services/api';
+import { supabase } from '../services/supabase';
 import { useCountUp } from '../hooks/useCountUp';
+
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const DAYS   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+const US_STATE_CODES = new Set([
+    'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA',
+    'HI','ID','IL','IN','IA','KS','KY','LA','ME','MD',
+    'MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ',
+    'NM','NY','NC','ND','OH','OK','OR','PA','RI','SC',
+    'SD','TN','TX','UT','VT','VA','WA','WV','WI','WY','DC','PR',
+]);
+const US_STATE_NAMES = new Set([
+    'Alabama','Alaska','Arizona','Arkansas','California','Colorado','Connecticut',
+    'Delaware','Florida','Georgia','Hawaii','Idaho','Illinois','Indiana','Iowa',
+    'Kansas','Kentucky','Louisiana','Maine','Maryland','Massachusetts','Michigan',
+    'Minnesota','Mississippi','Missouri','Montana','Nebraska','Nevada',
+    'New Hampshire','New Jersey','New Mexico','New York','North Carolina',
+    'North Dakota','Ohio','Oklahoma','Oregon','Pennsylvania','Rhode Island',
+    'South Carolina','South Dakota','Tennessee','Texas','Utah','Vermont',
+    'Virginia','Washington','West Virginia','Wisconsin','Wyoming',
+    'District of Columbia',
+]);
+const UK_REGIONS = new Set(['UK','England','Scotland','Wales','Northern Ireland']);
+
+function getCountry(state_country) {
+    if (!state_country) return null;
+    const sc = state_country.trim();
+    if (sc.endsWith(', United States'))  return 'USA';
+    if (US_STATE_CODES.has(sc))          return 'USA';
+    if (US_STATE_NAMES.has(sc))          return 'USA';
+    if (sc === 'UK' || UK_REGIONS.has(sc) || sc.endsWith(', United Kingdom')) return 'UK';
+    if (sc === 'Ireland' || sc.endsWith(', Ireland')) return 'Ireland';
+    if (sc === 'Canada' || sc.includes(', Canada'))   return 'Canada';
+    // "Oslo, Norway" / "Hamburg, Germany" / "Ontario, Canada" etc.
+    if (sc.includes(',')) return sc.split(',').pop().trim();
+    return sc;
+}
+
+function FactCard({ label, value, sub }) {
+    return (
+        <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 space-y-0.5">
+            <PText size="xs" color="contrast-low" style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</PText>
+            <div className="text-sm font-semibold" style={{ color: 'var(--p-color-primary)' }}>{value}</div>
+            {sub && <PText size="xs" color="contrast-medium">{sub}</PText>}
+        </div>
+    );
+}
 
 export default function SongStatsWidget() {
     const [stats, setStats] = useState(null);
     const [holyGrails, setHolyGrails] = useState([]);
+    const [showStats, setShowStats] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
@@ -20,6 +69,54 @@ export default function SongStatsWidget() {
                 setError(err.message);
             } finally {
                 setLoading(false);
+            }
+        };
+
+        const fetchShowStats = async () => {
+            try {
+                const { data, error: err } = await supabase
+                    .from('shows')
+                    .select('show_date, venues(city, state_country)');
+                if (err) throw err;
+
+                const monthCounts = {};
+                const dowCounts   = {};
+                const yearCounts  = {};
+                const cities      = new Set();
+                const countries   = new Set();
+
+                for (const show of data) {
+                    const [y, m, d] = show.show_date.split('-');
+                    const date  = new Date(Number(y), Number(m) - 1, Number(d));
+                    const month = MONTHS[date.getMonth()];
+                    const dow   = DAYS[date.getDay()];
+
+                    monthCounts[month] = (monthCounts[month] || 0) + 1;
+                    dowCounts[dow]     = (dowCounts[dow]     || 0) + 1;
+                    yearCounts[y]      = (yearCounts[y]      || 0) + 1;
+
+                    if (show.venues?.city) cities.add(show.venues.city);
+                    const country = getCountry(show.venues?.state_country);
+                    if (country) countries.add(country);
+                }
+
+                const topMonth = Object.entries(monthCounts).sort((a, b) => b[1] - a[1])[0];
+                const topDow   = Object.entries(dowCounts).sort((a, b)   => b[1] - a[1])[0];
+                const yearRows = Object.entries(yearCounts)
+                    .sort(([a], [b]) => a.localeCompare(b))
+                    .map(([year, count]) => ({ year, count }));
+
+                setShowStats({
+                    totalShows:      data.length,
+                    topMonth:        topMonth ? { name: topMonth[0], count: topMonth[1] } : null,
+                    topDow:          topDow   ? { name: topDow[0],   count: topDow[1]   } : null,
+                    uniqueCities:    cities.size,
+                    uniqueCountries: countries.size,
+                    yearRows,
+                    maxYearCount:    Math.max(...yearRows.map(r => r.count)),
+                });
+            } catch (err) {
+                console.error('Error fetching show stats:', err);
             }
         };
 
@@ -68,6 +165,7 @@ export default function SongStatsWidget() {
         };
 
         fetchStats();
+        fetchShowStats();
         fetchHolyGrails();
     }, []);
 
@@ -157,7 +255,64 @@ export default function SongStatsWidget() {
     };
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-6">
+
+            {/* By the Numbers */}
+            {showStats && (
+                <div className="space-y-4">
+                    <PHeading size="md" tag="h2">By the Numbers</PHeading>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                        <FactCard
+                            label="Shows in Archive"
+                            value={showStats.totalShows.toLocaleString()}
+                            sub="total concerts documented"
+                        />
+                        {showStats.topMonth && (
+                            <FactCard
+                                label="Most Active Month"
+                                value={showStats.topMonth.name}
+                                sub={`${showStats.topMonth.count} shows`}
+                            />
+                        )}
+                        {showStats.topDow && (
+                            <FactCard
+                                label="Favorite Day"
+                                value={`${showStats.topDow.name}s`}
+                                sub={`${showStats.topDow.count} shows on a ${showStats.topDow.name}`}
+                            />
+                        )}
+                        {showStats.uniqueCities > 0 && (
+                            <FactCard
+                                label="Cities Played"
+                                value={`${showStats.uniqueCities} cities`}
+                                sub={`across ${showStats.uniqueCountries} countr${showStats.uniqueCountries !== 1 ? 'ies' : 'y'}`}
+                            />
+                        )}
+                    </div>
+
+                    {/* Shows by Year bar chart */}
+                    {showStats.yearRows.length > 1 && (
+                        <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-5 space-y-3">
+                            <PText size="xs" color="contrast-low" style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>Shows by Year</PText>
+                            <div className="space-y-2">
+                                {showStats.yearRows.map(({ year, count }) => (
+                                    <div key={year} className="flex items-center gap-3">
+                                        <span className="text-xs w-10 shrink-0 text-right" style={{ color: 'var(--p-color-contrast-medium)' }}>{year}</span>
+                                        <div className="flex-1 h-5 rounded bg-white/5 overflow-hidden">
+                                            <div
+                                                className="h-full rounded bg-amber-400/80 transition-all duration-700"
+                                                style={{ width: `${(count / showStats.maxYearCount) * 100}%` }}
+                                            />
+                                        </div>
+                                        <span className="text-xs w-6 shrink-0 text-right" style={{ color: 'var(--p-color-contrast-medium)' }}>{count}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+
             <PHeading size="xs" tag="h2">Song Stats</PHeading>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <SongColumn
