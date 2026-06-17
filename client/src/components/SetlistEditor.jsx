@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import { PHeading, PText, PButton } from '@porsche-design-system/components-react';
 import { getSongs } from '../services/api';
 
@@ -194,7 +194,7 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
                         <PHeading size="sm" tag="h4" className="mb-3">{setLabels[setKey]}</PHeading>
 
                         {songs.length === 0 ? (
-                            <PText size="small" color="contrast-low">No songs yet</PText>
+                            <PText size="small" style={{ color: 'var(--p-color-contrast-low)' }}>No songs yet</PText>
                         ) : (
                             <div className="space-y-2">
                                 {songs.map((song, index) => (
@@ -316,7 +316,7 @@ function SetlistSongItem({ song, index, setKey, isFirst, isLast, onRemove, onMov
                             className="w-full rounded border border-white/10 bg-white/5 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-[var(--p-color-info)] placeholder:text-gray-500" />
                     </div>
 
-                    <PText size="x-small" color="contrast-low" className="pt-1 border-t border-white/10">
+                    <PText size="x-small" style={{ color: 'var(--p-color-contrast-low)' }} className="pt-1 border-t border-white/10">
                         To change song metadata, edit the song in the Songs admin panel.
                     </PText>
                 </div>

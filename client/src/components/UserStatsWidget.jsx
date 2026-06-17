@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
     PHeading, PText, PButton, PSpinner, PInlineNotification, PDivider
@@ -183,7 +183,7 @@ export default function UserStatsWidget() {
                                         <PText weight="semi-bold">{formatDateLong(show.show_date)}</PText>
                                         <PText size="sm" color="contrast-medium">{show.artist_name}</PText>
                                         {show.venues && (
-                                            <PText size="xs" color="contrast-low">
+                                            <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>
                                                 {show.venues.name} · {show.venues.city}, {show.venues.state_country}
                                             </PText>
                                         )}
@@ -211,12 +211,12 @@ export default function UserStatsWidget() {
                                         <PText weight="semi-bold">{formatDateLong(show.show_date)}</PText>
                                         <PText size="sm" color="contrast-medium">{show.artist_name}</PText>
                                         {show.venues && (
-                                            <PText size="xs" color="contrast-low">
+                                            <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>
                                                 {show.venues.name} · {show.venues.city}, {show.venues.state_country}
                                             </PText>
                                         )}
                                         {show.tour_name && (
-                                            <PText size="xs" color="contrast-low">{show.tour_name}</PText>
+                                            <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>{show.tour_name}</PText>
                                         )}
                                     </Link>
                                 ))}
@@ -296,7 +296,7 @@ export default function UserStatsWidget() {
                 )}
             </div>
 
-            <PText size="xs" color="contrast-low" align="center">
+            <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }} align="center">
                 Data as of {formatDate(new Date().toISOString().split('T')[0])}
             </PText>
         </div>

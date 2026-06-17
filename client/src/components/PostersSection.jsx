@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import { PHeading, PText, PButtonPure, PInlineNotification, PDivider } from '@porsche-design-system/components-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getShowPoster, uploadPoster, deletePoster } from '../services/api';
@@ -112,7 +112,7 @@ export default function PostersSection({ showId }) {
                         <input type="file" accept="image/*" onChange={handleFileSelect}
                             className="w-full text-sm file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-white/10 file:text-white hover:file:bg-white/20 file:cursor-pointer" />
                         {selectedFile && (
-                            <PText size="xs" color="contrast-low" className="mt-1">{selectedFile.name}</PText>
+                            <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }} className="mt-1">{selectedFile.name}</PText>
                         )}
                     </div>
                     <div>
@@ -153,7 +153,7 @@ export default function PostersSection({ showId }) {
                     {poster.caption && <PText size="sm" color="contrast-medium" align="center">{poster.caption}</PText>}
 
                     <div className="flex items-center justify-between pt-3 border-t border-white/5">
-                        <PText size="xs" color="contrast-low">
+                        <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>
                             Uploaded by {poster.profiles?.username || 'Unknown'}
                         </PText>
                         {canDelete && (
@@ -164,7 +164,7 @@ export default function PostersSection({ showId }) {
             ) : (
                 <div className="text-center py-8 space-y-2">
                     <PText color="contrast-medium">No poster uploaded yet</PText>
-                    {user && <PText size="xs" color="contrast-low">Be the first to upload a poster for this show!</PText>}
+                    {user && <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>Be the first to upload a poster for this show!</PText>}
                 </div>
             )}
 

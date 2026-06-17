@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { PHeading, PText, PButton, PButtonPure, PInlineNotification } from '@porsche-design-system/components-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -10,10 +10,15 @@ export default function MemberLoginPage() {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-    const { signIn } = useAuth();
+    const { signIn, user } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
     const from = location.state?.from?.pathname || '/';
+
+    // Auto-redirect when SIGNED_IN fires cross-tab.
+    useEffect(() => {
+        if (user) navigate(from, { replace: true });
+    }, [user, navigate, from]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();

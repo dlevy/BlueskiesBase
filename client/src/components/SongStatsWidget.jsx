@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { PHeading, PText, PSpinner, PInlineNotification, PDivider } from '@porsche-design-system/components-react';
 import { getGlobalSongStats, getSongs } from '../services/api';
 import { supabase } from '../services/supabase';
@@ -44,7 +44,7 @@ function getCountry(state_country) {
 function FactCard({ label, value, sub }) {
     return (
         <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 space-y-0.5">
-            <PText size="xs" color="contrast-low" style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</PText>
+            <PText size="xs" style={{ color: 'var(--p-color-contrast-low)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</PText>
             <div className="text-sm font-semibold" style={{ color: 'var(--p-color-primary)' }}>{value}</div>
             {sub && <PText size="xs" color="contrast-medium">{sub}</PText>}
         </div>
@@ -209,7 +209,7 @@ export default function SongStatsWidget() {
             <div className="rounded-xl border border-white/5 bg-white/5 p-5 text-center">
                 <div className="font-display font-bold text-5xl leading-none mb-1 text-amber-400">{animatedTotal}</div>
                 <PText size="sm" color="contrast-medium" align="center">{uniqueLabel}</PText>
-                <PText size="xs" color="contrast-low" align="center">{totalPlays(data.top5)} total plays (top 5)</PText>
+                <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }} align="center">{totalPlays(data.top5)} total plays (top 5)</PText>
             </div>
 
             {/* Top 5 */}
@@ -239,10 +239,10 @@ export default function SongStatsWidget() {
                                         />
                                     </div>
                                     {song.original_artist && (
-                                        <PText size="xs" color="contrast-low">{song.original_artist}</PText>
+                                        <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>{song.original_artist}</PText>
                                     )}
                                     {song.lastPlayed && (
-                                        <PText size="xs" color="contrast-low">Last: {formatDate(song.lastPlayed)}</PText>
+                                        <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>Last: {formatDate(song.lastPlayed)}</PText>
                                     )}
                                 </div>
                             </li>
@@ -293,7 +293,7 @@ export default function SongStatsWidget() {
                     {/* Shows by Year bar chart */}
                     {showStats.yearRows.length > 1 && (
                         <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-5 space-y-3">
-                            <PText size="xs" color="contrast-low" style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>Shows by Year</PText>
+                            <PText size="xs" style={{ color: 'var(--p-color-contrast-low)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Shows by Year</PText>
                             <div className="space-y-2">
                                 {showStats.yearRows.map(({ year, count }) => (
                                     <div key={year} className="flex items-center gap-3">
@@ -357,7 +357,7 @@ export default function SongStatsWidget() {
                 </div>
             )}
 
-            <PText size="xs" color="contrast-low" align="center">
+            <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }} align="center">
                 Data as of {formatDate(new Date().toISOString())}
             </PText>
         </div>

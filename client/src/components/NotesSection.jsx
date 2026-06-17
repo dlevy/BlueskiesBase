@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import { PHeading, PText, PButtonPure, PInlineNotification, PDivider, PSpinner } from '@porsche-design-system/components-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getShowNotes, getUserNote, saveNote, deleteNote } from '../services/api';
@@ -151,7 +151,7 @@ export default function NotesSection({ showId }) {
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                     <PText size="xs" weight="semi-bold">{note.profiles?.username || 'Anonymous'}</PText>
-                                    <PText size="xs" color="contrast-low">{new Date(note.created_at).toLocaleDateString()}</PText>
+                                    <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>{new Date(note.created_at).toLocaleDateString()}</PText>
                                 </div>
                                 {isAdmin && (
                                     <PButtonPure size="x-small" icon="delete" onClick={() => handleDelete(note.id)}>

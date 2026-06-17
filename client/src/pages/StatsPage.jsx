@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
     PHeading, PText, PButtonPure, PSpinner, PInlineNotification, PDivider, PTag
@@ -83,7 +83,7 @@ function computeFunStats(pastShows, songsSeen) {
 function FactCard({ label, value, sub }) {
     return (
         <div className="rounded-xl border border-white/10 bg-[#1a1e26] px-4 py-3 space-y-0.5">
-            <PText size="xs" color="contrast-low" style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</PText>
+            <PText size="xs" style={{ color: 'var(--p-color-contrast-low)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</PText>
             <div className="text-sm font-semibold" style={{ color: 'var(--p-color-primary)' }}>{value}</div>
             {sub && <PText size="xs" color="contrast-medium">{sub}</PText>}
         </div>
@@ -250,7 +250,7 @@ export default function StatsPage() {
                     {/* Shows by Year */}
                     {funStats.yearRows.length > 1 && (
                         <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-5 space-y-3">
-                            <PText size="xs" color="contrast-low" style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>Shows by Year</PText>
+                            <PText size="xs" style={{ color: 'var(--p-color-contrast-low)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Shows by Year</PText>
                             <div className="space-y-2">
                                 {funStats.yearRows.map(({ year, count }) => (
                                     <div key={year} className="flex items-center gap-3">
@@ -310,12 +310,12 @@ export default function StatsPage() {
                                         <PText weight="semi-bold">{formatDate(show.show_date)}</PText>
                                         <PText size="sm" color="contrast-medium">{show.artist_name}</PText>
                                         {show.venues && (
-                                            <PText size="xs" color="contrast-low">
+                                            <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>
                                                 {show.venues.name} · {show.venues.city}, {show.venues.state_country}
                                             </PText>
                                         )}
                                         {show.tour_name && (
-                                            <PText size="xs" color="contrast-low">{show.tour_name}</PText>
+                                            <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>{show.tour_name}</PText>
                                         )}
                                     </Link>
                                 ))}
@@ -341,12 +341,12 @@ export default function StatsPage() {
                                         <PText weight="semi-bold">{formatDate(show.show_date)}</PText>
                                         <PText size="sm" color="contrast-medium">{show.artist_name}</PText>
                                         {show.venues && (
-                                            <PText size="xs" color="contrast-low">
+                                            <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>
                                                 {show.venues.name} · {show.venues.city}, {show.venues.state_country}
                                             </PText>
                                         )}
                                         {show.tour_name && (
-                                            <PText size="xs" color="contrast-low">{show.tour_name}</PText>
+                                            <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>{show.tour_name}</PText>
                                         )}
                                     </Link>
                                 ))}
@@ -408,7 +408,7 @@ export default function StatsPage() {
                                             )}
                                             {song.mostRecentShow && (
                                                 <div className="mt-2">
-                                                    <PText size="xs" color="contrast-low">Last played:</PText>
+                                                    <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>Last played:</PText>
                                                     <Link
                                                         to={buildShowPath(song.mostRecentShow)}
                                                         className="text-xs text-[var(--p-color-info)] hover:opacity-80 transition-opacity"

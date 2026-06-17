@@ -1,4 +1,4 @@
-import { PHeading, PText } from '@porsche-design-system/components-react';
+﻿import { PHeading, PText } from '@porsche-design-system/components-react';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function AuthDebugPage() {
@@ -26,7 +26,7 @@ export default function AuthDebugPage() {
                         <div className="space-y-1">
                             <PText size="small" style={{ color: 'var(--p-color-success)' }}>✅ User is logged in</PText>
                             <PText size="small">Email: <span style={{ color: 'var(--p-color-info)' }}>{user.email}</span></PText>
-                            <PText size="x-small" color="contrast-low">ID: {user.id}</PText>
+                            <PText size="x-small" style={{ color: 'var(--p-color-contrast-low)' }}>ID: {user.id}</PText>
                         </div>
                     ) : (
                         <PText size="small" style={{ color: 'var(--p-color-error)' }}>❌ No user logged in</PText>
@@ -44,7 +44,7 @@ export default function AuthDebugPage() {
                                     {profile.is_admin ? 'YES ✅' : 'NO ❌'}
                                 </span>
                             </PText>
-                            <PText size="x-small" color="contrast-low">
+                            <PText size="x-small" style={{ color: 'var(--p-color-contrast-low)' }}>
                                 Created: {new Date(profile.created_at).toLocaleString()}
                             </PText>
                         </div>

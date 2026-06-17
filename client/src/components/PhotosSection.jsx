@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import { PHeading, PText, PButtonPure, PInlineNotification, PDivider } from '@porsche-design-system/components-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getShowPhotos, uploadPhoto, deletePhoto } from '../services/api';
@@ -112,7 +112,7 @@ export default function PhotosSection({ showId }) {
                         <input type="file" accept="image/*" onChange={handleFileSelect}
                             className="w-full text-sm file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-white/10 file:text-white hover:file:bg-white/20 file:cursor-pointer" />
                         {selectedFile && (
-                            <PText size="xs" color="contrast-low" className="mt-1">
+                            <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }} className="mt-1">
                                 {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
                             </PText>
                         )}
@@ -160,7 +160,7 @@ export default function PhotosSection({ showId }) {
                             {photos[currentPhotoIndex].caption && (
                                 <PText size="sm">{photos[currentPhotoIndex].caption}</PText>
                             )}
-                            <PText size="xs" color="contrast-low">
+                            <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>
                                 By {photos[currentPhotoIndex].profiles?.username || 'Anonymous'} · {new Date(photos[currentPhotoIndex].created_at).toLocaleDateString()}
                             </PText>
                         </div>
@@ -173,7 +173,7 @@ export default function PhotosSection({ showId }) {
 
                     {photos.length > 1 && (
                         <div>
-                            <PText size="xs" color="contrast-low" className="mb-2">
+                            <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }} className="mb-2">
                                 Photo {currentPhotoIndex + 1} of {photos.length}
                             </PText>
                             <div className="flex gap-2 overflow-x-auto pb-1">
@@ -191,7 +191,7 @@ export default function PhotosSection({ showId }) {
             ) : (
                 <div className="text-center py-8 space-y-2">
                     <PText color="contrast-medium">No photos yet</PText>
-                    {!user && <PText size="xs" color="contrast-low">Sign in to upload the first photo!</PText>}
+                    {!user && <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>Sign in to upload the first photo!</PText>}
                 </div>
             )}
 
