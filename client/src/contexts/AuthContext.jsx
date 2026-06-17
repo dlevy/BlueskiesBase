@@ -11,6 +11,15 @@ export const useAuth = () => {
     return context;
 };
 
+async function fetchProfile(userId) {
+    const { data } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+    return data ?? null;
+}
+
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [profile, setProfile] = useState(null);
@@ -18,33 +27,33 @@ export const AuthProvider = ({ children }) => {
     const [session, setSession] = useState(null);
 
     useEffect(() => {
-        // onAuthStateChange fires INITIAL_SESSION immediately with the current session,
-        // then TOKEN_REFRESHED / SIGNED_IN / SIGNED_OUT as they happen.
-        // autoRefreshToken: true in the client handles all renewal — no manual intervals needed.
-        // Using getSession() alongside this causes a race condition and should be avoided.
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+        // Step 1: resolve initial session synchronously so loading clears immediately.
+        // This is the reliable path — getSession() reads localStorage directly.
+        supabase.auth.getSession().then(async ({ data: { session } }) => {
             setSession(session);
             setUser(session?.user ?? null);
-
             if (session?.user) {
-                try {
-                    const { data: profileData, error } = await supabase
-                        .from('profiles')
-                        .select('*')
-                        .eq('id', session.user.id)
-                        .single();
+                setProfile(await fetchProfile(session.user.id));
+            }
+            setLoading(false);
+        }).catch(() => {
+            setLoading(false);
+        });
 
-                    setProfile(error ? null : profileData);
-                } catch {
-                    setProfile(null);
-                }
+        // Step 2: listen for subsequent changes (sign-in, sign-out, token refresh
+        // from this tab or any other tab via localStorage storage event).
+        // autoRefreshToken:true in the client handles all renewal — no manual
+        // intervals needed, and manual intervals cause multi-tab token conflicts.
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+            // INITIAL_SESSION duplicates what getSession() already handled above.
+            if (event === 'INITIAL_SESSION') return;
+
+            setSession(session);
+            setUser(session?.user ?? null);
+            if (session?.user) {
+                setProfile(await fetchProfile(session.user.id));
             } else {
                 setProfile(null);
-            }
-
-            // Mark initial load complete after the first event (INITIAL_SESSION)
-            if (event === 'INITIAL_SESSION') {
-                setLoading(false);
             }
         });
 
