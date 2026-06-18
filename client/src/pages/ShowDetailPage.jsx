@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
     PHeading, PText, PButtonPure, PTag, PSpinner,
     PInlineNotification, PDivider
 } from '@porsche-design-system/components-react';
-import { getShowBySlug, checkShowAttendance, markShowAttended, unmarkShowAttended } from '../services/api';
+import { getShowBySlug, getTourRarity, getAdjacentShows, checkShowAttendance, markShowAttended, unmarkShowAttended } from '../services/api';
 import { buildShowPath } from '../utils/showSlug';
 import { useAuth } from '../contexts/AuthContext';
 import NotesSection from '../components/NotesSection';
@@ -24,9 +24,40 @@ function getYouTubeId(url) {
     return null;
 }
 
-function SongRow({ song, position, isChained }) {
+function RareBadge({ count, total, tourName }) {
     return (
-        <li className={`flex gap-3 py-2 ${isChained ? 'ml-10 pl-3 border-l-2 border-white/10' : ''}`}>
+        <div className="relative inline-flex group/rare">
+            <span
+                className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded cursor-default"
+                style={{ background: 'rgba(192, 132, 252, 0.12)', color: '#c084fc' }}
+            >
+                <svg className="w-2.5 h-2.5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm0 10a1 1 0 011 1v1h1a1 1 0 110 2H6v1a1 1 0 11-2 0v-1H3a1 1 0 110-2h1v-1a1 1 0 011-1zM12 2a1 1 0 01.967.744L14.146 7.2 17.5 9.134a1 1 0 010 1.732l-3.354 1.935-1.18 4.455a1 1 0 01-1.933 0L9.854 12.8 6.5 10.866a1 1 0 010-1.732l3.354-1.935 1.18-4.456A1 1 0 0112 2z" clipRule="evenodd" />
+                </svg>
+                Rare
+            </span>
+            <div className="pointer-events-none absolute z-50 left-0 top-full mt-1.5
+                            opacity-0 scale-95
+                            group-hover/rare:opacity-100 group-hover/rare:scale-100
+                            transition-all duration-100
+                            w-52 rounded-xl border border-white/10 bg-[#0e1117] shadow-xl p-3">
+                <div className="text-xs font-semibold" style={{ color: '#c084fc' }}>Rare</div>
+                <div className="text-xs mt-0.5" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                    Played {count} of {total} shows on {tourName}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function SongRow({ song, position, isChained, tourRarity }) {
+    const tourCount = tourRarity?.total_shows > 0 && song.song_id
+        ? tourRarity.song_counts[song.song_id]
+        : undefined;
+    const isRare = tourCount != null && tourCount / tourRarity.total_shows < 0.15;
+
+    return (
+        <li className={`flex gap-3 py-2 items-start ${isChained ? 'ml-10 pl-3 border-l-2 border-white/10' : ''}`}>
             <span className={`shrink-0 font-mono text-sm leading-relaxed ${isChained ? 'w-4 text-white/25' : 'w-6 text-right font-bold text-amber-400'}`}>
                 {isChained ? '›' : position}
             </span>
@@ -51,6 +82,9 @@ function SongRow({ song, position, isChained }) {
                             cover
                         </span>
                     )}
+                    {isRare && (
+                        <RareBadge count={tourCount} total={tourRarity.total_shows} tourName={tourRarity.tour_name} />
+                    )}
                     {song.jams_into && (
                         <span className="font-bold text-amber-400 text-sm">→</span>
                     )}
@@ -66,7 +100,7 @@ function SongRow({ song, position, isChained }) {
     );
 }
 
-function SetList({ songs }) {
+function SetList({ songs, tourRarity }) {
     return (
         <ol className="space-y-1">
             {songs.map((song, index) => {
@@ -77,6 +111,7 @@ function SetList({ songs }) {
                         song={song}
                         position={index + 1}
                         isChained={isChained}
+                        tourRarity={tourRarity}
                     />
                 );
             })}
@@ -87,18 +122,24 @@ function SetList({ songs }) {
 export default function ShowDetailPage() {
     const { artist, date, locationSlug } = useParams();
     const navigate = useNavigate();
-    const { user } = useAuth();
+    const { user, isAdmin } = useAuth();
     const [show, setShow] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [attended, setAttended] = useState(false);
     const [attendanceLoading, setAttendanceLoading] = useState(false);
     const [songStats, setSongStats] = useState({ originals: 0, covers: 0 });
+    const [tourRarity, setTourRarity] = useState(null);
+    const [adjacent, setAdjacent] = useState({ prev: null, next: null });
+    const initialLoad = useRef(true);
 
     useEffect(() => {
         const fetchShow = async () => {
             try {
-                setLoading(true);
+                if (initialLoad.current) setLoading(true);
+                setError(null);
+                setAdjacent({ prev: null, next: null });
+                setTourRarity(null);
                 const data = await getShowBySlug(date, artist, locationSlug);
                 setShow(data);
             } catch (err) {
@@ -106,14 +147,16 @@ export default function ShowDetailPage() {
                 setError('Failed to load show details');
             } finally {
                 setLoading(false);
+                initialLoad.current = false;
             }
         };
         fetchShow();
     }, [artist, date, locationSlug]);
 
-    // Redirect to canonical URL if params don't match (e.g. old links)
+    // Redirect to canonical URL if params don't match (e.g. old links).
+    // Guard: skip if show.show_date !== date — means show is stale from previous navigation.
     useEffect(() => {
-        if (!show) return;
+        if (!show || show.show_date !== date) return;
         const canonical = buildShowPath(show);
         const current = `/show/${artist}/${date}/${locationSlug}`;
         if (current !== canonical) {
@@ -143,6 +186,22 @@ export default function ShowDetailPage() {
         });
         setSongStats({ originals, covers });
     }, [show]);
+
+    // Fetch tour rarity data once show is loaded and has a tour
+    useEffect(() => {
+        if (!show?.id || !show?.tour_name) return;
+        getTourRarity(show.id)
+            .then(data => setTourRarity(data))
+            .catch(err => console.error('[ShowDetail] tour rarity fetch failed:', err));
+    }, [show?.id, show?.tour_name]);
+
+    // Fetch previous/next show
+    useEffect(() => {
+        if (!show?.id) return;
+        getAdjacentShows(show.id)
+            .then(data => setAdjacent(data))
+            .catch(err => console.error('[ShowDetail] adjacent shows fetch failed:', err));
+    }, [show?.id]);
 
     // Check attendance after show loads
     useEffect(() => {
@@ -265,6 +324,42 @@ export default function ShowDetailPage() {
                 Back to Search
             </PButtonPure>
 
+            {/* Prev / Next show navigation */}
+            {(adjacent.prev || adjacent.next) && (
+                <div className="flex items-center justify-between gap-4">
+                    {adjacent.prev ? (
+                        <button
+                            onClick={() => navigate(buildShowPath(adjacent.prev))}
+                            className="flex items-center gap-2 text-sm transition-opacity hover:opacity-80"
+                            style={{ color: 'var(--p-color-contrast-medium)' }}
+                        >
+                            <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                            </svg>
+                            <span>
+                                <span className="block text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>Previous Show</span>
+                                <span>{new Date(adjacent.prev.show_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                            </span>
+                        </button>
+                    ) : <div />}
+                    {adjacent.next ? (
+                        <button
+                            onClick={() => navigate(buildShowPath(adjacent.next))}
+                            className="flex items-center gap-2 text-sm text-right transition-opacity hover:opacity-80"
+                            style={{ color: 'var(--p-color-contrast-medium)' }}
+                        >
+                            <span>
+                                <span className="block text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>Next Show</span>
+                                <span>{new Date(adjacent.next.show_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                            </span>
+                            <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                            </svg>
+                        </button>
+                    ) : <div />}
+                </div>
+            )}
+
             {/* Show header */}
             <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 md:p-8">
                 {/* Artist name + attendance button */}
@@ -272,6 +367,19 @@ export default function ShowDetailPage() {
                     <h1 className="font-display font-bold text-2xl md:text-4xl leading-tight" style={{ color: 'var(--p-color-primary)' }}>
                         {show.artist_name}
                     </h1>
+                    <div className="flex items-center gap-2 shrink-0">
+                    {isAdmin && (
+                        <button
+                            onClick={() => navigate(`/admin/shows/edit/${show.id}`)}
+                            className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-sm border border-white/15 hover:border-white/25 hover:bg-white/5 transition-all"
+                            style={{ color: 'var(--p-color-contrast-medium)' }}
+                        >
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                            Edit
+                        </button>
+                    )}
                     {user && (
                         <button
                             onClick={handleAttendanceToggle}
@@ -291,6 +399,7 @@ export default function ShowDetailPage() {
                             {attendanceLabel}
                         </button>
                     )}
+                    </div>
                 </div>
 
                 {/* Date */}
@@ -392,6 +501,15 @@ export default function ShowDetailPage() {
                     </span>
                     <span><span className="font-bold text-amber-400 mr-0.5">→</span> segues into next</span>
                     <span><span className="inline-block w-px h-3 bg-white/20 mr-1 align-middle" />played inside another song</span>
+                    {tourRarity?.tour_name && (
+                        <span className="flex items-center gap-1.5">
+                            <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded" style={{ background: 'rgba(192, 132, 252, 0.12)', color: '#c084fc' }}>
+                                <svg className="w-2 h-2 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm0 10a1 1 0 011 1v1h1a1 1 0 110 2H6v1a1 1 0 11-2 0v-1H3a1 1 0 110-2h1v-1a1 1 0 011-1zM12 2a1 1 0 01.967.744L14.146 7.2 17.5 9.134a1 1 0 010 1.732l-3.354 1.935-1.18 4.455a1 1 0 01-1.933 0L9.854 12.8 6.5 10.866a1 1 0 010-1.732l3.354-1.935 1.18-4.456A1 1 0 0112 2z" clipRule="evenodd" /></svg>
+                                Rare
+                            </span>
+                            played &lt;15% of tour shows
+                        </span>
+                    )}
                 </div>
 
                 {sets.length > 0 ? (
@@ -407,7 +525,7 @@ export default function ShowDetailPage() {
                                         {show.setlist[key].length} song{show.setlist[key].length !== 1 ? 's' : ''}
                                     </span>
                                 </div>
-                                <SetList songs={show.setlist[key]} />
+                                <SetList songs={show.setlist[key]} tourRarity={tourRarity} />
                             </div>
                         ))}
                     </div>

@@ -60,6 +60,24 @@ export const getShowById = async (id) => {
 };
 
 /**
+ * Get the previous and next show by date
+ */
+export const getAdjacentShows = async (showId) => {
+    const response = await fetch(`${API_BASE_URL}/api/shows/${showId}/adjacent`);
+    if (!response.ok) throw new Error('Failed to fetch adjacent shows');
+    return response.json();
+};
+
+/**
+ * Get tour-level song play counts for the show's tour
+ */
+export const getTourRarity = async (showId) => {
+    const response = await fetch(`${API_BASE_URL}/api/shows/${showId}/tour-rarity`);
+    if (!response.ok) throw new Error('Failed to fetch tour rarity');
+    return response.json();
+};
+
+/**
  * Look up a show by URL slugs (date, artist, location), then fetch full details
  */
 export const getShowBySlug = async (date, artist, location) => {

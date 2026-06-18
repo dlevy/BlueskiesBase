@@ -92,6 +92,107 @@ router.get('/lookup', async (req, res) => {
 });
 
 /**
+ * GET /api/shows/:id/adjacent
+ * Return the previous and next show by date
+ */
+router.get('/:id/adjacent', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const { data: show, error: showError } = await supabase
+            .from('shows')
+            .select('show_date')
+            .eq('id', id)
+            .single();
+
+        if (showError || !show) return res.status(404).json({ error: 'Show not found' });
+
+        const [{ data: prev }, { data: next }] = await Promise.all([
+            supabase
+                .from('shows')
+                .select('id, show_date, artist_name, venues(city, state_country)')
+                .lt('show_date', show.show_date)
+                .order('show_date', { ascending: false })
+                .limit(1)
+                .maybeSingle(),
+            supabase
+                .from('shows')
+                .select('id, show_date, artist_name, venues(city, state_country)')
+                .gt('show_date', show.show_date)
+                .order('show_date', { ascending: true })
+                .limit(1)
+                .maybeSingle(),
+        ]);
+
+        res.json({ prev: prev ?? null, next: next ?? null });
+
+    } catch (err) {
+        console.error('[GET /shows/:id/adjacent] Error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * GET /api/shows/:id/tour-rarity
+ * Return per-song play counts for the tour this show belongs to.
+ * Response: { tour_name, total_shows, song_counts: { [song_id]: count } }
+ */
+router.get('/:id/tour-rarity', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const { data: show, error: showError } = await supabase
+            .from('shows')
+            .select('tour_name')
+            .eq('id', id)
+            .single();
+
+        if (showError || !show?.tour_name) {
+            return res.json({ tour_name: null, total_shows: 0, song_counts: {} });
+        }
+
+        const { data: tourShows, error: tourError } = await supabase
+            .from('shows')
+            .select('id')
+            .eq('tour_name', show.tour_name);
+
+        if (tourError || !tourShows?.length) {
+            return res.json({ tour_name: show.tour_name, total_shows: 0, song_counts: {} });
+        }
+
+        const tourShowIds = tourShows.map(s => s.id);
+
+        const { data: setlistSongs, error: setlistError } = await supabase
+            .from('setlist_songs')
+            .select('song_id, show_id')
+            .in('show_id', tourShowIds)
+            .not('song_id', 'is', null);
+
+        if (setlistError) {
+            return res.status(500).json({ error: 'Failed to load tour setlists' });
+        }
+
+        // Count distinct shows per song (same song can appear multiple times in one show)
+        const songShowSets = {};
+        (setlistSongs || []).forEach(({ song_id, show_id }) => {
+            if (!songShowSets[song_id]) songShowSets[song_id] = new Set();
+            songShowSets[song_id].add(show_id);
+        });
+
+        const song_counts = {};
+        Object.entries(songShowSets).forEach(([song_id, shows]) => {
+            song_counts[song_id] = shows.size;
+        });
+
+        res.json({ tour_name: show.tour_name, total_shows: tourShowIds.length, song_counts });
+
+    } catch (err) {
+        console.error('[GET /shows/:id/tour-rarity] Error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
  * GET /api/shows/:id
  * Get a single show with full setlist
  */
