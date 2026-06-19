@@ -64,30 +64,15 @@ export default function SearchPage() {
                     setTotalShows(showsData.length);
                     setYears([...new Set(showsData.map(s => parseInt(s.show_date.split('-')[0])))].sort((a, b) => b - a));
 
-                    const showIds = showsData.map(s => s.id);
-                    let allSetlistSongs = [];
-                    let rangeStart = 0;
-                    const PAGE_SIZE = 1000;
-                    let hasMore = true;
+                    // Fetch all songs directly — avoids passing hundreds of show IDs
+                    // in a URL which exceeds PostgREST's length limit.
+                    const { data: songsData, error: songsError } = await supabase
+                        .from('songs')
+                        .select('id, title, is_original, album_songs(album_id, track_order, albums(id, title, release_date))')
+                        .order('title');
 
-                    while (hasMore) {
-                        const { data: pageData, error: songsError, count } = await supabase
-                            .from('setlist_songs')
-                            .select('songs!setlist_songs_song_id_fkey!inner(id, title, is_original, album_songs(album_id, track_order, albums(id, title, release_date)))', { count: 'exact' })
-                            .in('show_id', showIds)
-                            .range(rangeStart, rangeStart + PAGE_SIZE - 1);
-
-                        if (songsError) break;
-                        if (pageData?.length > 0) {
-                            allSetlistSongs = allSetlistSongs.concat(pageData);
-                            rangeStart += PAGE_SIZE;
-                            if (pageData.length < PAGE_SIZE || allSetlistSongs.length >= count) hasMore = false;
-                        } else { hasMore = false; }
-                    }
-
-                    if (allSetlistSongs.length > 0) {
-                        const songDetails = allSetlistSongs.map(ss => ss.songs).filter(Boolean);
-                        const uniqueSongs = [...new Map(songDetails.map(s => [s.id, s])).values()];
+                    if (!songsError && songsData?.length > 0) {
+                        const uniqueSongs = songsData;
 
                         // Covers — flat alphabetical list
                         setCoverSongs(
