@@ -2,10 +2,22 @@ const express = require('express');
 const router = express.Router();
 const { supabaseAdmin } = require('../config/supabase');
 
-const BASE_URL = 'https://www.blueskiesbase.com';
+const FALLBACK_BASE_URL = 'https://www.skysets.org';
+
+// Google rejects a sitemap whose <loc> host differs from the host it was fetched
+// from, so derive the base URL from the request rather than hardcoding a domain.
+function baseUrlFor(req) {
+    if (process.env.SITE_URL) return process.env.SITE_URL.replace(/\/+$/, '');
+    const host = req.get('x-forwarded-host') || req.get('host');
+    if (!host) return FALLBACK_BASE_URL;
+    const proto = req.get('x-forwarded-proto') || (host.startsWith('localhost') ? 'http' : 'https');
+    return `${proto}://${host}`;
+}
 
 router.get('/', async (req, res) => {
     try {
+        const BASE_URL = baseUrlFor(req);
+
         const { data: shows, error } = await supabaseAdmin
             .from('shows')
             .select('id, show_date, updated_at')
@@ -37,6 +49,7 @@ ${allUrls.map(({ url, priority, changefreq, lastmod }) => `  <url>
 
         res.setHeader('Content-Type', 'application/xml');
         res.setHeader('Cache-Control', 'public, max-age=3600');
+        res.setHeader('Vary', 'Host, X-Forwarded-Host');
         res.send(xml);
     } catch (err) {
         console.error('Sitemap error:', err);
