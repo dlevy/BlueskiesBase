@@ -53,20 +53,33 @@ router.get('/', async (req, res) => {
             { url: '/stats', priority: '0.7', changefreq: 'weekly' },
         ];
 
-        // Two shows can slug to the same path (same artist, date and city), so
-        // keep the first and drop the rest — the lookup endpoint resolves one anyway.
-        const seen = new Set();
-        const showUrls = [];
-        let skipped = 0;
+        // Two shows can slug to the same path (same artist, date and city, e.g. a
+        // festival's two stages) because the slug omits the venue. /api/shows/lookup
+        // can only resolve one of them, so leave every colliding path out entirely
+        // rather than advertising a URL that points at the wrong show. Revisit once
+        // the URL scheme disambiguates them.
+        const byPath = new Map();
+        let unmappable = 0;
 
         for (const show of shows || []) {
             const url = buildShowPath(show);
             if (!url) {
-                skipped++;
+                unmappable++;
                 continue;
             }
-            if (seen.has(url)) continue;
-            seen.add(url);
+            if (!byPath.has(url)) byPath.set(url, []);
+            byPath.get(url).push(show);
+        }
+
+        const showUrls = [];
+        const colliding = [];
+
+        for (const [url, matches] of byPath) {
+            if (matches.length > 1) {
+                colliding.push(url);
+                continue;
+            }
+            const [show] = matches;
             showUrls.push({
                 url,
                 priority: '0.8',
@@ -75,8 +88,11 @@ router.get('/', async (req, res) => {
             });
         }
 
-        if (skipped) {
-            console.warn(`Sitemap: skipped ${skipped} show(s) with no artist or venue location`);
+        if (unmappable) {
+            console.warn(`Sitemap: skipped ${unmappable} show(s) with no artist or venue location`);
+        }
+        if (colliding.length) {
+            console.warn(`Sitemap: omitted ${colliding.length} ambiguous path(s): ${colliding.join(', ')}`);
         }
 
         const allUrls = [...staticPages, ...showUrls];
