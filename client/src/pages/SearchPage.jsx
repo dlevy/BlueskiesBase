@@ -10,6 +10,9 @@ import { useAuth } from '../contexts/AuthContext';
 import SongStatsWidget from '../components/SongStatsWidget';
 import UserStatsWidget from '../components/UserStatsWidget';
 import OnThisDayWidget from '../components/OnThisDayWidget';
+import MostRecentShowWidget from '../components/MostRecentShowWidget';
+import SetlistPreview from '../components/SetlistPreview';
+import { orderSetlistTitles } from '../utils/setlist';
 import SEO from '../components/SEO';
 
 const MAIN_TABS = ['search', 'stats', 'myshows'];
@@ -40,6 +43,7 @@ export default function SearchPage() {
     const [attendanceLoading, setAttendanceLoading] = useState({});
     const [contentMap, setContentMap] = useState({});
     const [songStatsMap, setSongStatsMap] = useState({});
+    const [setlistPreviewMap, setSetlistPreviewMap] = useState({});
     const [songStatsLoading, setSongStatsLoading] = useState(false);
     const lastCalculatedShowIds = useRef(null);
 
@@ -147,7 +151,7 @@ export default function SearchPage() {
     useEffect(() => {
         const calculateSongStats = async () => {
             if (filteredResults.length === 0) {
-                setSongStatsMap({}); setSongStatsLoading(false); lastCalculatedShowIds.current = null; return;
+                setSongStatsMap({}); setSetlistPreviewMap({}); setSongStatsLoading(false); lastCalculatedShowIds.current = null; return;
             }
             const showIds = filteredResults.map(s => s.id);
             const key = [...showIds].sort().join(',');
@@ -166,7 +170,7 @@ export default function SearchPage() {
                     while (hasMore) {
                         const { data: pageData, error, count } = await supabase
                             .from('setlist_songs')
-                            .select('show_id, song_id, id, songs!setlist_songs_song_id_fkey(id, is_original)', { count: 'exact' })
+                            .select('show_id, song_id, id, set_number, song_order, is_encore, songs!setlist_songs_song_id_fkey(id, title, is_original)', { count: 'exact' })
                             .in('show_id', batchIds)
                             .range(rangeStart, rangeStart + 999);
                         if (error) break;
@@ -178,20 +182,33 @@ export default function SearchPage() {
                     }
                 }
 
+                // Group once rather than re-scanning every row per show.
+                const rowsByShow = {};
+                allSetlistSongs.forEach(item => {
+                    (rowsByShow[item.show_id] ||= []).push(item);
+                });
+
                 const statsMap = {};
+                const previewMap = {};
                 showIds.forEach(showId => {
+                    const rows = rowsByShow[showId] || [];
+
                     const seen = new Set();
                     let originals = 0, covers = 0;
-                    allSetlistSongs.filter(item => item.show_id === showId).forEach(item => {
+                    rows.forEach(item => {
                         if (!item.song_id || seen.has(item.song_id)) return;
                         seen.add(item.song_id);
                         if (item.songs?.is_original === true) originals++;
                         else if (item.songs?.is_original === false) covers++;
                     });
                     statsMap[showId] = { originals, covers };
+
+                    // Setlist order isn't guaranteed across paginated batches, so sort here.
+                    previewMap[showId] = { titles: orderSetlistTitles(rows), total: rows.length };
                 });
 
                 setSongStatsMap(statsMap);
+                setSetlistPreviewMap(previewMap);
             } catch (err) {
                 console.error('[SearchPage] Error calculating song stats:', err);
             } finally {
@@ -485,7 +502,12 @@ export default function SearchPage() {
                     )}
 
                     {/* Hero state — shown when no filters are active */}
-                    {showHero && <OnThisDayWidget />}
+                    {showHero && (
+                        <>
+                            <MostRecentShowWidget />
+                            <OnThisDayWidget />
+                        </>
+                    )}
 
                     {/* Results */}
                     {showResults && (
@@ -530,6 +552,7 @@ export default function SearchPage() {
                                         const hasPhotos = contentMap[show.id]?.hasPhotos || false;
                                         const hasPoster = contentMap[show.id]?.hasPoster || false;
                                         const songStats = songStatsMap[show.id] || { originals: 0, covers: 0 };
+                                        const setlistPreview = setlistPreviewMap[show.id];
                                         const openedFor = show.opened_for?.name;
                                         const openingAct = show.opening_act?.name;
                                         const hasVideo = show.links?.some(l => l.url?.includes('youtube.com') || l.url?.includes('youtu.be'));
@@ -595,6 +618,15 @@ export default function SearchPage() {
                                                                         {songStats.covers} Cover{songStats.covers !== 1 ? 's' : ''}
                                                                     </PTag>
                                                                 )}
+                                                            </div>
+                                                        )}
+                                                        {setlistPreview?.titles?.length > 0 && (
+                                                            <div className="mt-2 pt-2 border-t border-white/5">
+                                                                <SetlistPreview
+                                                                    titles={setlistPreview.titles}
+                                                                    total={setlistPreview.total}
+                                                                    max={8}
+                                                                />
                                                             </div>
                                                         )}
                                                     </div>
