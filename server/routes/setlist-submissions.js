@@ -365,7 +365,7 @@ router.post('/songs/:songRowId/merge', authenticate, checkAdmin, async (req, res
             })
             .select(`
                 id, song_id, set_number, song_order, is_encore, notes, jams_into, performance_type,
-                songs ( id, title, original_artist, is_original, written_by )
+                songs!setlist_songs_song_id_fkey ( id, title, original_artist, is_original, written_by )
             `)
             .single();
         if (insertError) {
