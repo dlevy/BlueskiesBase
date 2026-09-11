@@ -44,6 +44,49 @@ const authenticate = async (req, res, next) => {
 // ============================================
 
 /**
+ * GET /api/posters
+ * Every show poster, each with its show's date/artist/venue/tour — for the public
+ * Posters gallery page. Public, no auth required (same as GET /show/:showId).
+ * Sorted newest show first in JS rather than via PostgREST's foreignTable ordering —
+ * the poster count is small (a few dozen) so there's no real cost to it, and it avoids
+ * depending on ordering-by-embedded-column syntax this route doesn't otherwise need.
+ */
+router.get('/', async (req, res) => {
+    try {
+        const { data: posters, error } = await supabaseAdmin
+            .from('user_posters')
+            .select(`
+                id,
+                poster_url,
+                caption,
+                created_at,
+                shows (
+                    id,
+                    show_date,
+                    artist_name,
+                    tour_name,
+                    venues ( name, city, state_country )
+                )
+            `);
+
+        if (error) {
+            console.error('Error fetching posters:', error);
+            return res.status(500).json({ error: 'Failed to fetch posters' });
+        }
+
+        // A poster whose show has since been deleted would embed shows as null —
+        // exclude it rather than ship a gallery tile with nothing to link to.
+        const withShow = (posters || []).filter(p => p.shows);
+        withShow.sort((a, b) => b.shows.show_date.localeCompare(a.shows.show_date));
+
+        res.json({ posters: withShow });
+    } catch (error) {
+        console.error('Error in GET /api/posters:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
  * GET /api/posters/show/:showId
  * Get poster for a specific show
  */

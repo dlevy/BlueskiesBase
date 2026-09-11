@@ -13,10 +13,9 @@ import TourStatsWidget from '../components/TourStatsWidget';
 import UpcomingShowsWidget from '../components/UpcomingShowsWidget';
 import MostRecentShowWidget from '../components/MostRecentShowWidget';
 import SetlistPreview from '../components/SetlistPreview';
+import MainNavTabs from '../components/MainNavTabs';
 import { orderSetlistSongs } from '../utils/setlist';
 import SEO from '../components/SEO';
-
-const MAIN_TABS = ['search', 'stats', 'myshows'];
 
 const selectClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-transparent";
 
@@ -37,14 +36,8 @@ function ListTag({ label, color }) {
 export default function SearchPage() {
     const { user, isAdmin } = useAuth();
 
-    const [urlParams, setUrlParams] = useSearchParams();
+    const [urlParams] = useSearchParams();
     const activeTab = urlParams.get('tab') || 'search';
-
-    const setActiveTab = (tab) => setUrlParams(prev => {
-        const next = new URLSearchParams(prev);
-        next.set('tab', tab);
-        return next;
-    });
 
     const [searchParams, setSearchParams] = useState({
         year: '', month: '', song: '', source: '',
@@ -343,21 +336,7 @@ export default function SearchPage() {
                 description="The complete Sturgill Simpson and Johnny Blue Skies setlist database. Search 400+ concerts from 2012 to present."
             />
 
-            {/* Main Tabs */}
-            <div className="flex border-b border-white/[0.07] mb-6">
-                {[['search', 'Search'], ['stats', 'Stats'], ['myshows', 'My Shows']].map(([id, label]) => (
-                    <button
-                        key={id}
-                        onClick={() => setActiveTab(id)}
-                        className={`h-9 px-4 text-sm font-medium transition-colors -mb-px border-b-2 ${
-                            activeTab === id ? 'border-amber-400 text-amber-300' : 'border-transparent'
-                        }`}
-                        style={{ color: activeTab === id ? undefined : 'var(--p-color-contrast-medium)' }}
-                    >
-                        {label}
-                    </button>
-                ))}
-            </div>
+            <MainNavTabs />
 
             {/* Search Tab */}
             {activeTab === 'search' && (

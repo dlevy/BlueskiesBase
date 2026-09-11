@@ -7,6 +7,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 import HomePage from './pages/HomePage'
 import ShowDetailPage from './pages/ShowDetailPage'
 import StatsPage from './pages/StatsPage'
+import PostersPage from './pages/PostersPage'
 import LoginPage from './pages/LoginPage'
 import MemberLoginPage from './pages/MemberLoginPage'
 import SignupPage from './pages/SignupPage'
@@ -31,6 +32,7 @@ function App() {
             <Route index element={<HomePage />} />
             <Route path="show/:artist/:date/:locationSlug" element={<ShowDetailPage />} />
             <Route path="stats" element={<StatsPage />} />
+            <Route path="posters" element={<PostersPage />} />
           </Route>
 
           {/* Member Auth Routes */}

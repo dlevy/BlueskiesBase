@@ -1102,6 +1102,17 @@ export const checkShowsHaveContent = async (showIds) => {
 // ============================================
 
 /**
+ * Every show poster (for the Posters gallery page), newest show first.
+ */
+export const getAllPosters = async () => {
+    const response = await fetch(`${API_BASE_URL}/api/posters`);
+    if (!response.ok) {
+        throw new Error('Failed to fetch posters');
+    }
+    return response.json();
+};
+
+/**
  * Get poster for a show
  */
 export const getShowPoster = async (showId) => {
