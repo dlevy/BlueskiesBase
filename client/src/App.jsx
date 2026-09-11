@@ -108,13 +108,13 @@ function PublicLayout() {
             <img src="/logo.png" alt="" className="h-12 w-12 shrink-0" />
             <div className="flex flex-col items-start min-w-0">
               <span className="font-display font-bold text-lg leading-none" style={{ color: 'var(--p-color-primary)' }}>
-                SkySets.org
+                SkySets.org | Johnny Blue Skies &amp; the Dark Clouds Setlist & Media Archive
               </span>
               <span
                 className="hidden md:block text-xs mt-0.5 truncate"
                 style={{ color: 'var(--p-color-contrast-low)' }}
               >
-                Johnny Blue Skies &amp; the Dark Clouds setlist & media archive | JBS is the artist formerly known as Sturgill Simpson
+                 JBS is the artist formerly known as Sturgill Simpson
               </span>
             </div>
           </Link>
