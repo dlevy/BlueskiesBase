@@ -114,7 +114,7 @@ function PublicLayout() {
                 className="hidden md:block text-xs mt-0.5 truncate"
                 style={{ color: 'var(--p-color-contrast-low)' }}
               >
-                Sturgill Simpson &amp; Johnny Blue Skies setlist archive
+                Johnny Blue Skies &amp; the Dark Clouds setlist & media archive | JBS is the artist formerly known as Sturgill Simpson
               </span>
             </div>
           </Link>
