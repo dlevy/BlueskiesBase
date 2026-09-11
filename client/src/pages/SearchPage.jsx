@@ -19,6 +19,20 @@ const MAIN_TABS = ['search', 'stats', 'myshows'];
 
 const selectClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-transparent";
 
+// Same compact tag style used for Live Debut/Tour Debut/Rare/tease/partial/cover elsewhere
+// in the app (ShowDetailPage, SetlistPreview) — small, uppercase, color-mix background —
+// rather than the bulkier Porsche PTag pill.
+function ListTag({ label, color }) {
+    return (
+        <span
+            className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded"
+            style={{ background: `color-mix(in srgb, ${color} 12%, transparent)`, color }}
+        >
+            {label}
+        </span>
+    );
+}
+
 export default function SearchPage() {
     const { user, isAdmin } = useAuth();
 
@@ -621,15 +635,13 @@ export default function SearchPage() {
                                                             <div className="mt-2 flex flex-wrap gap-1.5">
                                                                 {openedFor && <PTag color="notification-warning-soft">Opening for {openedFor}</PTag>}
                                                                 {openingAct && <PTag color="notification-neutral-soft">Opener: {openingAct}</PTag>}
-                                                                {hasVideo && <PTag color="notification-error-soft">Video</PTag>}
+                                                                {hasVideo && <ListTag label="Video" color="#f87171" />}
                                                                 {hasLinks && <PTag color="notification-neutral-soft">Links</PTag>}
                                                                 {hasNotes && <PTag color="notification-warning-soft">Notes</PTag>}
-                                                                {hasPhotos && <PTag color="notification-info-soft">Photos</PTag>}
-                                                                {hasPoster && <PTag>Poster</PTag>}
+                                                                {hasPhotos && <ListTag label="Photos" color="#f472b6" />}
+                                                                {hasPoster && <ListTag label="Poster" color="#facc15" />}
                                                                 {songStats.covers > 0 && (
-                                                                    <PTag color="notification-info-soft">
-                                                                        {songStats.covers} Cover{songStats.covers !== 1 ? 's' : ''}
-                                                                    </PTag>
+                                                                    <ListTag label={`${songStats.covers} Cover${songStats.covers !== 1 ? 's' : ''}`} color="#60a5fa" />
                                                                 )}
                                                             </div>
                                                         )}
