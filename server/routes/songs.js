@@ -134,19 +134,28 @@ router.get('/stats/global', async (req, res) => {
 
         console.log(`[Song Stats] Fetched ${setlistSongs?.length || 0} setlist songs (in ${Math.ceil(setlistSongs.length / batchSize)} batches)`);
 
-        // Get all shows to get dates
-        const { data: shows, error: showsError } = await supabase
-            .from('shows')
-            .select('id, show_date')
-            .range(0, 999); // Get up to 1000 shows (we have ~302)
+        // Get all shows to get dates. Paginated — the archive is past 680 shows and
+        // growing every tour, so a single unbounded fetch will eventually hit
+        // PostgREST's 1000-row default and silently drop shows (and with them, any
+        // song whose only performances were at the dropped shows) with no error.
+        let shows = [];
+        for (let rangeStart = 0; ;) {
+            const { data: page, error: showsError } = await supabase
+                .from('shows')
+                .select('id, show_date')
+                .range(rangeStart, rangeStart + 999);
 
-        if (showsError) {
-            console.error('[Song Stats] Error fetching shows:', showsError);
-            console.error('[Song Stats] Error details:', JSON.stringify(showsError, null, 2));
-            return res.status(500).json({ error: 'Failed to fetch show dates', details: showsError.message });
+            if (showsError) {
+                console.error('[Song Stats] Error fetching shows:', showsError);
+                console.error('[Song Stats] Error details:', JSON.stringify(showsError, null, 2));
+                return res.status(500).json({ error: 'Failed to fetch show dates', details: showsError.message });
+            }
+            shows = shows.concat(page || []);
+            if (!page || page.length < 1000) break;
+            rangeStart += 1000;
         }
 
-        console.log(`[Song Stats] Fetched ${shows?.length || 0} shows`);
+        console.log(`[Song Stats] Fetched ${shows.length} shows`);
 
         // Create a map of show_id -> show_date for quick lookup
         const showDates = {};

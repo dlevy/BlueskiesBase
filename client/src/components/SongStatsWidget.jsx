@@ -74,10 +74,20 @@ export default function SongStatsWidget() {
 
         const fetchShowStats = async () => {
             try {
-                const { data, error: err } = await supabase
-                    .from('shows')
-                    .select('show_date, venues(city, state_country)');
-                if (err) throw err;
+                // Paginated — the archive is past 680 shows and growing every tour, and
+                // an unbounded query silently caps at PostgREST's 1000-row default with
+                // no error, quietly dropping shows out of every stat below.
+                let data = [];
+                for (let rangeStart = 0; ;) {
+                    const { data: page, error: err } = await supabase
+                        .from('shows')
+                        .select('show_date, venues(city, state_country)')
+                        .range(rangeStart, rangeStart + 999);
+                    if (err) throw err;
+                    data = data.concat(page || []);
+                    if (!page || page.length < 1000) break;
+                    rangeStart += 1000;
+                }
 
                 const monthCounts = {};
                 const dowCounts   = {};
