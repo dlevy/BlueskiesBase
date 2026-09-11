@@ -527,52 +527,11 @@ export default function ShowDetailPage() {
 
             {/* Setlist */}
             <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 md:p-10">
-                <div className="flex items-baseline justify-between mb-1">
+                <div className="flex items-baseline justify-between mb-6">
                     <PHeading size="large" tag="h2">Setlist</PHeading>
                     {sets.length > 0 && (
                         <span className="text-xs font-display" style={{ color: 'var(--p-color-contrast-low)' }}>
                             {[...(show.setlist?.set1||[]), ...(show.setlist?.set2||[]), ...(show.setlist?.set3||[]), ...(show.setlist?.encore||[])].length} songs
-                        </span>
-                    )}
-                </div>
-
-                {/* Compact legend */}
-                <div className="mt-2 mb-6 flex flex-wrap gap-x-4 gap-y-1 text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>
-                    <span>
-                        <span className="inline bg-amber-500/10 text-amber-400 px-1 py-0.5 rounded font-bold uppercase tracking-wide text-[9px] mr-1">tease</span>
-                        brief snippet
-                    </span>
-                    <span>
-                        <span className="inline bg-amber-500/10 text-amber-400 px-1 py-0.5 rounded font-bold uppercase tracking-wide text-[9px] mr-1">partial</span>
-                        incomplete
-                    </span>
-                    <span><span className="font-bold text-amber-400 mr-0.5">→</span> segues into next</span>
-                    <span><span className="inline-block w-px h-3 bg-white/20 mr-1 align-middle" />played inside another song</span>
-                    {liveDebutSongIds?.size > 0 && (
-                        <span className="flex items-center gap-1.5">
-                            <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded" style={{ background: 'rgba(52, 211, 153, 0.12)', color: '#34d399' }}>
-                                <svg className="w-2 h-2 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a1 1 0 01.894.553l1.991 3.983 4.396.639a1 1 0 01.554 1.706l-3.182 3.1.751 4.378a1 1 0 01-1.451 1.054L10 15.347l-3.953 2.078a1 1 0 01-1.451-1.054l.751-4.378-3.182-3.1a1 1 0 01.554-1.706l4.396-.639L9.106 2.553A1 1 0 0110 2z" /></svg>
-                                Live Debut
-                            </span>
-                            first performance ever
-                        </span>
-                    )}
-                    {tourDebutSongIds?.size > 0 && (
-                        <span className="flex items-center gap-1.5">
-                            <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded" style={{ background: 'rgba(34, 211, 238, 0.12)', color: '#22d3ee' }}>
-                                <svg className="w-2 h-2 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a1 1 0 01.894.553l1.991 3.983 4.396.639a1 1 0 01.554 1.706l-3.182 3.1.751 4.378a1 1 0 01-1.451 1.054L10 15.347l-3.953 2.078a1 1 0 01-1.451-1.054l.751-4.378-3.182-3.1a1 1 0 01.554-1.706l4.396-.639L9.106 2.553A1 1 0 0110 2z" /></svg>
-                                Tour Debut
-                            </span>
-                            first performance this tour
-                        </span>
-                    )}
-                    {tourRarity?.tour_name && (
-                        <span className="flex items-center gap-1.5">
-                            <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded" style={{ background: 'rgba(192, 132, 252, 0.12)', color: '#c084fc' }}>
-                                <svg className="w-2 h-2 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm0 10a1 1 0 011 1v1h1a1 1 0 110 2H6v1a1 1 0 11-2 0v-1H3a1 1 0 110-2h1v-1a1 1 0 011-1zM12 2a1 1 0 01.967.744L14.146 7.2 17.5 9.134a1 1 0 010 1.732l-3.354 1.935-1.18 4.455a1 1 0 01-1.933 0L9.854 12.8 6.5 10.866a1 1 0 010-1.732l3.354-1.935 1.18-4.456A1 1 0 0112 2z" clipRule="evenodd" /></svg>
-                                Rare
-                            </span>
-                            played &lt;15% of tour shows
                         </span>
                     )}
                 </div>
