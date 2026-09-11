@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { PSpinner } from '@porsche-design-system/components-react';
 import { supabase } from '../services/supabase';
-import { getShowDebuts } from '../services/api';
+import { getShowDebutsBatch } from '../services/api';
 import { buildShowPath } from '../utils/showSlug';
 import SetlistPreview from './SetlistPreview';
 import { orderSetlistSongs } from '../utils/setlist';
@@ -14,10 +14,11 @@ const LOOKBACK_SHOWS = 25;
 const PREVIEW_SONGS = 12;
 const OTHER_RECENT_SHOWS = 3;
 
-// Same card, same exact dimensions as the featured show below — identical date column
-// (w-16 sm:w-20, same type scale) and content/arrow padding — just one line of info
-// (artist — venue) instead of the featured card's multi-line venue/tour/setlist stack.
-function RecentShowRow({ show }) {
+// One card design shared by the featured show and the ones below it — same size, same
+// content (artist, venue, tour, full setlist preview with debut tags). The only thing
+// that distinguishes "most recent" from "the others" is position in the list, not size
+// or how much information is shown.
+function ShowCard({ show, songs, totalSongs, liveDebutIds, tourDebutIds }) {
     const [y, m, d] = show.show_date.split('-');
     const dateObj = new Date(Number(y), Number(m) - 1, Number(d));
     const monthStr = dateObj.toLocaleString('default', { month: 'short' }).toUpperCase();
@@ -40,15 +41,39 @@ function RecentShowRow({ show }) {
                 </span>
             </div>
 
-            <div className="flex-1 min-w-0 p-4 flex items-center">
-                <p className="text-sm truncate">
-                    <span className="font-semibold" style={{ color: 'var(--p-color-primary)' }}>{show.artist_name}</span>
-                    {show.venues && (
-                        <span style={{ color: 'var(--p-color-contrast-medium)' }}>
+            <div className="flex-1 min-w-0 p-4">
+                <p className="font-semibold text-base" style={{ color: 'var(--p-color-primary)' }}>
+                    {show.artist_name}
+                </p>
+                {show.venues && (
+                    <p className="text-sm mt-0.5" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                        {show.venues.name}
+                        <span style={{ color: 'var(--p-color-contrast-low)' }}>
                             {' — '}{show.venues.city}{show.venues.state_country ? `, ${show.venues.state_country}` : ''}
                         </span>
-                    )}
-                </p>
+                    </p>
+                )}
+                {show.tour_name && (
+                    <p className="text-xs mt-0.5 italic" style={{ color: 'var(--p-color-contrast-low)' }}>
+                        {show.tour_name}
+                    </p>
+                )}
+
+                {songs.length > 0 ? (
+                    <div className="mt-3 pt-3 border-t border-white/5">
+                        <SetlistPreview
+                            songs={songs}
+                            total={totalSongs}
+                            liveDebutIds={liveDebutIds}
+                            tourDebutIds={tourDebutIds}
+                            max={PREVIEW_SONGS}
+                        />
+                    </div>
+                ) : (
+                    <p className="mt-3 pt-3 border-t border-white/5 text-xs italic" style={{ color: 'var(--p-color-contrast-low)' }}>
+                        Setlist not added yet
+                    </p>
+                )}
             </div>
 
             <div className="shrink-0 flex items-center pr-4">
@@ -61,12 +86,9 @@ function RecentShowRow({ show }) {
 }
 
 export default function MostRecentShowWidget() {
-    const [show, setShow] = useState(null);
-    const [otherRecent, setOtherRecent] = useState([]);
-    const [songs, setSongs] = useState([]);
-    const [totalSongs, setTotalSongs] = useState(0);
-    const [liveDebutIds, setLiveDebutIds] = useState(new Set());
-    const [tourDebutIds, setTourDebutIds] = useState(new Set());
+    const [displayShows, setDisplayShows] = useState([]);
+    const [songsByShow, setSongsByShow] = useState({});
+    const [debutsByShow, setDebutsByShow] = useState({});
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -110,19 +132,24 @@ export default function MostRecentShowWidget() {
                 // today, before showtime). Render nothing rather than feature it.
                 const chosen = shows.find(s => byShow[s.id]?.length);
                 if (!chosen) { if (!cancelled) setLoading(false); return; }
-                const rows = byShow[chosen.id] || [];
+
+                const others = shows.filter(s => s.id !== chosen.id).slice(0, OTHER_RECENT_SHOWS);
+                const shown = [chosen, ...others];
+
+                const songsMap = {};
+                shown.forEach(s => {
+                    const rows = byShow[s.id] || [];
+                    songsMap[s.id] = { songs: orderSetlistSongs(rows), total: rows.length };
+                });
 
                 if (cancelled) return;
-                setShow(chosen);
-                setOtherRecent(shows.filter(s => s.id !== chosen.id).slice(0, OTHER_RECENT_SHOWS));
-                setSongs(orderSetlistSongs(rows));
-                setTotalSongs(rows.length);
+                setDisplayShows(shown);
+                setSongsByShow(songsMap);
 
-                getShowDebuts(chosen.id)
+                getShowDebutsBatch(shown.map(s => s.id))
                     .then(data => {
                         if (cancelled) return;
-                        setLiveDebutIds(new Set(data.live_debut_song_ids || []));
-                        setTourDebutIds(new Set(data.tour_debut_song_ids || []));
+                        setDebutsByShow(data);
                     })
                     .catch(err => console.error('[MostRecentShowWidget] debuts fetch failed:', err));
             } catch (err) {
@@ -144,12 +171,7 @@ export default function MostRecentShowWidget() {
         );
     }
 
-    if (!show) return null;
-
-    const [y, m, d] = show.show_date.split('-');
-    const dateObj = new Date(Number(y), Number(m) - 1, Number(d));
-    const monthStr = dateObj.toLocaleString('default', { month: 'short' }).toUpperCase();
-    const dayNum = parseInt(d, 10);
+    if (displayShows.length === 0) return null;
 
     return (
         <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-5 mb-4">
@@ -157,70 +179,18 @@ export default function MostRecentShowWidget() {
                 Most Recent Shows
             </h2>
 
-            <Link
-                to={buildShowPath(show)}
-                className="flex rounded-xl border border-white/5 bg-white/[0.03] hover:border-amber-500/20 hover:bg-white/[0.06] hover:-translate-y-px hover:shadow-lg hover:shadow-black/20 transition-all duration-150 overflow-hidden group"
-            >
-                {/* Date column — mirrors the search result rows */}
-                <div className="shrink-0 flex flex-col items-center justify-center w-16 sm:w-20 py-4 bg-white/[0.02] border-r border-white/5">
-                    <span className="font-display font-bold text-2xl sm:text-3xl leading-none text-amber-400">
-                        {dayNum}
-                    </span>
-                    <span className="text-[10px] uppercase tracking-widest mt-1" style={{ color: 'var(--p-color-contrast-medium)' }}>
-                        {monthStr}
-                    </span>
-                    <span className="text-[10px] mt-0.5" style={{ color: 'var(--p-color-contrast-low)' }}>
-                        {y}
-                    </span>
-                </div>
-
-                <div className="flex-1 min-w-0 p-4">
-                    <p className="font-semibold text-base" style={{ color: 'var(--p-color-primary)' }}>
-                        {show.artist_name}
-                    </p>
-                    {show.venues && (
-                        <p className="text-sm mt-0.5" style={{ color: 'var(--p-color-contrast-medium)' }}>
-                            {show.venues.name}
-                            <span style={{ color: 'var(--p-color-contrast-low)' }}>
-                                {' — '}{show.venues.city}{show.venues.state_country ? `, ${show.venues.state_country}` : ''}
-                            </span>
-                        </p>
-                    )}
-                    {show.tour_name && (
-                        <p className="text-xs mt-0.5 italic" style={{ color: 'var(--p-color-contrast-low)' }}>
-                            {show.tour_name}
-                        </p>
-                    )}
-
-                    {songs.length > 0 ? (
-                        <div className="mt-3 pt-3 border-t border-white/5">
-                            <SetlistPreview
-                                songs={songs}
-                                total={totalSongs}
-                                liveDebutIds={liveDebutIds}
-                                tourDebutIds={tourDebutIds}
-                                max={PREVIEW_SONGS}
-                            />
-                        </div>
-                    ) : (
-                        <p className="mt-3 pt-3 border-t border-white/5 text-xs italic" style={{ color: 'var(--p-color-contrast-low)' }}>
-                            Setlist not added yet
-                        </p>
-                    )}
-                </div>
-
-                <div className="shrink-0 flex items-center pr-4">
-                    <svg className="w-4 h-4 opacity-0 group-hover:opacity-30 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                </div>
-            </Link>
-
-            {otherRecent.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-white/5 space-y-4">
-                    {otherRecent.map(s => <RecentShowRow key={s.id} show={s} />)}
-                </div>
-            )}
+            <div className="space-y-4">
+                {displayShows.map(show => (
+                    <ShowCard
+                        key={show.id}
+                        show={show}
+                        songs={songsByShow[show.id]?.songs || []}
+                        totalSongs={songsByShow[show.id]?.total || 0}
+                        liveDebutIds={new Set(debutsByShow[show.id]?.live_debut_song_ids || [])}
+                        tourDebutIds={new Set(debutsByShow[show.id]?.tour_debut_song_ids || [])}
+                    />
+                ))}
+            </div>
         </div>
     );
 }
