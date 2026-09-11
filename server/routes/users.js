@@ -548,5 +548,33 @@ router.get('/check-attendance/:showId', async (req, res) => {
     }
 });
 
+/**
+ * GET /api/users/community-stats
+ * Get site-wide community stats (members, photos, posters contributed)
+ * Public — no authentication required
+ */
+router.get('/community-stats', async (req, res) => {
+    try {
+        const [membersResult, photosResult, postersResult] = await Promise.all([
+            supabase.from('profiles').select('*', { count: 'exact', head: true }),
+            supabase.from('user_photos').select('*', { count: 'exact', head: true }),
+            supabase.from('user_posters').select('*', { count: 'exact', head: true }),
+        ]);
+
+        if (membersResult.error) throw membersResult.error;
+        if (photosResult.error) throw photosResult.error;
+        if (postersResult.error) throw postersResult.error;
+
+        res.json({
+            members: membersResult.count || 0,
+            photos: photosResult.count || 0,
+            posters: postersResult.count || 0,
+        });
+    } catch (error) {
+        console.error('[Community Stats] Error:', error);
+        res.status(500).json({ error: 'Failed to fetch community statistics' });
+    }
+});
+
 module.exports = router;
 

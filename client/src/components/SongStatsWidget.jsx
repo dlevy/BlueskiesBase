@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect } from 'react';
 import { PHeading, PText, PSpinner, PInlineNotification, PDivider } from '@porsche-design-system/components-react';
-import { getGlobalSongStats, getSongs } from '../services/api';
+import { getGlobalSongStats, getSongs, getCommunityStats } from '../services/api';
 import { supabase } from '../services/supabase';
 import { useCountUp } from '../hooks/useCountUp';
 
@@ -51,10 +51,21 @@ function FactCard({ label, value, sub }) {
     );
 }
 
+function CommunityStatCard({ value, label }) {
+    const count = useCountUp(value);
+    return (
+        <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 text-center">
+            <div className="font-display font-bold text-5xl leading-none mb-2 text-amber-400">{count}</div>
+            <PText size="sm" color="contrast-medium" align="center">{label}</PText>
+        </div>
+    );
+}
+
 export default function SongStatsWidget() {
     const [stats, setStats] = useState(null);
     const [holyGrails, setHolyGrails] = useState([]);
     const [showStats, setShowStats] = useState(null);
+    const [communityStats, setCommunityStats] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
@@ -174,9 +185,20 @@ export default function SongStatsWidget() {
             }
         };
 
+        const fetchCommunityStats = async () => {
+            try {
+                const data = await getCommunityStats();
+                setCommunityStats(data);
+            } catch (err) {
+                console.error('Error fetching community stats:', err);
+                // Community stats failing silently — core stats still show
+            }
+        };
+
         fetchStats();
         fetchShowStats();
         fetchHolyGrails();
+        fetchCommunityStats();
     }, []);
 
     const formatDate = (dateString) => {
@@ -300,26 +322,51 @@ export default function SongStatsWidget() {
                         )}
                     </div>
 
-                    {/* Shows by Year bar chart */}
+                    {/* Shows by Year column chart */}
                     {showStats.yearRows.length > 1 && (
                         <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-5 space-y-3">
                             <PText size="xs" style={{ color: 'var(--p-color-contrast-low)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Shows by Year</PText>
-                            <div className="space-y-2">
-                                {showStats.yearRows.map(({ year, count }) => (
-                                    <div key={year} className="flex items-center gap-3">
-                                        <span className="text-xs w-10 shrink-0 text-right" style={{ color: 'var(--p-color-contrast-medium)' }}>{year}</span>
-                                        <div className="flex-1 h-5 rounded bg-white/5 overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <div className="flex items-end gap-1.5 h-28 min-w-max px-1">
+                                    {showStats.yearRows.map(({ year, count }) => (
+                                        <div
+                                            key={year}
+                                            className="flex flex-col justify-end h-full w-7 shrink-0"
+                                            title={`${year}: ${count} show${count !== 1 ? 's' : ''}`}
+                                        >
                                             <div
-                                                className="h-full rounded bg-amber-400/80 transition-all duration-700"
-                                                style={{ width: `${(count / showStats.maxYearCount) * 100}%` }}
+                                                className="w-full rounded-t bg-amber-400/80 transition-all duration-700"
+                                                style={{ height: `${Math.max((count / showStats.maxYearCount) * 100, 4)}%` }}
                                             />
                                         </div>
-                                        <span className="text-xs w-6 shrink-0 text-right" style={{ color: 'var(--p-color-contrast-medium)' }}>{count}</span>
-                                    </div>
-                                ))}
+                                    ))}
+                                </div>
+                                <div className="flex gap-1.5 min-w-max px-1 mt-1">
+                                    {showStats.yearRows.map(({ year }) => (
+                                        <span
+                                            key={year}
+                                            className="text-[10px] w-7 shrink-0 text-center"
+                                            style={{ color: 'var(--p-color-contrast-low)' }}
+                                        >
+                                            {`’${year.slice(2)}`}
+                                        </span>
+                                    ))}
+                                </div>
                             </div>
                         </div>
                     )}
+                </div>
+            )}
+
+            {/* Community */}
+            {communityStats && (
+                <div className="space-y-4">
+                    <PHeading size="md" tag="h2">Community</PHeading>
+                    <div className="grid grid-cols-3 gap-3">
+                        <CommunityStatCard value={communityStats.members} label="Members" />
+                        <CommunityStatCard value={communityStats.photos} label="Photos Contributed" />
+                        <CommunityStatCard value={communityStats.posters} label="Posters Contributed" />
+                    </div>
                 </div>
             )}
 

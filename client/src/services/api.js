@@ -150,6 +150,17 @@ export const getGlobalSongStats = async () => {
 };
 
 /**
+ * Get site-wide community stats (members, photos, posters contributed)
+ */
+export const getCommunityStats = async () => {
+    const response = await fetch(`${API_BASE_URL}/api/users/community-stats`);
+    if (!response.ok) {
+        throw new Error('Failed to fetch community statistics');
+    }
+    return response.json();
+};
+
+/**
  * Create a new song
  */
 export const createSong = async (songData) => {
