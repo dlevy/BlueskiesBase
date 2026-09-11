@@ -44,6 +44,54 @@ const authenticate = async (req, res, next) => {
 // ============================================
 
 /**
+ * GET /api/photos
+ * Every user-uploaded photo, each with its show's date/artist/venue/tour — for the
+ * public Photos gallery page. Public, no auth required (same as GET /show/:showId).
+ * Unlike posters (one per show), a show commonly has several photos, so this returns
+ * a flat list and leaves grouping-by-show to the client. Sorted newest show first,
+ * then by each show's own display_order, in JS — same reasoning as GET /api/posters:
+ * the dataset is small and this avoids depending on ordering-by-embedded-column syntax.
+ */
+router.get('/', async (req, res) => {
+    try {
+        const { data: photos, error } = await supabaseAdmin
+            .from('user_photos')
+            .select(`
+                id,
+                photo_url,
+                caption,
+                display_order,
+                created_at,
+                shows (
+                    id,
+                    show_date,
+                    artist_name,
+                    tour_name,
+                    venues ( name, city, state_country )
+                )
+            `);
+
+        if (error) {
+            console.error('Error fetching photos:', error);
+            return res.status(500).json({ error: 'Failed to fetch photos' });
+        }
+
+        // A photo whose show has since been deleted would embed shows as null —
+        // exclude it rather than ship a gallery tile with nothing to link to.
+        const withShow = (photos || []).filter(p => p.shows);
+        withShow.sort((a, b) =>
+            b.shows.show_date.localeCompare(a.shows.show_date) ||
+            (a.display_order ?? 0) - (b.display_order ?? 0)
+        );
+
+        res.json({ photos: withShow });
+    } catch (error) {
+        console.error('Error in GET /api/photos:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
  * GET /api/photos/show/:showId
  * Get all photos for a specific show
  */

@@ -985,6 +985,17 @@ export const deleteNote = async (noteId) => {
 // ============================================
 
 /**
+ * Every photo (for the Photos gallery page), newest show first.
+ */
+export const getAllPhotos = async () => {
+    const response = await fetch(`${API_BASE_URL}/api/photos`);
+    if (!response.ok) {
+        throw new Error('Failed to fetch photos');
+    }
+    return response.json();
+};
+
+/**
  * Get all photos for a show
  */
 export const getShowPhotos = async (showId) => {
