@@ -125,16 +125,16 @@ export default function MostRecentShowWidget() {
                     (byShow[row.show_id] ||= []).push(row);
                 });
 
-                // shows is already newest-first, so the first one with songs wins. A show
-                // with no setlist logged yet hasn't really been "covered" as most recent —
-                // showing it here would read as if it's already happened and been
-                // documented, when it might not even have happened yet (e.g. a show dated
-                // today, before showtime). Render nothing rather than feature it.
-                const chosen = shows.find(s => byShow[s.id]?.length);
-                if (!chosen) { if (!cancelled) setLoading(false); return; }
+                // A show dated today is excluded until it either gets a setlist logged or
+                // the day passes — a same-day show might not have even happened yet (e.g.
+                // visiting the site at 2pm before an 8pm show), so it can't be called
+                // "most recent" on date alone. Once it's from a prior day, it's eligible
+                // regardless of setlist status; shows is already newest-first, so the
+                // newest eligible one naturally lands first/featured with no extra sort.
+                const eligible = shows.filter(s => byShow[s.id]?.length > 0 || s.show_date < todayStr);
+                if (eligible.length === 0) { if (!cancelled) setLoading(false); return; }
 
-                const others = shows.filter(s => s.id !== chosen.id).slice(0, OTHER_RECENT_SHOWS);
-                const shown = [chosen, ...others];
+                const shown = eligible.slice(0, 1 + OTHER_RECENT_SHOWS);
 
                 const songsMap = {};
                 shown.forEach(s => {
