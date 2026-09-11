@@ -41,7 +41,6 @@ Inspired by [Crowesbase.com](https://crowesbase.com). Initial setlist data impor
 | Database | Supabase (PostgreSQL) with Row Level Security |
 | Auth | Supabase Auth (email/password, PKCE flow) |
 | Deployment | Vercel (frontend + serverless API) |
-| AI | Anthropic Claude API (chat widget) |
 
 ---
 
@@ -141,7 +140,6 @@ BlueskiesBase/
    ```
    SUPABASE_URL=https://your-project.supabase.co
    SUPABASE_SERVICE_KEY=your_service_role_key
-   ANTHROPIC_API_KEY=your_anthropic_api_key   # optional, powers chat widget
    ```
 
    Then create `client/.env.local`:
@@ -234,7 +232,6 @@ The app is deployed on Vercel. The frontend is a static Vite build; the backend 
 ```
 SUPABASE_URL
 SUPABASE_SERVICE_KEY
-ANTHROPIC_API_KEY
 VITE_SUPABASE_URL       # build-time, prefixed VITE_
 VITE_SUPABASE_ANON_KEY  # build-time, prefixed VITE_
 ```

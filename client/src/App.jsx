@@ -20,7 +20,6 @@ import ShowForm from './pages/admin/ShowForm'
 import SongsList from './pages/admin/SongsList'
 import AlbumsList from './pages/admin/AlbumsList'
 import AdminUsers from './pages/admin/AdminUsers'
-import ChatWidget from './components/ChatWidget'
 import './App.css'
 
 function App() {
@@ -214,8 +213,6 @@ function PublicLayout() {
           </div>
         </div>
       </footer>
-
-      <ChatWidget />
     </div>
   );
 }
