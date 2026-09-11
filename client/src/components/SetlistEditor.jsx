@@ -1,16 +1,20 @@
-﻿import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { PHeading, PText, PButton } from '@porsche-design-system/components-react';
-import { getSongs } from '../services/api';
+import { getSongs, createSong } from '../services/api';
 
 const inputClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--p-color-info)] focus:border-transparent placeholder:text-gray-500";
-const selectClass = "w-full rounded-lg border border-white/10 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--p-color-info)] focus:border-transparent";
+
+const SET_ORDER = ['set1', 'set2', 'set3', 'encore'];
+const SET_LABELS = { set1: 'Set 1', set2: 'Set 2', set3: 'Set 3', encore: 'Encore' };
+const EMPTY_SETLIST = { set1: [], set2: [], set3: [], encore: [] };
 
 export default function SetlistEditor({ initialSetlist = {}, onChange }) {
-    const [setlist, setSetlist] = useState({ set1: [], set2: [], set3: [], encore: [] });
+    const [setlist, setSetlist] = useState(EMPTY_SETLIST);
+    // Which set sections are shown. Always includes set1 — everything else (set2, set3,
+    // encore) only appears once it holds songs (loaded from an existing show) or the admin
+    // explicitly adds it, so a typical single-set show doesn't render three empty boxes.
+    const [activeSets, setActiveSets] = useState(['set1']);
     const [allSongs, setAllSongs] = useState([]);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [selectedSet, setSelectedSet] = useState('set1');
-    const [showSongPicker, setShowSongPicker] = useState(false);
 
     const fetchSongs = useCallback(async () => {
         try {
@@ -64,6 +68,9 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
             }
         });
         setSetlist(converted);
+        // Reveal any section that already has songs (e.g. an existing show with an encore),
+        // in addition to set1 which is always shown.
+        setActiveSets(SET_ORDER.filter(k => k === 'set1' || converted[k].length > 0));
         // Lift the hydrated setlist up to the parent (ShowForm) immediately. Without this,
         // the parent's "current setlist to save" state stays empty until the admin manually
         // edits a song, so saving the show after changing an unrelated field (e.g. notes)
@@ -81,7 +88,7 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
         convertInitialSetlist(initialSetlist || {});
     }, [initialSetlist, convertInitialSetlist]);
 
-    const handleAddSong = (song) => {
+    const handleAddSong = (setKey, song) => {
         const newSong = {
             id: `temp-${Date.now()}`,
             song_id: song.id,
@@ -92,13 +99,18 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
             notes: '',
             jams_into: null,
             performance_type: 'full',
-            order: setlist[selectedSet].length
+            order: setlist[setKey].length
         };
-        const updatedSetlist = { ...setlist, [selectedSet]: [...setlist[selectedSet], newSong] };
+        const updatedSetlist = { ...setlist, [setKey]: [...setlist[setKey], newSong] };
         setSetlist(updatedSetlist);
         notifyChange(updatedSetlist);
-        setShowSongPicker(false);
-        setSearchTerm('');
+    };
+
+    // A song just created via the "+ Add ... as a new song" quick-add option — merge it into
+    // the catalog so it's searchable immediately (e.g. if it comes up again later in the same
+    // setlist) without waiting on a refetch.
+    const handleSongCreated = (song) => {
+        setAllSongs(prev => [...prev, song].sort((a, b) => a.title.localeCompare(b.title)));
     };
 
     const handleRemoveSong = (setKey, index) => {
@@ -130,108 +142,239 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
         notifyChange(updatedSetlist);
     };
 
-    const filteredSongs = allSongs.filter(song =>
-        song.title.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const addSetSection = (setKey) => {
+        setActiveSets(prev => SET_ORDER.filter(k => prev.includes(k) || k === setKey));
+    };
 
-    const setLabels = { set1: 'Set 1', set2: 'Set 2', set3: 'Set 3', encore: 'Encore' };
+    const removeSetSection = (setKey) => {
+        if (setKey === 'set1' || setlist[setKey].length > 0) return; // set1 is permanent; never drop a section with songs
+        setActiveSets(prev => prev.filter(k => k !== setKey));
+    };
+
+    const nextNumberedSet = ['set2', 'set3'].find(k => !activeSets.includes(k));
+    const encoreActive = activeSets.includes('encore');
 
     return (
-        <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <PHeading size="lg" tag="h3">Setlist Editor</PHeading>
-                <PButton type="button" onClick={() => setShowSongPicker(true)}>+ Add Song</PButton>
-            </div>
+        <div className="space-y-4">
+            <PHeading size="lg" tag="h3">Setlist Editor</PHeading>
 
-            {/* Song Picker Modal */}
-            {showSongPicker && (
-                <div className="fixed inset-0 bg-black/75 flex items-center justify-center z-50">
-                    <div className="rounded-2xl border border-white/10 p-6 max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col mx-4"
-                        style={{ background: 'var(--p-color-canvas)' }}>
-                        <div className="flex justify-between items-center mb-4">
-                            <PHeading size="lg" tag="h4">Add Song to {setLabels[selectedSet]}</PHeading>
-                            <button onClick={() => { setShowSongPicker(false); setSearchTerm(''); }}
-                                className="p-1 rounded-lg hover:bg-white/10 transition-colors"
-                                style={{ color: 'var(--p-color-contrast-medium)' }}>
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
-                        </div>
-
-                        <div className="mb-4">
-                            <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>
-                                Add to:
-                            </label>
-                            <select value={selectedSet} onChange={e => setSelectedSet(e.target.value)}
-                                className={selectClass}
-                                style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
-                                <option value="set1">Set 1</option>
-                                <option value="set2">Set 2</option>
-                                <option value="set3">Set 3</option>
-                                <option value="encore">Encore</option>
-                            </select>
-                        </div>
-
-                        <input type="text" placeholder="Search songs..." value={searchTerm}
-                            onChange={e => setSearchTerm(e.target.value)}
-                            className={inputClass + ' mb-4'} autoFocus />
-
-                        <div className="flex-1 overflow-y-auto rounded-xl border border-white/10"
-                            style={{ background: 'var(--p-color-surface)' }}>
-                            {filteredSongs.map(song => (
-                                <button key={song.id} onClick={() => handleAddSong(song)}
-                                    className="w-full text-left px-4 py-3 hover:bg-white/5 border-b border-white/5 last:border-b-0 transition-colors">
-                                    <PText size="small" weight="semi-bold">{song.title}</PText>
-                                    {song.original_artist && (
-                                        <PText size="x-small" color="contrast-medium">Cover of {song.original_artist}</PText>
-                                    )}
-                                </button>
-                            ))}
-                            {filteredSongs.length === 0 && (
-                                <div className="text-center py-8">
-                                    <PText color="contrast-medium">No songs found</PText>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Setlist Display */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {Object.entries(setlist).map(([setKey, songs]) => (
-                    <div key={setKey} className="rounded-xl border border-white/10 p-4"
-                        style={{ background: 'var(--p-color-surface)' }}>
-                        <PHeading size="sm" tag="h4" className="mb-3">{setLabels[setKey]}</PHeading>
-
-                        {songs.length === 0 ? (
-                            <PText size="small" style={{ color: 'var(--p-color-contrast-low)' }}>No songs yet</PText>
-                        ) : (
-                            <div className="space-y-2">
-                                {songs.map((song, index) => (
-                                    <SetlistSongItem
-                                        key={`${setKey}-${index}`}
-                                        song={song}
-                                        index={index}
-                                        setKey={setKey}
-                                        isFirst={index === 0}
-                                        isLast={index === songs.length - 1}
-                                        onRemove={() => handleRemoveSong(setKey, index)}
-                                        onMove={(direction) => handleMoveSong(setKey, index, direction)}
-                                        onUpdate={(field, value) => handleUpdateSong(setKey, index, field, value)}
-                                    />
-                                ))}
-                            </div>
-                        )}
-                    </div>
+            <div className="space-y-4">
+                {SET_ORDER.filter(k => activeSets.includes(k)).map(setKey => (
+                    <SetSection
+                        key={setKey}
+                        label={SET_LABELS[setKey]}
+                        songs={setlist[setKey]}
+                        allSongs={allSongs}
+                        onAddSong={(song) => handleAddSong(setKey, song)}
+                        onSongCreated={handleSongCreated}
+                        onRemoveSong={(index) => handleRemoveSong(setKey, index)}
+                        onMoveSong={(index, direction) => handleMoveSong(setKey, index, direction)}
+                        onUpdateSong={(index, field, value) => handleUpdateSong(setKey, index, field, value)}
+                        onRemoveSet={setKey !== 'set1' && setlist[setKey].length === 0 ? () => removeSetSection(setKey) : null}
+                    />
                 ))}
             </div>
+
+            {(nextNumberedSet || !encoreActive) && (
+                <div className="flex gap-2">
+                    {nextNumberedSet && (
+                        <PButton type="button" variant="secondary" size="small" onClick={() => addSetSection(nextNumberedSet)}>
+                            + Add {SET_LABELS[nextNumberedSet]}
+                        </PButton>
+                    )}
+                    {!encoreActive && (
+                        <PButton type="button" variant="secondary" size="small" onClick={() => addSetSection('encore')}>
+                            + Add Encore
+                        </PButton>
+                    )}
+                </div>
+            )}
         </div>
     );
 }
 
-function SetlistSongItem({ song, index, setKey, isFirst, isLast, onRemove, onMove, onUpdate }) {
+function SetSection({ label, songs, allSongs, onAddSong, onSongCreated, onRemoveSong, onMoveSong, onUpdateSong, onRemoveSet }) {
+    return (
+        <div className="rounded-xl border border-white/10 p-4" style={{ background: 'var(--p-color-surface)' }}>
+            <div className="flex items-center justify-between mb-3">
+                <PHeading size="sm" tag="h4">{label}</PHeading>
+                {onRemoveSet && (
+                    <button type="button" onClick={onRemoveSet}
+                        className="text-xs px-1.5 py-0.5 rounded hover:bg-white/10 transition-colors"
+                        style={{ color: 'var(--p-color-contrast-medium)' }}>
+                        Remove
+                    </button>
+                )}
+            </div>
+
+            {songs.length > 0 && (
+                <div className="space-y-2 mb-3">
+                    {songs.map((song, index) => (
+                        <SetlistSongItem
+                            key={song.id ?? index}
+                            song={song}
+                            index={index}
+                            isFirst={index === 0}
+                            isLast={index === songs.length - 1}
+                            onRemove={() => onRemoveSong(index)}
+                            onMove={(direction) => onMoveSong(index, direction)}
+                            onUpdate={(field, value) => onUpdateSong(index, field, value)}
+                        />
+                    ))}
+                </div>
+            )}
+
+            <QuickAddSong allSongs={allSongs} onAddSong={onAddSong} onSongCreated={onSongCreated} />
+        </div>
+    );
+}
+
+/**
+ * Inline "type and press Enter" song entry. Replaces the old Add Song button + full-screen
+ * modal: matches are filtered from the already-fetched song catalog as you type, Enter adds
+ * the highlighted match, and the input clears and stays focused so the next title can be
+ * typed immediately — no click between songs. Typing something with no existing match offers
+ * "+ Add '<title>' as a new song", which creates it via the API and adds it in the same step,
+ * so a brand-new cover doesn't require a trip to the Songs admin panel to keep entry moving.
+ */
+function QuickAddSong({ allSongs, onAddSong, onSongCreated }) {
+    const [query, setQuery] = useState('');
+    const [highlighted, setHighlighted] = useState(0);
+    const [creating, setCreating] = useState(false);
+    const [error, setError] = useState('');
+    const inputRef = useRef(null);
+
+    const q = query.trim().toLowerCase();
+    const matches = q
+        ? allSongs
+            .filter(s => s.title.toLowerCase().includes(q))
+            .sort((a, b) => {
+                const aStarts = a.title.toLowerCase().startsWith(q) ? 0 : 1;
+                const bStarts = b.title.toLowerCase().startsWith(q) ? 0 : 1;
+                return aStarts - bStarts || a.title.localeCompare(b.title);
+            })
+            .slice(0, 8)
+        : [];
+
+    const exactMatch = matches.some(s => s.title.toLowerCase() === q);
+    const showCreateOption = q.length > 0 && !exactMatch;
+    const optionCount = matches.length + (showCreateOption ? 1 : 0);
+    const isOpen = optionCount > 0;
+
+    useEffect(() => { setHighlighted(0); }, [query]);
+
+    const reset = () => {
+        setQuery('');
+        setHighlighted(0);
+        setError('');
+        inputRef.current?.focus();
+    };
+
+    const selectExisting = (song) => {
+        onAddSong(song);
+        reset();
+    };
+
+    const selectCreateNew = async () => {
+        const title = query.trim();
+        if (!title || creating) return;
+        setCreating(true);
+        setError('');
+        try {
+            const newSong = await createSong({ title });
+            onSongCreated(newSong);
+            onAddSong(newSong);
+            reset();
+        } catch (err) {
+            setError(err.message || 'Failed to create song');
+        } finally {
+            setCreating(false);
+        }
+    };
+
+    const selectHighlighted = () => {
+        if (highlighted < matches.length) selectExisting(matches[highlighted]);
+        else if (showCreateOption) selectCreateNew();
+    };
+
+    const handleKeyDown = (e) => {
+        if (e.key === 'ArrowDown') {
+            if (!isOpen) return;
+            e.preventDefault();
+            setHighlighted(h => Math.min(h + 1, optionCount - 1));
+        } else if (e.key === 'ArrowUp') {
+            if (!isOpen) return;
+            e.preventDefault();
+            setHighlighted(h => Math.max(h - 1, 0));
+        } else if (e.key === 'Enter') {
+            if (!isOpen) return;
+            e.preventDefault();
+            selectHighlighted();
+        } else if (e.key === 'Escape') {
+            setQuery('');
+            setError('');
+        }
+    };
+
+    return (
+        <div className="relative">
+            <input
+                ref={inputRef}
+                type="text"
+                value={query}
+                disabled={creating}
+                onChange={e => setQuery(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Type a song title, press Enter to add…"
+                autoComplete="off"
+                className={inputClass}
+            />
+
+            {isOpen && (
+                <div className="absolute z-20 mt-1 w-full rounded-lg border border-white/10 overflow-hidden shadow-xl max-h-72 overflow-y-auto"
+                    style={{ background: 'var(--p-color-canvas)' }}>
+                    {matches.map((song, i) => (
+                        <button type="button" key={song.id}
+                            onMouseDown={e => e.preventDefault()}
+                            onMouseEnter={() => setHighlighted(i)}
+                            onClick={() => selectExisting(song)}
+                            className="w-full text-left px-3 py-2 text-sm border-b border-white/5 last:border-b-0 transition-colors"
+                            style={{ background: i === highlighted ? 'color-mix(in srgb, var(--p-color-notification-warning) 15%, transparent)' : 'transparent' }}>
+                            <span style={{ color: 'var(--p-color-primary)' }}>{song.title}</span>
+                            {song.original_artist && (
+                                <span className="ml-2 text-xs" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                                    Cover of {song.original_artist}
+                                </span>
+                            )}
+                        </button>
+                    ))}
+                    {showCreateOption && (
+                        <button type="button"
+                            onMouseDown={e => e.preventDefault()}
+                            onMouseEnter={() => setHighlighted(matches.length)}
+                            onClick={selectCreateNew}
+                            disabled={creating}
+                            className="w-full text-left px-3 py-2 text-sm transition-colors disabled:opacity-50"
+                            style={{
+                                color: 'var(--p-color-info)',
+                                background: highlighted === matches.length ? 'color-mix(in srgb, var(--p-color-info) 12%, transparent)' : 'transparent'
+                            }}>
+                            {creating ? 'Adding…' : `+ Add "${query.trim()}" as a new song`}
+                        </button>
+                    )}
+                </div>
+            )}
+
+            {error && (
+                <PText size="x-small" style={{ color: 'var(--p-color-error)' }} className="mt-1">
+                    {error}
+                </PText>
+            )}
+        </div>
+    );
+}
+
+function SetlistSongItem({ song, index, isFirst, isLast, onRemove, onMove, onUpdate }) {
     const [isExpanded, setIsExpanded] = useState(false);
 
     return (
