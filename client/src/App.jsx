@@ -108,13 +108,13 @@ function PublicLayout() {
             <img src="/logo.png" alt="" className="h-12 w-12 shrink-0" />
             <div className="flex flex-col items-start min-w-0">
               <span className="font-display font-bold text-lg leading-none" style={{ color: 'var(--p-color-primary)' }}>
-                SkySets.org | Johnny Blue Skies &amp; the Dark Clouds Setlist & Media Archive
+                Skysets.org - JBS / Sturgill Simpson Media Archive
               </span>
               <span
                 className="hidden md:block text-xs mt-0.5 truncate"
                 style={{ color: 'var(--p-color-contrast-low)' }}
               >
-                 JBS is the artist formerly known as Sturgill Simpson
+                 Johnny Blue Skies & The Dark Clouds Concert Setlist Archive
               </span>
             </div>
           </Link>
