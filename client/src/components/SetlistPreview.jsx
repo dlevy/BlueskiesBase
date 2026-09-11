@@ -12,17 +12,33 @@ function DebutTag({ label, color }) {
     );
 }
 
-function SongGroup({ songs, dotSeparated }) {
+// Dot-separated (flat list): each title sits in its own flex item with a symmetric gap on
+// both sides of the separating "·" — reads fine for a bullet-style separator.
+function DottedSongList({ songs }) {
     return (
         <>
             {songs.map((song, i) => (
                 <span key={song.song_id ?? `${song.title}-${i}`} className="inline-flex items-baseline gap-2">
                     <span style={{ color: 'var(--p-color-contrast-medium)' }}>{song.title}</span>
                     {i < songs.length - 1 && (
-                        dotSeparated
-                            ? <span aria-hidden="true" style={{ color: 'rgba(255,255,255,0.18)' }}>·</span>
-                            : <span aria-hidden="true" style={{ color: 'var(--p-color-contrast-medium)' }}>,</span>
+                        <span aria-hidden="true" style={{ color: 'rgba(255,255,255,0.18)' }}>·</span>
                     )}
+                </span>
+            ))}
+        </>
+    );
+}
+
+// Comma-separated (debut groups): the comma has to hug the word before it, not float with
+// even spacing on both sides — so it's appended directly into the same text node rather
+// than rendered as its own flex item, and the surrounding container's own gap supplies the
+// space that follows it before the next title.
+function CommaSongList({ songs }) {
+    return (
+        <>
+            {songs.map((song, i) => (
+                <span key={song.song_id ?? `${song.title}-${i}`} style={{ color: 'var(--p-color-contrast-medium)' }}>
+                    {song.title}{i < songs.length - 1 ? ',' : ''}
                 </span>
             ))}
         </>
@@ -34,10 +50,10 @@ function SongGroup({ songs, dotSeparated }) {
  * nothing when a show has no setlist — most shows in the archive don't have one yet, so
  * this has to disappear cleanly rather than leave an empty row.
  *
- * When the show has any live or tour debuts, they lead the preview as labeled groups —
- * "Live Debut: Song A, Song B" / "Tour Debut: Song C" — ahead of the regular song list,
- * and are never hidden behind "+N more" (surfacing them is the point). With no debuts,
- * this renders exactly the flat "Song A · Song B · +N more" list it always has.
+ * When the show has any live or tour debuts, the preview shows ONLY those, as labeled
+ * groups — "Live Debut: Song A, Song B" / "Tour Debut: Song C" — with the rest of the
+ * setlist left out entirely. With no debuts, this renders the flat "Song A · Song B ·
+ * +N more" list it always has.
  *
  * songs: ordered [{song_id, title}]. liveDebutIds/tourDebutIds: Set<song_id>.
  */
@@ -70,7 +86,7 @@ export default function SetlistPreview({ songs, total, liveDebutIds, tourDebutId
         const remaining = effectiveTotal - shown.length;
         return (
             <div className={`flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-xs leading-relaxed ${className}`}>
-                <SongGroup songs={shown} dotSeparated />
+                <DottedSongList songs={shown} />
                 {remaining > 0 && (
                     <span className="font-medium" style={{ color: 'var(--p-color-contrast-low)' }}>
                         +{remaining} more
@@ -80,35 +96,19 @@ export default function SetlistPreview({ songs, total, liveDebutIds, tourDebutId
         );
     }
 
-    // Debuts are always shown in full; the regular list fills whatever budget is left.
-    const debutSongIds = new Set([...liveDebuts, ...tourDebuts].map(s => s.song_id));
-    const rest = songs.filter(s => !debutSongIds.has(s.song_id));
-    const restBudget = Math.max(0, max - liveDebuts.length - tourDebuts.length);
-    const shownRest = rest.slice(0, restBudget);
-    const remaining = effectiveTotal - liveDebuts.length - tourDebuts.length - shownRest.length;
-
+    // Debuts only — every non-debut song in the setlist is left out of this view entirely.
     return (
         <div className={`space-y-1 text-xs leading-relaxed ${className}`}>
             {liveDebuts.length > 0 && (
-                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
                     <DebutTag label="Live Debut" color={LIVE_DEBUT_COLOR} />
-                    <SongGroup songs={liveDebuts} />
+                    <CommaSongList songs={liveDebuts} />
                 </div>
             )}
             {tourDebuts.length > 0 && (
-                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
                     <DebutTag label="Tour Debut" color={TOUR_DEBUT_COLOR} />
-                    <SongGroup songs={tourDebuts} />
-                </div>
-            )}
-            {(shownRest.length > 0 || remaining > 0) && (
-                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                    <SongGroup songs={shownRest} dotSeparated />
-                    {remaining > 0 && (
-                        <span className="font-medium" style={{ color: 'var(--p-color-contrast-low)' }}>
-                            +{remaining} more
-                        </span>
-                    )}
+                    <CommaSongList songs={tourDebuts} />
                 </div>
             )}
         </div>
