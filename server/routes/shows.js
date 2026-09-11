@@ -162,19 +162,33 @@ router.get('/:id/tour-rarity', async (req, res) => {
 
         const tourShowIds = tourShows.map(s => s.id);
 
-        const { data: setlistSongs, error: setlistError } = await supabase
-            .from('setlist_songs')
-            .select('song_id, show_id')
-            .in('show_id', tourShowIds)
-            .not('song_id', 'is', null);
+        // Paginated — a large tour's setlist_songs easily exceeds PostgREST's 1000-row
+        // default (e.g. "Why Not?" alone has 1622), which would otherwise silently
+        // truncate song_counts for anything beyond the first 1000 rows returned.
+        let setlistSongs = [];
+        let rangeStart = 0;
+        while (true) {
+            const { data: page, error: setlistError } = await supabase
+                .from('setlist_songs')
+                .select('song_id, show_id')
+                .in('show_id', tourShowIds)
+                .not('song_id', 'is', null)
+                .range(rangeStart, rangeStart + 999);
 
-        if (setlistError) {
-            return res.status(500).json({ error: 'Failed to load tour setlists' });
+            if (setlistError) {
+                return res.status(500).json({ error: 'Failed to load tour setlists' });
+            }
+            setlistSongs = setlistSongs.concat(page || []);
+            if (!page || page.length < 1000) break;
+            rangeStart += 1000;
         }
 
-        // Count distinct shows per song (same song can appear multiple times in one show)
+        // Count distinct shows per song (same song can appear multiple times in one show),
+        // and track which shows in the tour actually have a setlist logged at all.
         const songShowSets = {};
-        (setlistSongs || []).forEach(({ song_id, show_id }) => {
+        const playedShowIds = new Set();
+        setlistSongs.forEach(({ song_id, show_id }) => {
+            playedShowIds.add(show_id);
             if (!songShowSets[song_id]) songShowSets[song_id] = new Set();
             songShowSets[song_id].add(show_id);
         });
@@ -184,7 +198,14 @@ router.get('/:id/tour-rarity', async (req, res) => {
             song_counts[song_id] = shows.size;
         });
 
-        res.json({ tour_name: show.tour_name, total_shows: tourShowIds.length, song_counts });
+        // total_shows is the number of tour shows we actually have a setlist for — NOT
+        // every show scheduled under this tour name. A tour is entered with all its dates
+        // up front, so most of "total scheduled" is future shows with zero data; using that
+        // as the denominator deflates every song's ratio and makes everything on a new tour
+        // look rare, including songs played at every night so far. See git history for the
+        // investigation (a song played at all 3 of 3 shows played on "Mutiny for the Masses"
+        // was flagging as rare because the tour has 28 shows scheduled).
+        res.json({ tour_name: show.tour_name, total_shows: playedShowIds.size, song_counts });
 
     } catch (err) {
         console.error('[GET /shows/:id/tour-rarity] Error:', err);
