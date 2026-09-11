@@ -25,6 +25,38 @@ function Spinner() {
 }
 
 /**
+ * Admin-only "pull this song into the official setlist" control — a target-set picker plus
+ * the merge button. Shared by both the current admin's own submission and everyone else's,
+ * so the tool works whichever account is used to test or moderate it.
+ */
+function MergeControl({ merging, target, onTargetChange, onMerge }) {
+    return (
+        <span className="inline-flex items-center gap-1">
+            <select
+                value={target || 'set1'}
+                onChange={e => onTargetChange(e.target.value)}
+                className={selectClass}
+                style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
+                {Object.entries(SET_LABELS).map(([key, label]) => (
+                    <option key={key} value={key}>{label}</option>
+                ))}
+            </select>
+            <button type="button" onClick={onMerge} disabled={merging}
+                className={btnSecondary} style={{ color: 'var(--p-color-info)' }}>
+                {merging ? 'Adding…' : '+ Add to official setlist'}
+            </button>
+        </span>
+    );
+}
+
+const MergedBadge = () => (
+    <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded"
+        style={{ background: 'color-mix(in srgb, var(--p-color-success) 12%, transparent)', color: 'var(--p-color-success)' }}>
+        In official setlist
+    </span>
+);
+
+/**
  * A logged-in fan's best recollection of a show's setlist — even a couple of songs is
  * useful. Kept deliberately separate from the official Setlist card above: submissions
  * show up immediately, attributed by username, but only become part of the official
@@ -40,7 +72,7 @@ export default function SetlistSubmissionSection({ showId }) {
     const [error, setError] = useState(null);
 
     const [mySubmissionId, setMySubmissionId] = useState(null);
-    const [mySongs, setMySongs] = useState([]); // [{ song_id, title }]
+    const [mySongs, setMySongs] = useState([]); // [{ id, song_id, title, merged_into_setlist }]
     const [myNote, setMyNote] = useState('');
     const [isEditing, setIsEditing] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -65,8 +97,10 @@ export default function SetlistSubmissionSection({ showId }) {
                     setMySubmissionId(submission.id);
                     setMyNote(submission.note || '');
                     setMySongs(submission.setlist_submission_songs.map(row => ({
+                        id: row.id,
                         song_id: row.song_id,
                         title: row.songs?.title,
+                        merged_into_setlist: row.merged_into_setlist,
                     })));
                 } else {
                     setMySubmissionId(null);
@@ -183,9 +217,21 @@ export default function SetlistSubmissionSection({ showId }) {
                         <div className="space-y-3">
                             <ol className="space-y-1">
                                 {mySongs.map((song, i) => (
-                                    <li key={song.song_id} className="text-sm" style={{ color: 'var(--p-color-primary)' }}>
-                                        <span className="font-mono text-xs mr-2" style={{ color: 'var(--p-color-contrast-medium)' }}>{i + 1}.</span>
-                                        {song.title}
+                                    <li key={song.song_id} className="flex items-center gap-2 text-sm flex-wrap" style={{ color: 'var(--p-color-primary)' }}>
+                                        <span>
+                                            <span className="font-mono text-xs mr-2" style={{ color: 'var(--p-color-contrast-medium)' }}>{i + 1}.</span>
+                                            {song.title}
+                                        </span>
+                                        {song.merged_into_setlist ? (
+                                            <MergedBadge />
+                                        ) : isAdmin && (
+                                            <MergeControl
+                                                merging={mergingRowId === song.id}
+                                                target={mergeTargets[song.id]}
+                                                onTargetChange={value => setMergeTargets(prev => ({ ...prev, [song.id]: value }))}
+                                                onMerge={() => handleMerge(song.id)}
+                                            />
+                                        )}
                                     </li>
                                 ))}
                             </ol>
@@ -267,27 +313,14 @@ export default function SetlistSubmissionSection({ showId }) {
                                             {row.song_order}. {row.songs?.title}
                                         </span>
                                         {row.merged_into_setlist ? (
-                                            <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded"
-                                                style={{ background: 'color-mix(in srgb, var(--p-color-success) 12%, transparent)', color: 'var(--p-color-success)' }}>
-                                                In official setlist
-                                            </span>
+                                            <MergedBadge />
                                         ) : isAdmin && (
-                                            <span className="inline-flex items-center gap-1">
-                                                <select
-                                                    value={mergeTargets[row.id] || 'set1'}
-                                                    onChange={e => setMergeTargets(prev => ({ ...prev, [row.id]: e.target.value }))}
-                                                    className={selectClass}
-                                                    style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
-                                                    {Object.entries(SET_LABELS).map(([key, label]) => (
-                                                        <option key={key} value={key}>{label}</option>
-                                                    ))}
-                                                </select>
-                                                <button type="button" onClick={() => handleMerge(row.id)}
-                                                    disabled={mergingRowId === row.id}
-                                                    className={btnSecondary} style={{ color: 'var(--p-color-info)' }}>
-                                                    {mergingRowId === row.id ? 'Adding…' : '+ Add to official setlist'}
-                                                </button>
-                                            </span>
+                                            <MergeControl
+                                                merging={mergingRowId === row.id}
+                                                target={mergeTargets[row.id]}
+                                                onTargetChange={value => setMergeTargets(prev => ({ ...prev, [row.id]: value }))}
+                                                onMerge={() => handleMerge(row.id)}
+                                            />
                                         )}
                                     </li>
                                 ))}
