@@ -214,6 +214,80 @@ router.get('/:id/tour-rarity', async (req, res) => {
 });
 
 /**
+ * GET /api/shows/:id/debuts
+ * Which songs in this show's setlist were played live for the very first time at this
+ * show. A debut is the earliest setlist_songs performance date for that song across the
+ * WHOLE database — never the song's catalog created_at, which just reflects when it was
+ * entered (e.g. every song off a new album gets bulk-added to the catalog on release day,
+ * regardless of whether or when any of them are actually performed live).
+ * Response: { debut_song_ids: [song_id, ...] }
+ */
+router.get('/:id/debuts', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const { data: show, error: showError } = await supabase
+            .from('shows')
+            .select('show_date')
+            .eq('id', id)
+            .single();
+
+        if (showError || !show) {
+            return res.status(404).json({ error: 'Show not found' });
+        }
+
+        const { data: thisShowSongs, error: thisShowError } = await supabase
+            .from('setlist_songs')
+            .select('song_id')
+            .eq('show_id', id)
+            .not('song_id', 'is', null);
+
+        if (thisShowError) {
+            return res.status(500).json({ error: 'Failed to load this show\'s setlist' });
+        }
+
+        const songIds = [...new Set(thisShowSongs.map(s => s.song_id))];
+        if (songIds.length === 0) {
+            return res.json({ debut_song_ids: [] });
+        }
+
+        // Every performance, anywhere, of any song this show played — to find each song's
+        // true earliest date. Paginated defensively (unlikely for one show's ~25 songs to
+        // exceed 1000 performances combined, but no query here should silently truncate).
+        let performances = [];
+        let rangeStart = 0;
+        while (true) {
+            const { data: page, error: perfError } = await supabase
+                .from('setlist_songs')
+                .select('song_id, shows(show_date)')
+                .in('song_id', songIds)
+                .range(rangeStart, rangeStart + 999);
+
+            if (perfError) {
+                return res.status(500).json({ error: 'Failed to compute debuts' });
+            }
+            performances = performances.concat(page || []);
+            if (!page || page.length < 1000) break;
+            rangeStart += 1000;
+        }
+
+        const earliestDate = {};
+        performances.forEach(({ song_id, shows: performedShow }) => {
+            const d = performedShow?.show_date;
+            if (!d) return;
+            if (!earliestDate[song_id] || d < earliestDate[song_id]) earliestDate[song_id] = d;
+        });
+
+        const debut_song_ids = songIds.filter(songId => earliestDate[songId] === show.show_date);
+        res.json({ debut_song_ids });
+
+    } catch (err) {
+        console.error('[GET /shows/:id/debuts] Error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
  * GET /api/shows/:id
  * Get a single show with full setlist
  */

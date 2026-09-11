@@ -4,7 +4,7 @@ import {
     PHeading, PText, PButtonPure, PTag, PSpinner,
     PInlineNotification, PDivider
 } from '@porsche-design-system/components-react';
-import { getShowBySlug, getTourRarity, getAdjacentShows, checkShowAttendance, markShowAttended, unmarkShowAttended } from '../services/api';
+import { getShowBySlug, getTourRarity, getShowDebuts, getAdjacentShows, checkShowAttendance, markShowAttended, unmarkShowAttended } from '../services/api';
 import { buildShowPath } from '../utils/showSlug';
 import { useAuth } from '../contexts/AuthContext';
 import NotesSection from '../components/NotesSection';
@@ -51,11 +51,27 @@ function RareBadge({ count, total, tourName }) {
     );
 }
 
-function SongRow({ song, position, isChained, tourRarity }) {
+function DebutBadge() {
+    return (
+        <span
+            className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded cursor-default"
+            style={{ background: 'rgba(52, 211, 153, 0.12)', color: '#34d399' }}
+            title="First live performance of this song"
+        >
+            <svg className="w-2.5 h-2.5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M10 2a1 1 0 01.894.553l1.991 3.983 4.396.639a1 1 0 01.554 1.706l-3.182 3.1.751 4.378a1 1 0 01-1.451 1.054L10 15.347l-3.953 2.078a1 1 0 01-1.451-1.054l.751-4.378-3.182-3.1a1 1 0 01.554-1.706l4.396-.639L9.106 2.553A1 1 0 0110 2z" />
+            </svg>
+            Debut
+        </span>
+    );
+}
+
+function SongRow({ song, position, isChained, tourRarity, debutSongIds }) {
     const tourCount = tourRarity?.total_shows > 0 && song.song_id
         ? tourRarity.song_counts[song.song_id]
         : undefined;
     const isRare = tourCount != null && tourCount / tourRarity.total_shows < 0.15;
+    const isDebut = song.song_id != null && debutSongIds?.has(song.song_id);
 
     return (
         <li className={`flex gap-3 py-2 items-start ${isChained ? 'ml-10 pl-3 border-l-2 border-white/10' : ''}`}>
@@ -83,6 +99,7 @@ function SongRow({ song, position, isChained, tourRarity }) {
                             cover
                         </span>
                     )}
+                    {isDebut && <DebutBadge />}
                     {isRare && (
                         <RareBadge count={tourCount} total={tourRarity.total_shows} tourName={tourRarity.tour_name} />
                     )}
@@ -101,7 +118,7 @@ function SongRow({ song, position, isChained, tourRarity }) {
     );
 }
 
-function SetList({ songs, tourRarity }) {
+function SetList({ songs, tourRarity, debutSongIds }) {
     return (
         <ol className="space-y-1">
             {songs.map((song, index) => {
@@ -113,6 +130,7 @@ function SetList({ songs, tourRarity }) {
                         position={index + 1}
                         isChained={isChained}
                         tourRarity={tourRarity}
+                        debutSongIds={debutSongIds}
                     />
                 );
             })}
@@ -131,6 +149,7 @@ export default function ShowDetailPage() {
     const [attendanceLoading, setAttendanceLoading] = useState(false);
     const [songStats, setSongStats] = useState({ originals: 0, covers: 0 });
     const [tourRarity, setTourRarity] = useState(null);
+    const [debutSongIds, setDebutSongIds] = useState(null);
     const [adjacent, setAdjacent] = useState({ prev: null, next: null });
     const initialLoad = useRef(true);
 
@@ -141,6 +160,7 @@ export default function ShowDetailPage() {
                 setError(null);
                 setAdjacent({ prev: null, next: null });
                 setTourRarity(null);
+                setDebutSongIds(null);
                 const data = await getShowBySlug(date, artist, locationSlug);
                 setShow(data);
             } catch (err) {
@@ -195,6 +215,15 @@ export default function ShowDetailPage() {
             .then(data => setTourRarity(data))
             .catch(err => console.error('[ShowDetail] tour rarity fetch failed:', err));
     }, [show?.id, show?.tour_name]);
+
+    // Fetch which songs in this show's setlist were live debuts — unlike tour rarity this
+    // doesn't need a tour_name, a debut is scoped to the show itself.
+    useEffect(() => {
+        if (!show?.id) return;
+        getShowDebuts(show.id)
+            .then(data => setDebutSongIds(new Set(data.debut_song_ids || [])))
+            .catch(err => console.error('[ShowDetail] debuts fetch failed:', err));
+    }, [show?.id]);
 
     // Fetch previous/next show
     useEffect(() => {
@@ -502,6 +531,15 @@ export default function ShowDetailPage() {
                     </span>
                     <span><span className="font-bold text-amber-400 mr-0.5">→</span> segues into next</span>
                     <span><span className="inline-block w-px h-3 bg-white/20 mr-1 align-middle" />played inside another song</span>
+                    {debutSongIds?.size > 0 && (
+                        <span className="flex items-center gap-1.5">
+                            <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded" style={{ background: 'rgba(52, 211, 153, 0.12)', color: '#34d399' }}>
+                                <svg className="w-2 h-2 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a1 1 0 01.894.553l1.991 3.983 4.396.639a1 1 0 01.554 1.706l-3.182 3.1.751 4.378a1 1 0 01-1.451 1.054L10 15.347l-3.953 2.078a1 1 0 01-1.451-1.054l.751-4.378-3.182-3.1a1 1 0 01.554-1.706l4.396-.639L9.106 2.553A1 1 0 0110 2z" /></svg>
+                                Debut
+                            </span>
+                            first live performance
+                        </span>
+                    )}
                     {tourRarity?.tour_name && (
                         <span className="flex items-center gap-1.5">
                             <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded" style={{ background: 'rgba(192, 132, 252, 0.12)', color: '#c084fc' }}>
@@ -526,7 +564,7 @@ export default function ShowDetailPage() {
                                         {show.setlist[key].length} song{show.setlist[key].length !== 1 ? 's' : ''}
                                     </span>
                                 </div>
-                                <SetList songs={show.setlist[key]} tourRarity={tourRarity} />
+                                <SetList songs={show.setlist[key]} tourRarity={tourRarity} debutSongIds={debutSongIds} />
                             </div>
                         ))}
                     </div>

@@ -78,6 +78,15 @@ export const getTourRarity = async (showId) => {
 };
 
 /**
+ * Which songs in a show's setlist were played live for the very first time at that show.
+ */
+export const getShowDebuts = async (showId) => {
+    const response = await fetch(`${API_BASE_URL}/api/shows/${showId}/debuts`);
+    if (!response.ok) throw new Error('Failed to fetch debuts');
+    return response.json();
+};
+
+/**
  * Look up a show by URL slugs (date, artist, location), then fetch full details
  */
 export const getShowBySlug = async (date, artist, location) => {
