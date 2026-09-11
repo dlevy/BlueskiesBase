@@ -14,33 +14,46 @@ const LOOKBACK_SHOWS = 25;
 const PREVIEW_SONGS = 12;
 const OTHER_RECENT_SHOWS = 3;
 
-function formatShortDate(dateStr) {
-    const [y, m, d] = dateStr.split('-');
-    return new Date(Number(y), Number(m) - 1, Number(d)).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-}
-
-// One-liner row for a recent show that isn't the featured one — just enough to identify
-// it and click through, no setlist preview.
+// A compact version of the featured show's card — same bordered-card treatment (date
+// column, hover lift, chevron) so it reads as the same design, just condensed to one line
+// instead of the featured card's multi-line venue/tour stack.
 function RecentShowRow({ show }) {
+    const [y, m, d] = show.show_date.split('-');
+    const dateObj = new Date(Number(y), Number(m) - 1, Number(d));
+    const monthStr = dateObj.toLocaleString('default', { month: 'short' }).toUpperCase();
+    const dayNum = parseInt(d, 10);
+
     return (
         <Link
             to={buildShowPath(show)}
-            className="flex items-baseline gap-2 py-1.5 px-2 -mx-2 rounded-lg hover:bg-white/[0.05] transition-colors group"
+            className="flex items-center rounded-xl border border-white/5 bg-white/[0.03] hover:border-amber-500/20 hover:bg-white/[0.06] hover:-translate-y-px hover:shadow-lg hover:shadow-black/20 transition-all duration-150 overflow-hidden group"
         >
-            <span className="shrink-0 text-xs font-mono" style={{ color: 'var(--p-color-contrast-low)' }}>
-                {formatShortDate(show.show_date)}
-            </span>
-            <span className="text-sm truncate" style={{ color: 'var(--p-color-primary)' }}>
-                {show.artist_name}
-            </span>
-            {show.venues && (
-                <span className="text-xs truncate" style={{ color: 'var(--p-color-contrast-medium)' }}>
-                    &mdash; {show.venues.city}{show.venues.state_country ? `, ${show.venues.state_country}` : ''}
+            {/* Compact date column — same idiom as the featured card's, scaled down */}
+            <div className="shrink-0 flex flex-col items-center justify-center w-12 py-2 bg-white/[0.02] border-r border-white/5">
+                <span className="font-display font-bold text-sm leading-none text-amber-400">
+                    {dayNum}
                 </span>
-            )}
-            <svg className="w-3 h-3 shrink-0 ml-auto opacity-0 group-hover:opacity-30 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
+                <span className="text-[8px] uppercase tracking-widest mt-0.5" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                    {monthStr}
+                </span>
+            </div>
+
+            <div className="flex-1 min-w-0 px-3 py-2 flex items-baseline gap-2">
+                <span className="text-sm font-medium truncate" style={{ color: 'var(--p-color-primary)' }}>
+                    {show.artist_name}
+                </span>
+                {show.venues && (
+                    <span className="text-xs truncate" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                        &mdash; {show.venues.city}{show.venues.state_country ? `, ${show.venues.state_country}` : ''}
+                    </span>
+                )}
+            </div>
+
+            <div className="shrink-0 flex items-center pr-3">
+                <svg className="w-3.5 h-3.5 opacity-0 group-hover:opacity-30 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+            </div>
         </Link>
     );
 }
@@ -88,9 +101,13 @@ export default function MostRecentShowWidget() {
                     (byShow[row.show_id] ||= []).push(row);
                 });
 
-                // shows is already newest-first, so the first one with songs wins.
-                const withSetlist = shows.find(s => byShow[s.id]?.length);
-                const chosen = withSetlist || shows[0];
+                // shows is already newest-first, so the first one with songs wins. A show
+                // with no setlist logged yet hasn't really been "covered" as most recent —
+                // showing it here would read as if it's already happened and been
+                // documented, when it might not even have happened yet (e.g. a show dated
+                // today, before showtime). Render nothing rather than feature it.
+                const chosen = shows.find(s => byShow[s.id]?.length);
+                if (!chosen) { if (!cancelled) setLoading(false); return; }
                 const rows = byShow[chosen.id] || [];
 
                 if (cancelled) return;
@@ -99,15 +116,13 @@ export default function MostRecentShowWidget() {
                 setSongs(orderSetlistSongs(rows));
                 setTotalSongs(rows.length);
 
-                if (rows.length > 0) {
-                    getShowDebuts(chosen.id)
-                        .then(data => {
-                            if (cancelled) return;
-                            setLiveDebutIds(new Set(data.live_debut_song_ids || []));
-                            setTourDebutIds(new Set(data.tour_debut_song_ids || []));
-                        })
-                        .catch(err => console.error('[MostRecentShowWidget] debuts fetch failed:', err));
-                }
+                getShowDebuts(chosen.id)
+                    .then(data => {
+                        if (cancelled) return;
+                        setLiveDebutIds(new Set(data.live_debut_song_ids || []));
+                        setTourDebutIds(new Set(data.tour_debut_song_ids || []));
+                    })
+                    .catch(err => console.error('[MostRecentShowWidget] debuts fetch failed:', err));
             } catch (err) {
                 console.error('[MostRecentShowWidget] Error fetching most recent show:', err);
             } finally {
@@ -208,7 +223,7 @@ export default function MostRecentShowWidget() {
             </Link>
 
             {otherRecent.length > 0 && (
-                <div className="mt-2 pt-2 border-t border-white/5">
+                <div className="mt-4 pt-4 border-t border-white/5 space-y-2">
                     {otherRecent.map(s => <RecentShowRow key={s.id} show={s} />)}
                 </div>
             )}
