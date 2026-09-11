@@ -26,6 +26,7 @@ app.use('/api/photos', require('../server/routes/photos'));
 app.use('/api/posters', require('../server/routes/posters'));
 app.use('/api/chat', require('../server/routes/chat'));
 app.use('/api/sitemap.xml', require('../server/routes/sitemap'));
+app.use('/api/setlist-submissions', require('../server/routes/setlist-submissions'));
 
 app.use((req, res) => {
     res.status(404).json({ error: 'Not found', path: req.url });

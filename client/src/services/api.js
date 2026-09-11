@@ -771,6 +771,112 @@ export const getAttendedShows = async () => {
 };
 
 // ============================================
+// SETLIST SUBMISSIONS API (community setlist contributions)
+// ============================================
+
+/**
+ * Get all community setlist submissions for a show
+ */
+export const getSetlistSubmissions = async (showId) => {
+    const response = await fetch(`${API_BASE_URL}/api/setlist-submissions/show/${showId}`);
+    if (!response.ok) {
+        throw new Error('Failed to fetch setlist submissions');
+    }
+    return response.json();
+};
+
+/**
+ * Get the current user's own setlist submission for a show
+ */
+export const getUserSetlistSubmission = async (showId) => {
+    const token = await getAuthToken();
+    if (!token) {
+        return { submission: null };
+    }
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/setlist-submissions/user/${showId}`, {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+        },
+    });
+    if (!response.ok) {
+        throw new Error('Failed to fetch your setlist submission');
+    }
+    return response.json();
+};
+
+/**
+ * Create or replace the current user's setlist submission for a show.
+ * songs: [{ song_id, notes? }] in the order they were played (best guess).
+ */
+export const saveSetlistSubmission = async (showId, songs, note) => {
+    const token = await getAuthToken();
+    if (!token) {
+        throw new Error('Not authenticated');
+    }
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/setlist-submissions`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ show_id: showId, songs, note }),
+    });
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to save setlist submission');
+    }
+    return response.json();
+};
+
+/**
+ * Delete a setlist submission (own, or any if admin)
+ */
+export const deleteSetlistSubmission = async (submissionId) => {
+    const token = await getAuthToken();
+    if (!token) {
+        throw new Error('Not authenticated');
+    }
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/setlist-submissions/${submissionId}`, {
+        method: 'DELETE',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+        },
+    });
+    if (!response.ok) {
+        throw new Error('Failed to delete setlist submission');
+    }
+    return response.json();
+};
+
+/**
+ * Admin only — pull one submitted song into the official setlist.
+ * targetSet: 'set1' | 'set2' | 'set3' | 'encore'
+ */
+export const mergeSetlistSubmissionSong = async (songRowId, targetSet) => {
+    const token = await getAuthToken();
+    if (!token) {
+        throw new Error('Not authenticated');
+    }
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/setlist-submissions/songs/${songRowId}/merge`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ target_set: targetSet }),
+    });
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to merge song into the official setlist');
+    }
+    return response.json();
+};
+
+// ============================================
 // NOTES API
 // ============================================
 

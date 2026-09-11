@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
     PHeading, PText, PButtonPure, PTag, PSpinner,
     PInlineNotification, PDivider
@@ -10,6 +10,7 @@ import { useAuth } from '../contexts/AuthContext';
 import NotesSection from '../components/NotesSection';
 import PhotosSection from '../components/PhotosSection';
 import PostersSection from '../components/PostersSection';
+import SetlistSubmissionSection from '../components/SetlistSubmissionSection';
 import SEO from '../components/SEO';
 
 function getYouTubeId(url) {
@@ -530,7 +531,17 @@ export default function ShowDetailPage() {
                         ))}
                     </div>
                 ) : (
-                    <PText color="contrast-medium">No setlist information available for this show.</PText>
+                    <PText color="contrast-medium">
+                        No official setlist yet.{' '}
+                        {user ? (
+                            <a href="#community-setlist" className="text-amber-400 hover:underline">Add what you remember</a>
+                        ) : (
+                            <>
+                                <Link to="/member-login" className="text-amber-400 hover:underline">Log in</Link> to add what you remember
+                            </>
+                        )}
+                        {' '}below.
+                    </PText>
                 )}
             </div>
 
@@ -569,6 +580,10 @@ export default function ShowDetailPage() {
             )}
 
             {/* Notes, Posters, Photos */}
+            {/* scroll-margin-top clears the sticky header (h-14) when jumped to via the anchor above */}
+            <div id="community-setlist" style={{ scrollMarginTop: '4.5rem' }}>
+                <SetlistSubmissionSection showId={show.id} />
+            </div>
             <NotesSection showId={show.id} />
             <PostersSection showId={show.id} />
             <PhotosSection showId={show.id} />
