@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { PHeading, PText, PButton } from '@porsche-design-system/components-react';
+import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { getSongs } from '../services/api';
 import QuickAddSong from './QuickAddSong';
 
@@ -89,7 +92,10 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
 
     const handleAddSong = (setKey, song) => {
         const newSong = {
-            id: `temp-${Date.now()}`,
+            // Drag-and-drop needs a genuinely unique id per row to track items, not just a
+            // React key — Date.now() alone could collide if two songs land in the same
+            // millisecond (e.g. two quick picks from the keyboard).
+            id: `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`,
             song_id: song.id,
             title: song.title,
             is_original: song.is_original,
@@ -124,6 +130,22 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
         const updatedSet = [...setlist[setKey]];
         [updatedSet[index], updatedSet[newIndex]] = [updatedSet[newIndex], updatedSet[index]];
         const updatedSetlist = { ...setlist, [setKey]: updatedSet };
+        setSetlist(updatedSetlist);
+        notifyChange(updatedSetlist);
+    };
+
+    // Drag-and-drop reordering within a set — dropping a song onto another one's position
+    // moves it there directly, instead of clicking ↑/↓ repeatedly. Especially handy right
+    // after merging a batch of community-submitted songs, which land at the end of a set
+    // and often need to move into their actual chronological spot.
+    const handleDragEnd = (setKey, event) => {
+        const { active, over } = event;
+        if (!over || active.id === over.id) return;
+        const songs = setlist[setKey];
+        const oldIndex = songs.findIndex(s => s.id === active.id);
+        const newIndex = songs.findIndex(s => s.id === over.id);
+        if (oldIndex === -1 || newIndex === -1) return;
+        const updatedSetlist = { ...setlist, [setKey]: arrayMove(songs, oldIndex, newIndex) };
         setSetlist(updatedSetlist);
         notifyChange(updatedSetlist);
     };
@@ -169,6 +191,7 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
                         onRemoveSong={(index) => handleRemoveSong(setKey, index)}
                         onMoveSong={(index, direction) => handleMoveSong(setKey, index, direction)}
                         onUpdateSong={(index, field, value) => handleUpdateSong(setKey, index, field, value)}
+                        onDragEnd={(event) => handleDragEnd(setKey, event)}
                         onRemoveSet={setKey !== 'set1' && setlist[setKey].length === 0 ? () => removeSetSection(setKey) : null}
                     />
                 ))}
@@ -192,7 +215,15 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
     );
 }
 
-function SetSection({ label, songs, allSongs, onAddSong, onSongCreated, onRemoveSong, onMoveSong, onUpdateSong, onRemoveSet }) {
+function SetSection({ label, songs, allSongs, onAddSong, onSongCreated, onRemoveSong, onMoveSong, onUpdateSong, onDragEnd, onRemoveSet }) {
+    // A small activation distance keeps a plain click on the ⚙/×/drag-handle buttons from
+    // being mistaken for a drag; KeyboardSensor gives the drag handle the standard dnd-kit
+    // keyboard flow (Tab to it, Space to pick up, arrow keys to move, Space to drop).
+    const sensors = useSensors(
+        useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+    );
+
     return (
         <div className="rounded-xl border border-white/10 p-4" style={{ background: 'var(--p-color-surface)' }}>
             <div className="flex items-center justify-between mb-3">
@@ -207,20 +238,24 @@ function SetSection({ label, songs, allSongs, onAddSong, onSongCreated, onRemove
             </div>
 
             {songs.length > 0 && (
-                <div className="space-y-2 mb-3">
-                    {songs.map((song, index) => (
-                        <SetlistSongItem
-                            key={song.id ?? index}
-                            song={song}
-                            index={index}
-                            isFirst={index === 0}
-                            isLast={index === songs.length - 1}
-                            onRemove={() => onRemoveSong(index)}
-                            onMove={(direction) => onMoveSong(index, direction)}
-                            onUpdate={(field, value) => onUpdateSong(index, field, value)}
-                        />
-                    ))}
-                </div>
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+                    <SortableContext items={songs.map(s => s.id)} strategy={verticalListSortingStrategy}>
+                        <div className="space-y-2 mb-3">
+                            {songs.map((song, index) => (
+                                <SetlistSongItem
+                                    key={song.id ?? index}
+                                    song={song}
+                                    index={index}
+                                    isFirst={index === 0}
+                                    isLast={index === songs.length - 1}
+                                    onRemove={() => onRemoveSong(index)}
+                                    onMove={(direction) => onMoveSong(index, direction)}
+                                    onUpdate={(field, value) => onUpdateSong(index, field, value)}
+                                />
+                            ))}
+                        </div>
+                    </SortableContext>
+                </DndContext>
             )}
 
             <QuickAddSong allSongs={allSongs} onAddSong={onAddSong} onSongCreated={onSongCreated} />
@@ -230,11 +265,29 @@ function SetSection({ label, songs, allSongs, onAddSong, onSongCreated, onRemove
 
 function SetlistSongItem({ song, index, isFirst, isLast, onRemove, onMove, onUpdate }) {
     const [isExpanded, setIsExpanded] = useState(false);
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: song.id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1,
+        zIndex: isDragging ? 1 : 'auto',
+    };
 
     return (
-        <div className="rounded-lg border border-white/10 p-2" style={{ background: 'var(--p-color-canvas)' }}>
+        <div ref={setNodeRef} style={{ ...style, background: 'var(--p-color-canvas)' }} className="rounded-lg border border-white/10 p-2">
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <button type="button" {...attributes} {...listeners}
+                        className="px-1 py-0.5 rounded hover:bg-white/10 transition-colors shrink-0 touch-none"
+                        style={{ color: 'var(--p-color-contrast-medium)', cursor: isDragging ? 'grabbing' : 'grab' }}
+                        title="Drag to reorder">
+                        <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor">
+                            <circle cx="2" cy="2" r="1.4" /><circle cx="8" cy="2" r="1.4" />
+                            <circle cx="2" cy="7" r="1.4" /><circle cx="8" cy="7" r="1.4" />
+                            <circle cx="2" cy="12" r="1.4" /><circle cx="8" cy="12" r="1.4" />
+                        </svg>
+                    </button>
                     <span className="text-xs font-mono shrink-0" style={{ color: 'var(--p-color-contrast-medium)' }}>
                         {index + 1}.
                     </span>
