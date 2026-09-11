@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { PHeading, PText, PButton, PButtonPure, PInlineNotification, PSpinner } from '@porsche-design-system/components-react';
 import { getShowById, createShow, updateShow, deleteShow, getVenues, updateSetlist, createVenue, getBands, createBand } from '../../services/api';
@@ -20,6 +20,22 @@ export default function ShowForm() {
     const [bands, setBands] = useState([]);
     const [setlistData, setSetlistData] = useState([]);
     const [initialSetlist, setInitialSetlist] = useState({});
+    // Flips true once SetlistEditor's onChange has fired at least once — whether from
+    // hydrating the loaded setlist or from a manual edit. Lets handleSubmit tell "the
+    // admin genuinely has no/emptied setlist" apart from "setlistData just hasn't been
+    // populated yet", so a save can never silently wipe an existing setlist. See
+    // SetlistEditor's convertInitialSetlist for the hydration side of this fix.
+    const [setlistReady, setSetlistReady] = useState(false);
+
+    // Stable identity is required here: SetlistEditor's internal useCallback chain
+    // (notifyChange -> convertInitialSetlist -> the hydration effect) is keyed on this
+    // function, so a new reference on every ShowForm render — e.g. from typing in the
+    // Notes field — would re-run hydration on every keystroke and stomp any in-progress
+    // setlist edits.
+    const handleSetlistChange = useCallback((data) => {
+        setSetlistData(data);
+        setSetlistReady(true);
+    }, []);
     const [showVenueForm, setShowVenueForm] = useState(false);
     const [venueFormData, setVenueFormData] = useState({ name: '', city: '', state_country: '', address: '' });
     const [venueFormError, setVenueFormError] = useState('');
@@ -50,7 +66,14 @@ export default function ShowForm() {
     useEffect(() => {
         fetchVenues();
         fetchBands();
-        if (isEdit) fetchShow();
+        if (isEdit) {
+            // Reset per id — ShowForm stays mounted across shows/edit/:id -> shows/edit/:otherId
+            // navigations, so a stale "ready" flag or setlist from the previous show must not
+            // leak into the next one's save.
+            setSetlistReady(false);
+            setSetlistData([]);
+            fetchShow();
+        }
     }, [id]);
 
     const fetchVenues = async () => {
@@ -178,6 +201,16 @@ export default function ShowForm() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
+
+        // Safety net: on an edit, only submit the setlist once SetlistEditor has actually
+        // hydrated (or the admin has touched it). Without this, a save that races ahead of
+        // that hydration would submit setlistData's empty initial value and the API treats
+        // an empty setlist as "delete every song" — wiping a setlist that was never touched.
+        if (isEdit && !setlistReady) {
+            setError('Setlist is still loading — please wait a moment and try saving again.');
+            return;
+        }
+
         setSaving(true);
         try {
             let showId = id;
@@ -460,7 +493,7 @@ export default function ShowForm() {
             </form>
 
             <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6">
-                <SetlistEditor initialSetlist={initialSetlist} onChange={setSetlistData} />
+                <SetlistEditor initialSetlist={initialSetlist} onChange={handleSetlistChange} />
             </div>
 
             <div className="rounded-2xl border p-4" style={{ borderColor: 'var(--p-color-info)', background: 'color-mix(in srgb, var(--p-color-info) 10%, transparent)' }}>

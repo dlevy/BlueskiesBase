@@ -21,6 +21,31 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
         }
     }, []);
 
+    // Defined before convertInitialSetlist (and wrapped in useCallback keyed only on
+    // `onChange`) so that hydrating from an existing setlist below can call it directly
+    // with a stable reference, instead of risking a stale closure over a later redefinition.
+    const notifyChange = useCallback((updatedSetlist) => {
+        if (onChange) {
+            const apiFormat = [];
+            Object.entries(updatedSetlist).forEach(([setKey, songs]) => {
+                const setNumber = setKey === 'encore' ? 1 : parseInt(setKey.replace('set', ''));
+                const isEncore = setKey === 'encore';
+                songs.forEach((song, index) => {
+                    apiFormat.push({
+                        song_id: song.song_id,
+                        set_number: setNumber,
+                        song_order: index + 1,
+                        is_encore: isEncore,
+                        notes: song.notes || null,
+                        jams_into: song.jams_into || null,
+                        performance_type: song.performance_type || 'full'
+                    });
+                });
+            });
+            onChange(apiFormat);
+        }
+    }, [onChange]);
+
     const convertInitialSetlist = useCallback((initial) => {
         const converted = { set1: [], set2: [], set3: [], encore: [] };
         Object.entries(initial).forEach(([setKey, songs]) => {
@@ -29,22 +54,31 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
                     id: song.id,
                     song_id: song.song_id || song.songs?.id,
                     title: song.title || song.songs?.title,
-                    is_cover: song.is_cover || false,
+                    is_original: song.is_original ?? null,
                     original_artist: song.original_artist || null,
                     notes: song.notes || '',
                     jams_into: song.jams_into || null,
+                    performance_type: song.performance_type || 'full',
                     order: index
                 }));
             }
         });
         setSetlist(converted);
-    }, []);
+        // Lift the hydrated setlist up to the parent (ShowForm) immediately. Without this,
+        // the parent's "current setlist to save" state stays empty until the admin manually
+        // edits a song, so saving the show after changing an unrelated field (e.g. notes)
+        // would submit an empty setlist and wipe every song — see git history for the bug
+        // this fixed.
+        notifyChange(converted);
+    }, [notifyChange]);
 
     useEffect(() => { fetchSongs(); }, [fetchSongs]);
+    // Always convert — even an empty initialSetlist ({} for a show with no setlist yet)
+    // still needs to run through convertInitialSetlist so notifyChange fires and the
+    // parent learns hydration has happened. Skipping the call when there's nothing to
+    // convert is what let ShowForm's setlistData silently stay unpopulated before a save.
     useEffect(() => {
-        if (initialSetlist && Object.keys(initialSetlist).length > 0) {
-            convertInitialSetlist(initialSetlist);
-        }
+        convertInitialSetlist(initialSetlist || {});
     }, [initialSetlist, convertInitialSetlist]);
 
     const handleAddSong = (song) => {
@@ -94,28 +128,6 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
         const updatedSetlist = { ...setlist, [setKey]: updatedSet };
         setSetlist(updatedSetlist);
         notifyChange(updatedSetlist);
-    };
-
-    const notifyChange = (updatedSetlist) => {
-        if (onChange) {
-            const apiFormat = [];
-            Object.entries(updatedSetlist).forEach(([setKey, songs]) => {
-                const setNumber = setKey === 'encore' ? 1 : parseInt(setKey.replace('set', ''));
-                const isEncore = setKey === 'encore';
-                songs.forEach((song, index) => {
-                    apiFormat.push({
-                        song_id: song.song_id,
-                        set_number: setNumber,
-                        song_order: index + 1,
-                        is_encore: isEncore,
-                        notes: song.notes || null,
-                        jams_into: song.jams_into || null,
-                        performance_type: song.performance_type || 'full'
-                    });
-                });
-            });
-            onChange(apiFormat);
-        }
     };
 
     const filteredSongs = allSongs.filter(song =>
