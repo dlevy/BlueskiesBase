@@ -214,17 +214,123 @@ router.get('/:id/tour-rarity', async (req, res) => {
 });
 
 /**
- * GET /api/shows/:id/debuts
- * Which songs in this show's setlist are live debuts or tour debuts.
- *   - live_debut_song_ids: played live for the very first time ever, at this show.
- *   - tour_debut_song_ids: played for the first time on this show's tour (tour_name),
- *     but not a live debut — i.e. an older song making its first appearance this tour.
- * A live debut is necessarily also a tour debut, but is excluded from
- * tour_debut_song_ids so a song is only ever tagged with the stronger claim.
+ * Computes live-debut and tour-debut song ids for a batch of shows in as few queries as
+ * possible, regardless of whether it's called with one show_id or hundreds.
+ *   - live: played live for the very first time ever, at that show.
+ *   - tour: played for the first time on that show's tour (tour_name), but not a live
+ *     debut — i.e. an older song making its first appearance this tour.
+ * A live debut is necessarily also a tour debut, but is excluded from the tour list so a
+ * song is only ever tagged with the stronger claim.
  * "First performance" always means the earliest setlist_songs date for that song — never
  * the song's catalog created_at, which just reflects when it was entered (e.g. every song
  * off a new album gets bulk-added to the catalog on release day, regardless of whether or
  * when any of them are actually performed live).
+ * Returns { [show_id]: { live_debut_song_ids: [...], tour_debut_song_ids: [...] } } — every
+ * requested show_id is present, with empty arrays for a show with no setlist or that
+ * doesn't exist (callers that need to distinguish "doesn't exist" should check separately).
+ */
+async function computeDebutsForShows(showIds) {
+    const result = {};
+    showIds.forEach(id => { result[id] = { live_debut_song_ids: [], tour_debut_song_ids: [] }; });
+    if (showIds.length === 0) return result;
+
+    const { data: shows, error: showsError } = await supabase
+        .from('shows')
+        .select('id, show_date, tour_name')
+        .in('id', showIds);
+    if (showsError) throw new Error('Failed to load shows: ' + showsError.message);
+
+    const showMeta = {};
+    (shows || []).forEach(s => { showMeta[s.id] = s; });
+
+    // Songs played at each show in the batch. Paginated — a large batch (e.g. a broad
+    // search result) can easily exceed PostgREST's 1000-row default.
+    let batchSongs = [];
+    for (let rangeStart = 0; ;) {
+        const { data: page, error } = await supabase
+            .from('setlist_songs')
+            .select('show_id, song_id')
+            .in('show_id', showIds)
+            .not('song_id', 'is', null)
+            .range(rangeStart, rangeStart + 999);
+        if (error) throw new Error('Failed to load setlists for batch: ' + error.message);
+        batchSongs = batchSongs.concat(page || []);
+        if (!page || page.length < 1000) break;
+        rangeStart += 1000;
+    }
+
+    const songsByShow = {};
+    batchSongs.forEach(({ show_id, song_id }) => {
+        (songsByShow[show_id] ||= new Set()).add(song_id);
+    });
+
+    const songIdsInvolved = [...new Set(batchSongs.map(r => r.song_id))];
+    if (songIdsInvolved.length === 0) return result;
+
+    // Every performance, anywhere, of any song played by any show in the batch — to find
+    // each song's true earliest date, both globally and within whichever tour(s) are
+    // involved. Paginated for the same reason as above.
+    let performances = [];
+    for (let rangeStart = 0; ;) {
+        const { data: page, error } = await supabase
+            .from('setlist_songs')
+            .select('song_id, show_id, shows(show_date)')
+            .in('song_id', songIdsInvolved)
+            .range(rangeStart, rangeStart + 999);
+        if (error) throw new Error('Failed to compute debuts: ' + error.message);
+        performances = performances.concat(page || []);
+        if (!page || page.length < 1000) break;
+        rangeStart += 1000;
+    }
+
+    // Live debut: earliest performance anywhere, ever.
+    const globalEarliest = {};
+    performances.forEach(({ song_id, shows: performedShow }) => {
+        const d = performedShow?.show_date;
+        if (!d) return;
+        if (!globalEarliest[song_id] || d < globalEarliest[song_id]) globalEarliest[song_id] = d;
+    });
+
+    // Tour debut: earliest performance within shows sharing a tour_name. Needs the FULL
+    // show list for every distinct tour touched by the batch, not just the batch's own
+    // shows — a song's earliest tour performance can easily be at a show outside whatever
+    // subset (e.g. a search result page) we were asked about.
+    const tourNames = [...new Set(Object.values(showMeta).map(s => s.tour_name).filter(Boolean))];
+    const showIdToTour = {};
+    for (const tourName of tourNames) {
+        const { data: tourShows, error } = await supabase.from('shows').select('id').eq('tour_name', tourName);
+        if (error) throw new Error('Failed to load tour shows: ' + error.message);
+        (tourShows || []).forEach(s => { showIdToTour[s.id] = tourName; });
+    }
+
+    const tourEarliest = {}; // tourName -> { song_id: date }
+    performances.forEach(({ song_id, show_id, shows: performedShow }) => {
+        const tourName = showIdToTour[show_id];
+        if (!tourName) return;
+        const d = performedShow?.show_date;
+        if (!d) return;
+        const forTour = (tourEarliest[tourName] ||= {});
+        if (!forTour[song_id] || d < forTour[song_id]) forTour[song_id] = d;
+    });
+
+    showIds.forEach(showId => {
+        const meta = showMeta[showId];
+        if (!meta) return; // leaves the default empty arrays already set above
+        const songsHere = [...(songsByShow[showId] || [])];
+        const live = songsHere.filter(songId => globalEarliest[songId] === meta.show_date);
+        const liveSet = new Set(live);
+        const tour = meta.tour_name
+            ? songsHere.filter(songId => !liveSet.has(songId) && tourEarliest[meta.tour_name]?.[songId] === meta.show_date)
+            : [];
+        result[showId] = { live_debut_song_ids: live, tour_debut_song_ids: tour };
+    });
+
+    return result;
+}
+
+/**
+ * GET /api/shows/:id/debuts
+ * Live/tour debuts for a single show. See computeDebutsForShows for the definitions.
  * Response: { live_debut_song_ids: [song_id, ...], tour_debut_song_ids: [song_id, ...] }
  */
 router.get('/:id/debuts', async (req, res) => {
@@ -233,92 +339,50 @@ router.get('/:id/debuts', async (req, res) => {
 
         const { data: show, error: showError } = await supabase
             .from('shows')
-            .select('show_date, tour_name')
+            .select('id')
             .eq('id', id)
-            .single();
+            .maybeSingle();
 
-        if (showError || !show) {
+        if (showError) {
+            return res.status(500).json({ error: 'Failed to load show' });
+        }
+        if (!show) {
             return res.status(404).json({ error: 'Show not found' });
         }
 
-        const { data: thisShowSongs, error: thisShowError } = await supabase
-            .from('setlist_songs')
-            .select('song_id')
-            .eq('show_id', id)
-            .not('song_id', 'is', null);
-
-        if (thisShowError) {
-            return res.status(500).json({ error: 'Failed to load this show\'s setlist' });
-        }
-
-        const songIds = [...new Set(thisShowSongs.map(s => s.song_id))];
-        if (songIds.length === 0) {
-            return res.json({ live_debut_song_ids: [], tour_debut_song_ids: [] });
-        }
-
-        // Every performance, anywhere, of any song this show played — to find each song's
-        // true earliest date, both globally and within this tour. Paginated defensively
-        // (unlikely for one show's ~25 songs to exceed 1000 performances combined, but no
-        // query here should silently truncate).
-        let performances = [];
-        let rangeStart = 0;
-        while (true) {
-            const { data: page, error: perfError } = await supabase
-                .from('setlist_songs')
-                .select('song_id, show_id, shows(show_date)')
-                .in('song_id', songIds)
-                .range(rangeStart, rangeStart + 999);
-
-            if (perfError) {
-                return res.status(500).json({ error: 'Failed to compute debuts' });
-            }
-            performances = performances.concat(page || []);
-            if (!page || page.length < 1000) break;
-            rangeStart += 1000;
-        }
-
-        // Live debut: earliest performance anywhere, ever.
-        const globalEarliest = {};
-        performances.forEach(({ song_id, shows: performedShow }) => {
-            const d = performedShow?.show_date;
-            if (!d) return;
-            if (!globalEarliest[song_id] || d < globalEarliest[song_id]) globalEarliest[song_id] = d;
-        });
-        const live_debut_song_ids = songIds.filter(songId => globalEarliest[songId] === show.show_date);
-        const liveDebutSet = new Set(live_debut_song_ids);
-
-        // Tour debut: earliest performance within shows sharing this tour_name. Songs
-        // already counted as a live debut are excluded — they're the stronger claim, no
-        // need to double-tag the same song on the same show.
-        let tour_debut_song_ids = [];
-        if (show.tour_name) {
-            const { data: tourShows, error: tourError } = await supabase
-                .from('shows')
-                .select('id')
-                .eq('tour_name', show.tour_name);
-
-            if (tourError) {
-                return res.status(500).json({ error: 'Failed to compute tour debuts' });
-            }
-
-            const tourShowIds = new Set((tourShows || []).map(s => s.id));
-            const tourEarliest = {};
-            performances.forEach(({ song_id, show_id, shows: performedShow }) => {
-                if (!tourShowIds.has(show_id)) return;
-                const d = performedShow?.show_date;
-                if (!d) return;
-                if (!tourEarliest[song_id] || d < tourEarliest[song_id]) tourEarliest[song_id] = d;
-            });
-
-            tour_debut_song_ids = songIds.filter(songId =>
-                !liveDebutSet.has(songId) && tourEarliest[songId] === show.show_date
-            );
-        }
-
-        res.json({ live_debut_song_ids, tour_debut_song_ids });
+        const result = await computeDebutsForShows([id]);
+        res.json(result[id]);
 
     } catch (err) {
         console.error('[GET /shows/:id/debuts] Error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * POST /api/shows/debuts-batch
+ * Live/tour debuts for many shows at once — for list views (search results, etc.) that
+ * need this for every row without an N+1 query per show. Unknown/nonexistent show_ids
+ * simply come back with empty arrays rather than erroring.
+ * Body: { show_ids: [show_id, ...] } (max 500 per call)
+ * Response: { [show_id]: { live_debut_song_ids: [...], tour_debut_song_ids: [...] } }
+ */
+router.post('/debuts-batch', async (req, res) => {
+    try {
+        const { show_ids } = req.body;
+
+        if (!Array.isArray(show_ids) || show_ids.length === 0) {
+            return res.json({});
+        }
+        if (show_ids.length > 500) {
+            return res.status(400).json({ error: 'Too many show_ids in one batch (max 500)' });
+        }
+
+        const result = await computeDebutsForShows([...new Set(show_ids)]);
+        res.json(result);
+
+    } catch (err) {
+        console.error('[POST /shows/debuts-batch] Error:', err);
         res.status(500).json({ error: 'Internal server error' });
     }
 });

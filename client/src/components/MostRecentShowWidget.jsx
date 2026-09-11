@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { PSpinner } from '@porsche-design-system/components-react';
 import { supabase } from '../services/supabase';
+import { getShowDebuts } from '../services/api';
 import { buildShowPath } from '../utils/showSlug';
 import SetlistPreview from './SetlistPreview';
-import { orderSetlistTitles } from '../utils/setlist';
+import { orderSetlistSongs } from '../utils/setlist';
 
 // How far back to look for a show that actually has a setlist. Setlists are
 // entered a day or two after the show, so the newest show by date is often still
@@ -14,8 +15,10 @@ const PREVIEW_SONGS = 12;
 
 export default function MostRecentShowWidget() {
     const [show, setShow] = useState(null);
-    const [titles, setTitles] = useState([]);
+    const [songs, setSongs] = useState([]);
     const [totalSongs, setTotalSongs] = useState(0);
+    const [liveDebutIds, setLiveDebutIds] = useState(new Set());
+    const [tourDebutIds, setTourDebutIds] = useState(new Set());
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -44,7 +47,7 @@ export default function MostRecentShowWidget() {
 
                 const { data: setlistRows } = await supabase
                     .from('setlist_songs')
-                    .select('show_id, set_number, song_order, is_encore, songs!setlist_songs_song_id_fkey(title)')
+                    .select('show_id, song_id, set_number, song_order, is_encore, songs!setlist_songs_song_id_fkey(title)')
                     .in('show_id', shows.map(s => s.id));
 
                 const byShow = {};
@@ -59,8 +62,18 @@ export default function MostRecentShowWidget() {
 
                 if (cancelled) return;
                 setShow(chosen);
-                setTitles(orderSetlistTitles(rows));
+                setSongs(orderSetlistSongs(rows));
                 setTotalSongs(rows.length);
+
+                if (rows.length > 0) {
+                    getShowDebuts(chosen.id)
+                        .then(data => {
+                            if (cancelled) return;
+                            setLiveDebutIds(new Set(data.live_debut_song_ids || []));
+                            setTourDebutIds(new Set(data.tour_debut_song_ids || []));
+                        })
+                        .catch(err => console.error('[MostRecentShowWidget] debuts fetch failed:', err));
+                }
             } catch (err) {
                 console.error('[MostRecentShowWidget] Error fetching most recent show:', err);
             } finally {
@@ -136,9 +149,15 @@ export default function MostRecentShowWidget() {
                         </p>
                     )}
 
-                    {titles.length > 0 ? (
+                    {songs.length > 0 ? (
                         <div className="mt-3 pt-3 border-t border-white/5">
-                            <SetlistPreview titles={titles} total={totalSongs} max={PREVIEW_SONGS} />
+                            <SetlistPreview
+                                songs={songs}
+                                total={totalSongs}
+                                liveDebutIds={liveDebutIds}
+                                tourDebutIds={tourDebutIds}
+                                max={PREVIEW_SONGS}
+                            />
                         </div>
                     ) : (
                         <p className="mt-3 pt-3 border-t border-white/5 text-xs italic" style={{ color: 'var(--p-color-contrast-low)' }}>

@@ -78,11 +78,27 @@ export const getTourRarity = async (showId) => {
 };
 
 /**
- * Which songs in a show's setlist were played live for the very first time at that show.
+ * Which songs in a show's setlist were live debuts / tour debuts.
  */
 export const getShowDebuts = async (showId) => {
     const response = await fetch(`${API_BASE_URL}/api/shows/${showId}/debuts`);
     if (!response.ok) throw new Error('Failed to fetch debuts');
+    return response.json();
+};
+
+/**
+ * Same as getShowDebuts, batched for list views — one call instead of one per row.
+ * Returns { [show_id]: { live_debut_song_ids, tour_debut_song_ids } }. Server caps a
+ * single batch at 500 show_ids; chunk on the caller's side for anything larger.
+ */
+export const getShowDebutsBatch = async (showIds) => {
+    if (!showIds?.length) return {};
+    const response = await fetch(`${API_BASE_URL}/api/shows/debuts-batch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ show_ids: showIds }),
+    });
+    if (!response.ok) throw new Error('Failed to fetch debuts batch');
     return response.json();
 };
 

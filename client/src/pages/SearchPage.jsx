@@ -4,7 +4,7 @@ import {
     PHeading, PText, PTag, PSpinner, PInlineNotification
 } from '@porsche-design-system/components-react';
 import { buildShowPath } from '../utils/showSlug';
-import { searchShows, checkShowAttendanceBatch, markShowAttended, unmarkShowAttended, checkShowsHaveContent, getBands } from '../services/api';
+import { searchShows, checkShowAttendanceBatch, markShowAttended, unmarkShowAttended, checkShowsHaveContent, getBands, getShowDebutsBatch } from '../services/api';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import SongStatsWidget from '../components/SongStatsWidget';
@@ -12,7 +12,7 @@ import UserStatsWidget from '../components/UserStatsWidget';
 import OnThisDayWidget from '../components/OnThisDayWidget';
 import MostRecentShowWidget from '../components/MostRecentShowWidget';
 import SetlistPreview from '../components/SetlistPreview';
-import { orderSetlistTitles } from '../utils/setlist';
+import { orderSetlistSongs } from '../utils/setlist';
 import SEO from '../components/SEO';
 
 const MAIN_TABS = ['search', 'stats', 'myshows'];
@@ -44,6 +44,7 @@ export default function SearchPage() {
     const [contentMap, setContentMap] = useState({});
     const [songStatsMap, setSongStatsMap] = useState({});
     const [setlistPreviewMap, setSetlistPreviewMap] = useState({});
+    const [debutsMap, setDebutsMap] = useState({}); // showId -> { live_debut_song_ids, tour_debut_song_ids }
     const [songStatsLoading, setSongStatsLoading] = useState(false);
     const lastCalculatedShowIds = useRef(null);
 
@@ -151,7 +152,7 @@ export default function SearchPage() {
     useEffect(() => {
         const calculateSongStats = async () => {
             if (filteredResults.length === 0) {
-                setSongStatsMap({}); setSetlistPreviewMap({}); setSongStatsLoading(false); lastCalculatedShowIds.current = null; return;
+                setSongStatsMap({}); setSetlistPreviewMap({}); setDebutsMap({}); setSongStatsLoading(false); lastCalculatedShowIds.current = null; return;
             }
             const showIds = filteredResults.map(s => s.id);
             const key = [...showIds].sort().join(',');
@@ -204,11 +205,22 @@ export default function SearchPage() {
                     statsMap[showId] = { originals, covers };
 
                     // Setlist order isn't guaranteed across paginated batches, so sort here.
-                    previewMap[showId] = { titles: orderSetlistTitles(rows), total: rows.length };
+                    previewMap[showId] = { songs: orderSetlistSongs(rows), total: rows.length };
                 });
 
                 setSongStatsMap(statsMap);
                 setSetlistPreviewMap(previewMap);
+
+                // Debuts, batched in one call rather than one request per row — only for
+                // shows that actually have a setlist logged.
+                const showIdsWithSetlist = showIds.filter(id => rowsByShow[id]?.length > 0);
+                if (showIdsWithSetlist.length > 0) {
+                    getShowDebutsBatch(showIdsWithSetlist)
+                        .then(setDebutsMap)
+                        .catch(err => console.error('[SearchPage] Error fetching debuts batch:', err));
+                } else {
+                    setDebutsMap({});
+                }
             } catch (err) {
                 console.error('[SearchPage] Error calculating song stats:', err);
             } finally {
@@ -553,6 +565,7 @@ export default function SearchPage() {
                                         const hasPoster = contentMap[show.id]?.hasPoster || false;
                                         const songStats = songStatsMap[show.id] || { originals: 0, covers: 0 };
                                         const setlistPreview = setlistPreviewMap[show.id];
+                                        const showDebuts = debutsMap[show.id];
                                         const openedFor = show.opened_for?.name;
                                         const openingAct = show.opening_act?.name;
                                         const hasVideo = show.links?.some(l => l.url?.includes('youtube.com') || l.url?.includes('youtu.be'));
@@ -620,11 +633,13 @@ export default function SearchPage() {
                                                                 )}
                                                             </div>
                                                         )}
-                                                        {setlistPreview?.titles?.length > 0 && (
+                                                        {setlistPreview?.songs?.length > 0 && (
                                                             <div className="mt-2 pt-2 border-t border-white/5">
                                                                 <SetlistPreview
-                                                                    titles={setlistPreview.titles}
+                                                                    songs={setlistPreview.songs}
                                                                     total={setlistPreview.total}
+                                                                    liveDebutIds={showDebuts ? new Set(showDebuts.live_debut_song_ids) : undefined}
+                                                                    tourDebutIds={showDebuts ? new Set(showDebuts.tour_debut_song_ids) : undefined}
                                                                     max={8}
                                                                 />
                                                             </div>
