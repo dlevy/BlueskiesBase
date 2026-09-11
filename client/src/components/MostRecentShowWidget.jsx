@@ -12,9 +12,42 @@ import { orderSetlistSongs } from '../utils/setlist';
 // empty — checking a window of recent shows avoids rendering a blank section.
 const LOOKBACK_SHOWS = 25;
 const PREVIEW_SONGS = 12;
+const OTHER_RECENT_SHOWS = 3;
+
+function formatShortDate(dateStr) {
+    const [y, m, d] = dateStr.split('-');
+    return new Date(Number(y), Number(m) - 1, Number(d)).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+// One-liner row for a recent show that isn't the featured one — just enough to identify
+// it and click through, no setlist preview.
+function RecentShowRow({ show }) {
+    return (
+        <Link
+            to={buildShowPath(show)}
+            className="flex items-baseline gap-2 py-1.5 px-2 -mx-2 rounded-lg hover:bg-white/[0.05] transition-colors group"
+        >
+            <span className="shrink-0 text-xs font-mono" style={{ color: 'var(--p-color-contrast-low)' }}>
+                {formatShortDate(show.show_date)}
+            </span>
+            <span className="text-sm truncate" style={{ color: 'var(--p-color-primary)' }}>
+                {show.artist_name}
+            </span>
+            {show.venues && (
+                <span className="text-xs truncate" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                    &mdash; {show.venues.city}{show.venues.state_country ? `, ${show.venues.state_country}` : ''}
+                </span>
+            )}
+            <svg className="w-3 h-3 shrink-0 ml-auto opacity-0 group-hover:opacity-30 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+        </Link>
+    );
+}
 
 export default function MostRecentShowWidget() {
     const [show, setShow] = useState(null);
+    const [otherRecent, setOtherRecent] = useState([]);
     const [songs, setSongs] = useState([]);
     const [totalSongs, setTotalSongs] = useState(0);
     const [liveDebutIds, setLiveDebutIds] = useState(new Set());
@@ -62,6 +95,7 @@ export default function MostRecentShowWidget() {
 
                 if (cancelled) return;
                 setShow(chosen);
+                setOtherRecent(shows.filter(s => s.id !== chosen.id).slice(0, OTHER_RECENT_SHOWS));
                 setSongs(orderSetlistSongs(rows));
                 setTotalSongs(rows.length);
 
@@ -172,6 +206,12 @@ export default function MostRecentShowWidget() {
                     </svg>
                 </div>
             </Link>
+
+            {otherRecent.length > 0 && (
+                <div className="mt-2 pt-2 border-t border-white/5">
+                    {otherRecent.map(s => <RecentShowRow key={s.id} show={s} />)}
+                </div>
+            )}
         </div>
     );
 }

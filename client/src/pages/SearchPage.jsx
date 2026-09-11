@@ -9,7 +9,8 @@ import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import SongStatsWidget from '../components/SongStatsWidget';
 import UserStatsWidget from '../components/UserStatsWidget';
-import OnThisDayWidget from '../components/OnThisDayWidget';
+import TourStatsWidget from '../components/TourStatsWidget';
+import UpcomingShowsWidget from '../components/UpcomingShowsWidget';
 import MostRecentShowWidget from '../components/MostRecentShowWidget';
 import SetlistPreview from '../components/SetlistPreview';
 import { orderSetlistSongs } from '../utils/setlist';
@@ -531,7 +532,10 @@ export default function SearchPage() {
                     {showHero && (
                         <>
                             <MostRecentShowWidget />
-                            <OnThisDayWidget />
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                <TourStatsWidget />
+                                <UpcomingShowsWidget />
+                            </div>
                         </>
                     )}
 
