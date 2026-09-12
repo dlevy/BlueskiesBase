@@ -597,7 +597,7 @@ export default function ShowDetailPage() {
                 )}
 
                 {/* Who Was There */}
-                <WhoWasThereSection showId={show.id} refreshOn={attended} />
+                <WhoWasThereSection showId={show.id} refreshOn={attended} isFutureShow={isFutureShow} />
             </div>
 
             {/* Setlist */}

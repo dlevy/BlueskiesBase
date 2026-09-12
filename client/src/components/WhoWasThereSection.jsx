@@ -4,7 +4,7 @@ import { getShowAttendees } from '../services/api';
 
 // Usernames only — never emails. Falls back to a bare "+N more" count for any
 // attendee rows whose profile has no username set, rather than skipping them silently.
-export default function WhoWasThereSection({ showId, refreshOn }) {
+export default function WhoWasThereSection({ showId, refreshOn, isFutureShow }) {
     const [attendees, setAttendees] = useState([]);
     const [count, setCount] = useState(0);
 
@@ -25,7 +25,7 @@ export default function WhoWasThereSection({ showId, refreshOn }) {
     return (
         <div className="mt-5 pt-4 border-t border-white/[0.07]">
             <PText size="xs" className="uppercase tracking-wide font-semibold mb-2" style={{ color: 'var(--p-color-contrast-low)' }}>
-                Who Was There
+                {isFutureShow ? 'Who Is Attending?' : 'Who Was There'}
             </PText>
             <div className="flex flex-wrap items-center gap-1.5">
                 {attendees.map(a => (

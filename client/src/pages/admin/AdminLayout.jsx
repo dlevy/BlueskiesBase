@@ -49,8 +49,8 @@ export default function AdminLayout() {
                 </header>
 
                 {/* Admin Navigation */}
-                <nav className="border-b border-white/10 px-4" style={{ background: 'var(--p-color-surface)' }}>
-                    <ul className="flex gap-6 py-3">
+                <nav className="border-b border-white/10 px-4 overflow-x-auto" style={{ background: 'var(--p-color-surface)' }}>
+                    <ul className="flex gap-6 py-3 flex-nowrap w-max min-w-full">
                         {[
                             { to: '/admin', label: 'Dashboard' },
                             { to: '/admin/shows', label: 'Shows' },
@@ -59,7 +59,7 @@ export default function AdminLayout() {
                             { to: '/admin/venues', label: 'Venues' },
                             { to: '/admin/users', label: 'Users' },
                         ].map(({ to, label }) => (
-                            <li key={to}>
+                            <li key={to} className="shrink-0">
                                 <Link to={to} className={navLinkClass} style={{ color: 'var(--p-color-primary)' }}>
                                     {label}
                                 </Link>
