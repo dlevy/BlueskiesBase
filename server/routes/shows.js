@@ -360,6 +360,64 @@ router.get('/:id/debuts', async (req, res) => {
 });
 
 /**
+ * GET /api/shows/:id/reactions
+ * Fire (🔥) reaction counts per setlist song. Public — no authentication required.
+ * If an Authorization header is present, also returns which of those setlist
+ * songs the viewer has personally reacted to (`mine`).
+ */
+router.get('/:id/reactions', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const { data: setlistRows, error: setlistError } = await supabase
+            .from('setlist_songs')
+            .select('id')
+            .eq('show_id', id);
+
+        if (setlistError) {
+            console.error('[GET /shows/:id/reactions] Error fetching setlist:', setlistError);
+            return res.status(500).json({ error: 'Failed to fetch reactions' });
+        }
+
+        const setlistSongIds = (setlistRows || []).map(r => r.id);
+        if (setlistSongIds.length === 0) {
+            return res.json({ counts: {}, mine: [] });
+        }
+
+        const { data: reactions, error: reactionsError } = await supabase
+            .from('setlist_song_reactions')
+            .select('setlist_song_id, user_id')
+            .in('setlist_song_id', setlistSongIds);
+
+        if (reactionsError) {
+            console.error('[GET /shows/:id/reactions] Error fetching reactions:', reactionsError);
+            return res.status(500).json({ error: 'Failed to fetch reactions' });
+        }
+
+        const counts = {};
+        (reactions || []).forEach(r => {
+            counts[r.setlist_song_id] = (counts[r.setlist_song_id] || 0) + 1;
+        });
+
+        let mine = [];
+        const authHeader = req.headers.authorization;
+        if (authHeader) {
+            const token = authHeader.replace('Bearer ', '');
+            const { data: { user } } = await supabase.auth.getUser(token);
+            if (user) {
+                mine = (reactions || []).filter(r => r.user_id === user.id).map(r => r.setlist_song_id);
+            }
+        }
+
+        res.json({ counts, mine });
+
+    } catch (err) {
+        console.error('[GET /shows/:id/reactions] Error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
  * GET /api/shows/:id/attendees
  * Members who marked this show as attended. Public — no authentication required.
  * Returns usernames only, never emails.

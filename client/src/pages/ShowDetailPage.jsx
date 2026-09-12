@@ -4,7 +4,7 @@ import {
     PHeading, PText, PButtonPure, PTag, PSpinner,
     PInlineNotification, PDivider
 } from '@porsche-design-system/components-react';
-import { getShowBySlug, getTourRarity, getShowDebuts, getAdjacentShows, checkShowAttendance, markShowAttended, unmarkShowAttended } from '../services/api';
+import { getShowBySlug, getTourRarity, getShowDebuts, getAdjacentShows, checkShowAttendance, markShowAttended, unmarkShowAttended, getShowReactions, addSongReaction, removeSongReaction } from '../services/api';
 import { buildShowPath } from '../utils/showSlug';
 import { useAuth } from '../contexts/AuthContext';
 import NotesSection from '../components/NotesSection';
@@ -75,7 +75,27 @@ function DebutBadge({ label, color, title }) {
 const LiveDebutBadge = () => <DebutBadge label="Live Debut" color="#34d399" title="First live performance of this song, ever" />;
 const TourDebutBadge = () => <DebutBadge label="Tour Debut" color="#22d3ee" title="First time this song has been played on this tour" />;
 
-function SongRow({ song, position, isChained, tourRarity, liveDebutSongIds, tourDebutSongIds }) {
+function FireReactionButton({ count, reacted, onToggle }) {
+    return (
+        <button
+            type="button"
+            onClick={onToggle}
+            className={`shrink-0 inline-flex items-center gap-1 h-6 px-2 rounded-full text-xs font-medium border transition-all ${
+                reacted
+                    ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
+                    : 'border-white/10 hover:border-white/25 hover:bg-white/5'
+            }`}
+            style={!reacted ? { color: 'var(--p-color-contrast-low)' } : undefined}
+            aria-pressed={reacted}
+            aria-label={reacted ? 'Remove your fire reaction' : 'React with fire'}
+        >
+            <span>🔥</span>
+            {count > 0 && <span>{count}</span>}
+        </button>
+    );
+}
+
+function SongRow({ song, position, isChained, tourRarity, liveDebutSongIds, tourDebutSongIds, reactionCount, reacted, onReactionToggle }) {
     const tourCount = tourRarity?.total_shows > 0 && song.song_id
         ? tourRarity.song_counts[song.song_id]
         : undefined;
@@ -125,11 +145,14 @@ function SongRow({ song, position, isChained, tourRarity, liveDebutSongIds, tour
                     </div>
                 )}
             </div>
+            {song.id && (
+                <FireReactionButton count={reactionCount} reacted={reacted} onToggle={() => onReactionToggle(song.id)} />
+            )}
         </li>
     );
 }
 
-function SetList({ songs, tourRarity, liveDebutSongIds, tourDebutSongIds }) {
+function SetList({ songs, tourRarity, liveDebutSongIds, tourDebutSongIds, reactionCounts, myReactions, onReactionToggle }) {
     return (
         <ol className="space-y-1">
             {songs.map((song, index) => {
@@ -143,6 +166,9 @@ function SetList({ songs, tourRarity, liveDebutSongIds, tourDebutSongIds }) {
                         tourRarity={tourRarity}
                         liveDebutSongIds={liveDebutSongIds}
                         tourDebutSongIds={tourDebutSongIds}
+                        reactionCount={reactionCounts?.[song.id] || 0}
+                        reacted={myReactions?.has(song.id) || false}
+                        onReactionToggle={onReactionToggle}
                     />
                 );
             })}
@@ -163,6 +189,8 @@ export default function ShowDetailPage() {
     const [tourRarity, setTourRarity] = useState(null);
     const [liveDebutSongIds, setLiveDebutSongIds] = useState(null);
     const [tourDebutSongIds, setTourDebutSongIds] = useState(null);
+    const [reactionCounts, setReactionCounts] = useState({});
+    const [myReactions, setMyReactions] = useState(new Set());
     const [adjacent, setAdjacent] = useState({ prev: null, next: null });
     const initialLoad = useRef(true);
 
@@ -250,6 +278,49 @@ export default function ShowDetailPage() {
             .then(data => setAdjacent(data))
             .catch(err => console.error('[ShowDetail] adjacent shows fetch failed:', err));
     }, [show?.id]);
+
+    // Fetch fire-reaction counts (and the viewer's own reactions, if logged in)
+    useEffect(() => {
+        if (!show?.id) return;
+        getShowReactions(show.id)
+            .then(data => {
+                setReactionCounts(data.counts || {});
+                setMyReactions(new Set(data.mine || []));
+            })
+            .catch(err => console.error('[ShowDetail] reactions fetch failed:', err));
+    }, [show?.id, user]);
+
+    const handleReactionToggle = async (setlistSongId) => {
+        if (!user) { alert('Please log in to react to a song'); return; }
+        const alreadyReacted = myReactions.has(setlistSongId);
+
+        setMyReactions(prev => {
+            const next = new Set(prev);
+            alreadyReacted ? next.delete(setlistSongId) : next.add(setlistSongId);
+            return next;
+        });
+        setReactionCounts(prev => ({
+            ...prev,
+            [setlistSongId]: Math.max(0, (prev[setlistSongId] || 0) + (alreadyReacted ? -1 : 1)),
+        }));
+
+        try {
+            if (alreadyReacted) await removeSongReaction(setlistSongId);
+            else await addSongReaction(setlistSongId);
+        } catch (err) {
+            console.error('Error toggling reaction:', err);
+            // revert optimistic update
+            setMyReactions(prev => {
+                const next = new Set(prev);
+                alreadyReacted ? next.add(setlistSongId) : next.delete(setlistSongId);
+                return next;
+            });
+            setReactionCounts(prev => ({
+                ...prev,
+                [setlistSongId]: Math.max(0, (prev[setlistSongId] || 0) + (alreadyReacted ? 1 : -1)),
+            }));
+        }
+    };
 
     // Check attendance after show loads
     useEffect(() => {
@@ -553,7 +624,15 @@ export default function ShowDetailPage() {
                                         {show.setlist[key].length} song{show.setlist[key].length !== 1 ? 's' : ''}
                                     </span>
                                 </div>
-                                <SetList songs={show.setlist[key]} tourRarity={tourRarity} liveDebutSongIds={liveDebutSongIds} tourDebutSongIds={tourDebutSongIds} />
+                                <SetList
+                                    songs={show.setlist[key]}
+                                    tourRarity={tourRarity}
+                                    liveDebutSongIds={liveDebutSongIds}
+                                    tourDebutSongIds={tourDebutSongIds}
+                                    reactionCounts={reactionCounts}
+                                    myReactions={myReactions}
+                                    onReactionToggle={handleReactionToggle}
+                                />
                             </div>
                         ))}
                     </div>
