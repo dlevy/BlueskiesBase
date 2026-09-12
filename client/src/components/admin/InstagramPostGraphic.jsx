@@ -8,12 +8,28 @@ function formatLongDate(dateString) {
     });
 }
 
-const SETS = [
-    { key: 'set1', label: 'Set 1' },
-    { key: 'set2', label: 'Set 2' },
-    { key: 'set3', label: 'Set 3' },
-    { key: 'encore', label: 'Encore' },
-];
+const SET_KEYS = ['set1', 'set2', 'set3', 'encore'];
+
+// Roughly how much vertical space the header + divider + footer take up,
+// regardless of format — used to figure out how much room is actually left
+// for the setlist so it can be sized to fill each format instead of just
+// square. Approximate on purpose: exact isn't the goal, avoiding big empty
+// bands top/bottom on the taller formats is.
+const HEADER_FOOTER_OVERHEAD = 577;
+const MIN_SONG_FONT = 14;
+const MAX_SONG_FONT = 34;
+
+function pickSongLayout(totalSongs, availableHeight) {
+    const usable = Math.max(availableHeight, 100);
+    let columns = 1;
+    let lineHeight = usable / totalSongs;
+    if (lineHeight / 1.45 < MIN_SONG_FONT && totalSongs > 6) {
+        columns = 2;
+        lineHeight = usable / Math.ceil(totalSongs / 2);
+    }
+    const songFontSize = Math.min(Math.max(lineHeight / 1.45, MIN_SONG_FONT), MAX_SONG_FONT);
+    return { columns, songFontSize };
+}
 
 // Fixed-pixel-size graphic (1080-wide, height depends on format) captured via
 // html-to-image. Layout is identical across styles/tours — only colors change —
@@ -22,13 +38,11 @@ const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({ show, fo
     const format = getFormatByKey(formatKey);
     const style = getStyleByKey(styleKey);
 
-    const sets = SETS
-        .map(s => ({ ...s, songs: show.setlist?.[s.key] || [] }))
-        .filter(s => s.songs.length > 0);
-    const totalSongs = sets.reduce((sum, s) => sum + s.songs.length, 0);
+    const songs = SET_KEYS.flatMap(key => show.setlist?.[key] || []);
+    const totalSongs = songs.length;
 
-    const columns = totalSongs > 14 ? 2 : 1;
-    const songFontSize = totalSongs <= 12 ? 30 : totalSongs <= 20 ? 24 : totalSongs <= 30 ? 20 : 16;
+    const availableHeight = format.height - HEADER_FOOTER_OVERHEAD;
+    const { columns, songFontSize } = pickSongLayout(totalSongs, availableHeight);
     const venueLine = show.venues
         ? `${show.venues.name} — ${show.venues.city}${show.venues.state_country ? ', ' + show.venues.state_country : ''}`
         : null;
@@ -79,26 +93,16 @@ const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({ show, fo
             {/* Setlist — vertically centered in the remaining space */}
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', overflow: 'hidden' }}>
                 <div style={{ columnCount: columns, columnGap: 56, columnFill: 'balance' }}>
-                    {sets.map(set => (
-                        <div key={set.key} style={{ marginBottom: 28 }}>
-                            <div style={{
-                                fontSize: 22, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase',
-                                color: style.accent, marginBottom: 12,
-                            }}>
-                                {set.label}
-                            </div>
-                            {set.songs.map((song, i) => (
-                                <div
-                                    key={song.id || i}
-                                    style={{
-                                        fontSize: songFontSize, lineHeight: 1.45, color: style.heading,
-                                        breakInside: 'avoid', display: 'flex', gap: 10,
-                                    }}
-                                >
-                                    <span style={{ color: style.muted, fontVariantNumeric: 'tabular-nums' }}>{i + 1}.</span>
-                                    <span>{song.title}{song.jams_into ? ' →' : ''}</span>
-                                </div>
-                            ))}
+                    {songs.map((song, i) => (
+                        <div
+                            key={song.id || i}
+                            style={{
+                                fontSize: songFontSize, lineHeight: 1.45, color: style.heading,
+                                breakInside: 'avoid', display: 'flex', gap: 10,
+                            }}
+                        >
+                            <span style={{ color: style.muted, fontVariantNumeric: 'tabular-nums' }}>{i + 1}.</span>
+                            <span>{song.title}{song.jams_into ? ' →' : ''}</span>
                         </div>
                     ))}
                 </div>
@@ -106,8 +110,8 @@ const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({ show, fo
 
             {/* Footer */}
             <div style={{
-                flexShrink: 0, textAlign: 'center', fontSize: 26, fontWeight: 700,
-                letterSpacing: 1, color: style.accent, marginTop: 32,
+                flexShrink: 0, textAlign: 'center', fontSize: 48, fontWeight: 800,
+                letterSpacing: 1, color: style.heading, marginTop: 32,
             }}>
                 skysets.org
             </div>
