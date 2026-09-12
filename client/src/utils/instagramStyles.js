@@ -1,0 +1,69 @@
+// Curated visual themes for the Instagram setlist-post generator. A tour gets
+// assigned one of these (see tour_post_styles table) so every post from that
+// tour looks consistent, while different tours can look distinct from one
+// another. Layout stays identical across styles — only color/background vary —
+// so adding a style here never requires touching the renderer.
+export const POST_STYLES = [
+    {
+        key: 'amber-black',
+        label: 'Amber / Black',
+        background: '#0b0e13',
+        panelBackground: 'rgba(255,255,255,0.03)',
+        accent: '#fbbf24',
+        heading: '#f5f5f5',
+        body: '#c7cdd6',
+        muted: '#7c8590',
+        divider: 'rgba(255,255,255,0.1)',
+    },
+    {
+        key: 'slate-cream',
+        label: 'Slate / Cream',
+        background: '#f5f1e8',
+        panelBackground: 'rgba(15,23,42,0.04)',
+        accent: '#334155',
+        heading: '#1e293b',
+        body: '#475569',
+        muted: '#94a3b8',
+        divider: 'rgba(15,23,42,0.12)',
+    },
+    {
+        key: 'deep-red-white',
+        label: 'Deep Red / White',
+        background: '#1a0303',
+        panelBackground: 'rgba(255,255,255,0.04)',
+        accent: '#f87171',
+        heading: '#fff5f5',
+        body: '#e7c9c9',
+        muted: '#a17070',
+        divider: 'rgba(255,255,255,0.12)',
+    },
+    {
+        key: 'forest-gold',
+        label: 'Forest / Gold',
+        background: '#0c1a12',
+        panelBackground: 'rgba(255,255,255,0.03)',
+        accent: '#d4af37',
+        heading: '#f2f7f3',
+        body: '#bfd0c4',
+        muted: '#6f8a78',
+        divider: 'rgba(255,255,255,0.1)',
+    },
+];
+
+export const DEFAULT_STYLE_KEY = POST_STYLES[0].key;
+
+export function getStyleByKey(key) {
+    return POST_STYLES.find(s => s.key === key) || POST_STYLES[0];
+}
+
+export const POST_FORMATS = [
+    { key: 'square', label: 'Feed – Square', width: 1080, height: 1080 },
+    { key: 'portrait', label: 'Feed – Portrait', width: 1080, height: 1350 },
+    { key: 'story', label: 'Story', width: 1080, height: 1920 },
+];
+
+export const DEFAULT_FORMAT_KEY = POST_FORMATS[0].key;
+
+export function getFormatByKey(key) {
+    return POST_FORMATS.find(f => f.key === key) || POST_FORMATS[0];
+}

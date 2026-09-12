@@ -91,4 +91,61 @@ router.post('/users/:userId/resend-confirmation', requireAdmin, async (req, res)
     }
 });
 
+/**
+ * GET /api/admin/tour-style/:tourName
+ * The Instagram post style assigned to a tour, so posts stay visually
+ * consistent within a tour. Returns { style_key: null } if unset.
+ */
+router.get('/tour-style/:tourName', requireAdmin, async (req, res) => {
+    try {
+        const { tourName } = req.params;
+
+        const { data, error } = await supabase
+            .from('tour_post_styles')
+            .select('style_key')
+            .eq('tour_name', tourName)
+            .maybeSingle();
+
+        if (error) {
+            console.error('[admin/tour-style] fetch error:', error);
+            return res.status(500).json({ error: 'Failed to fetch tour style' });
+        }
+
+        res.json({ style_key: data?.style_key || null });
+    } catch (err) {
+        console.error('[admin/tour-style] error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * PUT /api/admin/tour-style/:tourName
+ * Assign (or change) the Instagram post style for a tour.
+ * Body: { style_key: string }
+ */
+router.put('/tour-style/:tourName', requireAdmin, async (req, res) => {
+    try {
+        const { tourName } = req.params;
+        const { style_key } = req.body;
+
+        if (!style_key) {
+            return res.status(400).json({ error: 'style_key is required' });
+        }
+
+        const { error } = await supabase
+            .from('tour_post_styles')
+            .upsert({ tour_name: tourName, style_key, updated_at: new Date().toISOString() }, { onConflict: 'tour_name' });
+
+        if (error) {
+            console.error('[admin/tour-style] upsert error:', error);
+            return res.status(500).json({ error: 'Failed to save tour style' });
+        }
+
+        res.json({ success: true, tour_name: tourName, style_key });
+    } catch (err) {
+        console.error('[admin/tour-style] error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 module.exports = router;

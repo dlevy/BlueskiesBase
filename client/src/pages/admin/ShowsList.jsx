@@ -112,6 +112,9 @@ export default function ShowsList() {
                                             <Link to={`/admin/shows/edit/${show.id}`}>
                                                 <PButtonPure size="x-small">Edit</PButtonPure>
                                             </Link>
+                                            <Link to={`/admin/shows/${show.id}/instagram`}>
+                                                <PButtonPure size="x-small">IG Post</PButtonPure>
+                                            </Link>
                                             <PButtonPure size="x-small"
                                                 onClick={() => handleDelete(show.id, formatDate(show.show_date), show.artist_name)}
                                                 style={{ color: 'var(--p-color-error)' }}>
