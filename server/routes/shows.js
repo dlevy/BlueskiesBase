@@ -360,6 +360,43 @@ router.get('/:id/debuts', async (req, res) => {
 });
 
 /**
+ * GET /api/shows/:id/attendees
+ * Members who marked this show as attended. Public — no authentication required.
+ * Returns usernames only, never emails.
+ */
+router.get('/:id/attendees', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const { data, error } = await supabase
+            .from('user_shows')
+            .select(`
+                user_id,
+                profiles:user_id (
+                    id,
+                    username
+                )
+            `)
+            .eq('show_id', id);
+
+        if (error) {
+            console.error('[GET /shows/:id/attendees] Error:', error);
+            return res.status(500).json({ error: 'Failed to fetch attendees' });
+        }
+
+        const attendees = (data || [])
+            .filter(row => row.profiles?.username)
+            .map(row => ({ id: row.profiles.id, username: row.profiles.username }));
+
+        res.json({ attendees, count: (data || []).length });
+
+    } catch (err) {
+        console.error('[GET /shows/:id/attendees] Error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
  * POST /api/shows/debuts-batch
  * Live/tour debuts for many shows at once — for list views (search results, etc.) that
  * need this for every row without an N+1 query per show. Unknown/nonexistent show_ids

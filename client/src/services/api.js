@@ -78,6 +78,15 @@ export const getTourRarity = async (showId) => {
 };
 
 /**
+ * Members who marked this show as attended (usernames only).
+ */
+export const getShowAttendees = async (showId) => {
+    const response = await fetch(`${API_BASE_URL}/api/shows/${showId}/attendees`);
+    if (!response.ok) throw new Error('Failed to fetch attendees');
+    return response.json();
+};
+
+/**
  * Which songs in a show's setlist were live debuts / tour debuts.
  */
 export const getShowDebuts = async (showId) => {

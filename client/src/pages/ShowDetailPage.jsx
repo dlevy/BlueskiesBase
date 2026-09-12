@@ -8,6 +8,7 @@ import { getShowBySlug, getTourRarity, getShowDebuts, getAdjacentShows, checkSho
 import { buildShowPath } from '../utils/showSlug';
 import { useAuth } from '../contexts/AuthContext';
 import NotesSection from '../components/NotesSection';
+import WhoWasThereSection from '../components/WhoWasThereSection';
 import PhotosSection from '../components/PhotosSection';
 import PostersSection from '../components/PostersSection';
 import SetlistSubmissionSection from '../components/SetlistSubmissionSection';
@@ -523,6 +524,9 @@ export default function ShowDetailPage() {
                         <PText size="small" color="contrast-medium">{show.notes}</PText>
                     </div>
                 )}
+
+                {/* Who Was There */}
+                <WhoWasThereSection showId={show.id} refreshOn={attended} />
             </div>
 
             {/* Setlist */}
