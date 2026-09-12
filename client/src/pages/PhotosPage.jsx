@@ -5,6 +5,8 @@ import { getAllPhotos } from '../services/api';
 import { buildShowPath } from '../utils/showSlug';
 import MainNavTabs from '../components/MainNavTabs';
 import SEO from '../components/SEO';
+import Lightbox from 'yet-another-react-lightbox';
+import 'yet-another-react-lightbox/styles.css';
 
 function formatDate(dateStr) {
     const [y, m, d] = dateStr.split('-');
@@ -16,7 +18,7 @@ function formatDate(dateStr) {
 // Unlike posters (one per show), a show commonly has several photos — grouped into one
 // section per show rather than flattened to one gallery tile per photo, so the same show
 // doesn't repeat itself over and over in a row.
-function ShowPhotoSection({ show, photos }) {
+function ShowPhotoSection({ show, photos, onPhotoClick }) {
     const showPath = buildShowPath(show);
     return (
         <div className="rounded-xl border border-white/10 bg-white/[0.03] overflow-hidden">
@@ -39,14 +41,19 @@ function ShowPhotoSection({ show, photos }) {
 
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-1 p-1">
                 {photos.map(photo => (
-                    <Link key={photo.id} to={showPath} className="block aspect-square overflow-hidden rounded-md bg-white/5 group">
+                    <button
+                        key={photo.id}
+                        type="button"
+                        onClick={() => onPhotoClick(photo)}
+                        className="block aspect-square overflow-hidden rounded-md bg-white/5 group cursor-pointer"
+                    >
                         <img
                             src={photo.photo_url}
                             alt={photo.caption || `${show.artist_name} — ${show.venues?.city || ''}`}
                             loading="lazy"
                             className="w-full h-full object-cover group-hover:scale-105 group-hover:opacity-90 transition-all duration-300"
                         />
-                    </Link>
+                    </button>
                 ))}
             </div>
         </div>
@@ -55,9 +62,11 @@ function ShowPhotoSection({ show, photos }) {
 
 export default function PhotosPage() {
     const [groups, setGroups] = useState([]);
+    const [allPhotos, setAllPhotos] = useState([]);
     const [totalPhotos, setTotalPhotos] = useState(0);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [lightboxIndex, setLightboxIndex] = useState(-1);
 
     useEffect(() => {
         let cancelled = false;
@@ -67,6 +76,7 @@ export default function PhotosPage() {
                 if (cancelled) return;
                 const photos = data.photos || [];
                 setTotalPhotos(photos.length);
+                setAllPhotos(photos);
 
                 // Server already returns newest-show-first with each show's own photos
                 // in display_order — group by show, preserving that order.
@@ -128,10 +138,23 @@ export default function PhotosPage() {
             {!loading && !error && groups.length > 0 && (
                 <div className="space-y-4">
                     {groups.map(({ show, photos }) => (
-                        <ShowPhotoSection key={show.id} show={show} photos={photos} />
+                        <ShowPhotoSection
+                            key={show.id}
+                            show={show}
+                            photos={photos}
+                            onPhotoClick={(photo) => setLightboxIndex(allPhotos.findIndex(p => p.id === photo.id))}
+                        />
                     ))}
                 </div>
             )}
+
+            <Lightbox
+                open={lightboxIndex >= 0}
+                close={() => setLightboxIndex(-1)}
+                index={lightboxIndex}
+                slides={allPhotos.map(p => ({ src: p.photo_url, alt: p.caption || 'Show photo', title: p.caption }))}
+                on={{ view: ({ index }) => setLightboxIndex(index) }}
+            />
         </div>
     );
 }

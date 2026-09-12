@@ -5,6 +5,8 @@ import { getAllPosters } from '../services/api';
 import { buildShowPath } from '../utils/showSlug';
 import MainNavTabs from '../components/MainNavTabs';
 import SEO from '../components/SEO';
+import Lightbox from 'yet-another-react-lightbox';
+import 'yet-another-react-lightbox/styles.css';
 
 function formatDate(dateStr) {
     const [y, m, d] = dateStr.split('-');
@@ -13,22 +15,23 @@ function formatDate(dateStr) {
     });
 }
 
-function PosterTile({ poster }) {
+function PosterTile({ poster, onImageClick }) {
     const show = poster.shows;
     return (
-        <Link
-            to={buildShowPath(show)}
-            className="group block rounded-xl overflow-hidden border border-white/10 bg-white/[0.03] hover:border-amber-500/30 hover:-translate-y-1 hover:shadow-lg hover:shadow-black/30 transition-all duration-150"
-        >
-            <div className="aspect-[2/3] overflow-hidden bg-white/5">
+        <div className="group rounded-xl overflow-hidden border border-white/10 bg-white/[0.03] hover:border-amber-500/30 hover:-translate-y-1 hover:shadow-lg hover:shadow-black/30 transition-all duration-150">
+            <button
+                type="button"
+                onClick={onImageClick}
+                className="block w-full aspect-[2/3] overflow-hidden bg-white/5 cursor-pointer"
+            >
                 <img
                     src={poster.poster_url}
                     alt={poster.caption || `${show.artist_name} poster — ${show.venues?.name || show.venues?.city || ''}`}
                     loading="lazy"
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />
-            </div>
-            <div className="p-3">
+            </button>
+            <Link to={buildShowPath(show)} className="block p-3 hover:bg-white/[0.05] transition-colors">
                 <p className="text-[10px] font-mono uppercase tracking-wide" style={{ color: 'var(--p-color-contrast-low)' }}>
                     {formatDate(show.show_date)}
                 </p>
@@ -43,8 +46,8 @@ function PosterTile({ poster }) {
                         </span>
                     </p>
                 )}
-            </div>
-        </Link>
+            </Link>
+        </div>
     );
 }
 
@@ -52,6 +55,7 @@ export default function PostersPage() {
     const [posters, setPosters] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [lightboxIndex, setLightboxIndex] = useState(-1);
 
     useEffect(() => {
         let cancelled = false;
@@ -108,11 +112,19 @@ export default function PostersPage() {
 
             {!loading && !error && posters.length > 0 && (
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {posters.map(poster => (
-                        <PosterTile key={poster.id} poster={poster} />
+                    {posters.map((poster, index) => (
+                        <PosterTile key={poster.id} poster={poster} onImageClick={() => setLightboxIndex(index)} />
                     ))}
                 </div>
             )}
+
+            <Lightbox
+                open={lightboxIndex >= 0}
+                close={() => setLightboxIndex(-1)}
+                index={lightboxIndex}
+                slides={posters.map(p => ({ src: p.poster_url, alt: p.caption || 'Show poster', title: p.caption }))}
+                on={{ view: ({ index }) => setLightboxIndex(index) }}
+            />
         </div>
     );
 }
