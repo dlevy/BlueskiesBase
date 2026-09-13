@@ -93,6 +93,7 @@ export default function SongStatsWidget() {
                     const { data: page, error: err } = await supabase
                         .from('shows')
                         .select('show_date, venues(city, state_country)')
+                        .order('id')
                         .range(rangeStart, rangeStart + 999);
                     if (err) throw err;
                     data = data.concat(page || []);

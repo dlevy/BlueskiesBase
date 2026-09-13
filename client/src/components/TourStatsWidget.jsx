@@ -80,6 +80,7 @@ export default function TourStatsWidget() {
                         .from('setlist_songs')
                         .select('song_id, show_id, songs!setlist_songs_song_id_fkey(title)')
                         .in('show_id', playedIds)
+                        .order('id')
                         .range(rangeStart, rangeStart + 999);
                     if (error || !page?.length) break;
                     rows = rows.concat(page);

@@ -28,6 +28,7 @@ router.get('/', async (req, res) => {
                 )
             `, { count: 'exact' })
             .order('show_date', { ascending: false })
+            .order('id')
             .range(offset, offset + limit - 1);
 
         if (error) {
@@ -173,6 +174,7 @@ router.get('/:id/tour-rarity', async (req, res) => {
                 .select('song_id, show_id')
                 .in('show_id', tourShowIds)
                 .not('song_id', 'is', null)
+                .order('id')
                 .range(rangeStart, rangeStart + 999);
 
             if (setlistError) {
@@ -252,6 +254,7 @@ async function computeDebutsForShows(showIds) {
             .select('show_id, song_id')
             .in('show_id', showIds)
             .not('song_id', 'is', null)
+            .order('id')
             .range(rangeStart, rangeStart + 999);
         if (error) throw new Error('Failed to load setlists for batch: ' + error.message);
         batchSongs = batchSongs.concat(page || []);
@@ -276,6 +279,7 @@ async function computeDebutsForShows(showIds) {
             .from('setlist_songs')
             .select('song_id, show_id, shows(show_date)')
             .in('song_id', songIdsInvolved)
+            .order('id')
             .range(rangeStart, rangeStart + 999);
         if (error) throw new Error('Failed to compute debuts: ' + error.message);
         performances = performances.concat(page || []);

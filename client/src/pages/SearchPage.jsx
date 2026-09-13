@@ -186,6 +186,7 @@ export default function SearchPage() {
                             .from('setlist_songs')
                             .select('show_id, song_id, id, set_number, song_order, is_encore, songs!setlist_songs_song_id_fkey(id, title, is_original)', { count: 'exact' })
                             .in('show_id', batchIds)
+                            .order('id')
                             .range(rangeStart, rangeStart + 999);
                         if (error) break;
                         if (pageData?.length > 0) {

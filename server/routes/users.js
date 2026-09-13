@@ -389,6 +389,7 @@ router.get('/stats', async (req, res) => {
                         )
                     `)
                     .in('show_id', attendedShowIds)
+                    .order('id')
                     .range(page * pageSize, (page + 1) * pageSize - 1);
 
                 if (songsError) {
@@ -456,6 +457,7 @@ router.get('/stats', async (req, res) => {
                         original_artist
                     )
                 `)
+                .order('id')
                 .range(page * pageSize, (page + 1) * pageSize - 1);
 
             if (playedSongsError) {
@@ -523,6 +525,7 @@ router.get('/stats', async (req, res) => {
                     `, { count: 'exact' })
                     .in('song_id', notSeenSongIds)
                     .order('shows(show_date)', { ascending: false })
+                    .order('id')
                     .range(rangeStart, rangeEnd);
 
                 if (notSeenError) {

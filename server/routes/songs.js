@@ -43,6 +43,7 @@ router.get('/', async (req, res) => {
                 .from('setlist_songs')
                 .select('song_id, show_id, performance_type')
                 .in('song_id', songIds)
+                .order('id')
                 .range(from, from + batchSize - 1);
 
             if (batchError) {
@@ -114,6 +115,7 @@ router.get('/stats/global', async (req, res) => {
                         album_id
                     )
                 `)
+                .order('id')
                 .range(from, from + batchSize - 1);
 
             if (batchError) {
@@ -143,6 +145,7 @@ router.get('/stats/global', async (req, res) => {
             const { data: page, error: showsError } = await supabase
                 .from('shows')
                 .select('id, show_date')
+                .order('id')
                 .range(rangeStart, rangeStart + 999);
 
             if (showsError) {
@@ -285,6 +288,7 @@ router.get('/:id', async (req, res) => {
                 `, { count: 'exact' })
                 .eq('song_id', id)
                 .order('shows(show_date)', { ascending: false })
+                .order('id')
                 .range(rangeStart, rangeEnd);
 
             if (perfError) {
