@@ -19,6 +19,11 @@ import SEO from '../components/SEO';
 
 const selectClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-transparent";
 
+// Shared neutral color for "this show has X" content-indicator tags (Video, Links,
+// Notes, Photos, Poster) — kept as one constant so they read as one family instead
+// of a rainbow of unrelated colors.
+const CONTENT_TAG_COLOR = '#9ca3af';
+
 // Same compact tag style used for Live Debut/Tour Debut/Rare/tease/partial/cover elsewhere
 // in the app (ShowDetailPage, SetlistPreview) — small, uppercase, color-mix background —
 // rather than the bulkier Porsche PTag pill.
@@ -618,11 +623,11 @@ export default function SearchPage() {
                                                             <div className="mt-2 flex flex-wrap gap-1.5">
                                                                 {openedFor && <PTag color="notification-warning-soft">Opening for {openedFor}</PTag>}
                                                                 {openingAct && <PTag color="notification-neutral-soft">Opener: {openingAct}</PTag>}
-                                                                {hasVideo && <ListTag label="Video" color="#f87171" />}
-                                                                {hasLinks && <PTag color="notification-neutral-soft">Links</PTag>}
-                                                                {hasNotes && <ListTag label="Notes" color="#fbbf24" />}
-                                                                {hasPhotos && <ListTag label="Photos" color="#f472b6" />}
-                                                                {hasPoster && <ListTag label="Poster" color="#facc15" />}
+                                                                {hasVideo && <ListTag label="Video" color={CONTENT_TAG_COLOR} />}
+                                                                {hasLinks && <ListTag label="Links" color={CONTENT_TAG_COLOR} />}
+                                                                {hasNotes && <ListTag label="Notes" color={CONTENT_TAG_COLOR} />}
+                                                                {hasPhotos && <ListTag label="Photos" color={CONTENT_TAG_COLOR} />}
+                                                                {hasPoster && <ListTag label="Poster" color={CONTENT_TAG_COLOR} />}
                                                                 {songStats.covers > 0 && (
                                                                     <ListTag label={`${songStats.covers} Cover${songStats.covers !== 1 ? 's' : ''}`} color="#60a5fa" />
                                                                 )}
