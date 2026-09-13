@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
     PHeading, PText, PButtonPure, PTag, PSpinner,
-    PInlineNotification, PDivider
+    PInlineNotification
 } from '@porsche-design-system/components-react';
 import { getShowBySlug, getTourRarity, getShowDebuts, getAdjacentShows, checkShowAttendance, markShowAttended, unmarkShowAttended, getShowReactions, addSongReaction, removeSongReaction } from '../services/api';
 import { buildShowPath } from '../utils/showSlug';
@@ -181,7 +181,7 @@ function SongRow({ song, position, isChained, tourRarity, liveDebutSongIds, tour
     const isTourDebut = song.song_id != null && tourDebutSongIds?.has(song.song_id);
 
     return (
-        <li className={`flex gap-3 py-2 items-start ${isChained ? 'ml-10 pl-3 border-l-2 border-white/10' : ''}`}>
+        <li className={`flex gap-3 py-0.5 items-start ${isChained ? 'ml-10 pl-3 border-l-2 border-white/10' : ''}`}>
             <span className={`shrink-0 font-mono text-sm leading-relaxed ${isChained ? 'w-4 text-white/25' : 'w-6 text-right font-bold text-amber-400'}`}>
                 {isChained ? '›' : position}
             </span>
@@ -504,13 +504,6 @@ export default function ShowDetailPage() {
         : (isFutureShow ? 'Mark as Attending' : 'Mark as Attended');
     const attendanceIcon = attended ? 'check' : 'plus';
 
-    const sets = [
-        { key: 'set1', label: 'Set 1' },
-        { key: 'set2', label: 'Set 2' },
-        { key: 'set3', label: 'Set 3' },
-        { key: 'encore', label: 'Encore' },
-    ].filter(({ key }) => show.setlist?.[key]?.length);
-
     const setlistStats = computeSetlistStats(show, tourRarity, liveDebutSongIds, tourDebutSongIds);
 
     return (
@@ -683,38 +676,23 @@ export default function ShowDetailPage() {
             <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 md:p-10">
                 <div className="flex items-baseline justify-between mb-6">
                     <PHeading size="large" tag="h2">Setlist</PHeading>
-                    {sets.length > 0 && (
+                    {allSongsFlat.length > 0 && (
                         <span className="text-xs font-display" style={{ color: 'var(--p-color-contrast-low)' }}>
-                            {[...(show.setlist?.set1||[]), ...(show.setlist?.set2||[]), ...(show.setlist?.set3||[]), ...(show.setlist?.encore||[])].length} songs
+                            {allSongsFlat.length} songs
                         </span>
                     )}
                 </div>
 
-                {sets.length > 0 ? (
-                    <div className="space-y-8">
-                        {sets.map(({ key, label }, idx) => (
-                            <div key={key}>
-                                {idx > 0 && <div className="mb-6"><PDivider /></div>}
-                                <div className="flex items-baseline gap-3 mb-3">
-                                    <span className="text-xs font-bold font-display uppercase tracking-widest text-amber-400">
-                                        {label}
-                                    </span>
-                                    <span className="text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>
-                                        {show.setlist[key].length} song{show.setlist[key].length !== 1 ? 's' : ''}
-                                    </span>
-                                </div>
-                                <SetList
-                                    songs={show.setlist[key]}
-                                    tourRarity={tourRarity}
-                                    liveDebutSongIds={liveDebutSongIds}
-                                    tourDebutSongIds={tourDebutSongIds}
-                                    reactionCounts={reactionCounts}
-                                    myReactions={myReactions}
-                                    onReactionToggle={handleReactionToggle}
-                                />
-                            </div>
-                        ))}
-                    </div>
+                {allSongsFlat.length > 0 ? (
+                    <SetList
+                        songs={allSongsFlat}
+                        tourRarity={tourRarity}
+                        liveDebutSongIds={liveDebutSongIds}
+                        tourDebutSongIds={tourDebutSongIds}
+                        reactionCounts={reactionCounts}
+                        myReactions={myReactions}
+                        onReactionToggle={handleReactionToggle}
+                    />
                 ) : (
                     <PText color="contrast-medium">
                         No official setlist yet.{' '}
@@ -729,40 +707,6 @@ export default function ShowDetailPage() {
                     </PText>
                 )}
             </div>
-
-            {/* Videos & Links */}
-            {show.links?.length > 0 && (
-                <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 md:p-10">
-                    <PHeading size="large" tag="h2">Videos &amp; Links</PHeading>
-                    <div className="mt-6 space-y-8">
-                        {show.links.map((link, i) => {
-                            const ytId = getYouTubeId(link.url);
-                            return ytId ? (
-                                <div key={i}>
-                                    {link.description && (
-                                        <p className="text-sm mb-3" style={{ color: 'var(--p-color-contrast-medium)' }}>{link.description}</p>
-                                    )}
-                                    <div className="relative w-full rounded-xl overflow-hidden" style={{ paddingTop: '56.25%' }}>
-                                        <iframe
-                                            className="absolute inset-0 w-full h-full"
-                                            src={`https://www.youtube.com/embed/${ytId}`}
-                                            title={link.description || 'YouTube video'}
-                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                            allowFullScreen
-                                        />
-                                    </div>
-                                </div>
-                            ) : (
-                                <a key={i} href={link.url} target="_blank" rel="noopener noreferrer"
-                                    className="flex items-center gap-2 text-sm text-amber-400 hover:underline break-all">
-                                    <span className="shrink-0">→</span>
-                                    <span>{link.description || link.url}</span>
-                                </a>
-                            );
-                        })}
-                    </div>
-                </div>
-            )}
 
             {/* Setlist Stats — only once a setlist actually exists */}
             {setlistStats && (
@@ -806,14 +750,50 @@ export default function ShowDetailPage() {
                 </div>
             )}
 
-            {/* Notes, Posters, Photos */}
+            <PhotosSection showId={show.id} />
+            <PostersSection showId={show.id} />
+
+            {/* Videos & Links */}
+            {show.links?.length > 0 && (
+                <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 md:p-10">
+                    <PHeading size="large" tag="h2">Videos &amp; Links</PHeading>
+                    <div className="mt-6 space-y-8">
+                        {show.links.map((link, i) => {
+                            const ytId = getYouTubeId(link.url);
+                            return ytId ? (
+                                <div key={i}>
+                                    {link.description && (
+                                        <p className="text-sm mb-3" style={{ color: 'var(--p-color-contrast-medium)' }}>{link.description}</p>
+                                    )}
+                                    <div className="relative w-full rounded-xl overflow-hidden" style={{ paddingTop: '56.25%' }}>
+                                        <iframe
+                                            className="absolute inset-0 w-full h-full"
+                                            src={`https://www.youtube.com/embed/${ytId}`}
+                                            title={link.description || 'YouTube video'}
+                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                            allowFullScreen
+                                        />
+                                    </div>
+                                </div>
+                            ) : (
+                                <a key={i} href={link.url} target="_blank" rel="noopener noreferrer"
+                                    className="flex items-center gap-2 text-sm text-amber-400 hover:underline break-all">
+                                    <span className="shrink-0">→</span>
+                                    <span>{link.description || link.url}</span>
+                                </a>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+
+            <NotesSection showId={show.id} />
+
+            {/* Setlist Submission */}
             {/* scroll-margin-top clears the sticky header (h-14) when jumped to via the anchor above */}
             <div id="community-setlist" style={{ scrollMarginTop: '4.5rem' }}>
                 <SetlistSubmissionSection showId={show.id} />
             </div>
-            <NotesSection showId={show.id} />
-            <PostersSection showId={show.id} />
-            <PhotosSection showId={show.id} />
 
             {/* Bottom back link */}
             <PButtonPure icon="arrow-left" onClick={() => navigate('/')}>
