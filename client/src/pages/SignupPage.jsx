@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { PHeading, PText, PButton, PInlineNotification } from '@porsche-design-system/components-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -13,7 +13,6 @@ export default function SignupPage() {
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
     const { signUp } = useAuth();
-    const navigate = useNavigate();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -27,7 +26,6 @@ export default function SignupPage() {
         try {
             await signUp(email, password);
             setSuccess(true);
-            setTimeout(() => navigate('/'), 2000);
         } catch (err) {
             setError(err.message || 'Failed to create account. Please try again.');
         } finally {
@@ -43,50 +41,62 @@ export default function SignupPage() {
                     <PText size="sm" color="contrast-medium" align="center">Join SkySets.org to track your shows</PText>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    {error && (
-                        <PInlineNotification heading="Error" description={error} state="error" dismissButton={false} />
-                    )}
-                    {success && (
+                {success ? (
+                    <div className="space-y-4">
                         <PInlineNotification
                             heading="Account created!"
-                            description="Check your email to confirm your account. Redirecting…"
+                            description="Check your email to confirm your account."
                             state="success"
                             dismissButton={false}
                         />
-                    )}
-
-                    <div className="space-y-3">
-                        <div>
-                            <label htmlFor="email" className="block text-xs font-medium mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>
-                                Email address
-                            </label>
-                            <input id="email" name="email" type="email" autoComplete="email" required
-                                value={email} onChange={(e) => setEmail(e.target.value)}
-                                placeholder="your@email.com" className={inputClass} />
-                        </div>
-                        <div>
-                            <label htmlFor="password" className="block text-xs font-medium mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>
-                                Password
-                            </label>
-                            <input id="password" name="password" type="password" autoComplete="new-password" required
-                                value={password} onChange={(e) => setPassword(e.target.value)}
-                                placeholder="At least 6 characters" className={inputClass} />
-                        </div>
-                        <div>
-                            <label htmlFor="confirmPassword" className="block text-xs font-medium mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>
-                                Confirm Password
-                            </label>
-                            <input id="confirmPassword" name="confirmPassword" type="password" autoComplete="new-password" required
-                                value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
-                                placeholder="Confirm your password" className={inputClass} />
-                        </div>
+                        <PText size="xs" color="contrast-medium">
+                            The confirmation email comes from{' '}
+                            <span style={{ color: 'var(--p-color-primary)' }}>Supabase Auth</span>{' '}
+                            (<span style={{ color: 'var(--p-color-primary)' }}>noreply@mail.app.supabase.io</span>),
+                            not skysets.org directly — that's expected. If you don't see it in a few minutes, check your spam folder.
+                        </PText>
+                        <Link to="/">
+                            <PButton className="w-full">Continue to SkySets.org</PButton>
+                        </Link>
                     </div>
+                ) : (
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                        {error && (
+                            <PInlineNotification heading="Error" description={error} state="error" dismissButton={false} />
+                        )}
 
-                    <PButton type="submit" loading={loading} disabled={success} className="w-full">
-                        Sign up
-                    </PButton>
-                </form>
+                        <div className="space-y-3">
+                            <div>
+                                <label htmlFor="email" className="block text-xs font-medium mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                                    Email address
+                                </label>
+                                <input id="email" name="email" type="email" autoComplete="email" required
+                                    value={email} onChange={(e) => setEmail(e.target.value)}
+                                    placeholder="your@email.com" className={inputClass} />
+                            </div>
+                            <div>
+                                <label htmlFor="password" className="block text-xs font-medium mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                                    Password
+                                </label>
+                                <input id="password" name="password" type="password" autoComplete="new-password" required
+                                    value={password} onChange={(e) => setPassword(e.target.value)}
+                                    placeholder="At least 6 characters" className={inputClass} />
+                            </div>
+                            <div>
+                                <label htmlFor="confirmPassword" className="block text-xs font-medium mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                                    Confirm Password
+                                </label>
+                                <input id="confirmPassword" name="confirmPassword" type="password" autoComplete="new-password" required
+                                    value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
+                                    placeholder="Confirm your password" className={inputClass} />
+                            </div>
+                        </div>
+
+                        <PButton type="submit" loading={loading} className="w-full">
+                            Sign up
+                        </PButton>
+                    </form>
+                )}
 
                 <div className="text-center">
                     <PText size="xs" color="contrast-medium">
