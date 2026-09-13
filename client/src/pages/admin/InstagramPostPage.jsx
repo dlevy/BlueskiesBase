@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { toPng } from 'html-to-image';
 import { PHeading, PText, PButton, PButtonPure, PInlineNotification, PSpinner } from '@porsche-design-system/components-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { getShowById } from '../../services/api';
+import { getShowById, getShowDebuts } from '../../services/api';
 import { buildShowPath } from '../../utils/showSlug';
 import InstagramPostGraphic from '../../components/admin/InstagramPostGraphic';
 import { POST_STYLES, POST_FORMATS, DEFAULT_STYLE_KEY, DEFAULT_FORMAT_KEY, getFormatByKey } from '../../utils/instagramStyles';
@@ -23,6 +23,8 @@ export default function InstagramPostPage() {
     const [savedStyleKey, setSavedStyleKey] = useState(null);
     const [savingStyle, setSavingStyle] = useState(false);
     const [generating, setGenerating] = useState(false);
+    const [liveDebutSongIds, setLiveDebutSongIds] = useState(new Set());
+    const [tourDebutSongIds, setTourDebutSongIds] = useState(new Set());
 
     const graphicRef = useRef(null);
 
@@ -34,6 +36,15 @@ export default function InstagramPostPage() {
                 setError('Failed to load show');
             })
             .finally(() => setLoading(false));
+    }, [id]);
+
+    useEffect(() => {
+        getShowDebuts(id)
+            .then(data => {
+                setLiveDebutSongIds(new Set(data.live_debut_song_ids || []));
+                setTourDebutSongIds(new Set(data.tour_debut_song_ids || []));
+            })
+            .catch(err => console.error('[InstagramPostPage] Error loading debuts:', err));
     }, [id]);
 
     // Load the style already assigned to this tour, if any
@@ -200,7 +211,14 @@ export default function InstagramPostPage() {
                 <div className="flex items-start justify-center rounded-2xl border border-white/10 p-8" style={{ background: 'var(--p-color-canvas)' }}>
                     <div style={{ width: PREVIEW_WIDTH, height: previewHeight, overflow: 'hidden', borderRadius: 12, boxShadow: '0 10px 40px rgba(0,0,0,0.4)' }}>
                         <div style={{ width: format.width, height: format.height, transform: `scale(${previewScale})`, transformOrigin: 'top left' }}>
-                            <InstagramPostGraphic ref={graphicRef} show={show} formatKey={formatKey} styleKey={styleKey} />
+                            <InstagramPostGraphic
+                                ref={graphicRef}
+                                show={show}
+                                formatKey={formatKey}
+                                styleKey={styleKey}
+                                liveDebutSongIds={liveDebutSongIds}
+                                tourDebutSongIds={tourDebutSongIds}
+                            />
                         </div>
                     </div>
                 </div>

@@ -19,6 +19,19 @@ const HEADER_FOOTER_OVERHEAD = 577;
 const MIN_SONG_FONT = 14;
 const MAX_SONG_FONT = 34;
 
+function DebutTag({ label, color, songFontSize }) {
+    return (
+        <span style={{
+            display: 'inline-flex', alignItems: 'center', flexShrink: 0,
+            fontSize: Math.max(10, Math.round(songFontSize * 0.4)),
+            fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5,
+            color, background: `${color}22`, borderRadius: 4, padding: '0.15em 0.5em',
+        }}>
+            {label}
+        </span>
+    );
+}
+
 function pickSongLayout(totalSongs, availableHeight) {
     const usable = Math.max(availableHeight, 100);
     let columns = 1;
@@ -34,7 +47,7 @@ function pickSongLayout(totalSongs, availableHeight) {
 // Fixed-pixel-size graphic (1080-wide, height depends on format) captured via
 // html-to-image. Layout is identical across styles/tours — only colors change —
 // so a new tour style never requires touching this component.
-const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({ show, formatKey, styleKey }, ref) {
+const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({ show, formatKey, styleKey, liveDebutSongIds, tourDebutSongIds }, ref) {
     const format = getFormatByKey(formatKey);
     const style = getStyleByKey(styleKey);
 
@@ -93,18 +106,24 @@ const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({ show, fo
             {/* Setlist — vertically centered in the remaining space */}
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', overflow: 'hidden' }}>
                 <div style={{ columnCount: columns, columnGap: 56, columnFill: 'balance' }}>
-                    {songs.map((song, i) => (
-                        <div
-                            key={song.id || i}
-                            style={{
-                                fontSize: songFontSize, lineHeight: 1.45, color: style.heading,
-                                breakInside: 'avoid', display: 'flex', gap: 10,
-                            }}
-                        >
-                            <span style={{ color: style.muted, fontVariantNumeric: 'tabular-nums' }}>{i + 1}.</span>
-                            <span>{song.title}{song.jams_into ? ' →' : ''}</span>
-                        </div>
-                    ))}
+                    {songs.map((song, i) => {
+                        const isLiveDebut = song.song_id != null && liveDebutSongIds?.has(song.song_id);
+                        const isTourDebut = song.song_id != null && tourDebutSongIds?.has(song.song_id);
+                        return (
+                            <div
+                                key={song.id || i}
+                                style={{
+                                    fontSize: songFontSize, lineHeight: 1.45, color: style.heading,
+                                    breakInside: 'avoid', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10,
+                                }}
+                            >
+                                <span style={{ color: style.muted, fontVariantNumeric: 'tabular-nums' }}>{i + 1}.</span>
+                                <span>{song.title}{song.jams_into ? ' →' : ''}</span>
+                                {isLiveDebut && <DebutTag label="Live Debut" color="#34d399" songFontSize={songFontSize} />}
+                                {isTourDebut && <DebutTag label="Tour Debut" color="#22d3ee" songFontSize={songFontSize} />}
+                            </div>
+                        );
+                    })}
                 </div>
             </div>
 
