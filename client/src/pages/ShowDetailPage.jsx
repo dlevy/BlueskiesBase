@@ -96,9 +96,9 @@ function computeSetlistStats(show, tourRarity, liveDebutSongIds, tourDebutSongId
 
 function StatTile({ value, label, color }) {
     return (
-        <div className="flex-1 min-w-[110px] rounded-xl border border-white/5 bg-white/5 p-4 text-center">
-            <div className="font-display font-bold text-2xl" style={{ color }}>{value}</div>
-            <div className="text-xs mt-1" style={{ color: 'var(--p-color-contrast-medium)' }}>{label}</div>
+        <div className="inline-flex items-center gap-1.5 rounded-lg border border-white/5 bg-white/5 px-2.5 py-1">
+            <span className="font-display font-bold text-sm" style={{ color }}>{value}</span>
+            <span className="text-xs" style={{ color: 'var(--p-color-contrast-medium)' }}>{label}</span>
         </div>
     );
 }
@@ -712,34 +712,33 @@ export default function ShowDetailPage() {
             {setlistStats && (
                 <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 md:p-10">
                     <PHeading size="large" tag="h2">Setlist Stats</PHeading>
-                    <div className="mt-6 space-y-6">
-                        <div>
-                            <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: 'var(--p-color-contrast-low)' }}>
-                                By Album
-                            </p>
-                            <div className="flex flex-wrap gap-2">
-                                {setlistStats.albumBreakdown.map(({ title, count }) => (
-                                    <span key={title} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm border border-white/10 bg-white/5">
-                                        <span style={{ color: 'var(--p-color-primary)' }}>{title}</span>
-                                        <span style={{ color: 'var(--p-color-contrast-low)' }}>{count}</span>
-                                    </span>
-                                ))}
-                                {setlistStats.otherOriginals > 0 && (
-                                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm border border-white/10 bg-white/5">
-                                        <span style={{ color: 'var(--p-color-primary)' }}>Other</span>
-                                        <span style={{ color: 'var(--p-color-contrast-low)' }}>{setlistStats.otherOriginals}</span>
-                                    </span>
-                                )}
-                                {setlistStats.covers > 0 && (
-                                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm border border-blue-500/20 bg-blue-500/5">
-                                        <span style={{ color: '#93c5fd' }}>Covers</span>
-                                        <span style={{ color: 'var(--p-color-contrast-low)' }}>{setlistStats.covers}</span>
-                                    </span>
-                                )}
-                            </div>
+                    <div className="mt-6 space-y-5">
+                        <div className="space-y-2">
+                            {(() => {
+                                const bars = [
+                                    ...setlistStats.albumBreakdown,
+                                    ...(setlistStats.otherOriginals > 0 ? [{ title: 'Other', count: setlistStats.otherOriginals }] : []),
+                                    ...(setlistStats.covers > 0 ? [{ title: 'Covers', count: setlistStats.covers, isCover: true }] : []),
+                                ].sort((a, b) => b.count - a.count);
+                                const maxCount = Math.max(...bars.map(b => b.count));
+                                return bars.map(({ title, count, isCover }) => (
+                                    <div key={title} className="flex items-center gap-3">
+                                        <span className="text-xs w-40 sm:w-56 shrink-0 truncate text-right" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                                            {title}
+                                        </span>
+                                        <div className="flex-1 h-5 rounded bg-white/5 overflow-hidden">
+                                            <div
+                                                className={`h-full rounded transition-all duration-700 ${isCover ? 'bg-blue-400/70' : 'bg-amber-400/80'}`}
+                                                style={{ width: `${(count / maxCount) * 100}%` }}
+                                            />
+                                        </div>
+                                        <span className="text-xs w-4 shrink-0" style={{ color: 'var(--p-color-contrast-medium)' }}>{count}</span>
+                                    </div>
+                                ));
+                            })()}
                         </div>
 
-                        <div className="flex flex-wrap gap-3">
+                        <div className="flex flex-wrap gap-2">
                             {tourRarity && (
                                 <StatTile value={setlistStats.rareCount} label="Rare Songs" color="#c084fc" />
                             )}
