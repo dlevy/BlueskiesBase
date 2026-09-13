@@ -620,7 +620,7 @@ export default function SearchPage() {
                                                                 {openingAct && <PTag color="notification-neutral-soft">Opener: {openingAct}</PTag>}
                                                                 {hasVideo && <ListTag label="Video" color="#f87171" />}
                                                                 {hasLinks && <PTag color="notification-neutral-soft">Links</PTag>}
-                                                                {hasNotes && <PTag color="notification-warning-soft">Notes</PTag>}
+                                                                {hasNotes && <ListTag label="Notes" color="#fbbf24" />}
                                                                 {hasPhotos && <ListTag label="Photos" color="#f472b6" />}
                                                                 {hasPoster && <ListTag label="Poster" color="#facc15" />}
                                                                 {songStats.covers > 0 && (
