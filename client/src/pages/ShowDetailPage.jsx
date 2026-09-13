@@ -26,6 +26,83 @@ function getYouTubeId(url) {
     return null;
 }
 
+// Per-show setlist breakdown: album counts (each original attributed to its
+// earliest-released album, so the breakdown sums to the total), covers, and
+// rarity/debut counts using the same thresholds as the per-song badges below.
+// Counts each unique song once regardless of how many times it was jammed
+// back into during the show.
+function computeSetlistStats(show, tourRarity, liveDebutSongIds, tourDebutSongIds) {
+    if (!show?.setlist) return null;
+    const allSongs = [
+        ...(show.setlist.set1 || []),
+        ...(show.setlist.set2 || []),
+        ...(show.setlist.set3 || []),
+        ...(show.setlist.encore || []),
+    ];
+    if (allSongs.length === 0) return null;
+
+    const seen = new Set();
+    const albumCounts = new Map();
+    let otherOriginals = 0;
+    let covers = 0;
+    let rareCount = 0;
+    let liveDebutCount = 0;
+    let tourDebutCount = 0;
+
+    allSongs.forEach(song => {
+        if (!song.song_id || seen.has(song.song_id)) return;
+        seen.add(song.song_id);
+
+        if (song.is_original === false) {
+            covers++;
+        } else if (song.is_original === true) {
+            const assocs = (song.songs?.album_songs || []).filter(as => as.albums);
+            if (assocs.length > 0) {
+                const primary = [...assocs].sort((a, b) => {
+                    const ra = a.albums?.release_date || '';
+                    const rb = b.albums?.release_date || '';
+                    if (!ra) return 1;
+                    if (!rb) return -1;
+                    return ra.localeCompare(rb);
+                })[0];
+                const title = primary.albums?.title || 'Other';
+                albumCounts.set(title, (albumCounts.get(title) || 0) + 1);
+            } else {
+                otherOriginals++;
+            }
+        }
+
+        const tourCount = tourRarity?.total_shows > 0 ? tourRarity.song_counts[song.song_id] : undefined;
+        if (tourCount != null && tourCount / tourRarity.total_shows < 0.15) rareCount++;
+
+        if (liveDebutSongIds?.has(song.song_id)) liveDebutCount++;
+        if (tourDebutSongIds?.has(song.song_id)) tourDebutCount++;
+    });
+
+    const albumBreakdown = [...albumCounts.entries()]
+        .map(([title, count]) => ({ title, count }))
+        .sort((a, b) => b.count - a.count);
+
+    return {
+        totalSongs: seen.size,
+        albumBreakdown,
+        otherOriginals,
+        covers,
+        rareCount,
+        liveDebutCount,
+        tourDebutCount,
+    };
+}
+
+function StatTile({ value, label, color }) {
+    return (
+        <div className="flex-1 min-w-[110px] rounded-xl border border-white/5 bg-white/5 p-4 text-center">
+            <div className="font-display font-bold text-2xl" style={{ color }}>{value}</div>
+            <div className="text-xs mt-1" style={{ color: 'var(--p-color-contrast-medium)' }}>{label}</div>
+        </div>
+    );
+}
+
 function RareBadge({ count, total, tourName }) {
     return (
         <div className="relative inline-flex group/rare">
@@ -434,6 +511,8 @@ export default function ShowDetailPage() {
         { key: 'encore', label: 'Encore' },
     ].filter(({ key }) => show.setlist?.[key]?.length);
 
+    const setlistStats = computeSetlistStats(show, tourRarity, liveDebutSongIds, tourDebutSongIds);
+
     return (
         <div className="px-4 py-8 max-w-4xl mx-auto space-y-6">
             <SEO title={seoTitle} description={seoDescription} jsonLd={jsonLd} />
@@ -681,6 +760,48 @@ export default function ShowDetailPage() {
                                 </a>
                             );
                         })}
+                    </div>
+                </div>
+            )}
+
+            {/* Setlist Stats — only once a setlist actually exists */}
+            {setlistStats && (
+                <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 md:p-10">
+                    <PHeading size="large" tag="h2">Setlist Stats</PHeading>
+                    <div className="mt-6 space-y-6">
+                        <div>
+                            <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: 'var(--p-color-contrast-low)' }}>
+                                By Album
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                                {setlistStats.albumBreakdown.map(({ title, count }) => (
+                                    <span key={title} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm border border-white/10 bg-white/5">
+                                        <span style={{ color: 'var(--p-color-primary)' }}>{title}</span>
+                                        <span style={{ color: 'var(--p-color-contrast-low)' }}>{count}</span>
+                                    </span>
+                                ))}
+                                {setlistStats.otherOriginals > 0 && (
+                                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm border border-white/10 bg-white/5">
+                                        <span style={{ color: 'var(--p-color-primary)' }}>Other</span>
+                                        <span style={{ color: 'var(--p-color-contrast-low)' }}>{setlistStats.otherOriginals}</span>
+                                    </span>
+                                )}
+                                {setlistStats.covers > 0 && (
+                                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm border border-blue-500/20 bg-blue-500/5">
+                                        <span style={{ color: '#93c5fd' }}>Covers</span>
+                                        <span style={{ color: 'var(--p-color-contrast-low)' }}>{setlistStats.covers}</span>
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="flex flex-wrap gap-3">
+                            {tourRarity && (
+                                <StatTile value={setlistStats.rareCount} label="Rare Songs" color="#c084fc" />
+                            )}
+                            <StatTile value={setlistStats.tourDebutCount} label="Tour Debuts" color="#22d3ee" />
+                            <StatTile value={setlistStats.liveDebutCount} label="Live Debuts" color="#34d399" />
+                        </div>
                     </div>
                 </div>
             )}

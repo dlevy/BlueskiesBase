@@ -528,7 +528,11 @@ router.get('/:id', async (req, res) => {
                     title,
                     original_artist,
                     is_original,
-                    written_by
+                    written_by,
+                    album_songs (
+                        album_id,
+                        albums (id, title, release_date)
+                    )
                 )
             `)
             .eq('show_id', id)
