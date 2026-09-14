@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { PSpinner } from '@porsche-design-system/components-react';
 import { supabase } from '../services/supabase';
 import { getShowDebutsBatch } from '../services/api';
+import { fetchTourSongCounts } from '../utils/tourSongCounts';
 
 const LIVE_DEBUT_COLOR = '#34d399';
 const TOUR_DEBUT_COLOR = '#22d3ee';
@@ -60,50 +62,14 @@ export default function TourStatsWidget() {
                 const tourName = recent?.[0]?.tour_name;
                 if (recentError || !tourName) { if (!cancelled) setLoading(false); return; }
 
-                const { data: tourShows, error: tourError } = await supabase
-                    .from('shows')
-                    .select('id, show_date')
-                    .eq('tour_name', tourName)
-                    .order('show_date');
+                const tourData = await fetchTourSongCounts(tourName);
+                if (!tourData || tourData.songCounts.length === 0) { if (!cancelled) setLoading(false); return; }
 
-                if (tourError || !tourShows?.length) { if (!cancelled) setLoading(false); return; }
-
-                const played = tourShows.filter(s => s.show_date <= todayStr);
-                const playedIds = played.map(s => s.id);
-                if (playedIds.length === 0) { if (!cancelled) setLoading(false); return; }
-
-                // Setlist rows for every played show on this tour, paginated — a mature
-                // tour's row count can exceed PostgREST's 1000-row default.
-                let rows = [];
-                for (let rangeStart = 0; ;) {
-                    const { data: page, error } = await supabase
-                        .from('setlist_songs')
-                        .select('song_id, show_id, songs!setlist_songs_song_id_fkey(title)')
-                        .in('show_id', playedIds)
-                        .order('id')
-                        .range(rangeStart, rangeStart + 999);
-                    if (error || !page?.length) break;
-                    rows = rows.concat(page);
-                    if (page.length < 1000) break;
-                    rangeStart += 1000;
-                }
-
-                if (rows.length === 0) { if (!cancelled) setLoading(false); return; }
-
-                // Distinct shows per song — a song sandwiched (jammed out of and back into)
-                // within one show still only counts once for that show, since this groups
-                // by show_id per title rather than counting rows.
-                const showSetsByTitle = {};
-                rows.forEach(r => {
-                    const title = r.songs?.title;
-                    if (!title) return;
-                    (showSetsByTitle[title] ||= new Set()).add(r.show_id);
-                });
-                const counts = Object.entries(showSetsByTitle).map(([title, shows]) => [title, shows.size]);
-                const maxCount = Math.max(...counts.map(c => c[1]));
-                const minCount = Math.min(...counts.map(c => c[1]));
-                const mostPlayed = counts.filter(c => c[1] === maxCount).map(c => c[0]).sort((a, b) => a.localeCompare(b));
-                const rarest = counts.filter(c => c[1] === minCount).map(c => c[0]).sort((a, b) => a.localeCompare(b));
+                const { totalShows, playedShows, firstDate, lastDate, playedIds, songCounts } = tourData;
+                const maxCount = songCounts[0].count;
+                const minCount = songCounts[songCounts.length - 1].count;
+                const mostPlayed = songCounts.filter(s => s.count === maxCount).map(s => s.title).sort((a, b) => a.localeCompare(b));
+                const rarest = songCounts.filter(s => s.count === minCount).map(s => s.title).sort((a, b) => a.localeCompare(b));
 
                 // Live/tour debut totals — same batch computation already verified and
                 // shipped for the show page and list-view previews, just summed here.
@@ -121,10 +87,10 @@ export default function TourStatsWidget() {
                 if (cancelled) return;
                 setStats({
                     tourName,
-                    totalShows: tourShows.length,
-                    playedShows: played.length,
-                    firstDate: tourShows[0].show_date,
-                    lastDate: tourShows[tourShows.length - 1].show_date,
+                    totalShows,
+                    playedShows,
+                    firstDate,
+                    lastDate,
                     mostPlayed, maxCount,
                     rarest, minCount,
                     liveDebutCount, tourDebutCount,
@@ -184,6 +150,13 @@ export default function TourStatsWidget() {
             {stats.minCount < stats.maxCount && (
                 <SongGroup label="Rarest So Far" color={RAREST_COLOR} count={stats.minCount} playedShows={stats.playedShows} songs={stats.rarest} />
             )}
+
+            <Link to="/tour-stats" className="inline-flex items-center gap-1 text-xs font-medium text-amber-400 hover:opacity-80 transition-opacity">
+                More Tour Stats
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+            </Link>
         </div>
     );
 }
