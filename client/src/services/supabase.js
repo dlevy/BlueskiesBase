@@ -12,7 +12,14 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: true,
-        flowType: 'pkce',
+        // Every redirect-based email link in this app (signup confirmation, admin
+        // password resets) is generated server-side via the plain supabase-js
+        // client, which defaults to 'implicit'. PKCE requires the *same browser*
+        // that requested the link to hold a locally-stored code verifier, which is
+        // architecturally impossible when an admin sends the link to someone
+        // else's browser — a client/server flowType mismatch makes auth-js throw
+        // "Not a valid PKCE flow url." and silently fail to establish a session.
+        flowType: 'implicit',
         storage: window.localStorage,
         storageKey: 'blueskiesbase-auth',
         // Keep session alive indefinitely
