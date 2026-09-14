@@ -28,7 +28,10 @@ export default function TourStatsPage() {
                 const [list, defaultTour] = await Promise.all([fetchTourList(), fetchDefaultTourName()]);
                 if (cancelled) return;
                 setTours(list);
-                setSelectedTour(defaultTour || list[0]?.tourName || '');
+                // Fall back to the most recent listed tour if the "current" tour got
+                // filtered out of the list (fewer than MIN_TOUR_SHOWS shows).
+                const validDefault = list.some(t => t.tourName === defaultTour) ? defaultTour : null;
+                setSelectedTour(validDefault || list[0]?.tourName || '');
             } catch (err) {
                 console.error('[TourStatsPage] Error loading tour list:', err);
                 if (!cancelled) setError('Failed to load tours');
@@ -115,11 +118,18 @@ export default function TourStatsPage() {
                                 </PText>
 
                                 <div className="space-y-1.5">
-                                    {tourData.songCounts.map(({ title, count }) => (
+                                    {tourData.songCounts.map(({ title, count, isOriginal }) => (
                                         <div key={title} className="flex items-center gap-3">
-                                            <span className="text-xs w-40 sm:w-56 shrink-0 truncate text-right" style={{ color: 'var(--p-color-contrast-medium)' }}>
-                                                {title}
-                                            </span>
+                                            <div className="w-40 sm:w-56 shrink-0 flex items-center justify-end gap-1.5 overflow-hidden">
+                                                <span className="text-xs truncate" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                                                    {title}
+                                                </span>
+                                                {isOriginal === false && (
+                                                    <span className="shrink-0 text-[9px] font-bold uppercase tracking-wide px-1 py-0.5 rounded bg-blue-500/10 text-blue-300">
+                                                        cover
+                                                    </span>
+                                                )}
+                                            </div>
                                             <div className="flex-1 h-4 rounded bg-white/5 overflow-hidden">
                                                 <div
                                                     className="h-full rounded bg-amber-400/80 transition-all duration-700"

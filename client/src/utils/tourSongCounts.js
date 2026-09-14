@@ -16,9 +16,13 @@ export async function fetchDefaultTourName() {
     return data?.[0]?.tour_name || null;
 }
 
-// Every distinct tour_name, with its date range, newest-last-show-first — for a
-// tour picker. Paginated with a stable order since the shows table can exceed
-// PostgREST's 1000-row default.
+// Every distinct tour_name with at least MIN_TOUR_SHOWS scheduled shows, with its
+// date range, newest-last-show-first — for a tour picker. Filters out one-off/benefit
+// shows entered with their own "tour" name so the list stays to actual tours.
+// Paginated with a stable order since the shows table can exceed PostgREST's
+// 1000-row default.
+const MIN_TOUR_SHOWS = 5;
+
 export async function fetchTourList() {
     let rows = [];
     for (let rangeStart = 0; ;) {
@@ -37,12 +41,15 @@ export async function fetchTourList() {
     const byTour = {};
     rows.forEach(({ tour_name, show_date }) => {
         if (!tour_name) return;
-        const entry = (byTour[tour_name] ||= { tourName: tour_name, firstDate: show_date, lastDate: show_date });
+        const entry = (byTour[tour_name] ||= { tourName: tour_name, firstDate: show_date, lastDate: show_date, showCount: 0 });
+        entry.showCount++;
         if (show_date < entry.firstDate) entry.firstDate = show_date;
         if (show_date > entry.lastDate) entry.lastDate = show_date;
     });
 
-    return Object.values(byTour).sort((a, b) => b.lastDate.localeCompare(a.lastDate));
+    return Object.values(byTour)
+        .filter(t => t.showCount >= MIN_TOUR_SHOWS)
+        .sort((a, b) => b.lastDate.localeCompare(a.lastDate));
 }
 
 // Distinct-show play counts per song title for every already-played show (show_date
@@ -71,7 +78,7 @@ export async function fetchTourSongCounts(tourName) {
     for (let rangeStart = 0; ;) {
         const { data: page, error } = await supabase
             .from('setlist_songs')
-            .select('song_id, show_id, songs!setlist_songs_song_id_fkey(title)')
+            .select('song_id, show_id, songs!setlist_songs_song_id_fkey(title, is_original)')
             .in('show_id', playedIds)
             .order('id')
             .range(rangeStart, rangeStart + 999);
@@ -84,14 +91,17 @@ export async function fetchTourSongCounts(tourName) {
     // Distinct shows per song — a song sandwiched (jammed out of and back into)
     // within one show still only counts once for that show.
     const showSetsByTitle = {};
+    const isOriginalByTitle = {};
     rows.forEach(r => {
         const title = r.songs?.title;
         if (!title) return;
         (showSetsByTitle[title] ||= new Set()).add(r.show_id);
+        if (r.songs?.is_original === false) isOriginalByTitle[title] = false;
+        else if (!(title in isOriginalByTitle)) isOriginalByTitle[title] = r.songs?.is_original ?? true;
     });
 
     const songCounts = Object.entries(showSetsByTitle)
-        .map(([title, shows]) => ({ title, count: shows.size }))
+        .map(([title, shows]) => ({ title, count: shows.size, isOriginal: isOriginalByTitle[title] }))
         .sort((a, b) => b.count - a.count || a.title.localeCompare(b.title));
 
     return {
