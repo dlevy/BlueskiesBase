@@ -79,6 +79,20 @@ export const AuthProvider = ({ children }) => {
                 return;
             }
 
+            if (event === 'PASSWORD_RECOVERY') {
+                // Fired when a user lands on /reset-password via the emailed link —
+                // Supabase has already exchanged the token for a real session by
+                // this point. Clear loading same as SIGNED_IN so the page can render.
+                if (loadingTimer) { clearTimeout(loadingTimer); loadingTimer = null; }
+                setLoading(false);
+                if (session?.user) {
+                    fetchProfile(session.user.id)
+                        .then(p => { if (mounted) setProfile(p); })
+                        .catch(() => { if (mounted) setProfile(null); });
+                }
+                return;
+            }
+
             // TOKEN_REFRESHED / USER_UPDATED — session/user already set above;
             // profile unchanged (avoid spurious re-fetches and risk of clearing it
             // if the fetch fails during a refresh).
@@ -107,6 +121,11 @@ export const AuthProvider = ({ children }) => {
         return data;
     };
 
+    const updatePassword = async (newPassword) => {
+        const { error } = await supabase.auth.updateUser({ password: newPassword });
+        if (error) throw error;
+    };
+
     const signOut = async () => {
         setUser(null);
         setProfile(null);
@@ -131,6 +150,7 @@ export const AuthProvider = ({ children }) => {
         signIn,
         signUp,
         signOut,
+        updatePassword,
         getToken,
     };
 

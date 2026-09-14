@@ -13,6 +13,7 @@ import TourStatsPage from './pages/TourStatsPage'
 import LoginPage from './pages/LoginPage'
 import MemberLoginPage from './pages/MemberLoginPage'
 import SignupPage from './pages/SignupPage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
 import AuthDebugPage from './pages/AuthDebugPage'
 import AdminLayout from './pages/admin/AdminLayout'
 import AdminDashboard from './pages/admin/AdminDashboard'
@@ -42,6 +43,7 @@ function App() {
           {/* Member Auth Routes */}
           <Route path="/member-login" element={<MemberLoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
 
           {/* Admin Login Route */}
           <Route path="/login" element={<LoginPage />} />

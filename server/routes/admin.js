@@ -92,6 +92,95 @@ router.post('/users/:userId/resend-confirmation', requireAdmin, async (req, res)
 });
 
 /**
+ * POST /api/admin/users/:userId/send-password-reset
+ * Sends a password-reset email so a user who's stuck — e.g. their original
+ * signup confirmation email never arrived — can set a password and get into
+ * their account directly. Verifying the recovery link also confirms their
+ * email as a side effect, so this doubles as an unblock for that case.
+ */
+router.post('/users/:userId/send-password-reset', requireAdmin, async (req, res) => {
+    try {
+        const { userId } = req.params;
+
+        const { data: userData, error: getUserError } = await supabase.auth.admin.getUserById(userId);
+        if (getUserError || !userData?.user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        const email = userData.user.email;
+
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: `${process.env.FRONTEND_URL || 'https://www.skysets.org'}/reset-password`,
+        });
+
+        if (error) {
+            console.error('[admin/send-password-reset] error:', error);
+            return res.status(500).json({ error: 'Failed to send password reset email' });
+        }
+
+        res.json({ success: true, email });
+    } catch (err) {
+        console.error('[admin/send-password-reset] error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * DELETE /api/admin/users/:userId
+ * Permanently deletes a user: their auth account, profile, and everything
+ * they've contributed (photos/posters — including the underlying storage
+ * files — notes, setlist submissions, attendance, and song reactions).
+ */
+router.delete('/users/:userId', requireAdmin, async (req, res) => {
+    try {
+        const { userId } = req.params;
+
+        const { data: userData, error: getUserError } = await supabase.auth.admin.getUserById(userId);
+        if (getUserError || !userData?.user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        // Remove uploaded photo/poster files from storage before deleting the rows
+        // that point to them.
+        const { data: photos } = await supabase.from('user_photos').select('photo_url').eq('user_id', userId);
+        const photoPaths = (photos || []).map(p => p.photo_url?.split('/show-photos/')[1]).filter(Boolean);
+        if (photoPaths.length) await supabase.storage.from('show-photos').remove(photoPaths);
+
+        const { data: posters } = await supabase.from('user_posters').select('poster_url').eq('user_id', userId);
+        const posterPaths = (posters || []).map(p => p.poster_url?.split('/show-posters/')[1]).filter(Boolean);
+        if (posterPaths.length) await supabase.storage.from('show-posters').remove(posterPaths);
+
+        const { data: submissions } = await supabase.from('setlist_submissions').select('id').eq('user_id', userId);
+        const submissionIds = (submissions || []).map(s => s.id);
+        if (submissionIds.length) {
+            await supabase.from('setlist_submission_songs').delete().in('submission_id', submissionIds);
+        }
+
+        await Promise.all([
+            supabase.from('user_photos').delete().eq('user_id', userId),
+            supabase.from('user_posters').delete().eq('user_id', userId),
+            supabase.from('user_notes').delete().eq('user_id', userId),
+            supabase.from('setlist_submissions').delete().eq('user_id', userId),
+            supabase.from('user_shows').delete().eq('user_id', userId),
+            supabase.from('setlist_song_reactions').delete().eq('user_id', userId),
+        ]);
+
+        await supabase.from('profiles').delete().eq('id', userId);
+
+        const { error: deleteError } = await supabase.auth.admin.deleteUser(userId);
+        if (deleteError) {
+            console.error('[admin/delete-user] deleteUser error:', deleteError);
+            return res.status(500).json({ error: 'Failed to delete user account' });
+        }
+
+        res.json({ success: true });
+    } catch (err) {
+        console.error('[admin/delete-user] error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
  * GET /api/admin/tour-style/:tourName
  * The Instagram post style assigned to a tour, so posts stay visually
  * consistent within a tour. Returns { style_key: null } if unset.

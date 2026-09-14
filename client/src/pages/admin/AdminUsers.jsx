@@ -94,6 +94,10 @@ export default function AdminUsers() {
     const [error, setError] = useState(null);
     const [resending, setResending] = useState(null);
     const [resendStatus, setResendStatus] = useState({});
+    const [sendingReset, setSendingReset] = useState(null);
+    const [resetStatus, setResetStatus] = useState({});
+    const [deleting, setDeleting] = useState(null);
+    const [deleteError, setDeleteError] = useState(null);
     const [search, setSearch] = useState('');
     const [filterMode, setFilterMode] = useState('all');
     const [inactiveDays, setInactiveDays] = useState(90);
@@ -133,6 +137,44 @@ export default function AdminUsers() {
             setResendStatus(s => ({ ...s, [userId]: 'error' }));
         } finally {
             setResending(null);
+        }
+    };
+
+    const sendPasswordReset = async (userId) => {
+        setSendingReset(userId);
+        try {
+            const token = await getToken();
+            const res = await fetch(`${API_BASE}/api/admin/users/${userId}/send-password-reset`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed');
+            setResetStatus(s => ({ ...s, [userId]: 'sent' }));
+        } catch (err) {
+            setResetStatus(s => ({ ...s, [userId]: 'error' }));
+        } finally {
+            setSendingReset(null);
+        }
+    };
+
+    const deleteUser = async (userId, email) => {
+        if (!confirm(`Permanently delete ${email}? This removes their account and everything they've contributed (photos, posters, notes, etc.). This cannot be undone.`)) return;
+        setDeleting(userId);
+        setDeleteError(null);
+        try {
+            const token = await getToken();
+            const res = await fetch(`${API_BASE}/api/admin/users/${userId}`, {
+                method: 'DELETE',
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to delete user');
+            setUsers(prev => prev.filter(u => u.id !== userId));
+        } catch (err) {
+            setDeleteError(err.message);
+        } finally {
+            setDeleting(null);
         }
     };
 
@@ -177,6 +219,15 @@ export default function AdminUsers() {
 
     return (
         <div className="space-y-8">
+            {deleteError && (
+                <PInlineNotification
+                    heading="Failed to delete user"
+                    description={deleteError}
+                    state="error"
+                    dismissButton={false}
+                />
+            )}
+
             <div className="flex items-center justify-between flex-wrap gap-3">
                 <PHeading size="2xl" tag="h1">Users</PHeading>
                 <div className="flex items-center gap-3">
@@ -302,6 +353,7 @@ export default function AdminUsers() {
                         <tbody>
                             {filtered.map(user => {
                                 const status = resendStatus[user.id];
+                                const resetStat = resetStatus[user.id];
                                 return (
                                     <tr
                                         key={user.id}
@@ -329,25 +381,52 @@ export default function AdminUsers() {
                                             )}
                                         </td>
                                         <td className="px-4 py-3">
-                                            {!user.confirmed && (
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {!user.confirmed && (
+                                                    <button
+                                                        onClick={() => resendConfirmation(user.id, user.email)}
+                                                        disabled={resending === user.id || status === 'sent'}
+                                                        className="text-xs px-3 py-1 rounded-lg border transition-all disabled:opacity-50"
+                                                        style={
+                                                            status === 'sent'
+                                                                ? { border: '1px solid rgba(74,222,128,0.3)', color: '#4ade80' }
+                                                                : status === 'error'
+                                                                ? { border: '1px solid rgba(248,113,113,0.3)', color: '#f87171' }
+                                                                : { border: '1px solid rgba(245,158,11,0.3)', color: '#f59e0b' }
+                                                        }
+                                                    >
+                                                        {resending === user.id ? 'Sending…'
+                                                            : status === 'sent' ? '✓ Sent'
+                                                            : status === 'error' ? 'Failed — retry'
+                                                            : 'Resend activation'}
+                                                    </button>
+                                                )}
                                                 <button
-                                                    onClick={() => resendConfirmation(user.id, user.email)}
-                                                    disabled={resending === user.id || status === 'sent'}
+                                                    onClick={() => sendPasswordReset(user.id)}
+                                                    disabled={sendingReset === user.id || resetStat === 'sent'}
                                                     className="text-xs px-3 py-1 rounded-lg border transition-all disabled:opacity-50"
                                                     style={
-                                                        status === 'sent'
+                                                        resetStat === 'sent'
                                                             ? { border: '1px solid rgba(74,222,128,0.3)', color: '#4ade80' }
-                                                            : status === 'error'
+                                                            : resetStat === 'error'
                                                             ? { border: '1px solid rgba(248,113,113,0.3)', color: '#f87171' }
-                                                            : { border: '1px solid rgba(245,158,11,0.3)', color: '#f59e0b' }
+                                                            : { border: '1px solid rgba(96,165,250,0.3)', color: '#60a5fa' }
                                                     }
                                                 >
-                                                    {resending === user.id ? 'Sending…'
-                                                        : status === 'sent' ? '✓ Sent'
-                                                        : status === 'error' ? 'Failed — retry'
-                                                        : 'Resend activation'}
+                                                    {sendingReset === user.id ? 'Sending…'
+                                                        : resetStat === 'sent' ? '✓ Sent'
+                                                        : resetStat === 'error' ? 'Failed — retry'
+                                                        : 'Send password reset'}
                                                 </button>
-                                            )}
+                                                <button
+                                                    onClick={() => deleteUser(user.id, user.email)}
+                                                    disabled={deleting === user.id}
+                                                    className="text-xs px-3 py-1 rounded-lg border transition-all disabled:opacity-50"
+                                                    style={{ border: '1px solid rgba(248,113,113,0.3)', color: '#f87171' }}
+                                                >
+                                                    {deleting === user.id ? 'Deleting…' : 'Delete'}
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 );
