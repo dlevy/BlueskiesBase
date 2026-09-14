@@ -50,10 +50,7 @@ export default function SignupPage() {
                             dismissButton={false}
                         />
                         <PText size="xs" color="contrast-medium">
-                            The confirmation email comes from{' '}
-                            <span style={{ color: 'var(--p-color-primary)' }}>Supabase Auth</span>{' '}
-                            (<span style={{ color: 'var(--p-color-primary)' }}>noreply@mail.app.supabase.io</span>),
-                            not skysets.org directly — that's expected. If you don't see it in a few minutes, check your spam folder.
+                            If you don't see it in a few minutes, check your spam folder.
                         </PText>
                         <Link to="/">
                             <PButton className="w-full">Continue to SkySets.org</PButton>
