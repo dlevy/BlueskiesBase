@@ -96,6 +96,8 @@ export default function AdminUsers() {
     const [resendStatus, setResendStatus] = useState({});
     const [sendingReset, setSendingReset] = useState(null);
     const [resetStatus, setResetStatus] = useState({});
+    const [resetLinks, setResetLinks] = useState({});
+    const [copiedLink, setCopiedLink] = useState(null);
     const [deleting, setDeleting] = useState(null);
     const [deleteError, setDeleteError] = useState(null);
     const [search, setSearch] = useState('');
@@ -151,10 +153,22 @@ export default function AdminUsers() {
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Failed');
             setResetStatus(s => ({ ...s, [userId]: 'sent' }));
+            setResetLinks(s => ({ ...s, [userId]: data.link }));
         } catch (err) {
             setResetStatus(s => ({ ...s, [userId]: 'error' }));
         } finally {
             setSendingReset(null);
+        }
+    };
+
+    const copyResetLink = async (userId) => {
+        try {
+            await navigator.clipboard.writeText(resetLinks[userId]);
+            setCopiedLink(userId);
+            setTimeout(() => setCopiedLink(c => (c === userId ? null : c)), 2000);
+        } catch (err) {
+            // Clipboard API unavailable/denied — the link is still shown and
+            // selectable manually.
         }
     };
 
@@ -401,23 +415,44 @@ export default function AdminUsers() {
                                                             : 'Resend activation'}
                                                     </button>
                                                 )}
-                                                <button
-                                                    onClick={() => sendPasswordReset(user.id)}
-                                                    disabled={sendingReset === user.id || resetStat === 'sent'}
-                                                    className="text-xs px-3 py-1 rounded-lg border transition-all disabled:opacity-50"
-                                                    style={
-                                                        resetStat === 'sent'
-                                                            ? { border: '1px solid rgba(74,222,128,0.3)', color: '#4ade80' }
-                                                            : resetStat === 'error'
-                                                            ? { border: '1px solid rgba(248,113,113,0.3)', color: '#f87171' }
-                                                            : { border: '1px solid rgba(96,165,250,0.3)', color: '#60a5fa' }
-                                                    }
-                                                >
-                                                    {sendingReset === user.id ? 'Sending…'
-                                                        : resetStat === 'sent' ? '✓ Sent'
-                                                        : resetStat === 'error' ? 'Failed — retry'
-                                                        : 'Send password reset'}
-                                                </button>
+                                                <div className="flex flex-wrap items-center gap-1.5">
+                                                    <button
+                                                        onClick={() => sendPasswordReset(user.id)}
+                                                        disabled={sendingReset === user.id}
+                                                        className="text-xs px-3 py-1 rounded-lg border transition-all disabled:opacity-50"
+                                                        style={
+                                                            resetStat === 'sent'
+                                                                ? { border: '1px solid rgba(74,222,128,0.3)', color: '#4ade80' }
+                                                                : resetStat === 'error'
+                                                                ? { border: '1px solid rgba(248,113,113,0.3)', color: '#f87171' }
+                                                                : { border: '1px solid rgba(96,165,250,0.3)', color: '#60a5fa' }
+                                                        }
+                                                        title="Generates a link — this app doesn't email it; copy it and share it with the user yourself"
+                                                    >
+                                                        {sendingReset === user.id ? 'Generating…'
+                                                            : resetStat === 'sent' ? '✓ Regenerate link'
+                                                            : resetStat === 'error' ? 'Failed — retry'
+                                                            : 'Get reset link'}
+                                                    </button>
+                                                    {resetStat === 'sent' && resetLinks[user.id] && (
+                                                        <>
+                                                            <input
+                                                                readOnly
+                                                                value={resetLinks[user.id]}
+                                                                onFocus={(e) => e.target.select()}
+                                                                className="text-[11px] px-2 py-1 rounded border bg-black/20 w-48 outline-none"
+                                                                style={{ borderColor: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.6)' }}
+                                                            />
+                                                            <button
+                                                                onClick={() => copyResetLink(user.id)}
+                                                                className="text-xs px-2 py-1 rounded-lg border transition-all"
+                                                                style={{ border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.7)' }}
+                                                            >
+                                                                {copiedLink === user.id ? '✓ Copied' : 'Copy'}
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                </div>
                                                 <button
                                                     onClick={() => deleteUser(user.id, user.email)}
                                                     disabled={deleting === user.id}

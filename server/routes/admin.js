@@ -93,10 +93,16 @@ router.post('/users/:userId/resend-confirmation', requireAdmin, async (req, res)
 
 /**
  * POST /api/admin/users/:userId/send-password-reset
- * Sends a password-reset email so a user who's stuck — e.g. their original
- * signup confirmation email never arrived — can set a password and get into
- * their account directly. Verifying the recovery link also confirms their
- * email as a side effect, so this doubles as an unblock for that case.
+ * Generates a password-reset link for a user who's stuck — e.g. their
+ * original signup confirmation email never arrived — so they can set a
+ * password and get into their account directly. Verifying the recovery
+ * link also confirms their email as a side effect, so this doubles as an
+ * unblock for that case.
+ *
+ * Uses admin.generateLink rather than resetPasswordForEmail so it doesn't
+ * go through (and isn't rate-limited by) Supabase's shared auth mailer —
+ * the link is returned to the admin to deliver however they choose
+ * (email, text, Slack) instead of relying on Supabase to send it.
  */
 router.post('/users/:userId/send-password-reset', requireAdmin, async (req, res) => {
     try {
@@ -109,16 +115,20 @@ router.post('/users/:userId/send-password-reset', requireAdmin, async (req, res)
 
         const email = userData.user.email;
 
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: `${process.env.FRONTEND_URL || 'https://www.skysets.org'}/reset-password`,
+        const { data, error } = await supabase.auth.admin.generateLink({
+            type: 'recovery',
+            email,
+            options: {
+                redirectTo: `${process.env.FRONTEND_URL || 'https://www.skysets.org'}/reset-password`,
+            },
         });
 
-        if (error) {
+        if (error || !data?.properties?.action_link) {
             console.error('[admin/send-password-reset] error:', error);
-            return res.status(500).json({ error: 'Failed to send password reset email' });
+            return res.status(500).json({ error: 'Failed to generate password reset link' });
         }
 
-        res.json({ success: true, email });
+        res.json({ success: true, email, link: data.properties.action_link });
     } catch (err) {
         console.error('[admin/send-password-reset] error:', err);
         res.status(500).json({ error: 'Internal server error' });
