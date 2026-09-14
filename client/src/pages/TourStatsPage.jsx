@@ -111,28 +111,32 @@ export default function TourStatsPage() {
                                 <div className="flex items-baseline justify-between mb-1">
                                     <PHeading size="large" tag="h2">{selectedTour}</PHeading>
                                 </div>
-                                <PText size="small" color="contrast-medium" className="mb-6 block">
+                                <PText size="small" color="contrast-medium" className="mb-1 block">
                                     {tourData.playedShows} of {tourData.totalShows} shows played &middot; {formatDate(tourData.firstDate)}
                                     {tourData.lastDate !== tourData.firstDate && <> &rarr; {formatDate(tourData.lastDate)}</>}
                                     {' '}&middot; {tourData.songCounts.length} song{tourData.songCounts.length !== 1 ? 's' : ''} played
                                 </PText>
 
+                                <div className="flex items-center gap-4 mb-5">
+                                    <span className="inline-flex items-center gap-1.5 text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>
+                                        <span className="w-2.5 h-2.5 rounded-sm bg-amber-400/80 inline-block" />
+                                        Original
+                                    </span>
+                                    <span className="inline-flex items-center gap-1.5 text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>
+                                        <span className="w-2.5 h-2.5 rounded-sm bg-blue-400/70 inline-block" />
+                                        Cover
+                                    </span>
+                                </div>
+
                                 <div className="space-y-1.5">
                                     {tourData.songCounts.map(({ title, count, isOriginal }) => (
                                         <div key={title} className="flex items-center gap-3">
-                                            <div className="w-40 sm:w-56 shrink-0 flex items-center justify-end gap-1.5 overflow-hidden">
-                                                <span className="text-xs truncate" style={{ color: 'var(--p-color-contrast-medium)' }}>
-                                                    {title}
-                                                </span>
-                                                {isOriginal === false && (
-                                                    <span className="shrink-0 text-[9px] font-bold uppercase tracking-wide px-1 py-0.5 rounded bg-blue-500/10 text-blue-300">
-                                                        cover
-                                                    </span>
-                                                )}
-                                            </div>
+                                            <span className="text-xs w-40 sm:w-56 shrink-0 truncate text-right" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                                                {title}
+                                            </span>
                                             <div className="flex-1 h-4 rounded bg-white/5 overflow-hidden">
                                                 <div
-                                                    className="h-full rounded bg-amber-400/80 transition-all duration-700"
+                                                    className={`h-full rounded transition-all duration-700 ${isOriginal === false ? 'bg-blue-400/70' : 'bg-amber-400/80'}`}
                                                     style={{ width: `${(count / maxCount) * 100}%` }}
                                                 />
                                             </div>
