@@ -646,6 +646,38 @@ router.post('/', async (req, res) => {
 });
 
 /**
+ * PATCH /api/shows/:id/tour
+ * Add or remove a single show's tour assignment only (admin only).
+ * Body: { tour_name: string | null }
+ * A dedicated endpoint rather than reusing PUT /:id — that handler updates every
+ * show field unconditionally from req.body, so a partial {tour_name} payload would
+ * null out opened_for_id/opening_act_id/links as a side effect.
+ */
+router.patch('/:id/tour', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { tour_name } = req.body;
+
+        const { data: show, error } = await supabase
+            .from('shows')
+            .update({ tour_name: tour_name || null })
+            .eq('id', id)
+            .select('id, tour_name')
+            .single();
+
+        if (error) {
+            console.error('[PATCH /shows/:id/tour] Error:', error);
+            return res.status(500).json({ error: 'Failed to update tour' });
+        }
+
+        res.json(show);
+    } catch (error) {
+        console.error('[PATCH /shows/:id/tour] Error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
  * PUT /api/shows/:id
  * Update a show (admin only)
  */

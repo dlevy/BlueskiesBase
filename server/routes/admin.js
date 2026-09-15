@@ -247,4 +247,54 @@ router.put('/tour-style/:tourName', requireAdmin, async (req, res) => {
     }
 });
 
+/**
+ * PUT /api/admin/tours/:tourName/rename
+ * Bulk-renames a tour: updates tour_name on every show currently assigned to it,
+ * and carries over its Instagram post style (if any) to the new name so the
+ * association isn't orphaned by the rename.
+ * Body: { newName: string }
+ */
+router.put('/tours/:tourName/rename', requireAdmin, async (req, res) => {
+    try {
+        const { tourName } = req.params;
+        const { newName } = req.body;
+
+        if (!newName || !newName.trim()) {
+            return res.status(400).json({ error: 'newName is required' });
+        }
+        const trimmedNewName = newName.trim();
+
+        if (trimmedNewName === tourName) {
+            return res.json({ success: true, tour_name: trimmedNewName, showsUpdated: 0 });
+        }
+
+        const { data: updatedShows, error: showsError } = await supabase
+            .from('shows')
+            .update({ tour_name: trimmedNewName })
+            .eq('tour_name', tourName)
+            .select('id');
+
+        if (showsError) {
+            console.error('[admin/tours/rename] shows update error:', showsError);
+            return res.status(500).json({ error: 'Failed to rename tour' });
+        }
+
+        const { error: styleError } = await supabase
+            .from('tour_post_styles')
+            .update({ tour_name: trimmedNewName })
+            .eq('tour_name', tourName);
+
+        if (styleError) {
+            // Non-fatal — the shows are already renamed; the style association
+            // just won't carry over. Log it so it can be fixed manually.
+            console.error('[admin/tours/rename] tour_post_styles update error:', styleError);
+        }
+
+        res.json({ success: true, tour_name: trimmedNewName, showsUpdated: (updatedShows || []).length });
+    } catch (err) {
+        console.error('[admin/tours/rename] error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 module.exports = router;

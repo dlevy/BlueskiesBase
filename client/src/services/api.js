@@ -521,6 +521,25 @@ export const updateShow = async (id, showData) => {
 };
 
 /**
+ * Add or remove a show's tour assignment only — leaves every other field
+ * untouched (see the PATCH handler's docstring for why this is separate
+ * from updateShow).
+ */
+export const updateShowTour = async (id, tourName) => {
+    const response = await fetch(`${API_BASE_URL}/api/shows/${id}/tour`, {
+        method: 'PATCH',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ tour_name: tourName || null }),
+    });
+    if (!response.ok) {
+        throw new Error('Failed to update show tour');
+    }
+    return response.json();
+};
+
+/**
  * Delete a show
  */
 export const deleteShow = async (id) => {

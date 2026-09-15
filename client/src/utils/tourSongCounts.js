@@ -16,14 +16,15 @@ export async function fetchDefaultTourName() {
     return data?.[0]?.tour_name || null;
 }
 
-// Every distinct tour_name with at least MIN_TOUR_SHOWS scheduled shows, with its
-// date range, newest-last-show-first — for a tour picker. Filters out one-off/benefit
-// shows entered with their own "tour" name so the list stays to actual tours.
+// Every distinct tour_name with at least `minShows` scheduled shows, with its date
+// range, newest-last-show-first. Default (5) filters out one-off/benefit shows
+// entered with their own "tour" name, for the public tour picker; admin screens
+// that need to see every tour regardless of size pass minShows: 0.
 // Paginated with a stable order since the shows table can exceed PostgREST's
 // 1000-row default.
 const MIN_TOUR_SHOWS = 5;
 
-export async function fetchTourList() {
+export async function fetchTourList({ minShows = MIN_TOUR_SHOWS } = {}) {
     let rows = [];
     for (let rangeStart = 0; ;) {
         const { data: page, error } = await supabase
@@ -48,7 +49,7 @@ export async function fetchTourList() {
     });
 
     return Object.values(byTour)
-        .filter(t => t.showCount >= MIN_TOUR_SHOWS)
+        .filter(t => t.showCount >= minShows)
         .sort((a, b) => b.lastDate.localeCompare(a.lastDate));
 }
 

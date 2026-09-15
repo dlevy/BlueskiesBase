@@ -2,7 +2,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { PHeading, PText, PButton, PButtonPure, PInlineNotification, PSpinner } from '@porsche-design-system/components-react';
 import { getShowById, createShow, updateShow, deleteShow, getVenues, updateSetlist, createVenue, getBands, createBand } from '../../services/api';
+import { fetchTourList } from '../../utils/tourSongCounts';
 import SetlistEditor from '../../components/SetlistEditor';
+
+const NEW_TOUR_VALUE = '__new__';
 
 const inputClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--p-color-info)] focus:border-transparent placeholder:text-gray-500";
 const selectClass = "w-full rounded-lg border border-white/10 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--p-color-info)] focus:border-transparent";
@@ -18,6 +21,8 @@ export default function ShowForm() {
     const [error, setError] = useState('');
     const [venues, setVenues] = useState([]);
     const [bands, setBands] = useState([]);
+    const [tours, setTours] = useState([]);
+    const [tourInputMode, setTourInputMode] = useState('select');
     const [setlistData, setSetlistData] = useState([]);
     const [initialSetlist, setInitialSetlist] = useState({});
     // Flips true once SetlistEditor's onChange has fired at least once — whether from
@@ -66,6 +71,7 @@ export default function ShowForm() {
     useEffect(() => {
         fetchVenues();
         fetchBands();
+        fetchTourList({ minShows: 0 }).then(setTours).catch(err => console.error('Error fetching tours:', err));
         if (isEdit) {
             // Reset per id — ShowForm stays mounted across shows/edit/:id -> shows/edit/:otherId
             // navigations, so a stale "ready" flag or setlist from the previous show must not
@@ -111,6 +117,7 @@ export default function ShowForm() {
                 links:          show.links           || [],
             });
             setInitialSetlist(show.setlist || {});
+            setTourInputMode('select');
         } catch (err) {
             console.error('Error fetching show:', err);
             setError('Failed to load show');
@@ -321,8 +328,34 @@ export default function ShowForm() {
                         <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>
                             Tour Name
                         </label>
-                        <input type="text" name="tour_name" value={formData.tour_name}
-                            onChange={handleChange} className={inputClass} />
+                        {tourInputMode === 'select' ? (
+                            <select
+                                name="tour_name"
+                                value={formData.tour_name}
+                                onChange={(e) => {
+                                    if (e.target.value === NEW_TOUR_VALUE) {
+                                        setTourInputMode('new');
+                                        setFormData(prev => ({ ...prev, tour_name: '' }));
+                                    } else {
+                                        handleChange(e);
+                                    }
+                                }}
+                                className={selectClass}
+                                style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}
+                            >
+                                <option value="">— None —</option>
+                                {tours.map(t => <option key={t.tourName} value={t.tourName}>{t.tourName}</option>)}
+                                <option value={NEW_TOUR_VALUE}>+ New Tour…</option>
+                            </select>
+                        ) : (
+                            <div className="flex gap-2">
+                                <input type="text" name="tour_name" value={formData.tour_name} autoFocus
+                                    onChange={handleChange} placeholder="New tour name" className={inputClass} />
+                                <PButtonPure type="button" size="small" onClick={() => { setTourInputMode('select'); setFormData(prev => ({ ...prev, tour_name: '' })); }}>
+                                    Cancel
+                                </PButtonPure>
+                            </div>
+                        )}
                     </div>
 
                     {/* Opened For */}

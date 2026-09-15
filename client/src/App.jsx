@@ -21,6 +21,8 @@ import ShowsList from './pages/admin/ShowsList'
 import ShowForm from './pages/admin/ShowForm'
 import SongsList from './pages/admin/SongsList'
 import AlbumsList from './pages/admin/AlbumsList'
+import ToursList from './pages/admin/ToursList'
+import TourEditPage from './pages/admin/TourEditPage'
 import AdminUsers from './pages/admin/AdminUsers'
 import InstagramPostPage from './pages/admin/InstagramPostPage'
 import './App.css'
@@ -64,6 +66,8 @@ function App() {
             <Route path="shows/:id/instagram" element={<InstagramPostPage />} />
             <Route path="songs" element={<SongsList />} />
             <Route path="albums" element={<AlbumsList />} />
+            <Route path="tours" element={<ToursList />} />
+            <Route path="tours/:tourName" element={<TourEditPage />} />
             <Route path="users" element={<AdminUsers />} />
           </Route>
         </Routes>
