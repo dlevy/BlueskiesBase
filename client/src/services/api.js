@@ -86,44 +86,6 @@ export const getShowAttendees = async (showId) => {
     return response.json();
 };
 
-/**
- * Fire (🔥) reaction counts per setlist song for a show, plus which ones the
- * current viewer has reacted to (if logged in).
- */
-export const getShowReactions = async (showId) => {
-    const token = await getAuthToken();
-    const response = await fetch(`${API_BASE_URL}/api/shows/${showId}/reactions`, {
-        headers: { ...(token && { Authorization: `Bearer ${token}` }) },
-    });
-    if (!response.ok) throw new Error('Failed to fetch reactions');
-    return response.json();
-};
-
-/**
- * React with 🔥 to a specific setlist song performance
- */
-export const addSongReaction = async (setlistSongId) => {
-    const token = await getAuthToken();
-    const response = await fetch(`${API_BASE_URL}/api/users/song-reactions/${setlistSongId}`, {
-        method: 'POST',
-        headers: { ...(token && { Authorization: `Bearer ${token}` }) },
-    });
-    if (!response.ok) throw new Error('Failed to add reaction');
-    return response.json();
-};
-
-/**
- * Remove your own 🔥 reaction from a setlist song
- */
-export const removeSongReaction = async (setlistSongId) => {
-    const token = await getAuthToken();
-    const response = await fetch(`${API_BASE_URL}/api/users/song-reactions/${setlistSongId}`, {
-        method: 'DELETE',
-        headers: { ...(token && { Authorization: `Bearer ${token}` }) },
-    });
-    if (!response.ok) throw new Error('Failed to remove reaction');
-    return response.json();
-};
 
 /**
  * Which songs in a show's setlist were live debuts / tour debuts.

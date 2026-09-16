@@ -139,7 +139,7 @@ router.post('/users/:userId/send-password-reset', requireAdmin, async (req, res)
  * DELETE /api/admin/users/:userId
  * Permanently deletes a user: their auth account, profile, and everything
  * they've contributed (photos/posters — including the underlying storage
- * files — notes, setlist submissions, attendance, and song reactions).
+ * files — notes, setlist submissions, and attendance).
  */
 router.delete('/users/:userId', requireAdmin, async (req, res) => {
     try {
@@ -172,7 +172,6 @@ router.delete('/users/:userId', requireAdmin, async (req, res) => {
             supabase.from('user_notes').delete().eq('user_id', userId),
             supabase.from('setlist_submissions').delete().eq('user_id', userId),
             supabase.from('user_shows').delete().eq('user_id', userId),
-            supabase.from('setlist_song_reactions').delete().eq('user_id', userId),
         ]);
 
         await supabase.from('profiles').delete().eq('id', userId);
