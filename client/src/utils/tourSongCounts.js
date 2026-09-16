@@ -79,7 +79,13 @@ export async function fetchTourSongCounts(tourName) {
     for (let rangeStart = 0; ;) {
         const { data: page, error } = await supabase
             .from('setlist_songs')
-            .select('song_id, show_id, songs!setlist_songs_song_id_fkey(title, is_original)')
+            .select(`
+                song_id, show_id,
+                songs!setlist_songs_song_id_fkey (
+                    title, is_original,
+                    album_songs ( albums ( title, release_date ) )
+                )
+            `)
             .in('show_id', playedIds)
             .order('id')
             .range(rangeStart, rangeStart + 999);
@@ -93,17 +99,65 @@ export async function fetchTourSongCounts(tourName) {
     // within one show still only counts once for that show.
     const showSetsByTitle = {};
     const isOriginalByTitle = {};
+    // Distinct songs per show (for the average), and one representative row per
+    // song_id (for the tour-wide album breakdown) — both keyed off song_id so a
+    // sandwiched song still only counts once per show / once tour-wide.
+    const songIdsByShow = {};
+    const songMetaById = {};
     rows.forEach(r => {
         const title = r.songs?.title;
-        if (!title) return;
-        (showSetsByTitle[title] ||= new Set()).add(r.show_id);
-        if (r.songs?.is_original === false) isOriginalByTitle[title] = false;
-        else if (!(title in isOriginalByTitle)) isOriginalByTitle[title] = r.songs?.is_original ?? true;
+        if (title) {
+            (showSetsByTitle[title] ||= new Set()).add(r.show_id);
+            if (r.songs?.is_original === false) isOriginalByTitle[title] = false;
+            else if (!(title in isOriginalByTitle)) isOriginalByTitle[title] = r.songs?.is_original ?? true;
+        }
+
+        if (r.song_id) {
+            (songIdsByShow[r.show_id] ||= new Set()).add(r.song_id);
+            if (!songMetaById[r.song_id]) {
+                songMetaById[r.song_id] = { isOriginal: r.songs?.is_original, albumSongs: r.songs?.album_songs || [] };
+            }
+        }
     });
 
     const songCounts = Object.entries(showSetsByTitle)
         .map(([title, shows]) => ({ title, count: shows.size, isOriginal: isOriginalByTitle[title] }))
         .sort((a, b) => b.count - a.count || a.title.localeCompare(b.title));
+
+    const showsWithSetlist = Object.keys(songIdsByShow).length;
+    const totalSongInstances = Object.values(songIdsByShow).reduce((sum, set) => sum + set.size, 0);
+    const avgSongsPerShow = showsWithSetlist > 0 ? totalSongInstances / showsWithSetlist : 0;
+
+    // Album breakdown across the whole tour: each song played at least once is
+    // attributed to its earliest-released album (same rule as the per-show
+    // breakdown on the show page), counted once no matter how many shows it's
+    // been played at.
+    const albumCounts = new Map();
+    let otherOriginals = 0;
+    let covers = 0;
+    Object.values(songMetaById).forEach(({ isOriginal, albumSongs }) => {
+        if (isOriginal === false) {
+            covers++;
+            return;
+        }
+        const assocs = (albumSongs || []).filter(as => as.albums);
+        if (assocs.length > 0) {
+            const primary = [...assocs].sort((a, b) => {
+                const ra = a.albums?.release_date || '';
+                const rb = b.albums?.release_date || '';
+                if (!ra) return 1;
+                if (!rb) return -1;
+                return ra.localeCompare(rb);
+            })[0];
+            const albumTitle = primary.albums?.title || 'Other';
+            albumCounts.set(albumTitle, (albumCounts.get(albumTitle) || 0) + 1);
+        } else {
+            otherOriginals++;
+        }
+    });
+    const albumBreakdown = [...albumCounts.entries()]
+        .map(([title, count]) => ({ title, count }))
+        .sort((a, b) => b.count - a.count);
 
     return {
         totalShows: tourShows.length,
@@ -112,5 +166,9 @@ export async function fetchTourSongCounts(tourName) {
         lastDate: tourShows[tourShows.length - 1].show_date,
         playedIds,
         songCounts,
+        avgSongsPerShow,
+        albumBreakdown,
+        otherOriginals,
+        covers,
     };
 }
