@@ -118,36 +118,6 @@ export default function TourStatsPage() {
                                     {tourData.avgSongsPerShow > 0 && <> &middot; {tourData.avgSongsPerShow.toFixed(1)} songs/show avg</>}
                                 </PText>
 
-                                {tourData.albumBreakdown.length > 0 && (
-                                    <div className="mb-6">
-                                        <PHeading size="small" tag="h3" className="mb-3">Album Breakdown</PHeading>
-                                        <div className="space-y-1.5">
-                                            {(() => {
-                                                const bars = [
-                                                    ...tourData.albumBreakdown,
-                                                    ...(tourData.otherOriginals > 0 ? [{ title: 'Other', count: tourData.otherOriginals }] : []),
-                                                    ...(tourData.covers > 0 ? [{ title: 'Covers', count: tourData.covers, isCover: true }] : []),
-                                                ].sort((a, b) => b.count - a.count);
-                                                const maxAlbumCount = Math.max(...bars.map(b => b.count));
-                                                return bars.map(({ title, count, isCover }) => (
-                                                    <div key={title} className="flex items-center gap-3">
-                                                        <span className="text-xs w-40 sm:w-56 shrink-0 truncate text-right" style={{ color: 'var(--p-color-contrast-medium)' }}>
-                                                            {title}
-                                                        </span>
-                                                        <div className="flex-1 h-4 rounded bg-white/5 overflow-hidden">
-                                                            <div
-                                                                className={`h-full rounded transition-all duration-700 ${isCover ? 'bg-blue-400/70' : 'bg-amber-400/80'}`}
-                                                                style={{ width: `${(count / maxAlbumCount) * 100}%` }}
-                                                            />
-                                                        </div>
-                                                        <span className="text-xs w-4 shrink-0" style={{ color: 'var(--p-color-contrast-medium)' }}>{count}</span>
-                                                    </div>
-                                                ));
-                                            })()}
-                                        </div>
-                                    </div>
-                                )}
-
                                 <PHeading size="small" tag="h3" className="mb-3">Songs Played</PHeading>
 
                                 <div className="flex items-center gap-4 mb-5">
@@ -177,6 +147,36 @@ export default function TourStatsPage() {
                                         </div>
                                     ))}
                                 </div>
+
+                                {tourData.albumBreakdown.length > 0 && (
+                                    <div className="mt-6">
+                                        <PHeading size="small" tag="h3" className="mb-3">Album Breakdown</PHeading>
+                                        <div className="space-y-1.5">
+                                            {(() => {
+                                                const bars = [
+                                                    ...tourData.albumBreakdown,
+                                                    ...(tourData.otherOriginals > 0 ? [{ title: 'Other', count: tourData.otherOriginals }] : []),
+                                                    ...(tourData.covers > 0 ? [{ title: 'Covers', count: tourData.covers, isCover: true }] : []),
+                                                ].sort((a, b) => b.count - a.count);
+                                                const maxAlbumCount = Math.max(...bars.map(b => b.count));
+                                                return bars.map(({ title, count, isCover }) => (
+                                                    <div key={title} className="flex items-center gap-3">
+                                                        <span className="text-xs w-40 sm:w-56 shrink-0 truncate text-right" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                                                            {title}
+                                                        </span>
+                                                        <div className="flex-1 h-4 rounded bg-white/5 overflow-hidden">
+                                                            <div
+                                                                className={`h-full rounded transition-all duration-700 ${isCover ? 'bg-blue-400/70' : 'bg-amber-400/80'}`}
+                                                                style={{ width: `${(count / maxAlbumCount) * 100}%` }}
+                                                            />
+                                                        </div>
+                                                        <span className="text-xs w-4 shrink-0" style={{ color: 'var(--p-color-contrast-medium)' }}>{count}</span>
+                                                    </div>
+                                                ));
+                                            })()}
+                                        </div>
+                                    </div>
+                                )}
                             </>
                         )}
                     </div>
