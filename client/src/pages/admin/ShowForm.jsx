@@ -245,7 +245,14 @@ export default function ShowForm() {
 
     return (
         <div className="space-y-6">
-            <PHeading size="2xl" tag="h1">{isEdit ? 'Edit Show' : 'Add New Show'}</PHeading>
+            <div className="flex items-center justify-between gap-4">
+                <PHeading size="2xl" tag="h1">{isEdit ? 'Edit Show' : 'Add New Show'}</PHeading>
+                {isEdit && (
+                    <PButtonPure size="small" onClick={() => navigate(`/admin/shows/${id}/instagram`)}>
+                        Instagram Post
+                    </PButtonPure>
+                )}
+            </div>
 
             {error && (
                 <PInlineNotification heading="Error" description={error} state="error" dismissButton={false} />

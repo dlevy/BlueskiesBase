@@ -3,10 +3,12 @@ import { useParams, Link } from 'react-router-dom';
 import { toPng } from 'html-to-image';
 import { PHeading, PText, PButton, PButtonPure, PInlineNotification, PSpinner } from '@porsche-design-system/components-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { getShowById, getShowDebuts } from '../../services/api';
+import { getShowById, getShowDebuts, getShowPhotos } from '../../services/api';
 import { buildShowPath } from '../../utils/showSlug';
 import InstagramPostGraphic from '../../components/admin/InstagramPostGraphic';
 import { POST_STYLES, POST_FORMATS, DEFAULT_STYLE_KEY, DEFAULT_FORMAT_KEY, getFormatByKey } from '../../utils/instagramStyles';
+import Lightbox from 'yet-another-react-lightbox';
+import 'yet-another-react-lightbox/styles.css';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 const PREVIEW_WIDTH = 380;
@@ -25,6 +27,8 @@ export default function InstagramPostPage() {
     const [generating, setGenerating] = useState(false);
     const [liveDebutSongIds, setLiveDebutSongIds] = useState(new Set());
     const [tourDebutSongIds, setTourDebutSongIds] = useState(new Set());
+    const [photos, setPhotos] = useState([]);
+    const [lightboxIndex, setLightboxIndex] = useState(-1);
 
     const graphicRef = useRef(null);
 
@@ -45,6 +49,12 @@ export default function InstagramPostPage() {
                 setTourDebutSongIds(new Set(data.tour_debut_song_ids || []));
             })
             .catch(err => console.error('[InstagramPostPage] Error loading debuts:', err));
+    }, [id]);
+
+    useEffect(() => {
+        getShowPhotos(id)
+            .then(data => setPhotos(data.photos || []))
+            .catch(err => console.error('[InstagramPostPage] Error loading photos:', err));
     }, [id]);
 
     // Load the style already assigned to this tour, if any
@@ -208,21 +218,57 @@ export default function InstagramPostPage() {
                 </div>
 
                 {/* Preview */}
-                <div className="flex items-start justify-center rounded-2xl border border-white/10 p-8" style={{ background: 'var(--p-color-canvas)' }}>
-                    <div style={{ width: PREVIEW_WIDTH, height: previewHeight, overflow: 'hidden', borderRadius: 12, boxShadow: '0 10px 40px rgba(0,0,0,0.4)' }}>
-                        <div style={{ width: format.width, height: format.height, transform: `scale(${previewScale})`, transformOrigin: 'top left' }}>
-                            <InstagramPostGraphic
-                                ref={graphicRef}
-                                show={show}
-                                formatKey={formatKey}
-                                styleKey={styleKey}
-                                liveDebutSongIds={liveDebutSongIds}
-                                tourDebutSongIds={tourDebutSongIds}
-                            />
+                <div className="space-y-5">
+                    <div className="flex items-start justify-center rounded-2xl border border-white/10 p-8" style={{ background: 'var(--p-color-canvas)' }}>
+                        <div style={{ width: PREVIEW_WIDTH, height: previewHeight, overflow: 'hidden', borderRadius: 12, boxShadow: '0 10px 40px rgba(0,0,0,0.4)' }}>
+                            <div style={{ width: format.width, height: format.height, transform: `scale(${previewScale})`, transformOrigin: 'top left' }}>
+                                <InstagramPostGraphic
+                                    ref={graphicRef}
+                                    show={show}
+                                    formatKey={formatKey}
+                                    styleKey={styleKey}
+                                    liveDebutSongIds={liveDebutSongIds}
+                                    tourDebutSongIds={tourDebutSongIds}
+                                />
+                            </div>
                         </div>
                     </div>
+
+                    {photos.length > 0 && (
+                        <div className="rounded-2xl border border-white/10 p-5" style={{ background: 'var(--p-color-surface)' }}>
+                            <label className="block text-xs font-medium uppercase tracking-wide mb-3" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                                Uploaded Show Photos
+                            </label>
+                            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+                                {photos.map((photo, index) => (
+                                    <button
+                                        key={photo.id}
+                                        type="button"
+                                        onClick={() => setLightboxIndex(index)}
+                                        className="aspect-square rounded-lg overflow-hidden border border-white/10 hover:border-amber-500/40 transition-all"
+                                    >
+                                        <img
+                                            src={photo.photo_url}
+                                            alt={photo.caption || 'Show photo'}
+                                            className="w-full h-full object-cover"
+                                        />
+                                    </button>
+                                ))}
+                            </div>
+                            <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }} className="mt-3 block">
+                                Click a photo to view full size, then save it to use alongside the setlist graphic.
+                            </PText>
+                        </div>
+                    )}
                 </div>
             </div>
+
+            <Lightbox
+                open={lightboxIndex >= 0}
+                close={() => setLightboxIndex(-1)}
+                index={lightboxIndex}
+                slides={photos.map(p => ({ src: p.photo_url, alt: p.caption || 'Show photo', title: p.caption }))}
+            />
         </div>
     );
 }
