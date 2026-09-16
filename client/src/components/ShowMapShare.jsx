@@ -547,9 +547,13 @@ export default function ShowMapShare({ pastShows, upcomingShows }) {
                         scrollWheelZoom={false}
                     >
                         <TileLayer
-                            url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                            // CARTO retired anonymous/keyless raster tile access — unauthenticated
+                            // requests now return a watermark tile reading "API KEY REQUIRED"
+                            // instead of map data. Free key: carto.com/basemaps/apikey
+                            // (key is domain-restricted to skysets.org, so localhost still shows
+                            // the watermark in local dev — that's expected)
+                            url={`https://basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}.png?key=${import.meta.env.VITE_CARTO_API_KEY}`}
                             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
-                            subdomains="abcd"
                             maxZoom={19}
                         />
                         {usStatesGeo && (
