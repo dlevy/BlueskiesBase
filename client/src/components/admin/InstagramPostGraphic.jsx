@@ -44,6 +44,25 @@ function pickSongLayout(totalSongs, availableHeight) {
     return { columns, songFontSize };
 }
 
+// Splits songs into `columns` chunks for rendering, preserving each song's
+// original position for numbering. Done manually with plain flexbox rather
+// than CSS column-count: html-to-image (the library used to capture the
+// final PNG) doesn't reliably replay CSS multi-column layout when it clones
+// and serializes the DOM for capture, silently dropping songs that the
+// browser's native column-balancing had placed lower down — even though the
+// on-screen preview (rendered natively, not through that capture path)
+// looks completely fine. Plain flexbox columns render identically in both.
+function splitIntoColumns(songs, columns) {
+    const indexed = songs.map((song, i) => ({ song, i }));
+    if (columns <= 1) return [indexed];
+    const perColumn = Math.ceil(indexed.length / columns);
+    const result = [];
+    for (let c = 0; c < columns; c++) {
+        result.push(indexed.slice(c * perColumn, (c + 1) * perColumn));
+    }
+    return result;
+}
+
 // Fixed-pixel-size graphic (1080-wide, height depends on format) captured via
 // html-to-image. Layout is identical across styles/tours — only colors change —
 // so a new tour style never requires touching this component.
@@ -105,25 +124,29 @@ const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({ show, fo
 
             {/* Setlist — vertically centered in the remaining space */}
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', overflow: 'hidden' }}>
-                <div style={{ columnCount: columns, columnGap: 56, columnFill: 'balance' }}>
-                    {songs.map((song, i) => {
-                        const isLiveDebut = song.song_id != null && liveDebutSongIds?.has(song.song_id);
-                        const isTourDebut = song.song_id != null && tourDebutSongIds?.has(song.song_id);
-                        return (
-                            <div
-                                key={song.id || i}
-                                style={{
-                                    fontSize: songFontSize, lineHeight: 1.45, color: style.heading,
-                                    breakInside: 'avoid', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10,
-                                }}
-                            >
-                                <span style={{ color: style.muted, fontVariantNumeric: 'tabular-nums' }}>{i + 1}.</span>
-                                <span>{song.title}{song.jams_into ? ' →' : ''}</span>
-                                {isLiveDebut && <DebutTag label="Live Debut" color="#34d399" songFontSize={songFontSize} />}
-                                {isTourDebut && <DebutTag label="Tour Debut" color="#22d3ee" songFontSize={songFontSize} />}
-                            </div>
-                        );
-                    })}
+                <div style={{ display: 'flex', gap: 56 }}>
+                    {splitIntoColumns(songs, columns).map((columnSongs, colIndex) => (
+                        <div key={colIndex} style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                            {columnSongs.map(({ song, i }) => {
+                                const isLiveDebut = song.song_id != null && liveDebutSongIds?.has(song.song_id);
+                                const isTourDebut = song.song_id != null && tourDebutSongIds?.has(song.song_id);
+                                return (
+                                    <div
+                                        key={song.id || i}
+                                        style={{
+                                            fontSize: songFontSize, lineHeight: 1.45, color: style.heading,
+                                            display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10,
+                                        }}
+                                    >
+                                        <span style={{ color: style.muted, fontVariantNumeric: 'tabular-nums' }}>{i + 1}.</span>
+                                        <span>{song.title}{song.jams_into ? ' →' : ''}</span>
+                                        {isLiveDebut && <DebutTag label="Live Debut" color="#34d399" songFontSize={songFontSize} />}
+                                        {isTourDebut && <DebutTag label="Tour Debut" color="#22d3ee" songFontSize={songFontSize} />}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    ))}
                 </div>
             </div>
 
