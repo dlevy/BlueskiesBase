@@ -120,11 +120,20 @@ export async function fetchTourSongCounts(tourName) {
         }
     });
 
+    const showsWithSetlist = Object.keys(songIdsByShow).length;
+
+    // Same "rare" threshold and denominator as the show page's per-song Rare badge:
+    // played at fewer than 15% of tour shows that actually have a setlist logged
+    // (not every scheduled show — most of a tour is still-unplayed future dates).
     const songCounts = Object.entries(showSetsByTitle)
-        .map(([title, shows]) => ({ title, count: shows.size, isOriginal: isOriginalByTitle[title] }))
+        .map(([title, shows]) => ({
+            title,
+            count: shows.size,
+            isOriginal: isOriginalByTitle[title],
+            isRare: showsWithSetlist > 0 && shows.size / showsWithSetlist < 0.15,
+        }))
         .sort((a, b) => b.count - a.count || a.title.localeCompare(b.title));
 
-    const showsWithSetlist = Object.keys(songIdsByShow).length;
     const totalSongInstances = Object.values(songIdsByShow).reduce((sum, set) => sum + set.size, 0);
     const avgSongsPerShow = showsWithSetlist > 0 ? totalSongInstances / showsWithSetlist : 0;
 
@@ -162,6 +171,7 @@ export async function fetchTourSongCounts(tourName) {
     return {
         totalShows: tourShows.length,
         playedShows: played.length,
+        showsWithSetlist,
         firstDate: tourShows[0].show_date,
         lastDate: tourShows[tourShows.length - 1].show_date,
         playedIds,
