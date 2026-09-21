@@ -1,10 +1,11 @@
 import { Link } from 'react-router-dom';
-import { PHeading, PText, PButton } from '@porsche-design-system/components-react';
+import { PHeading, PText } from '@porsche-design-system/components-react';
 
 const cards = [
     { to: '/admin/shows', label: 'Shows', description: 'Manage concert shows, setlists, and performance details' },
     { to: '/admin/songs', label: 'Songs', description: 'Manage song catalog and track performance history' },
     { to: '/admin/albums', label: 'Albums', description: 'Manage album catalog and tracklists' },
+    { to: '/admin/tours', label: 'Tours', description: 'Manage tours and assign a default Instagram post style' },
     { to: '/admin/venues', label: 'Venues', description: 'Manage venue information and locations' },
     { to: '/admin/users', label: 'Users', description: 'View user signups, confirmation status, and resend activation emails' },
 ];
@@ -27,17 +28,6 @@ export default function AdminDashboard() {
                         <PText size="xs" color="contrast-medium">Manage {label} →</PText>
                     </Link>
                 ))}
-            </div>
-
-            {/* Quick Actions */}
-            <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 space-y-4">
-                <PHeading size="lg" tag="h2">Quick Actions</PHeading>
-                <div className="flex flex-wrap gap-3">
-                    <Link to="/admin/shows/new"><PButton>+ Add New Show</PButton></Link>
-                    <Link to="/admin/songs"><PButton variant="secondary">+ Add New Song</PButton></Link>
-                    <Link to="/admin/albums"><PButton variant="secondary">+ Add New Album</PButton></Link>
-                    <Link to="/admin/venues"><PButton variant="secondary">+ Add New Venue</PButton></Link>
-                </div>
             </div>
         </div>
     );
