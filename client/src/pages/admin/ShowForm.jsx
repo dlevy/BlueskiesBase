@@ -254,7 +254,7 @@ export default function ShowForm() {
                 <PInlineNotification heading="Error" description={error} state="error" dismissButton={false} />
             )}
 
-            <form onSubmit={handleSubmit} className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 space-y-6">
+            <form id="show-form" onSubmit={handleSubmit} className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>
@@ -363,12 +363,6 @@ export default function ShowForm() {
 
                 </div>
 
-                <div>
-                    <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>Notes</label>
-                    <textarea name="notes" value={formData.notes} onChange={handleChange} rows="4"
-                        className={inputClass + ' resize-none'} />
-                </div>
-
                 {/* Advanced — rarely-used fields tucked away so the common case stays quick to fill out */}
                 <div className="rounded-xl border border-white/10 overflow-hidden">
                     <button
@@ -388,6 +382,13 @@ export default function ShowForm() {
 
                     {advancedOpen && (
                         <div className="border-t border-white/10 px-4 py-4 space-y-5">
+                            {/* Notes */}
+                            <div>
+                                <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>Notes</label>
+                                <textarea name="notes" value={formData.notes} onChange={handleChange} rows="4"
+                                    className={inputClass + ' resize-none'} />
+                            </div>
+
                             {/* Opened For */}
                             <div>
                                 <div className="flex justify-between items-center mb-1.5">
@@ -438,60 +439,6 @@ export default function ShowForm() {
                     )}
                 </div>
 
-                {/* Links */}
-                <div>
-                    <div className="flex justify-between items-center mb-2">
-                        <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)', marginBottom: 0 }}>
-                            Links
-                        </label>
-                        {!showLinkForm && (
-                            <PButtonPure type="button" size="x-small" onClick={() => { setShowLinkForm(true); setNewLinkUrl(''); setNewLinkDescription(''); setLinkFormError(''); }}>
-                                + Add Link
-                            </PButtonPure>
-                        )}
-                    </div>
-
-                    {formData.links.length > 0 && (
-                        <div className="space-y-2 mb-3">
-                            {formData.links.map((link, i) => (
-                                <div key={i} className="flex items-start justify-between gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
-                                    <div className="min-w-0">
-                                        <p className="text-xs text-amber-400 truncate">{link.url}</p>
-                                        {link.description && (
-                                            <p className="text-xs mt-0.5" style={{ color: 'var(--p-color-contrast-medium)' }}>{link.description}</p>
-                                        )}
-                                    </div>
-                                    <PButtonPure type="button" size="x-small" onClick={() => removeLink(i)}
-                                        style={{ color: 'var(--p-color-notification-error)', flexShrink: 0 }}>
-                                        Remove
-                                    </PButtonPure>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-
-                    {showLinkForm && (
-                        <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
-                            <PHeading size="sm" tag="h3">Add Link</PHeading>
-                            {linkFormError && <PInlineNotification heading="Error" description={linkFormError} state="error" dismissButton={false} />}
-                            <div>
-                                <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>URL</label>
-                                <input type="url" value={newLinkUrl} onChange={e => setNewLinkUrl(e.target.value)}
-                                    placeholder="https://youtube.com/watch?v=..." className={inputClass} />
-                            </div>
-                            <div>
-                                <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>Description <span style={{ color: 'var(--p-color-contrast-medium)', fontWeight: 'normal' }}>(optional for YouTube)</span></label>
-                                <input type="text" value={newLinkDescription} onChange={e => setNewLinkDescription(e.target.value)}
-                                    placeholder="e.g. Full show recording" className={inputClass} />
-                            </div>
-                            <div className="flex gap-2">
-                                <PButton type="button" size="small" onClick={handleAddLink}>Add</PButton>
-                                <PButton type="button" variant="secondary" size="small" onClick={() => { setShowLinkForm(false); setLinkFormError(''); }}>Cancel</PButton>
-                            </div>
-                        </div>
-                    )}
-                </div>
-
                 <div className="flex items-center justify-between gap-3 pt-2 border-t border-white/10">
                     <div className="flex gap-3">
                         <PButton type="submit" loading={saving}>
@@ -511,14 +458,74 @@ export default function ShowForm() {
                 </div>
             </form>
 
+            {/* Links — its own section so it doesn't get lost among the show-detail fields */}
+            <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6">
+                <div className="flex justify-between items-center mb-4">
+                    <PHeading size="lg" tag="h3">Links</PHeading>
+                    {!showLinkForm && (
+                        <PButtonPure type="button" size="x-small" onClick={() => { setShowLinkForm(true); setNewLinkUrl(''); setNewLinkDescription(''); setLinkFormError(''); }}>
+                            + Add Link
+                        </PButtonPure>
+                    )}
+                </div>
+
+                {formData.links.length > 0 && (
+                    <div className="space-y-2 mb-3">
+                        {formData.links.map((link, i) => (
+                            <div key={i} className="flex items-start justify-between gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+                                <div className="min-w-0">
+                                    <p className="text-xs text-amber-400 truncate">{link.url}</p>
+                                    {link.description && (
+                                        <p className="text-xs mt-0.5" style={{ color: 'var(--p-color-contrast-medium)' }}>{link.description}</p>
+                                    )}
+                                </div>
+                                <PButtonPure type="button" size="x-small" onClick={() => removeLink(i)}
+                                    style={{ color: 'var(--p-color-notification-error)', flexShrink: 0 }}>
+                                    Remove
+                                </PButtonPure>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {showLinkForm ? (
+                    <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
+                        <PHeading size="sm" tag="h4">Add Link</PHeading>
+                        {linkFormError && <PInlineNotification heading="Error" description={linkFormError} state="error" dismissButton={false} />}
+                        <div>
+                            <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>URL</label>
+                            <input type="url" value={newLinkUrl} onChange={e => setNewLinkUrl(e.target.value)}
+                                placeholder="https://youtube.com/watch?v=..." className={inputClass} />
+                        </div>
+                        <div>
+                            <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>Description <span style={{ color: 'var(--p-color-contrast-medium)', fontWeight: 'normal' }}>(optional for YouTube)</span></label>
+                            <input type="text" value={newLinkDescription} onChange={e => setNewLinkDescription(e.target.value)}
+                                placeholder="e.g. Full show recording" className={inputClass} />
+                        </div>
+                        <div className="flex gap-2">
+                            <PButton type="button" size="small" onClick={handleAddLink}>Add</PButton>
+                            <PButton type="button" variant="secondary" size="small" onClick={() => { setShowLinkForm(false); setLinkFormError(''); }}>Cancel</PButton>
+                        </div>
+                    </div>
+                ) : formData.links.length === 0 && (
+                    <PText size="small" color="contrast-medium">No links added yet.</PText>
+                )}
+            </div>
+
             <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6">
                 <SetlistEditor initialSetlist={initialSetlist} onChange={handleSetlistChange} />
             </div>
 
             <div className="rounded-2xl border p-4" style={{ borderColor: 'var(--p-color-info)', background: 'color-mix(in srgb, var(--p-color-info) 10%, transparent)' }}>
                 <PText size="small" style={{ color: 'var(--p-color-info)' }}>
-                    Make sure to click "{isEdit ? 'Update' : 'Create'} Show" above to save both the show details and the setlist.
+                    Make sure to save to persist both the show details and the setlist.
                 </PText>
+            </div>
+
+            <div className="flex justify-end">
+                <PButton type="submit" form="show-form" loading={saving}>
+                    {isEdit ? 'Update Show' : 'Create Show'}
+                </PButton>
             </div>
         </div>
     );
