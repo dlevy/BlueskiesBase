@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { supabase } = require('../config/supabase');
+const { computeDebutsForShows } = require('../utils/debuts');
+const { computeGlobalSongStats } = require('../utils/songStats');
 
 /**
  * POST /api/users/check-attendance-batch
@@ -483,6 +485,40 @@ router.get('/stats', async (req, res) => {
             }));
         }
 
+        // Debuts witnessed — live/tour debuts that happened at shows the user actually
+        // attended (only past shows; a future show marked "attending" has no setlist
+        // yet, but filtering explicitly keeps the intent clear either way).
+        const todayStr = new Date().toISOString().slice(0, 10);
+        const pastAttendedShowIds = attendedShows
+            .filter(us => us.shows?.show_date && us.shows.show_date <= todayStr)
+            .map(us => us.show_id);
+
+        let liveDebutsWitnessed = 0;
+        let tourDebutsWitnessed = 0;
+        try {
+            const debutsByShow = await computeDebutsForShows(pastAttendedShowIds);
+            Object.values(debutsByShow).forEach(d => {
+                liveDebutsWitnessed += d.live_debut_song_ids.length;
+                tourDebutsWitnessed += d.tour_debut_song_ids.length;
+            });
+        } catch (err) {
+            console.error('[Stats] Error computing debuts witnessed:', err);
+        }
+
+        // Rare songs seen — songs among the all-time rarest (same ranking shown on the
+        // public song stats page) that this user has personally witnessed live.
+        let rareSongsSeenCount = 0;
+        try {
+            const globalStats = await computeGlobalSongStats(10);
+            const rareSongIds = new Set([
+                ...globalStats.originals.rarest.map(s => s.id),
+                ...globalStats.covers.rarest.map(s => s.id),
+            ]);
+            rareSongsSeenCount = songsSeen.filter(s => rareSongIds.has(s.id)).length;
+        } catch (err) {
+            console.error('[Stats] Error computing rare songs seen:', err);
+        }
+
         const endTime = Date.now();
         const duration = endTime - startTime;
         console.log(`[Stats] ✅ Request completed in ${duration}ms`);
@@ -494,7 +530,10 @@ router.get('/stats', async (req, res) => {
             songsSeen: songsSeen,
             songsNotSeen: songsNotSeenWithShow,
             totalSongsSeen: songsSeen.length,
-            totalSongsNotSeen: songsNotSeenWithShow.length
+            totalSongsNotSeen: songsNotSeenWithShow.length,
+            liveDebutsWitnessed,
+            tourDebutsWitnessed,
+            rareSongsSeenCount,
         };
 
         console.log('[Stats] Sending response...');
@@ -553,7 +592,9 @@ router.get('/check-attendance/:showId', async (req, res) => {
 
 /**
  * GET /api/users/community-stats
- * Get site-wide community stats (members, photos, posters contributed)
+ * Get site-wide community stats (members, photos, posters contributed, and the
+ * most active contributors overall — notes + photos + posters + setlist
+ * submissions combined).
  * Public — no authentication required
  */
 router.get('/community-stats', async (req, res) => {
@@ -568,10 +609,58 @@ router.get('/community-stats', async (req, res) => {
         if (photosResult.error) throw photosResult.error;
         if (postersResult.error) throw postersResult.error;
 
+        // Tally contributions per user across every contribution type, paginated per
+        // table since any of them can exceed PostgREST's 1000-row default as the
+        // community grows.
+        const contributionCounts = {};
+        const tallyUserIds = (rows) => {
+            rows.forEach(({ user_id }) => {
+                if (!user_id) return;
+                contributionCounts[user_id] = (contributionCounts[user_id] || 0) + 1;
+            });
+        };
+
+        for (const table of ['user_notes', 'user_photos', 'user_posters', 'setlist_submissions']) {
+            for (let rangeStart = 0; ;) {
+                const { data: page, error } = await supabase
+                    .from(table)
+                    .select('user_id')
+                    .not('user_id', 'is', null)
+                    .order('id')
+                    .range(rangeStart, rangeStart + 999);
+                if (error) throw error;
+                tallyUserIds(page || []);
+                if (!page || page.length < 1000) break;
+                rangeStart += 1000;
+            }
+        }
+
+        const topContributorIds = Object.entries(contributionCounts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5)
+            .map(([userId]) => userId);
+
+        let topContributors = [];
+        if (topContributorIds.length > 0) {
+            const { data: profiles, error: profilesError } = await supabase
+                .from('profiles')
+                .select('id, username')
+                .in('id', topContributorIds);
+            if (profilesError) throw profilesError;
+
+            const usernameById = {};
+            (profiles || []).forEach(p => { usernameById[p.id] = p.username; });
+
+            topContributors = topContributorIds
+                .map(userId => ({ username: usernameById[userId], count: contributionCounts[userId] }))
+                .filter(c => c.username);
+        }
+
         res.json({
             members: membersResult.count || 0,
             photos: photosResult.count || 0,
             posters: postersResult.count || 0,
+            topContributors,
         });
     } catch (error) {
         console.error('[Community Stats] Error:', error);

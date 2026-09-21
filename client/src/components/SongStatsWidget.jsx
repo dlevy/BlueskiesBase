@@ -368,6 +368,25 @@ export default function SongStatsWidget() {
                         <CommunityStatCard value={communityStats.photos} label="Photos Contributed" />
                         <CommunityStatCard value={communityStats.posters} label="Posters Contributed" />
                     </div>
+
+                    {communityStats.topContributors?.length > 0 && (
+                        <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-5 space-y-3">
+                            <PText size="xs" style={{ color: 'var(--p-color-contrast-low)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                Most Active Members
+                            </PText>
+                            <ul className="space-y-2">
+                                {communityStats.topContributors.map((c, i) => (
+                                    <li key={c.username} className="flex items-center gap-3">
+                                        <span className="font-bold text-sm w-5 shrink-0" style={{ color: '#f59e0b' }}>#{i + 1}</span>
+                                        <PText weight="semi-bold" className="flex-1 min-w-0" ellipsis>{c.username}</PText>
+                                        <PText size="xs" color="contrast-medium" className="shrink-0">
+                                            {c.count} contribution{c.count !== 1 ? 's' : ''}
+                                        </PText>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -386,6 +405,47 @@ export default function SongStatsWidget() {
                     maxPlays={maxCoversPlays}
                 />
             </div>
+
+            {/* All-Time Rarest */}
+            {(stats.originals.rarest?.length > 0 || stats.covers.rarest?.length > 0) && (
+                <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 space-y-5">
+                    <div>
+                        <PHeading size="lg" tag="h3">All-Time Rarest</PHeading>
+                        <PText size="small" color="contrast-medium">Least-played songs across the whole archive, ranked by number of shows played</PText>
+                        <div className="mt-3"><PDivider /></div>
+                    </div>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-6">
+                        {[
+                            { label: 'Originals', songs: stats.originals.rarest, color: '#f59e0b' },
+                            { label: 'Covers', songs: stats.covers.rarest, color: '#c084fc' },
+                        ].filter(({ songs }) => songs?.length > 0).map(({ label, songs, color }) => (
+                            <div key={label}>
+                                <PText size="xs" weight="semi-bold" className="uppercase tracking-wide mb-2" style={{ color }}>
+                                    {label}
+                                </PText>
+                                <ul className="space-y-2 mt-2">
+                                    {songs.map(song => (
+                                        <li key={song.id} className="flex items-start justify-between gap-3">
+                                            <div className="min-w-0">
+                                                <PText size="small" weight="semi-bold" ellipsis>{song.title}</PText>
+                                                {song.original_artist && (
+                                                    <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>{song.original_artist}</PText>
+                                                )}
+                                            </div>
+                                            <div className="text-right shrink-0">
+                                                <PText size="xs" color="contrast-medium" className="whitespace-nowrap">
+                                                    {song.playCount === 1 ? '1 play' : `${song.playCount} plays`}
+                                                </PText>
+                                                <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>{formatDate(song.lastPlayed)}</PText>
+                                            </div>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {/* Holy Grails */}
             {holyGrails.length > 0 && (

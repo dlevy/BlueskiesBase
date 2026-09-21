@@ -20,6 +20,16 @@ function StatCard({ value, label }) {
     );
 }
 
+function FactCard({ label, value, sub }) {
+    return (
+        <div className="rounded-xl border border-white/10 bg-[#1a1e26] px-4 py-3 space-y-0.5">
+            <PText size="xs" style={{ color: 'var(--p-color-contrast-low)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</PText>
+            <div className="text-sm font-semibold" style={{ color: 'var(--p-color-primary)' }}>{value}</div>
+            {sub && <PText size="xs" color="contrast-medium">{sub}</PText>}
+        </div>
+    );
+}
+
 const TABS = ['shows', 'upcoming', 'seen', 'notSeen'];
 
 export default function UserStatsWidget() {
@@ -112,6 +122,17 @@ export default function UserStatsWidget() {
     const upcomingShows = stats.attendedShows.filter(s => isUpcoming(s.show_date)).sort((a, b) => a.show_date.localeCompare(b.show_date));
     const pastShows = stats.attendedShows.filter(s => !isUpcoming(s.show_date)).sort((a, b) => b.show_date.localeCompare(a.show_date));
 
+    // % of the whole catalog witnessed live, split originals vs covers — songsSeen and
+    // songsNotSeen together cover every song ever played by anyone, so no extra fetch
+    // is needed to know the full catalog size.
+    const isCover = (s) => s.is_original === false;
+    const originalsSeen = stats.songsSeen.filter(s => !isCover(s)).length;
+    const coversSeen = stats.songsSeen.filter(isCover).length;
+    const totalOriginals = originalsSeen + stats.songsNotSeen.filter(s => !isCover(s)).length;
+    const totalCovers = coversSeen + stats.songsNotSeen.filter(isCover).length;
+    const originalsPct = totalOriginals > 0 ? Math.round((originalsSeen / totalOriginals) * 100) : 0;
+    const coversPct = totalCovers > 0 ? Math.round((coversSeen / totalCovers) * 100) : 0;
+
     if (stats.attendedShows.length === 0) {
         return (
             <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-8 text-center space-y-2">
@@ -133,6 +154,35 @@ export default function UserStatsWidget() {
                 <StatCard value={upcomingShows.length} label="Upcoming Shows" />
                 <StatCard value={stats.songsSeen.length} label="Songs Seen Live" />
                 <StatCard value={stats.songsNotSeen.length} label="Songs Not Seen Yet" />
+            </div>
+
+            {/* By the Numbers */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                <FactCard
+                    label="Originals Seen"
+                    value={`${originalsPct}%`}
+                    sub={`${originalsSeen} of ${totalOriginals}`}
+                />
+                <FactCard
+                    label="Covers Seen"
+                    value={`${coversPct}%`}
+                    sub={`${coversSeen} of ${totalCovers}`}
+                />
+                <FactCard
+                    label="Rare Songs Seen"
+                    value={stats.rareSongsSeenCount ?? 0}
+                    sub="among the all-time rarest"
+                />
+                <FactCard
+                    label="Live Debuts Witnessed"
+                    value={stats.liveDebutsWitnessed ?? 0}
+                    sub="first-ever performances"
+                />
+                <FactCard
+                    label="Tour Debuts Witnessed"
+                    value={stats.tourDebutsWitnessed ?? 0}
+                    sub="first on that tour"
+                />
             </div>
 
             {/* Badges */}

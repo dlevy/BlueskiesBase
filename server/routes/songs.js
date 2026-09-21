@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { supabase } = require('../config/supabase');
+const { computeGlobalSongStats } = require('../utils/songStats');
 
 /**
  * GET /api/songs
@@ -92,151 +93,9 @@ router.get('/', async (req, res) => {
 router.get('/stats/global', async (req, res) => {
     try {
         console.log('[Song Stats] Fetching global song statistics...');
-
-        // Get all setlist_songs with song info
-        // Note: Supabase has a default 1000 row limit, so we need to fetch in batches
-        let allSetlistSongs = [];
-        let from = 0;
-        const batchSize = 1000;
-        let hasMore = true;
-
-        while (hasMore) {
-            const { data: batch, error: batchError } = await supabase
-                .from('setlist_songs')
-                .select(`
-                    show_id,
-                    song_id,
-                    performance_type,
-                    songs!setlist_songs_song_id_fkey (
-                        id,
-                        title,
-                        is_original,
-                        original_artist,
-                        album_id
-                    )
-                `)
-                .order('id')
-                .range(from, from + batchSize - 1);
-
-            if (batchError) {
-                console.error('[Song Stats] Error fetching setlist songs batch:', batchError);
-                return res.status(500).json({ error: 'Failed to fetch song statistics', details: batchError.message });
-            }
-
-            if (batch && batch.length > 0) {
-                allSetlistSongs = allSetlistSongs.concat(batch);
-                from += batchSize;
-                hasMore = batch.length === batchSize; // Continue if we got a full batch
-            } else {
-                hasMore = false;
-            }
-        }
-
-        const setlistSongs = allSetlistSongs;
-
-        console.log(`[Song Stats] Fetched ${setlistSongs?.length || 0} setlist songs (in ${Math.ceil(setlistSongs.length / batchSize)} batches)`);
-
-        // Get all shows to get dates. Paginated — the archive is past 680 shows and
-        // growing every tour, so a single unbounded fetch will eventually hit
-        // PostgREST's 1000-row default and silently drop shows (and with them, any
-        // song whose only performances were at the dropped shows) with no error.
-        let shows = [];
-        for (let rangeStart = 0; ;) {
-            const { data: page, error: showsError } = await supabase
-                .from('shows')
-                .select('id, show_date')
-                .order('id')
-                .range(rangeStart, rangeStart + 999);
-
-            if (showsError) {
-                console.error('[Song Stats] Error fetching shows:', showsError);
-                console.error('[Song Stats] Error details:', JSON.stringify(showsError, null, 2));
-                return res.status(500).json({ error: 'Failed to fetch show dates', details: showsError.message });
-            }
-            shows = shows.concat(page || []);
-            if (!page || page.length < 1000) break;
-            rangeStart += 1000;
-        }
-
-        console.log(`[Song Stats] Fetched ${shows.length} shows`);
-
-        // Create a map of show_id -> show_date for quick lookup
-        const showDates = {};
-        shows.forEach(show => {
-            showDates[show.id] = show.show_date;
-        });
-
-        // Count unique plays per song (one per show) and track last played date
-        const songPlayCounts = {};
-
-        setlistSongs.forEach(ss => {
-            if (!ss.songs) return;
-
-            const songId = ss.songs.id;
-            const showId = ss.show_id;
-            const showDate = showDates[showId];
-
-            if (!showDate) return; // Skip if show date not found
-
-            if (!songPlayCounts[songId]) {
-                songPlayCounts[songId] = {
-                    id: songId,
-                    title: ss.songs.title,
-                    is_original: ss.songs.is_original,
-                    original_artist: ss.songs.original_artist,
-                    shows: new Set(),
-                    lastPlayed: showDate
-                };
-            }
-
-            songPlayCounts[songId].shows.add(showId);
-
-            // Update last played date if this show is more recent
-            if (new Date(showDate) > new Date(songPlayCounts[songId].lastPlayed)) {
-                songPlayCounts[songId].lastPlayed = showDate;
-            }
-        });
-
-        // Convert to array with play counts and last played date
-        const songsWithCounts = Object.values(songPlayCounts).map(song => ({
-            id: song.id,
-            title: song.title,
-            is_original: song.is_original,
-            original_artist: song.original_artist,
-            playCount: song.shows.size,
-            lastPlayed: song.lastPlayed
-        }));
-
-        // Separate covers and originals
-        const covers = songsWithCounts.filter(s => s.is_original === false);
-        const originals = songsWithCounts.filter(s => s.is_original === true);
-
-        // Sort by play count
-        covers.sort((a, b) => b.playCount - a.playCount);
-        originals.sort((a, b) => b.playCount - a.playCount);
-
-        // Get top 5 and rarest 5
-        const topCovers = covers.slice(0, 5);
-        const rarestCovers = covers.slice(-5).reverse();
-        const topOriginals = originals.slice(0, 5);
-        const rarestOriginals = originals.slice(-5).reverse();
-
-        const stats = {
-            covers: {
-                total: covers.length,
-                top5: topCovers,
-                rarest5: rarestCovers
-            },
-            originals: {
-                total: originals.length,
-                top5: topOriginals,
-                rarest5: rarestOriginals
-            }
-        };
-
-        console.log(`[Song Stats] ✅ Stats calculated: ${covers.length} covers, ${originals.length} originals`);
+        const stats = await computeGlobalSongStats(10);
+        console.log(`[Song Stats] ✅ Stats calculated: ${stats.covers.total} covers, ${stats.originals.total} originals`);
         res.json(stats);
-
     } catch (error) {
         console.error('[Song Stats] Error:', error);
         res.status(500).json({ error: 'Internal server error' });
