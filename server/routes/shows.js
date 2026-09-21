@@ -12,10 +12,11 @@ router.get('/', async (req, res) => {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 20;
         const offset = (page - 1) * limit;
+        const { dateFrom, dateTo } = req.query;
 
         console.log(`[Shows API] Fetching page ${page}, limit ${limit}, offset ${offset}`);
 
-        const { data: shows, error, count } = await supabase
+        let query = supabase
             .from('shows')
             .select(`
                 *,
@@ -28,8 +29,12 @@ router.get('/', async (req, res) => {
                 )
             `, { count: 'exact' })
             .order('show_date', { ascending: false })
-            .order('id')
-            .range(offset, offset + limit - 1);
+            .order('id');
+
+        if (dateFrom) query = query.gte('show_date', dateFrom);
+        if (dateTo) query = query.lte('show_date', dateTo);
+
+        const { data: shows, error, count } = await query.range(offset, offset + limit - 1);
 
         if (error) {
             console.error('Error fetching shows:', error);

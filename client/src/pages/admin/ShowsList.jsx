@@ -10,6 +10,18 @@ const selectClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px
 const EMPTY_FILTERS = { year: '', month: '', song: '', hasNotes: false, hasPhotos: false, hasPoster: false };
 const hasActiveFilters = (f) => f.year || f.month || f.song || f.hasNotes || f.hasPhotos || f.hasPoster;
 
+// Default landing view: shows dated within the last RECENT_DAYS days, up
+// through today — deliberately excludes shows pre-entered ahead of their
+// actual date, since those shouldn't clutter the view until show day.
+const RECENT_DAYS = 14;
+function getRecentRange() {
+    const today = new Date();
+    const todayStr = today.toISOString().slice(0, 10);
+    const from = new Date(today);
+    from.setDate(from.getDate() - RECENT_DAYS);
+    return { dateFrom: from.toISOString().slice(0, 10), dateTo: todayStr };
+}
+
 export default function ShowsList() {
     const [searchParams, setSearchParams] = useSearchParams();
     const [shows, setShows] = useState([]);
@@ -18,6 +30,7 @@ export default function ShowsList() {
     const [pagination, setPagination] = useState(null);
 
     const [filters, setFilters] = useState(EMPTY_FILTERS);
+    const [viewMode, setViewMode] = useState('recent'); // 'recent' | 'all'
     const [filterPanelOpen, setFilterPanelOpen] = useState(false);
     const [years, setYears] = useState([]);
     const [originalsByAlbum, setOriginalsByAlbum] = useState([]);
@@ -94,7 +107,7 @@ export default function ShowsList() {
                 setShows(data.shows || []);
                 setPagination(null);
             } else {
-                const data = await getShows(page, 20);
+                const data = await getShows(page, 20, viewMode === 'recent' ? getRecentRange() : {});
                 setShows(data.shows || []);
                 setPagination(data.pagination);
             }
@@ -104,7 +117,7 @@ export default function ShowsList() {
         } finally {
             setLoading(false);
         }
-    }, [page, filters]);
+    }, [page, filters, viewMode]);
 
     useEffect(() => {
         fetchShows();
@@ -168,6 +181,28 @@ export default function ShowsList() {
 
             {error && (
                 <PInlineNotification heading="Error" description={error} state="error" dismissButton={false} />
+            )}
+
+            {!filtering && (
+                <div className="flex items-center gap-2">
+                    {[
+                        { key: 'recent', label: `Recent (last ${RECENT_DAYS} days)` },
+                        { key: 'all', label: 'All Shows' },
+                    ].map(({ key, label }) => (
+                        <button
+                            key={key}
+                            onClick={() => { setViewMode(key); setSearchParams({ page: '1' }); }}
+                            className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all duration-150 ${
+                                viewMode === key
+                                    ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
+                                    : 'border-white/10 hover:border-amber-500/40 hover:bg-amber-500/10 hover:text-amber-300'
+                            }`}
+                            style={viewMode !== key ? { color: 'var(--p-color-contrast-medium)' } : undefined}
+                        >
+                            {label}
+                        </button>
+                    ))}
+                </div>
             )}
 
             {/* Browse by year */}
@@ -395,7 +430,16 @@ export default function ShowsList() {
                     </table>
                     {shows.length === 0 && !loading && (
                         <div className="text-center py-8">
-                            <PText color="contrast-medium">No shows found. Add your first show!</PText>
+                            <PText color="contrast-medium">
+                                {!filtering && viewMode === 'recent'
+                                    ? `No shows in the last ${RECENT_DAYS} days.`
+                                    : 'No shows found. Add your first show!'}
+                            </PText>
+                            {!filtering && viewMode === 'recent' && (
+                                <PButtonPure size="small" onClick={() => { setViewMode('all'); setSearchParams({ page: '1' }); }} className="mt-1">
+                                    View All Shows
+                                </PButtonPure>
+                            )}
                         </div>
                     )}
                 </div>

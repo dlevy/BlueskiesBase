@@ -36,10 +36,14 @@ export const searchShows = async (filters = {}) => {
 };
 
 /**
- * Get all shows with pagination
+ * Get all shows with pagination. Optionally restrict to a show_date range
+ * (inclusive) via dateFrom/dateTo (YYYY-MM-DD).
  */
-export const getShows = async (page = 1, limit = 20) => {
-    const response = await fetch(`${API_BASE_URL}/api/shows?page=${page}&limit=${limit}`);
+export const getShows = async (page = 1, limit = 20, { dateFrom, dateTo } = {}) => {
+    const params = new URLSearchParams({ page, limit });
+    if (dateFrom) params.set('dateFrom', dateFrom);
+    if (dateTo) params.set('dateTo', dateTo);
+    const response = await fetch(`${API_BASE_URL}/api/shows?${params}`);
     if (!response.ok) {
         throw new Error('Failed to fetch shows');
     }
