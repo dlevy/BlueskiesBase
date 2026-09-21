@@ -406,47 +406,6 @@ export default function SongStatsWidget() {
                 />
             </div>
 
-            {/* All-Time Rarest */}
-            {(stats.originals.rarest?.length > 0 || stats.covers.rarest?.length > 0) && (
-                <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 space-y-5">
-                    <div>
-                        <PHeading size="lg" tag="h3">All-Time Rarest</PHeading>
-                        <PText size="small" color="contrast-medium">Least-played songs across the whole archive, ranked by number of shows played</PText>
-                        <div className="mt-3"><PDivider /></div>
-                    </div>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-6">
-                        {[
-                            { label: 'Originals', songs: stats.originals.rarest, color: '#f59e0b' },
-                            { label: 'Covers', songs: stats.covers.rarest, color: '#c084fc' },
-                        ].filter(({ songs }) => songs?.length > 0).map(({ label, songs, color }) => (
-                            <div key={label}>
-                                <PText size="xs" weight="semi-bold" className="uppercase tracking-wide mb-2" style={{ color }}>
-                                    {label}
-                                </PText>
-                                <ul className="space-y-2 mt-2">
-                                    {songs.map(song => (
-                                        <li key={song.id} className="flex items-start justify-between gap-3">
-                                            <div className="min-w-0">
-                                                <PText size="small" weight="semi-bold" ellipsis>{song.title}</PText>
-                                                {song.original_artist && (
-                                                    <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>{song.original_artist}</PText>
-                                                )}
-                                            </div>
-                                            <div className="text-right shrink-0">
-                                                <PText size="xs" color="contrast-medium" className="whitespace-nowrap">
-                                                    {song.playCount === 1 ? '1 play' : `${song.playCount} plays`}
-                                                </PText>
-                                                <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>{formatDate(song.lastPlayed)}</PText>
-                                            </div>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-
             {/* Holy Grails */}
             {holyGrails.length > 0 && (
                 <div className="rounded-2xl border border-amber-500/20 bg-[#1a1e26] p-6 space-y-5">
