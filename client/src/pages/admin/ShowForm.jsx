@@ -45,13 +45,13 @@ export default function ShowForm() {
     const [venueFormData, setVenueFormData] = useState({ name: '', city: '', state_country: '', address: '' });
     const [venueFormError, setVenueFormError] = useState('');
     const [showOpenedForForm, setShowOpenedForForm] = useState(false);
-    const [showOpeningActForm, setShowOpeningActForm] = useState(false);
     const [newBandName, setNewBandName] = useState('');
     const [bandFormError, setBandFormError] = useState('');
     const [showLinkForm, setShowLinkForm] = useState(false);
     const [newLinkUrl, setNewLinkUrl] = useState('');
     const [newLinkDescription, setNewLinkDescription] = useState('');
     const [linkFormError, setLinkFormError] = useState('');
+    const [advancedOpen, setAdvancedOpen] = useState(false);
 
     const [formData, setFormData] = useState({
         venue_id: '',
@@ -59,10 +59,8 @@ export default function ShowForm() {
         artist_name: 'Johnny Blue Skies',
         tour_name: '',
         notes: '',
-        has_images: false,
         source_types: [],
         opened_for_id: '',
-        opening_act_id: '',
         links: [],
     });
 
@@ -105,16 +103,14 @@ export default function ShowForm() {
             setLoading(true);
             const show = await getShowById(id);
             setFormData({
-                venue_id:       show.venue_id       || '',
-                show_date:      show.show_date       || '',
-                artist_name:    show.artist_name     || '',
-                tour_name:      show.tour_name       || '',
-                notes:          show.notes           || '',
-                has_images:     show.has_images      || false,
-                source_types:   show.source_types    || [],
-                opened_for_id:  show.opened_for_id   || '',
-                opening_act_id: show.opening_act_id  || '',
-                links:          show.links           || [],
+                venue_id:      show.venue_id      || '',
+                show_date:     show.show_date      || '',
+                artist_name:   show.artist_name    || '',
+                tour_name:     show.tour_name      || '',
+                notes:         show.notes          || '',
+                source_types:  show.source_types   || [],
+                opened_for_id: show.opened_for_id  || '',
+                links:         show.links          || [],
             });
             setInitialSetlist(show.setlist || {});
             setTourInputMode('select');
@@ -365,71 +361,6 @@ export default function ShowForm() {
                         )}
                     </div>
 
-                    {/* Opened For */}
-                    <div>
-                        <div className="flex justify-between items-center mb-1.5">
-                            <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)', marginBottom: 0 }}>
-                                Opened For
-                            </label>
-                            {!showOpenedForForm && (
-                                <PButtonPure type="button" size="x-small" onClick={() => { setShowOpenedForForm(true); setBandFormError(''); setNewBandName(''); }}>
-                                    + Add New Band
-                                </PButtonPure>
-                            )}
-                        </div>
-                        {!showOpenedForForm ? (
-                            <select name="opened_for_id" value={formData.opened_for_id} onChange={handleChange}
-                                className={selectClass}
-                                style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
-                                <option value="">— None —</option>
-                                {bands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                            </select>
-                        ) : (
-                            <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
-                                <PHeading size="sm" tag="h3">Add Band</PHeading>
-                                {bandFormError && <PInlineNotification heading="Error" description={bandFormError} state="error" dismissButton={false} />}
-                                <input type="text" value={newBandName} onChange={e => setNewBandName(e.target.value)}
-                                    placeholder="Band name" className={inputClass} />
-                                <div className="flex gap-2">
-                                    <PButton type="button" size="small" onClick={() => handleAddBand('opened_for_id', setShowOpenedForForm)}>Add</PButton>
-                                    <PButton type="button" variant="secondary" size="small" onClick={() => { setShowOpenedForForm(false); setBandFormError(''); }}>Cancel</PButton>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Opening Act */}
-                    <div>
-                        <div className="flex justify-between items-center mb-1.5">
-                            <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)', marginBottom: 0 }}>
-                                Opening Act
-                            </label>
-                            {!showOpeningActForm && (
-                                <PButtonPure type="button" size="x-small" onClick={() => { setShowOpeningActForm(true); setBandFormError(''); setNewBandName(''); }}>
-                                    + Add New Band
-                                </PButtonPure>
-                            )}
-                        </div>
-                        {!showOpeningActForm ? (
-                            <select name="opening_act_id" value={formData.opening_act_id} onChange={handleChange}
-                                className={selectClass}
-                                style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
-                                <option value="">— None —</option>
-                                {bands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                            </select>
-                        ) : (
-                            <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
-                                <PHeading size="sm" tag="h3">Add Band</PHeading>
-                                {bandFormError && <PInlineNotification heading="Error" description={bandFormError} state="error" dismissButton={false} />}
-                                <input type="text" value={newBandName} onChange={e => setNewBandName(e.target.value)}
-                                    placeholder="Band name" className={inputClass} />
-                                <div className="flex gap-2">
-                                    <PButton type="button" size="small" onClick={() => handleAddBand('opening_act_id', setShowOpeningActForm)}>Add</PButton>
-                                    <PButton type="button" variant="secondary" size="small" onClick={() => { setShowOpeningActForm(false); setBandFormError(''); }}>Cancel</PButton>
-                                </div>
-                            </div>
-                        )}
-                    </div>
                 </div>
 
                 <div>
@@ -438,25 +369,73 @@ export default function ShowForm() {
                         className={inputClass + ' resize-none'} />
                 </div>
 
-                <div>
-                    <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>Source Types</label>
-                    <div className="flex flex-wrap gap-4">
-                        {sourceTypeOptions.map(sourceType => (
-                            <label key={sourceType} className="flex items-center gap-2 cursor-pointer">
-                                <input type="checkbox" checked={formData.source_types.includes(sourceType)}
-                                    onChange={() => handleSourceTypeChange(sourceType)} className="w-4 h-4" />
-                                <PText size="small">{sourceType}</PText>
-                            </label>
-                        ))}
-                    </div>
-                </div>
+                {/* Advanced — rarely-used fields tucked away so the common case stays quick to fill out */}
+                <div className="rounded-xl border border-white/10 overflow-hidden">
+                    <button
+                        type="button"
+                        onClick={() => setAdvancedOpen(o => !o)}
+                        className="w-full flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold transition-all"
+                        style={{ color: 'var(--p-color-contrast-medium)' }}
+                    >
+                        <svg
+                            className={`w-3.5 h-3.5 transition-transform duration-200 ${advancedOpen ? '' : '-rotate-90'}`}
+                            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+                        >
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                        </svg>
+                        Advanced
+                    </button>
 
-                <div>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" name="has_images" checked={formData.has_images}
-                            onChange={handleChange} className="w-4 h-4" />
-                        <PText size="small" weight="semi-bold">Has Images</PText>
-                    </label>
+                    {advancedOpen && (
+                        <div className="border-t border-white/10 px-4 py-4 space-y-5">
+                            {/* Opened For */}
+                            <div>
+                                <div className="flex justify-between items-center mb-1.5">
+                                    <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)', marginBottom: 0 }}>
+                                        Opened For
+                                    </label>
+                                    {!showOpenedForForm && (
+                                        <PButtonPure type="button" size="x-small" onClick={() => { setShowOpenedForForm(true); setBandFormError(''); setNewBandName(''); }}>
+                                            + Add New Band
+                                        </PButtonPure>
+                                    )}
+                                </div>
+                                {!showOpenedForForm ? (
+                                    <select name="opened_for_id" value={formData.opened_for_id} onChange={handleChange}
+                                        className={selectClass}
+                                        style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
+                                        <option value="">— None —</option>
+                                        {bands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                                    </select>
+                                ) : (
+                                    <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
+                                        <PHeading size="sm" tag="h3">Add Band</PHeading>
+                                        {bandFormError && <PInlineNotification heading="Error" description={bandFormError} state="error" dismissButton={false} />}
+                                        <input type="text" value={newBandName} onChange={e => setNewBandName(e.target.value)}
+                                            placeholder="Band name" className={inputClass} />
+                                        <div className="flex gap-2">
+                                            <PButton type="button" size="small" onClick={() => handleAddBand('opened_for_id', setShowOpenedForForm)}>Add</PButton>
+                                            <PButton type="button" variant="secondary" size="small" onClick={() => { setShowOpenedForForm(false); setBandFormError(''); }}>Cancel</PButton>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Source Types */}
+                            <div>
+                                <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>Source Types</label>
+                                <div className="flex flex-wrap gap-4">
+                                    {sourceTypeOptions.map(sourceType => (
+                                        <label key={sourceType} className="flex items-center gap-2 cursor-pointer">
+                                            <input type="checkbox" checked={formData.source_types.includes(sourceType)}
+                                                onChange={() => handleSourceTypeChange(sourceType)} className="w-4 h-4" />
+                                            <PText size="small">{sourceType}</PText>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Links */}

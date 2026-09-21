@@ -14,14 +14,13 @@ const { supabase } = require('../config/supabase');
  *   - state: Filter by state/country (partial match)
  *   - song: Filter by song title (shows containing this song)
  *   - source: Filter by source type (AUD, SBD, VIDEO, etc.)
- *   - hasImages: Filter by shows with images (true/false)
  *   - hasNotes: Filter by shows with user notes (true/false)
  *   - hasPhotos: Filter by shows with user photos (true/false)
  *   - hasPoster: Filter by shows with user posters (true/false)
  */
 router.get('/shows', async (req, res) => {
     try {
-        const { year, month, day, venue, city, state, song, source, hasImages, hasNotes, hasPhotos, hasPoster } = req.query;
+        const { year, month, day, venue, city, state, song, source, hasNotes, hasPhotos, hasPoster } = req.query;
 
         // Handle content-based filters (hasNotes, hasPhotos, hasPoster)
         // These require querying the user_notes, user_photos, user_posters tables first
@@ -120,8 +119,7 @@ router.get('/shows', async (req, res) => {
             .select(`
                 *,
                 venues (id, name, city, state_country, address),
-                opened_for:bands!shows_opened_for_id_fkey(id, name),
-                opening_act:bands!shows_opening_act_id_fkey(id, name)
+                opened_for:bands!shows_opened_for_id_fkey(id, name)
             `)
             .order('show_date', { ascending: false });
 
@@ -156,10 +154,6 @@ router.get('/shows', async (req, res) => {
         if (venue) {
             // This will need to be done with a join or separate query
             // For now, we'll fetch and filter in memory
-        }
-
-        if (hasImages === 'true') {
-            query = query.eq('has_images', true);
         }
 
         if (source) {

@@ -567,20 +567,12 @@ export default function ShowDetailPage() {
                 )}
 
                 {/* Support act context */}
-                {(show.opened_for || show.opening_act) && (
+                {show.opened_for && (
                     <div className="mt-4 flex flex-col gap-1.5">
-                        {show.opened_for && (
-                            <p className="text-sm" style={{ color: 'var(--p-color-contrast-medium)' }}>
-                                <span style={{ color: 'var(--p-color-contrast-low)' }}>Opening for </span>
-                                <span className="font-semibold" style={{ color: 'var(--p-color-primary)' }}>{show.opened_for.name}</span>
-                            </p>
-                        )}
-                        {show.opening_act && (
-                            <p className="text-sm" style={{ color: 'var(--p-color-contrast-medium)' }}>
-                                <span style={{ color: 'var(--p-color-contrast-low)' }}>Opening act </span>
-                                <span className="font-semibold" style={{ color: 'var(--p-color-primary)' }}>{show.opening_act.name}</span>
-                            </p>
-                        )}
+                        <p className="text-sm" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                            <span style={{ color: 'var(--p-color-contrast-low)' }}>Opening for </span>
+                            <span className="font-semibold" style={{ color: 'var(--p-color-primary)' }}>{show.opened_for.name}</span>
+                        </p>
                     </div>
                 )}
 

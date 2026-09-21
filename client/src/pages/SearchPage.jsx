@@ -46,7 +46,7 @@ export default function SearchPage() {
 
     const [searchParams, setSearchParams] = useState({
         year: '', month: '', song: '', source: '',
-        hasImages: false, hasNotes: false, hasPhotos: false, hasPoster: false
+        hasNotes: false, hasPhotos: false, hasPoster: false
     });
     const [results, setResults] = useState([]);
     const [filteredResults, setFilteredResults] = useState([]);
@@ -248,7 +248,7 @@ export default function SearchPage() {
 
     const hasActiveFilters = (p) =>
         p.year || p.month || p.song || p.source ||
-        p.hasImages || p.hasNotes || p.hasPhotos || p.hasPoster;
+        p.hasNotes || p.hasPhotos || p.hasPoster;
 
     const handleAttendanceToggle = async (showId, e) => {
         e.preventDefault(); e.stopPropagation();
@@ -307,14 +307,14 @@ export default function SearchPage() {
     const clearFilter = (filterName) => {
         const newParams = {
             ...searchParams,
-            [filterName]: ['hasImages', 'hasNotes', 'hasPhotos', 'hasPoster'].includes(filterName) ? false : ''
+            [filterName]: ['hasNotes', 'hasPhotos', 'hasPoster'].includes(filterName) ? false : ''
         };
         setSearchParams(newParams);
         performSearch(newParams);
     };
 
     const clearAllFilters = () => {
-        const newParams = { year: '', month: '', song: '', source: '', hasImages: false, hasNotes: false, hasPhotos: false, hasPoster: false };
+        const newParams = { year: '', month: '', song: '', source: '', hasNotes: false, hasPhotos: false, hasPoster: false };
         setSearchParams(newParams);
         setResults([]);
     };
@@ -570,7 +570,6 @@ export default function SearchPage() {
                                         const setlistPreview = setlistPreviewMap[show.id];
                                         const showDebuts = debutsMap[show.id];
                                         const openedFor = show.opened_for?.name;
-                                        const openingAct = show.opening_act?.name;
                                         const hasVideo = show.links?.some(l => l.url?.includes('youtube.com') || l.url?.includes('youtu.be'));
                                         const hasLinks = show.links?.some(l => l.url && !l.url.includes('youtube.com') && !l.url.includes('youtu.be'));
                                         const [sy, sm, sd] = show.show_date.split('-');
@@ -620,10 +619,9 @@ export default function SearchPage() {
                                                                 {show.tour_name}
                                                             </p>
                                                         )}
-                                                        {(hasNotes || hasPhotos || hasPoster || songStats.covers > 0 || openedFor || openingAct || hasVideo || hasLinks) && (
+                                                        {(hasNotes || hasPhotos || hasPoster || songStats.covers > 0 || openedFor || hasVideo || hasLinks) && (
                                                             <div className="mt-2 flex flex-wrap gap-1.5">
                                                                 {openedFor && <PTag color="notification-warning-soft">Opening for {openedFor}</PTag>}
-                                                                {openingAct && <PTag color="notification-neutral-soft">Opener: {openingAct}</PTag>}
                                                                 {hasVideo && <ListTag label="Video" color={CONTENT_TAG_COLOR} />}
                                                                 {hasLinks && <ListTag label="Links" color={CONTENT_TAG_COLOR} />}
                                                                 {hasNotes && <ListTag label="Notes" color={CONTENT_TAG_COLOR} />}

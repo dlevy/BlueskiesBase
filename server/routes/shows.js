@@ -447,8 +447,7 @@ router.get('/:id', async (req, res) => {
             .select(`
                 *,
                 venues (id, name, city, state_country, address),
-                opened_for:bands!shows_opened_for_id_fkey(id, name),
-                opening_act:bands!shows_opening_act_id_fkey(id, name)
+                opened_for:bands!shows_opened_for_id_fkey(id, name)
             `)
             .eq('id', id)
             .single();
@@ -550,7 +549,7 @@ router.get('/:id', async (req, res) => {
  */
 router.post('/', async (req, res) => {
     try {
-        const { venue_id, show_date, artist_name, tour_name, notes, has_images, source_types, opened_for_id, opening_act_id, links } = req.body;
+        const { venue_id, show_date, artist_name, tour_name, notes, source_types, opened_for_id, links } = req.body;
 
         // TODO: Add authentication middleware to verify admin status
 
@@ -562,10 +561,8 @@ router.post('/', async (req, res) => {
                 artist_name,
                 tour_name,
                 notes,
-                has_images,
                 source_types,
-                opened_for_id:  opened_for_id  || null,
-                opening_act_id: opening_act_id || null,
+                opened_for_id: opened_for_id || null,
             }])
             .select()
             .single();
@@ -598,7 +595,7 @@ router.post('/', async (req, res) => {
  * Body: { tour_name: string | null }
  * A dedicated endpoint rather than reusing PUT /:id — that handler updates every
  * show field unconditionally from req.body, so a partial {tour_name} payload would
- * null out opened_for_id/opening_act_id/links as a side effect.
+ * null out opened_for_id/links as a side effect.
  */
 router.patch('/:id/tour', async (req, res) => {
     try {
@@ -631,7 +628,7 @@ router.patch('/:id/tour', async (req, res) => {
 router.put('/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const { venue_id, show_date, artist_name, tour_name, notes, has_images, source_types, opened_for_id, opening_act_id, links } = req.body;
+        const { venue_id, show_date, artist_name, tour_name, notes, source_types, opened_for_id, links } = req.body;
 
         // TODO: Add authentication middleware to verify admin status
 
@@ -643,10 +640,8 @@ router.put('/:id', async (req, res) => {
                 artist_name,
                 tour_name,
                 notes,
-                has_images,
                 source_types,
-                opened_for_id:  opened_for_id  || null,
-                opening_act_id: opening_act_id || null,
+                opened_for_id: opened_for_id || null,
             })
             .eq('id', id)
             .select()
