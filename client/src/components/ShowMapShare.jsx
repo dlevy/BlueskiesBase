@@ -363,7 +363,7 @@ const stateStyle = () => ({
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function ShowMapShare({ pastShows, upcomingShows }) {
+export default function ShowMapShare({ pastShows, upcomingShows, title = 'My Show Map' }) {
     const [pins, setPins] = useState([]);
     const [geocoding, setGeocoding] = useState(false);
     const [progress, setProgress] = useState({ done: 0, total: 0 });
@@ -506,7 +506,7 @@ export default function ShowMapShare({ pastShows, upcomingShows }) {
             <div className="flex items-center justify-between flex-wrap gap-2">
                 <div>
                     <h3 className="font-display font-bold text-base" style={{ color: 'var(--p-color-primary)' }}>
-                        My Show Map
+                        {title}
                     </h3>
                     <p className="text-xs mt-0.5" style={{ color: 'var(--p-color-contrast-low)' }}>
                         {pastShows.length} attended · {upcomingShows.length} upcoming

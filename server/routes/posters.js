@@ -249,6 +249,148 @@ router.post('/upload', authenticate, upload.single('poster'), async (req, res) =
     }
 });
 
+// ============================================
+// POSTER COLLECTION ENDPOINTS
+// (which show posters a user owns, and whether they have the foil variant —
+// distinct from the posters themselves, which are one uploaded image per show)
+// ============================================
+
+/**
+ * GET /api/posters/collection
+ * The logged-in user's own poster collection, each entry joined with the poster
+ * (and its show) it refers to. Requires authentication.
+ */
+router.get('/collection', authenticate, async (req, res) => {
+    try {
+        const { data, error } = await supabaseAdmin
+            .from('user_poster_collection')
+            .select(`
+                id,
+                has_foil,
+                created_at,
+                user_posters (
+                    id,
+                    poster_url,
+                    shows (
+                        id,
+                        show_date,
+                        artist_name,
+                        tour_name,
+                        venues ( name, city, state_country )
+                    )
+                )
+            `)
+            .eq('user_id', req.user.id)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Error fetching poster collection:', error);
+            return res.status(500).json({ error: 'Failed to fetch poster collection' });
+        }
+
+        res.json({ collection: data || [] });
+    } catch (error) {
+        console.error('Error in GET /api/posters/collection:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * POST /api/posters/collection
+ * Add a poster to the logged-in user's collection (or update has_foil if they
+ * already have it). Body: { posterId, hasFoil }. Requires authentication.
+ */
+router.post('/collection', authenticate, async (req, res) => {
+    try {
+        const { posterId, hasFoil } = req.body;
+        if (!posterId) {
+            return res.status(400).json({ error: 'posterId is required' });
+        }
+
+        const { data: poster, error: posterError } = await supabaseAdmin
+            .from('user_posters')
+            .select('id')
+            .eq('id', posterId)
+            .single();
+        if (posterError || !poster) {
+            return res.status(404).json({ error: 'Poster not found' });
+        }
+
+        const { data, error } = await supabaseAdmin
+            .from('user_poster_collection')
+            .upsert(
+                { user_id: req.user.id, poster_id: posterId, has_foil: Boolean(hasFoil) },
+                { onConflict: 'user_id,poster_id' }
+            )
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error adding to poster collection:', error);
+            return res.status(500).json({ error: 'Failed to add poster to collection' });
+        }
+
+        res.status(201).json(data);
+    } catch (error) {
+        console.error('Error in POST /api/posters/collection:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * PUT /api/posters/collection/:id
+ * Update the has_foil flag on one of the logged-in user's collection entries.
+ */
+router.put('/collection/:id', authenticate, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { hasFoil } = req.body;
+
+        const { data, error } = await supabaseAdmin
+            .from('user_poster_collection')
+            .update({ has_foil: Boolean(hasFoil) })
+            .eq('id', id)
+            .eq('user_id', req.user.id)
+            .select()
+            .single();
+
+        if (error || !data) {
+            return res.status(404).json({ error: 'Collection entry not found' });
+        }
+
+        res.json(data);
+    } catch (error) {
+        console.error('Error in PUT /api/posters/collection/:id:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * DELETE /api/posters/collection/:id
+ * Remove a poster from the logged-in user's collection.
+ */
+router.delete('/collection/:id', authenticate, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const { error } = await supabaseAdmin
+            .from('user_poster_collection')
+            .delete()
+            .eq('id', id)
+            .eq('user_id', req.user.id);
+
+        if (error) {
+            console.error('Error removing from poster collection:', error);
+            return res.status(500).json({ error: 'Failed to remove poster from collection' });
+        }
+
+        res.json({ message: 'Removed from collection' });
+    } catch (error) {
+        console.error('Error in DELETE /api/posters/collection/:id:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 /**
  * PUT /api/posters/:posterId
  * Update poster caption

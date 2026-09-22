@@ -1311,3 +1311,69 @@ export const deletePoster = async (posterId) => {
     return response.json();
 };
 
+/**
+ * The logged-in user's own poster collection (which posters they own, and
+ * whether they have the foil variant of each).
+ */
+export const getMyPosterCollection = async () => {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/posters/collection`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!response.ok) throw new Error('Failed to fetch poster collection');
+    return response.json();
+};
+
+/**
+ * Add a poster to the logged-in user's collection (or update its foil flag if
+ * already owned).
+ */
+export const addToPosterCollection = async (posterId, hasFoil = false) => {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/posters/collection`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ posterId, hasFoil }),
+    });
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to add poster to collection');
+    }
+    return response.json();
+};
+
+/**
+ * Update the foil flag on a poster collection entry.
+ */
+export const updatePosterCollectionFoil = async (entryId, hasFoil) => {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/posters/collection/${entryId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ hasFoil }),
+    });
+    if (!response.ok) throw new Error('Failed to update poster');
+    return response.json();
+};
+
+/**
+ * Remove a poster from the logged-in user's collection.
+ */
+export const removeFromPosterCollection = async (entryId) => {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/posters/collection/${entryId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!response.ok) throw new Error('Failed to remove poster from collection');
+    return response.json();
+};
+

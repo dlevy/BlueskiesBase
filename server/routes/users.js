@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const { supabase, supabaseAdmin } = require('../config/supabase');
-const { computeSongsSeenForShows, computeDebutCounts, computeRarityCounts } = require('../utils/attendance');
+const { computeSongsSeenForShows, computeDebutCounts, computeDebutDetails, computeRarityCounts } = require('../utils/attendance');
 const { computeFunStats } = require('../utils/funStats');
 
 const AVATARS_BUCKET = 'avatars';
@@ -516,7 +516,7 @@ router.get('/profile/:username', async (req, res) => {
 
         const songsSeen = await computeSongsSeenForShows(pastShowIds);
         const funStats = computeFunStats(pastShows, songsSeen);
-        const { liveDebutsWitnessed, tourDebutsWitnessed } = await computeDebutCounts(pastShowIds);
+        const { liveDebuts, tourDebuts } = await computeDebutDetails(pastShows, songsSeen);
 
         // User-picked favorites (not auto-computed) — looked up directly rather than
         // cross-referenced from pastShows so they still resolve correctly even in any
@@ -541,6 +541,32 @@ router.get('/profile/:username', async (req, res) => {
             favoriteVenue = data || null;
         }
 
+        // Poster collection — public once added, same as favorite show/venue (no
+        // separate opt-in toggle; owning a poster isn't personally sensitive the way
+        // real name/location/attendance history can be).
+        const { data: collectionRows } = await supabase
+            .from('user_poster_collection')
+            .select(`
+                id,
+                has_foil,
+                user_posters (
+                    id,
+                    poster_url,
+                    shows ( id, show_date, artist_name, tour_name, venues ( name, city, state_country ) )
+                )
+            `)
+            .eq('user_id', profile.id);
+
+        const posterCollection = (collectionRows || [])
+            .filter(row => row.user_posters?.shows)
+            .map(row => ({
+                id: row.id,
+                hasFoil: row.has_foil,
+                posterUrl: row.user_posters.poster_url,
+                show: row.user_posters.shows,
+            }))
+            .sort((a, b) => b.show.show_date.localeCompare(a.show.show_date));
+
         const response = {
             username: profile.username,
             ...(profile.display_name && { displayName: profile.display_name }),
@@ -558,8 +584,9 @@ router.get('/profile/:username', async (req, res) => {
             mostPlayedSong: funStats?.topSong || null,
             firstShow: funStats?.firstShow || null,
             uniqueCities: funStats?.uniqueCities || 0,
-            liveDebutsWitnessed,
-            tourDebutsWitnessed,
+            liveDebuts,
+            tourDebuts,
+            posterCollection,
         };
 
         if (profile.show_attendance_public) {

@@ -1,8 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { PHeading, PText, PButton, PInlineNotification } from '@porsche-design-system/components-react';
 import { useAuth } from '../contexts/AuthContext';
-import { updateMyProfile, uploadAvatar, getUserStats } from '../services/api';
+import {
+    updateMyProfile, uploadAvatar, getUserStats,
+    getAllPosters, getMyPosterCollection, addToPosterCollection, updatePosterCollectionFoil, removeFromPosterCollection,
+} from '../services/api';
 
 const inputClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-transparent placeholder:text-gray-500";
 const selectClass = "w-full rounded-lg border border-white/10 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-transparent";
@@ -35,12 +38,27 @@ export default function EditProfilePage() {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
 
+    const [allPosters, setAllPosters] = useState([]);
+    const [myCollection, setMyCollection] = useState([]);
+    const [selectedPosterId, setSelectedPosterId] = useState('');
+    const [selectedHasFoil, setSelectedHasFoil] = useState(false);
+    const [posterError, setPosterError] = useState('');
+
     useEffect(() => {
         if (!user) navigate('/member-login');
     }, [user, navigate]);
 
+    // Populate the form from `profile` exactly once. `profile` can get a brand-new
+    // object reference from AuthContext for reasons that have nothing to do with an
+    // actual save here — e.g. a SIGNED_IN event fired by another tab refreshing its
+    // token re-fetches the profile row. Re-running this on every such reference
+    // change would silently wipe out whatever the user had picked/typed but not yet
+    // saved (this is exactly what was happening to favorite show/venue: the effect
+    // reset the form back to the still-null saved value right before submit).
+    const initializedRef = useRef(false);
     useEffect(() => {
-        if (!profile) return;
+        if (!profile || initializedRef.current) return;
+        initializedRef.current = true;
         setFormData(prev => ({
             ...prev,
             displayName: profile.display_name || '',
@@ -70,6 +88,57 @@ export default function EditProfilePage() {
             })
             .catch(err => console.error('[EditProfilePage] Error loading attended shows:', err));
     }, [user]);
+
+    const loadPosterCollection = () => {
+        getMyPosterCollection()
+            .then(data => setMyCollection(data.collection || []))
+            .catch(err => console.error('[EditProfilePage] Error loading poster collection:', err));
+    };
+
+    useEffect(() => {
+        if (!user) return;
+        getAllPosters()
+            .then(data => setAllPosters(data.posters || []))
+            .catch(err => console.error('[EditProfilePage] Error loading posters:', err));
+        loadPosterCollection();
+    }, [user]);
+
+    const ownedPosterIds = new Set(myCollection.map(c => c.user_posters?.id));
+    const availablePosters = allPosters.filter(p => !ownedPosterIds.has(p.id));
+
+    const handleAddPoster = async () => {
+        if (!selectedPosterId) return;
+        setPosterError('');
+        try {
+            await addToPosterCollection(selectedPosterId, selectedHasFoil);
+            setSelectedPosterId('');
+            setSelectedHasFoil(false);
+            loadPosterCollection();
+        } catch (err) {
+            console.error('[EditProfilePage] Error adding poster:', err);
+            setPosterError(err.message || 'Failed to add poster');
+        }
+    };
+
+    const handleToggleFoil = async (entry) => {
+        try {
+            await updatePosterCollectionFoil(entry.id, !entry.has_foil);
+            loadPosterCollection();
+        } catch (err) {
+            console.error('[EditProfilePage] Error updating foil flag:', err);
+            setPosterError(err.message || 'Failed to update poster');
+        }
+    };
+
+    const handleRemovePoster = async (entryId) => {
+        try {
+            await removeFromPosterCollection(entryId);
+            loadPosterCollection();
+        } catch (err) {
+            console.error('[EditProfilePage] Error removing poster:', err);
+            setPosterError(err.message || 'Failed to remove poster');
+        }
+    };
 
     const venueOptions = [];
     const seenVenueIds = new Set();
@@ -260,6 +329,79 @@ export default function EditProfilePage() {
 
                 <PButton type="submit" loading={saving}>Save Profile</PButton>
             </form>
+
+            {/* Poster Collection — its own section since it's a separate save action
+                (each add/remove/foil-toggle happens immediately, not on form submit) */}
+            <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 space-y-4">
+                <div>
+                    <PHeading size="lg" tag="h2">My Poster Collection</PHeading>
+                    <PText size="small" color="contrast-medium">
+                        Mark which show posters you own, and whether you have the foil variant. Shown on your public profile.
+                    </PText>
+                </div>
+
+                {posterError && <PInlineNotification heading="Error" description={posterError} state="error" dismissButton={false} />}
+
+                {myCollection.length > 0 && (
+                    <div className="space-y-2">
+                        {myCollection.map(entry => {
+                            const poster = entry.user_posters;
+                            const show = poster?.shows;
+                            return (
+                                <div key={entry.id} className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/5 p-3">
+                                    {poster?.poster_url && (
+                                        <img src={poster.poster_url} alt="" className="w-12 h-16 object-cover rounded shrink-0 border border-white/10" />
+                                    )}
+                                    <div className="min-w-0 flex-1">
+                                        {show ? (
+                                            <>
+                                                <PText size="small" weight="semi-bold" ellipsis>{show.artist_name}</PText>
+                                                <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>
+                                                    {formatDate(show.show_date)}{show.venues ? ` · ${show.venues.name}` : ''}
+                                                </PText>
+                                            </>
+                                        ) : (
+                                            <PText size="small" color="contrast-medium">Poster's show unavailable</PText>
+                                        )}
+                                    </div>
+                                    <label className="flex items-center gap-1.5 shrink-0 cursor-pointer">
+                                        <input type="checkbox" checked={entry.has_foil} onChange={() => handleToggleFoil(entry)} className="w-3.5 h-3.5" />
+                                        <PText size="xs" color="contrast-medium">Foil</PText>
+                                    </label>
+                                    <PText
+                                        size="xs"
+                                        className="shrink-0 cursor-pointer hover:opacity-80"
+                                        style={{ color: 'var(--p-color-notification-error)' }}
+                                        onClick={() => handleRemovePoster(entry.id)}
+                                    >
+                                        Remove
+                                    </PText>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+
+                <div className="flex flex-wrap items-end gap-3 pt-2 border-t border-white/10">
+                    <div className="flex-1 min-w-[200px]">
+                        <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>Add a poster</label>
+                        <select value={selectedPosterId} onChange={e => setSelectedPosterId(e.target.value)}
+                            className={selectClass} style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
+                            <option value="">— Select a poster —</option>
+                            {availablePosters.map(p => (
+                                <option key={p.id} value={p.id}>
+                                    {p.shows ? `${formatDate(p.shows.show_date)} — ${p.shows.artist_name}` : 'Untitled'}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <label className="flex items-center gap-1.5 cursor-pointer pb-2">
+                        <input type="checkbox" checked={selectedHasFoil} onChange={e => setSelectedHasFoil(e.target.checked)} className="w-3.5 h-3.5" />
+                        <PText size="xs" color="contrast-medium">Foil variant</PText>
+                    </label>
+                    <PButton type="button" size="small" disabled={!selectedPosterId} onClick={handleAddPoster}>Add</PButton>
+                </div>
+            </div>
         </div>
     );
 }

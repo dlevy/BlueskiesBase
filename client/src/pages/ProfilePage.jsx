@@ -4,6 +4,7 @@ import { PHeading, PText, PSpinner, PInlineNotification, PButtonPure } from '@po
 import { getPublicProfile } from '../services/api';
 import { buildShowPath } from '../utils/showSlug';
 import SEO from '../components/SEO';
+import ShowMapShare from '../components/ShowMapShare';
 
 function FactCard({ label, value, sub }) {
     return (
@@ -177,14 +178,93 @@ export default function ProfilePage() {
                     {profile.mostPlayedSong && (
                         <FactCard label="Most-Played Song" value={profile.mostPlayedSong.title} sub={`Seen ${profile.mostPlayedSong.playCount}x`} />
                     )}
-                    {profile.liveDebutsWitnessed > 0 && (
-                        <FactCard label="Live Debuts Witnessed" value={profile.liveDebutsWitnessed} />
-                    )}
-                    {profile.tourDebutsWitnessed > 0 && (
-                        <FactCard label="Tour Debuts Witnessed" value={profile.tourDebutsWitnessed} />
-                    )}
                 </div>
             </div>
+
+            {/* Debuts witnessed — the actual songs + dates, not just a count */}
+            {(profile.liveDebuts?.length > 0 || profile.tourDebuts?.length > 0) && (
+                <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6">
+                    <PHeading size="lg" tag="h2">Debuts Witnessed</PHeading>
+                    <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {profile.liveDebuts?.length > 0 && (
+                            <div>
+                                <PText size="xs" weight="semi-bold" className="uppercase tracking-wide mb-2" style={{ color: '#34d399' }}>
+                                    Live Debuts ({profile.liveDebuts.length})
+                                </PText>
+                                <ul className="space-y-1.5">
+                                    {profile.liveDebuts.map((d, i) => (
+                                        <li key={`${d.songId}-${i}`} className="flex items-center justify-between gap-3">
+                                            <PText size="small" ellipsis>{d.title || 'Unknown song'}</PText>
+                                            {d.showDate && (
+                                                <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }} className="shrink-0 whitespace-nowrap">
+                                                    {formatDate(d.showDate)}
+                                                </PText>
+                                            )}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                        {profile.tourDebuts?.length > 0 && (
+                            <div>
+                                <PText size="xs" weight="semi-bold" className="uppercase tracking-wide mb-2" style={{ color: '#22d3ee' }}>
+                                    Tour Debuts ({profile.tourDebuts.length})
+                                </PText>
+                                <ul className="space-y-1.5">
+                                    {profile.tourDebuts.map((d, i) => (
+                                        <li key={`${d.songId}-${i}`} className="flex items-center justify-between gap-3">
+                                            <PText size="small" ellipsis>{d.title || 'Unknown song'}</PText>
+                                            {d.showDate && (
+                                                <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }} className="shrink-0 whitespace-nowrap">
+                                                    {formatDate(d.showDate)}
+                                                </PText>
+                                            )}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* Poster collection */}
+            {profile.posterCollection?.length > 0 && (
+                <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6">
+                    <PHeading size="lg" tag="h2">Poster Collection</PHeading>
+                    <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                        {profile.posterCollection.map(entry => (
+                            <Link
+                                key={entry.id}
+                                to={buildShowPath(entry.show)}
+                                className="block rounded-xl border border-white/5 bg-white/5 overflow-hidden hover:border-white/20 transition-all"
+                            >
+                                <div className="relative aspect-[2/3] bg-black/20">
+                                    <img src={entry.posterUrl} alt={entry.show.artist_name} className="w-full h-full object-cover" />
+                                    {entry.hasFoil && (
+                                        <span
+                                            className="absolute top-1.5 right-1.5 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded"
+                                            style={{ background: 'rgba(192,132,252,0.85)', color: '#1a0b2e' }}
+                                        >
+                                            Foil
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="p-2">
+                                    <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }} ellipsis>
+                                        {formatDate(entry.show.show_date)}
+                                    </PText>
+                                </div>
+                            </Link>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Show map — only present if this user opted in to sharing attendance */}
+            {profile.attendedShows && (
+                <ShowMapShare pastShows={profile.attendedShows} upcomingShows={[]} title={`${displayLabel}'s Show Map`} />
+            )}
 
             {/* Attended shows — only present if this user opted in */}
             {profile.attendedShows && (

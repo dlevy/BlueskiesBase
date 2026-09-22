@@ -91,6 +91,42 @@ async function computeDebutCounts(pastShowIds) {
 }
 
 /**
+ * Live/tour debuts witnessed, with song title + the date/show they were witnessed at
+ * (not just a count). Used by the public profile page; `pastShows` must be full show
+ * objects (id + show_date, from the same set passed to computeSongsSeenForShows) and
+ * `songsSeen` its already-computed companion, so song titles can be resolved without
+ * a second fetch.
+ */
+async function computeDebutDetails(pastShows, songsSeen) {
+    const showsById = {};
+    pastShows.forEach(s => { showsById[s.id] = s; });
+    const songsById = {};
+    songsSeen.forEach(s => { songsById[s.id] = s; });
+
+    const liveDebuts = [];
+    const tourDebuts = [];
+    try {
+        const debutsByShow = await computeDebutsForShows(pastShows.map(s => s.id));
+        Object.entries(debutsByShow).forEach(([showId, d]) => {
+            const show = showsById[showId];
+            d.live_debut_song_ids.forEach(songId => {
+                liveDebuts.push({ songId, title: songsById[songId]?.title || null, showId, showDate: show?.show_date || null });
+            });
+            d.tour_debut_song_ids.forEach(songId => {
+                tourDebuts.push({ songId, title: songsById[songId]?.title || null, showId, showDate: show?.show_date || null });
+            });
+        });
+    } catch (err) {
+        console.error('[computeDebutDetails] Error computing debuts witnessed:', err);
+    }
+
+    liveDebuts.sort((a, b) => (b.showDate || '').localeCompare(a.showDate || ''));
+    tourDebuts.sort((a, b) => (b.showDate || '').localeCompare(a.showDate || ''));
+
+    return { liveDebuts, tourDebuts };
+}
+
+/**
  * How many all-time-rarest songs a user has seen (and the single rarest match), given
  * their already-computed songsSeen list. Used by the personal stats route only — the
  * public profile page doesn't surface this.
@@ -116,4 +152,4 @@ async function computeRarityCounts(songsSeen) {
     return { rareSongsSeenCount, rarestSongSeen };
 }
 
-module.exports = { computeSongsSeenForShows, computeDebutCounts, computeRarityCounts };
+module.exports = { computeSongsSeenForShows, computeDebutCounts, computeDebutDetails, computeRarityCounts };
