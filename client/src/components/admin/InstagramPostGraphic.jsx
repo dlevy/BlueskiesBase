@@ -141,11 +141,15 @@ const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({ show, fo
                                         key={song.id || i}
                                         style={{
                                             fontSize: songFontSize, lineHeight: 1.45, color: style.heading,
-                                            display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10,
+                                            display: 'flex', flexWrap: 'nowrap', alignItems: 'center', gap: 10,
                                         }}
                                     >
-                                        <span style={{ color: style.muted, fontVariantNumeric: 'tabular-nums' }}>{i + 1}.</span>
-                                        <span>{song.title}{song.jams_into ? ' →' : ''}</span>
+                                        <span style={{ flexShrink: 0, color: style.muted, fontVariantNumeric: 'tabular-nums' }}>{i + 1}.</span>
+                                        <span style={{
+                                            minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                        }}>
+                                            {song.title}{song.jams_into ? ' →' : ''}
+                                        </span>
                                         {isLiveDebut && <DebutTag label="Live Debut" color="#34d399" songFontSize={songFontSize} />}
                                         {isTourDebut && <DebutTag label="Tour Debut" color="#22d3ee" songFontSize={songFontSize} />}
                                     </div>
