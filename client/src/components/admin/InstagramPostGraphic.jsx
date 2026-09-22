@@ -34,14 +34,20 @@ function DebutTag({ label, color, songFontSize }) {
 
 function pickSongLayout(totalSongs, availableHeight) {
     const usable = Math.max(availableHeight, 100);
-    let columns = 1;
-    let lineHeight = usable / totalSongs;
-    if (lineHeight / 1.45 < MIN_SONG_FONT && totalSongs > 6) {
-        columns = 2;
-        lineHeight = usable / Math.ceil(totalSongs / 2);
+    // Try 1 and 2 columns, and keep whichever actually yields the larger
+    // (more readable) font — a single threshold check on 1-column font size
+    // alone can land just above MIN_SONG_FONT and stick with a cramped
+    // single column even when 2 columns would render noticeably bigger.
+    let best = null;
+    for (let columns = 1; columns <= 2; columns++) {
+        const rows = Math.ceil(totalSongs / columns);
+        const lineHeight = usable / rows;
+        const songFontSize = Math.min(Math.max(lineHeight / 1.45, MIN_SONG_FONT), MAX_SONG_FONT);
+        if (!best || songFontSize > best.songFontSize) {
+            best = { columns, songFontSize };
+        }
     }
-    const songFontSize = Math.min(Math.max(lineHeight / 1.45, MIN_SONG_FONT), MAX_SONG_FONT);
-    return { columns, songFontSize };
+    return best;
 }
 
 // Splits songs into `columns` chunks for rendering, preserving each song's
