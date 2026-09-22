@@ -1,4 +1,5 @@
 ﻿import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { PHeading, PText, PSpinner, PInlineNotification, PDivider } from '@porsche-design-system/components-react';
 import { getGlobalSongStats, getSongs, getCommunityStats } from '../services/api';
 import { supabase } from '../services/supabase';
@@ -378,7 +379,9 @@ export default function SongStatsWidget() {
                                 {communityStats.topContributors.map((c, i) => (
                                     <li key={c.username} className="flex items-center gap-3">
                                         <span className="font-bold text-sm w-5 shrink-0" style={{ color: '#f59e0b' }}>#{i + 1}</span>
-                                        <PText weight="semi-bold" className="flex-1 min-w-0" ellipsis>{c.username}</PText>
+                                        <Link to={`/profile/${c.username}`} className="flex-1 min-w-0 hover:underline">
+                                            <PText weight="semi-bold" ellipsis>{c.displayName || c.username}</PText>
+                                        </Link>
                                         <PText size="xs" color="contrast-medium" className="shrink-0">
                                             {c.count} contribution{c.count !== 1 ? 's' : ''}
                                         </PText>

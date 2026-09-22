@@ -141,6 +141,14 @@ export const AuthProvider = ({ children }) => {
         return session?.access_token ?? null;
     }, []);
 
+    // Re-fetch the viewer's own profile row — called after an Edit Profile save so
+    // `profile` reflects the change immediately without a full reload.
+    const refreshProfile = useCallback(async () => {
+        if (!user) return;
+        const p = await fetchProfile(user.id);
+        setProfile(p);
+    }, [user]);
+
     const value = {
         user,
         profile,
@@ -152,6 +160,7 @@ export const AuthProvider = ({ children }) => {
         signOut,
         updatePassword,
         getToken,
+        refreshProfile,
     };
 
     return (

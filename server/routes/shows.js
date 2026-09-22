@@ -267,7 +267,8 @@ router.get('/:id/attendees', async (req, res) => {
                 user_id,
                 profiles:user_id (
                     id,
-                    username
+                    username,
+                    display_name
                 )
             `)
             .eq('show_id', id);
@@ -279,7 +280,7 @@ router.get('/:id/attendees', async (req, res) => {
 
         const attendees = (data || [])
             .filter(row => row.profiles?.username)
-            .map(row => ({ id: row.profiles.id, username: row.profiles.username }));
+            .map(row => ({ id: row.profiles.id, username: row.profiles.username, displayName: row.profiles.display_name || null }));
 
         res.json({ attendees, count: (data || []).length });
 

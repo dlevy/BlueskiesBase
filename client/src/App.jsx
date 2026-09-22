@@ -10,6 +10,8 @@ import StatsPage from './pages/StatsPage'
 import PostersPage from './pages/PostersPage'
 import PhotosPage from './pages/PhotosPage'
 import TourStatsPage from './pages/TourStatsPage'
+import ProfilePage from './pages/ProfilePage'
+import EditProfilePage from './pages/EditProfilePage'
 import LoginPage from './pages/LoginPage'
 import MemberLoginPage from './pages/MemberLoginPage'
 import SignupPage from './pages/SignupPage'
@@ -40,6 +42,13 @@ function App() {
             <Route path="posters" element={<PostersPage />} />
             <Route path="photos" element={<PhotosPage />} />
             <Route path="tour-stats" element={<TourStatsPage />} />
+            {/* Static "edit" segment ranks above the dynamic :username in React
+                Router's matcher regardless of declaration order, so a user whose
+                username happened to be literally "edit" would have an unreachable
+                profile at this URL — acceptable edge case since usernames are
+                currently auto-generated, not user-chosen. */}
+            <Route path="profile/edit" element={<EditProfilePage />} />
+            <Route path="profile/:username" element={<ProfilePage />} />
           </Route>
 
           {/* Member Auth Routes */}
@@ -132,12 +141,13 @@ function PublicLayout() {
           <div className="flex items-center gap-2 md:gap-3 shrink-0">
             {user ? (
               <>
-                <span
-                  className="hidden md:block text-sm truncate max-w-[180px]"
+                <Link
+                  to="/profile/edit"
+                  className="hidden md:block text-sm truncate max-w-[180px] hover:opacity-80 transition-opacity"
                   style={{ color: 'var(--p-color-contrast-medium)' }}
                 >
                   {user.email}
-                </span>
+                </Link>
                 <button
                   onClick={handleSignOut}
                   disabled={isSigningOut}

@@ -1,4 +1,5 @@
 ﻿import { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { PHeading, PText, PButtonPure, PInlineNotification, PDivider } from '@porsche-design-system/components-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getShowPoster, uploadPoster, deletePoster } from '../services/api';
@@ -154,7 +155,9 @@ export default function PostersSection({ showId }) {
 
                     <div className="flex items-center justify-between pt-3 border-t border-white/5">
                         <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>
-                            Uploaded by {poster.profiles?.username || 'Unknown'}
+                            Uploaded by {poster.profiles?.username
+                                ? <Link to={`/profile/${poster.profiles.username}`} className="hover:underline">{poster.profiles.display_name || poster.profiles.username}</Link>
+                                : 'Unknown'}
                         </PText>
                         {canDelete && (
                             <PButtonPure size="x-small" icon="delete" onClick={handleDelete}>Delete</PButtonPure>

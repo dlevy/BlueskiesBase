@@ -1,4 +1,5 @@
 ﻿import { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { PHeading, PText, PButtonPure, PInlineNotification, PDivider } from '@porsche-design-system/components-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getShowPhotos, uploadPhoto, deletePhoto } from '../services/api';
@@ -161,7 +162,9 @@ export default function PhotosSection({ showId }) {
                                 <PText size="sm">{photos[currentPhotoIndex].caption}</PText>
                             )}
                             <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>
-                                By {photos[currentPhotoIndex].profiles?.username || 'Anonymous'} · {new Date(photos[currentPhotoIndex].created_at).toLocaleDateString()}
+                                By {photos[currentPhotoIndex].profiles?.username
+                                    ? <Link to={`/profile/${photos[currentPhotoIndex].profiles.username}`} className="hover:underline">{photos[currentPhotoIndex].profiles.display_name || photos[currentPhotoIndex].profiles.username}</Link>
+                                    : 'Anonymous'} · {new Date(photos[currentPhotoIndex].created_at).toLocaleDateString()}
                             </PText>
                         </div>
                         {(isAdmin || (user && photos[currentPhotoIndex].user_id === user.id)) && (

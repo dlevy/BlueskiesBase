@@ -1,4 +1,5 @@
 ﻿import { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { PHeading, PText, PButtonPure, PInlineNotification, PDivider, PSpinner } from '@porsche-design-system/components-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getShowNotes, getUserNote, saveNote, deleteNote } from '../services/api';
@@ -150,7 +151,11 @@ export default function NotesSection({ showId }) {
                         <div key={note.id} className="rounded-xl border border-white/5 bg-white/5 p-4 space-y-2">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
-                                    <PText size="xs" weight="semi-bold">{note.profiles?.username || 'Anonymous'}</PText>
+                                    <PText size="xs" weight="semi-bold">
+                                        {note.profiles?.username
+                                            ? <Link to={`/profile/${note.profiles.username}`} className="hover:underline">{note.profiles.display_name || note.profiles.username}</Link>
+                                            : 'Anonymous'}
+                                    </PText>
                                     <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>{new Date(note.created_at).toLocaleDateString()}</PText>
                                 </div>
                                 {isAdmin && (

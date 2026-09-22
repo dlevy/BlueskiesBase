@@ -820,6 +820,65 @@ export const getUserStats = async () => {
 };
 
 /**
+ * Public profile for a given username. Returns null (not throw) on a 404 so
+ * callers can render a "not found" state without a try/catch.
+ */
+export const getPublicProfile = async (username) => {
+    const response = await fetch(`${API_BASE_URL}/api/users/profile/${encodeURIComponent(username)}`);
+    if (!response.ok) {
+        if (response.status === 404) return null;
+        throw new Error('Failed to fetch profile');
+    }
+    return response.json();
+};
+
+/**
+ * Update the logged-in user's own opt-in profile fields.
+ */
+export const updateMyProfile = async (updates) => {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/users/profile`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(updates),
+    });
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to update profile');
+    }
+    return response.json();
+};
+
+/**
+ * Upload/replace the logged-in user's avatar.
+ */
+export const uploadAvatar = async (file) => {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+
+    const formData = new FormData();
+    formData.append('avatar', file);
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/users/avatar`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+    });
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to upload avatar');
+    }
+    return response.json();
+};
+
+/**
  * Get all attended shows
  */
 export const getAttendedShows = async () => {

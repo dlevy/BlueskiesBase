@@ -100,7 +100,8 @@ router.get('/show/:showId', async (req, res) => {
                 *,
                 profiles:user_id (
                     id,
-                    username
+                    username,
+                    display_name
                 )
             `)
             .eq('show_id', showId)
@@ -200,7 +201,8 @@ router.post('/upload', authenticate, upload.single('poster'), async (req, res) =
                     *,
                     profiles:user_id (
                         id,
-                        username
+                        username,
+                        display_name
                     )
                 `)
                 .single();
@@ -227,7 +229,8 @@ router.post('/upload', authenticate, upload.single('poster'), async (req, res) =
                 *,
                 profiles:user_id (
                     id,
-                    username
+                    username,
+                    display_name
                 )
             `)
             .single();
@@ -289,7 +292,8 @@ router.put('/:posterId', authenticate, async (req, res) => {
                 *,
                 profiles:user_id (
                     id,
-                    username
+                    username,
+                    display_name
                 )
             `)
             .single();

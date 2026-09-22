@@ -58,7 +58,8 @@ router.get('/show/:showId', async (req, res) => {
                 *,
                 profiles:user_id (
                     id,
-                    username
+                    username,
+                    display_name
                 )
             `)
             .eq('show_id', showId)

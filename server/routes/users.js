@@ -1,8 +1,20 @@
 const express = require('express');
 const router = express.Router();
-const { supabase } = require('../config/supabase');
-const { computeDebutsForShows } = require('../utils/debuts');
-const { computeGlobalSongStats } = require('../utils/songStats');
+const multer = require('multer');
+const { supabase, supabaseAdmin } = require('../config/supabase');
+const { computeSongsSeenForShows, computeDebutAndRarityCounts } = require('../utils/attendance');
+const { computeFunStats } = require('../utils/funStats');
+
+const AVATARS_BUCKET = 'avatars';
+
+const uploadAvatarFile = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit, same as photos/posters
+    fileFilter: (req, file, cb) => {
+        if (file.mimetype.startsWith('image/')) cb(null, true);
+        else cb(new Error('Only image files are allowed'));
+    },
+});
 
 /**
  * POST /api/users/check-attendance-batch
@@ -284,78 +296,7 @@ router.get('/stats', async (req, res) => {
         console.log(`[Stats] Found ${attendedShows?.length || 0} attended shows`);
         const attendedShowIds = attendedShows.map(us => us.show_id);
 
-        // Get all songs from attended shows
-        // Need to paginate to get all records
-        let songsSeen = [];
-        if (attendedShowIds.length > 0) {
-            console.log('[Stats] Fetching songs from attended shows...');
-            let allSetlistSongs = [];
-            let page = 0;
-            const pageSize = 1000;
-            let hasMore = true;
-
-            while (hasMore) {
-                console.log(`[Stats] Fetching songs page ${page + 1}...`);
-                const { data: setlistSongs, error: songsError } = await supabase
-                    .from('setlist_songs')
-                    .select(`
-                        song_id,
-                        show_id,
-                        performance_type,
-                        songs!setlist_songs_song_id_fkey (
-                            id,
-                            title,
-                            is_original,
-                            original_artist
-                        )
-                    `)
-                    .in('show_id', attendedShowIds)
-                    .order('id')
-                    .range(page * pageSize, (page + 1) * pageSize - 1);
-
-                if (songsError) {
-                    console.error('[Stats] Error fetching songs:', songsError);
-                    break;
-                }
-
-                if (setlistSongs && setlistSongs.length > 0) {
-                    allSetlistSongs = allSetlistSongs.concat(setlistSongs);
-                    console.log(`[Stats] Page ${page + 1}: ${setlistSongs.length} records, total: ${allSetlistSongs.length}`);
-                    page++;
-                    hasMore = setlistSongs.length === pageSize;
-                } else {
-                    hasMore = false;
-                }
-            }
-            console.log(`[Stats] Total setlist songs fetched: ${allSetlistSongs.length}`);
-
-            // Get unique songs with play count (count once per show, not per performance)
-            const songPlayCount = new Map();
-            allSetlistSongs.forEach(ss => {
-                if (ss.songs) {
-                    const key = `${ss.song_id}-${ss.show_id}`;
-                    if (!songPlayCount.has(ss.song_id)) {
-                        songPlayCount.set(ss.song_id, {
-                            ...ss.songs,
-                            playCount: 1,
-                            showIds: new Set([ss.show_id])
-                        });
-                    } else {
-                        const existing = songPlayCount.get(ss.song_id);
-                        // Only increment if this is a new show
-                        if (!existing.showIds.has(ss.show_id)) {
-                            existing.playCount++;
-                            existing.showIds.add(ss.show_id);
-                        }
-                    }
-                }
-            });
-            // Remove showIds before sending to client
-            songsSeen = Array.from(songPlayCount.values()).map(song => {
-                const { showIds, ...songData } = song;
-                return songData;
-            });
-        }
+        const songsSeen = await computeSongsSeenForShows(attendedShowIds);
 
         // Get all songs that have been played at least once (not orphan songs)
         // Need to paginate to get all records since we have 5000+ setlist_songs
@@ -493,31 +434,8 @@ router.get('/stats', async (req, res) => {
             .filter(us => us.shows?.show_date && us.shows.show_date <= todayStr)
             .map(us => us.show_id);
 
-        let liveDebutsWitnessed = 0;
-        let tourDebutsWitnessed = 0;
-        try {
-            const debutsByShow = await computeDebutsForShows(pastAttendedShowIds);
-            Object.values(debutsByShow).forEach(d => {
-                liveDebutsWitnessed += d.live_debut_song_ids.length;
-                tourDebutsWitnessed += d.tour_debut_song_ids.length;
-            });
-        } catch (err) {
-            console.error('[Stats] Error computing debuts witnessed:', err);
-        }
-
-        // Rare songs seen — songs among the all-time rarest (same ranking shown on the
-        // public song stats page) that this user has personally witnessed live.
-        let rareSongsSeenCount = 0;
-        try {
-            const globalStats = await computeGlobalSongStats(10);
-            const rareSongIds = new Set([
-                ...globalStats.originals.rarest.map(s => s.id),
-                ...globalStats.covers.rarest.map(s => s.id),
-            ]);
-            rareSongsSeenCount = songsSeen.filter(s => rareSongIds.has(s.id)).length;
-        } catch (err) {
-            console.error('[Stats] Error computing rare songs seen:', err);
-        }
+        const { liveDebutsWitnessed, tourDebutsWitnessed, rareSongsSeenCount } =
+            await computeDebutAndRarityCounts(pastAttendedShowIds, songsSeen);
 
         const endTime = Date.now();
         const duration = endTime - startTime;
@@ -546,6 +464,234 @@ router.get('/stats', async (req, res) => {
             error: 'Internal server error',
             message: error.message
         });
+    }
+});
+
+/**
+ * GET /api/users/profile/:username
+ * Public profile — no auth required. Always includes aggregate stats; opt-in
+ * identity fields (displayName/location/avatarUrl/facebookUrl/redditUrl/bio) are
+ * included only when set; the itemized attendedShows list is included only when
+ * the profile has show_attendance_public = true.
+ */
+router.get('/profile/:username', async (req, res) => {
+    try {
+        const { username } = req.params;
+
+        const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('username', username)
+            .single();
+
+        if (profileError || !profile) {
+            return res.status(404).json({ error: 'Profile not found' });
+        }
+
+        const { data: attendedShows, error: showsError } = await supabase
+            .from('user_shows')
+            .select(`
+                show_id,
+                shows (
+                    id,
+                    show_date,
+                    artist_name,
+                    tour_name,
+                    venues ( name, city, state_country )
+                )
+            `)
+            .eq('user_id', profile.id);
+
+        if (showsError) {
+            console.error('[Public Profile] Error fetching attended shows:', showsError);
+            return res.status(500).json({ error: 'Failed to fetch profile stats' });
+        }
+
+        const todayStr = new Date().toISOString().slice(0, 10);
+        const pastShows = (attendedShows || [])
+            .map(us => us.shows)
+            .filter(s => s?.show_date && s.show_date <= todayStr);
+        const pastShowIds = pastShows.map(s => s.id);
+
+        const songsSeen = await computeSongsSeenForShows(pastShowIds);
+        const funStats = computeFunStats(pastShows, songsSeen);
+        const { liveDebutsWitnessed, tourDebutsWitnessed, rareSongsSeenCount, rarestSongSeen } =
+            await computeDebutAndRarityCounts(pastShowIds, songsSeen);
+
+        const response = {
+            username: profile.username,
+            ...(profile.display_name && { displayName: profile.display_name }),
+            ...(profile.location && { location: profile.location }),
+            ...(profile.avatar_url && { avatarUrl: profile.avatar_url }),
+            ...(profile.facebook_url && { facebookUrl: profile.facebook_url }),
+            ...(profile.reddit_url && { redditUrl: profile.reddit_url }),
+            ...(profile.bio && { bio: profile.bio }),
+
+            memberSince: profile.created_at,
+            totalShowsAttended: pastShows.length,
+            favoriteVenue: funStats?.topVenue || null,
+            favoriteCity: funStats?.topCity || null,
+            mostPlayedSong: funStats?.topSong || null,
+            firstShow: funStats?.firstShow || null,
+            uniqueCities: funStats?.uniqueCities || 0,
+            mostAttendedYear: funStats?.topYear || null,
+            rarestSongSeen,
+            liveDebutsWitnessed,
+            tourDebutsWitnessed,
+            rareSongsSeenCount,
+        };
+
+        if (profile.show_attendance_public) {
+            response.attendedShows = pastShows.sort((a, b) => b.show_date.localeCompare(a.show_date));
+        }
+
+        res.json(response);
+    } catch (error) {
+        console.error('[Public Profile] Error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * PUT /api/users/profile
+ * Update the logged-in user's own opt-in profile fields. Requires authentication.
+ * Body: { displayName, location, facebookUrl, redditUrl, bio, showAttendancePublic }
+ */
+router.put('/profile', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) {
+            return res.status(401).json({ error: 'No authorization header' });
+        }
+
+        const token = authHeader.replace('Bearer ', '');
+        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+
+        if (authError || !user) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
+        const { displayName, location, facebookUrl, redditUrl, bio, showAttendancePublic } = req.body;
+
+        const validateUrl = (url, requiredHost) => {
+            if (!url) return null;
+            let parsed;
+            try {
+                parsed = new URL(url);
+            } catch {
+                throw new Error(`Please enter a valid ${requiredHost.split('.')[0]} URL`);
+            }
+            if (!parsed.hostname.toLowerCase().includes(requiredHost)) {
+                throw new Error(`Please enter a valid ${requiredHost.split('.')[0]} URL`);
+            }
+            return url.trim();
+        };
+
+        const validateLength = (value, max, label) => {
+            if (value && value.trim().length > max) {
+                throw new Error(`${label} must be ${max} characters or fewer`);
+            }
+            return value?.trim() || null;
+        };
+
+        let updates;
+        try {
+            updates = {
+                display_name: validateLength(displayName, 80, 'Display name'),
+                location: validateLength(location, 100, 'Location'),
+                bio: validateLength(bio, 500, 'Bio'),
+                facebook_url: validateUrl(facebookUrl?.trim(), 'facebook.com'),
+                reddit_url: validateUrl(redditUrl?.trim(), 'reddit.com'),
+                show_attendance_public: Boolean(showAttendancePublic),
+            };
+        } catch (validationError) {
+            return res.status(400).json({ error: validationError.message });
+        }
+
+        const { data, error } = await supabaseAdmin
+            .from('profiles')
+            .update(updates)
+            .eq('id', user.id)
+            .select()
+            .single();
+
+        if (error) {
+            console.error('[Update Profile] Error:', error);
+            return res.status(500).json({ error: 'Failed to update profile' });
+        }
+
+        res.json(data);
+    } catch (error) {
+        console.error('[Update Profile] Error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * POST /api/users/avatar
+ * Upload/replace the logged-in user's avatar. Requires authentication.
+ */
+router.post('/avatar', uploadAvatarFile.single('avatar'), async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) {
+            return res.status(401).json({ error: 'No authorization header' });
+        }
+
+        const token = authHeader.replace('Bearer ', '');
+        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+
+        if (authError || !user) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
+        if (!req.file) {
+            return res.status(400).json({ error: 'No file provided' });
+        }
+
+        // Look up and delete the old avatar (if any) before uploading the new one.
+        const { data: existingProfile } = await supabaseAdmin
+            .from('profiles')
+            .select('avatar_url')
+            .eq('id', user.id)
+            .single();
+
+        if (existingProfile?.avatar_url) {
+            const oldPath = existingProfile.avatar_url.split(`/${AVATARS_BUCKET}/`)[1];
+            if (oldPath) {
+                await supabaseAdmin.storage.from(AVATARS_BUCKET).remove([oldPath]);
+            }
+        }
+
+        const fileExt = req.file.originalname.split('.').pop();
+        const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+
+        const { error: uploadError } = await supabaseAdmin.storage
+            .from(AVATARS_BUCKET)
+            .upload(fileName, req.file.buffer, { contentType: req.file.mimetype, upsert: false });
+
+        if (uploadError) {
+            console.error('[Avatar Upload] Storage error:', uploadError);
+            return res.status(500).json({ error: 'Failed to upload avatar' });
+        }
+
+        const { data: { publicUrl } } = supabaseAdmin.storage.from(AVATARS_BUCKET).getPublicUrl(fileName);
+
+        const { error: updateError } = await supabaseAdmin
+            .from('profiles')
+            .update({ avatar_url: publicUrl })
+            .eq('id', user.id);
+
+        if (updateError) {
+            console.error('[Avatar Upload] DB update error, removing orphaned upload:', updateError);
+            await supabaseAdmin.storage.from(AVATARS_BUCKET).remove([fileName]);
+            return res.status(500).json({ error: 'Failed to save avatar' });
+        }
+
+        res.json({ avatarUrl: publicUrl });
+    } catch (error) {
+        console.error('[Avatar Upload] Error:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -644,16 +790,19 @@ router.get('/community-stats', async (req, res) => {
         if (topContributorIds.length > 0) {
             const { data: profiles, error: profilesError } = await supabase
                 .from('profiles')
-                .select('id, username')
+                .select('id, username, display_name')
                 .in('id', topContributorIds);
             if (profilesError) throw profilesError;
 
-            const usernameById = {};
-            (profiles || []).forEach(p => { usernameById[p.id] = p.username; });
+            const profileById = {};
+            (profiles || []).forEach(p => { profileById[p.id] = p; });
 
             topContributors = topContributorIds
-                .map(userId => ({ username: usernameById[userId], count: contributionCounts[userId] }))
-                .filter(c => c.username);
+                .map(userId => {
+                    const p = profileById[userId];
+                    return p ? { username: p.username, displayName: p.display_name || null, count: contributionCounts[userId] } : null;
+                })
+                .filter(Boolean);
         }
 
         res.json({

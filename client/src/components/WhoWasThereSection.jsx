@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { PText } from '@porsche-design-system/components-react';
 import { getShowAttendees } from '../services/api';
 
@@ -29,13 +30,14 @@ export default function WhoWasThereSection({ showId, refreshOn, isFutureShow }) 
             </PText>
             <div className="flex flex-wrap items-center gap-1.5">
                 {attendees.map(a => (
-                    <span
+                    <Link
                         key={a.id}
-                        className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border border-white/10 bg-white/5"
+                        to={`/profile/${a.username}`}
+                        className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border border-white/10 bg-white/5 hover:border-white/25 hover:bg-white/10 transition-colors"
                         style={{ color: 'var(--p-color-contrast-medium)' }}
                     >
-                        {a.username}
-                    </span>
+                        {a.displayName || a.username}
+                    </Link>
                 ))}
                 {count > attendees.length && (
                     <span className="text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>
