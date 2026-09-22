@@ -4,7 +4,7 @@ import { PHeading, PText, PButton, PInlineNotification } from '@porsche-design-s
 import { useAuth } from '../contexts/AuthContext';
 import {
     updateMyProfile, uploadAvatar, getUserStats,
-    getAllPosters, getMyPosterCollection, addToPosterCollection, updatePosterCollectionFoil, removeFromPosterCollection,
+    getAllPosters, getMyPosterCollection, addToPosterCollection, removeFromPosterCollection,
 } from '../services/api';
 
 const inputClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-transparent placeholder:text-gray-500";
@@ -41,7 +41,6 @@ export default function EditProfilePage() {
     const [allPosters, setAllPosters] = useState([]);
     const [myCollection, setMyCollection] = useState([]);
     const [selectedPosterId, setSelectedPosterId] = useState('');
-    const [selectedHasFoil, setSelectedHasFoil] = useState(false);
     const [posterError, setPosterError] = useState('');
 
     useEffect(() => {
@@ -110,23 +109,12 @@ export default function EditProfilePage() {
         if (!selectedPosterId) return;
         setPosterError('');
         try {
-            await addToPosterCollection(selectedPosterId, selectedHasFoil);
+            await addToPosterCollection(selectedPosterId);
             setSelectedPosterId('');
-            setSelectedHasFoil(false);
             loadPosterCollection();
         } catch (err) {
             console.error('[EditProfilePage] Error adding poster:', err);
             setPosterError(err.message || 'Failed to add poster');
-        }
-    };
-
-    const handleToggleFoil = async (entry) => {
-        try {
-            await updatePosterCollectionFoil(entry.id, !entry.has_foil);
-            loadPosterCollection();
-        } catch (err) {
-            console.error('[EditProfilePage] Error updating foil flag:', err);
-            setPosterError(err.message || 'Failed to update poster');
         }
     };
 
@@ -331,12 +319,12 @@ export default function EditProfilePage() {
             </form>
 
             {/* Poster Collection — its own section since it's a separate save action
-                (each add/remove/foil-toggle happens immediately, not on form submit) */}
+                (each add/remove happens immediately, not on form submit) */}
             <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 space-y-4">
                 <div>
                     <PHeading size="lg" tag="h2">My Poster Collection</PHeading>
                     <PText size="small" color="contrast-medium">
-                        Mark which show posters you own, and whether you have the foil variant. Shown on your public profile.
+                        Mark which show posters you own — pick the regular or foil edition specifically if a show has both. Shown on your public profile.
                     </PText>
                 </div>
 
@@ -355,7 +343,17 @@ export default function EditProfilePage() {
                                     <div className="min-w-0 flex-1">
                                         {show ? (
                                             <>
-                                                <PText size="small" weight="semi-bold" ellipsis>{show.artist_name}</PText>
+                                                <div className="flex items-center gap-1.5">
+                                                    <PText size="small" weight="semi-bold" ellipsis>{show.artist_name}</PText>
+                                                    {poster?.is_foil && (
+                                                        <span
+                                                            className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded shrink-0"
+                                                            style={{ background: 'rgba(192,132,252,0.15)', color: '#c084fc' }}
+                                                        >
+                                                            Foil
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>
                                                     {formatDate(show.show_date)}{show.venues ? ` · ${show.venues.name}` : ''}
                                                 </PText>
@@ -364,10 +362,6 @@ export default function EditProfilePage() {
                                             <PText size="small" color="contrast-medium">Poster's show unavailable</PText>
                                         )}
                                     </div>
-                                    <label className="flex items-center gap-1.5 shrink-0 cursor-pointer">
-                                        <input type="checkbox" checked={entry.has_foil} onChange={() => handleToggleFoil(entry)} className="w-3.5 h-3.5" />
-                                        <PText size="xs" color="contrast-medium">Foil</PText>
-                                    </label>
                                     <PText
                                         size="xs"
                                         className="shrink-0 cursor-pointer hover:opacity-80"
@@ -383,22 +377,20 @@ export default function EditProfilePage() {
                 )}
 
                 <div className="flex flex-wrap items-end gap-3 pt-2 border-t border-white/10">
-                    <div className="flex-1 min-w-[200px]">
+                    <div className="flex-1 min-w-[240px]">
                         <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>Add a poster</label>
                         <select value={selectedPosterId} onChange={e => setSelectedPosterId(e.target.value)}
                             className={selectClass} style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
                             <option value="">— Select a poster —</option>
                             {availablePosters.map(p => (
                                 <option key={p.id} value={p.id}>
-                                    {p.shows ? `${formatDate(p.shows.show_date)} — ${p.shows.artist_name}` : 'Untitled'}
+                                    {p.shows
+                                        ? `${formatDate(p.shows.show_date)} — ${p.shows.artist_name}${p.shows.venues ? ` @ ${p.shows.venues.name}, ${p.shows.venues.city}` : ''}${p.is_foil ? ' (Foil)' : ''}`
+                                        : 'Untitled'}
                                 </option>
                             ))}
                         </select>
                     </div>
-                    <label className="flex items-center gap-1.5 cursor-pointer pb-2">
-                        <input type="checkbox" checked={selectedHasFoil} onChange={e => setSelectedHasFoil(e.target.checked)} className="w-3.5 h-3.5" />
-                        <PText size="xs" color="contrast-medium">Foil variant</PText>
-                    </label>
                     <PButton type="button" size="small" disabled={!selectedPosterId} onClick={handleAddPoster}>Add</PButton>
                 </div>
             </div>

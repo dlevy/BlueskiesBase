@@ -183,44 +183,70 @@ export default function ProfilePage() {
 
             {/* Debuts witnessed — the actual songs + dates, not just a count */}
             {(profile.liveDebuts?.length > 0 || profile.tourDebuts?.length > 0) && (
-                <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6">
-                    <PHeading size="lg" tag="h2">Debuts Witnessed</PHeading>
-                    <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                    <PHeading size="md" tag="h2">Debuts Witnessed</PHeading>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {profile.liveDebuts?.length > 0 && (
-                            <div>
-                                <PText size="xs" weight="semi-bold" className="uppercase tracking-wide mb-2" style={{ color: '#34d399' }}>
+                            <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-5">
+                                <PText size="xs" weight="semi-bold" className="uppercase tracking-wide mb-3" style={{ color: '#34d399' }}>
                                     Live Debuts ({profile.liveDebuts.length})
                                 </PText>
-                                <ul className="space-y-1.5">
-                                    {profile.liveDebuts.map((d, i) => (
-                                        <li key={`${d.songId}-${i}`} className="flex items-center justify-between gap-3">
-                                            <PText size="small" ellipsis>{d.title || 'Unknown song'}</PText>
-                                            {d.showDate && (
-                                                <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }} className="shrink-0 whitespace-nowrap">
-                                                    {formatDate(d.showDate)}
-                                                </PText>
-                                            )}
-                                        </li>
-                                    ))}
+                                <ul className="space-y-1">
+                                    {profile.liveDebuts.map((d, i) => {
+                                        const content = (
+                                            <>
+                                                <PText size="small" ellipsis>{d.title || 'Unknown song'}</PText>
+                                                {d.showDate && (
+                                                    <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }} className="shrink-0 whitespace-nowrap">
+                                                        {formatDate(d.showDate)}
+                                                    </PText>
+                                                )}
+                                            </>
+                                        );
+                                        return (
+                                            <li key={`${d.songId}-${i}`}>
+                                                {d.show ? (
+                                                    <Link to={buildShowPath(d.show)} className="flex items-center justify-between gap-3 py-1 px-2 -mx-2 rounded-lg hover:bg-white/5 transition-colors">
+                                                        {content}
+                                                    </Link>
+                                                ) : (
+                                                    <div className="flex items-center justify-between gap-3 py-1">{content}</div>
+                                                )}
+                                            </li>
+                                        );
+                                    })}
                                 </ul>
                             </div>
                         )}
                         {profile.tourDebuts?.length > 0 && (
-                            <div>
-                                <PText size="xs" weight="semi-bold" className="uppercase tracking-wide mb-2" style={{ color: '#22d3ee' }}>
+                            <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-5">
+                                <PText size="xs" weight="semi-bold" className="uppercase tracking-wide mb-3" style={{ color: '#22d3ee' }}>
                                     Tour Debuts ({profile.tourDebuts.length})
                                 </PText>
-                                <ul className="space-y-1.5">
-                                    {profile.tourDebuts.map((d, i) => (
-                                        <li key={`${d.songId}-${i}`} className="flex items-center justify-between gap-3">
-                                            <PText size="small" ellipsis>{d.title || 'Unknown song'}</PText>
-                                            {d.showDate && (
-                                                <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }} className="shrink-0 whitespace-nowrap">
-                                                    {formatDate(d.showDate)}
-                                                </PText>
-                                            )}
-                                        </li>
-                                    ))}
+                                <ul className="space-y-1">
+                                    {profile.tourDebuts.map((d, i) => {
+                                        const content = (
+                                            <>
+                                                <PText size="small" ellipsis>{d.title || 'Unknown song'}</PText>
+                                                {d.showDate && (
+                                                    <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }} className="shrink-0 whitespace-nowrap">
+                                                        {formatDate(d.showDate)}
+                                                    </PText>
+                                                )}
+                                            </>
+                                        );
+                                        return (
+                                            <li key={`${d.songId}-${i}`}>
+                                                {d.show ? (
+                                                    <Link to={buildShowPath(d.show)} className="flex items-center justify-between gap-3 py-1 px-2 -mx-2 rounded-lg hover:bg-white/5 transition-colors">
+                                                        {content}
+                                                    </Link>
+                                                ) : (
+                                                    <div className="flex items-center justify-between gap-3 py-1">{content}</div>
+                                                )}
+                                            </li>
+                                        );
+                                    })}
                                 </ul>
                             </div>
                         )}

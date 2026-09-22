@@ -59,6 +59,7 @@ router.get('/', async (req, res) => {
                 id,
                 poster_url,
                 caption,
+                is_foil,
                 created_at,
                 shows (
                     id,
@@ -88,13 +89,15 @@ router.get('/', async (req, res) => {
 
 /**
  * GET /api/posters/show/:showId
- * Get poster for a specific show
+ * Both poster variants for a specific show (regular and/or foil — either, both,
+ * or neither may exist). Response: { posters: [...] }, at most one entry per
+ * is_foil value.
  */
 router.get('/show/:showId', async (req, res) => {
     try {
         const { showId } = req.params;
 
-        const { data: poster, error } = await supabaseAdmin
+        const { data: posters, error } = await supabaseAdmin
             .from('user_posters')
             .select(`
                 *,
@@ -105,14 +108,14 @@ router.get('/show/:showId', async (req, res) => {
                 )
             `)
             .eq('show_id', showId)
-            .single();
+            .order('is_foil');
 
-        if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
-            console.error('Error fetching poster:', error);
-            return res.status(500).json({ error: 'Failed to fetch poster' });
+        if (error) {
+            console.error('Error fetching posters:', error);
+            return res.status(500).json({ error: 'Failed to fetch posters' });
         }
 
-        res.json({ poster: poster || null });
+        res.json({ posters: posters || [] });
     } catch (error) {
         console.error('Error in GET /api/posters/show/:showId:', error);
         res.status(500).json({ error: 'Internal server error' });
@@ -121,11 +124,15 @@ router.get('/show/:showId', async (req, res) => {
 
 /**
  * POST /api/posters/upload
- * Upload a poster for a show (replaces existing poster if any)
+ * Upload a poster for a show (replaces the existing poster of the same variant,
+ * if any). Body/form field is_foil ('true'/'false', default false) picks which
+ * of the show's two possible variants this upload is for — a show can have one
+ * regular and one foil poster, uploaded/replaced independently.
  */
 router.post('/upload', authenticate, upload.single('poster'), async (req, res) => {
     try {
         const { show_id, caption } = req.body;
+        const isFoil = req.body.is_foil === 'true' || req.body.is_foil === true;
         const userId = req.user.id;
         const file = req.file;
 
@@ -137,11 +144,13 @@ router.post('/upload', authenticate, upload.single('poster'), async (req, res) =
             return res.status(400).json({ error: 'No poster file provided' });
         }
 
-        // Check if poster already exists for this show
+        // Check if a poster of this same variant already exists for this show —
+        // the regular and foil editions are replaced independently.
         const { data: existingPoster } = await supabaseAdmin
             .from('user_posters')
             .select('id, poster_url, user_id')
             .eq('show_id', show_id)
+            .eq('is_foil', isFoil)
             .single();
 
         // If poster exists and user is not the owner, check if user is admin
@@ -223,7 +232,8 @@ router.post('/upload', authenticate, upload.single('poster'), async (req, res) =
                 user_id: userId,
                 show_id,
                 poster_url: publicUrl,
-                caption: caption || null
+                caption: caption || null,
+                is_foil: isFoil
             })
             .select(`
                 *,
@@ -251,8 +261,8 @@ router.post('/upload', authenticate, upload.single('poster'), async (req, res) =
 
 // ============================================
 // POSTER COLLECTION ENDPOINTS
-// (which show posters a user owns, and whether they have the foil variant —
-// distinct from the posters themselves, which are one uploaded image per show)
+// (which show posters a user owns — foil vs. regular is a property of which
+// poster they picked, via user_posters.is_foil, not tracked separately here)
 // ============================================
 
 /**
@@ -266,11 +276,11 @@ router.get('/collection', authenticate, async (req, res) => {
             .from('user_poster_collection')
             .select(`
                 id,
-                has_foil,
                 created_at,
                 user_posters (
                     id,
                     poster_url,
+                    is_foil,
                     shows (
                         id,
                         show_date,
@@ -297,12 +307,12 @@ router.get('/collection', authenticate, async (req, res) => {
 
 /**
  * POST /api/posters/collection
- * Add a poster to the logged-in user's collection (or update has_foil if they
- * already have it). Body: { posterId, hasFoil }. Requires authentication.
+ * Add a poster to the logged-in user's collection. Body: { posterId }.
+ * Requires authentication.
  */
 router.post('/collection', authenticate, async (req, res) => {
     try {
-        const { posterId, hasFoil } = req.body;
+        const { posterId } = req.body;
         if (!posterId) {
             return res.status(400).json({ error: 'posterId is required' });
         }
@@ -319,7 +329,7 @@ router.post('/collection', authenticate, async (req, res) => {
         const { data, error } = await supabaseAdmin
             .from('user_poster_collection')
             .upsert(
-                { user_id: req.user.id, poster_id: posterId, has_foil: Boolean(hasFoil) },
+                { user_id: req.user.id, poster_id: posterId },
                 { onConflict: 'user_id,poster_id' }
             )
             .select()
@@ -333,34 +343,6 @@ router.post('/collection', authenticate, async (req, res) => {
         res.status(201).json(data);
     } catch (error) {
         console.error('Error in POST /api/posters/collection:', error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
-});
-
-/**
- * PUT /api/posters/collection/:id
- * Update the has_foil flag on one of the logged-in user's collection entries.
- */
-router.put('/collection/:id', authenticate, async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { hasFoil } = req.body;
-
-        const { data, error } = await supabaseAdmin
-            .from('user_poster_collection')
-            .update({ has_foil: Boolean(hasFoil) })
-            .eq('id', id)
-            .eq('user_id', req.user.id)
-            .select()
-            .single();
-
-        if (error || !data) {
-            return res.status(404).json({ error: 'Collection entry not found' });
-        }
-
-        res.json(data);
-    } catch (error) {
-        console.error('Error in PUT /api/posters/collection/:id:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });

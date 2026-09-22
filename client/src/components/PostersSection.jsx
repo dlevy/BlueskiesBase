@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { PHeading, PText, PButtonPure, PInlineNotification, PDivider } from '@porsche-design-system/components-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -19,27 +19,17 @@ function Spinner() {
     );
 }
 
-export default function PostersSection({ showId }) {
-    const { user, isAdmin } = useAuth();
-    const [poster, setPoster] = useState(null);
-    const [lightboxOpen, setLightboxOpen] = useState(false);
+// One variant slot (regular or foil) — its own upload form, display, and delete,
+// independent of the other variant.
+function PosterSlot({ label, poster, isFoil, showId, user, isAdmin, onImageClick, onChanged }) {
     const [uploading, setUploading] = useState(false);
     const [error, setError] = useState(null);
     const [selectedFile, setSelectedFile] = useState(null);
     const [caption, setCaption] = useState('');
     const [showUploadForm, setShowUploadForm] = useState(false);
 
-    const loadPoster = useCallback(async () => {
-        try {
-            const { poster: showPoster } = await getShowPoster(showId);
-            setPoster(showPoster);
-        } catch (err) {
-            console.error('Error loading poster:', err);
-            setError('Failed to load poster');
-        }
-    }, [showId]);
-
-    useEffect(() => { loadPoster(); }, [loadPoster]);
+    const canUpload = user && (!poster || poster.user_id === user.id || isAdmin);
+    const canDelete = user && poster && (poster.user_id === user.id || isAdmin);
 
     const handleFileSelect = (e) => {
         const file = e.target.files[0];
@@ -55,11 +45,11 @@ export default function PostersSection({ showId }) {
         try {
             setUploading(true);
             setError(null);
-            await uploadPoster(showId, selectedFile, caption);
+            await uploadPoster(showId, selectedFile, caption, isFoil);
             setSelectedFile(null);
             setCaption('');
             setShowUploadForm(false);
-            await loadPoster();
+            await onChanged();
         } catch (err) {
             console.error('Error uploading poster:', err);
             setError(err.message || 'Failed to upload poster');
@@ -69,43 +59,39 @@ export default function PostersSection({ showId }) {
     };
 
     const handleDelete = async () => {
-        if (!confirm('Are you sure you want to delete this poster?')) return;
+        if (!confirm(`Are you sure you want to delete this ${label.toLowerCase()}?`)) return;
         try {
             await deletePoster(poster.id);
-            await loadPoster();
+            await onChanged();
         } catch (err) {
             console.error('Error deleting poster:', err);
             setError('Failed to delete poster');
         }
     };
 
-    const canUpload = user && (!poster || poster.user_id === user.id || isAdmin);
-    const canDelete = user && poster && (poster.user_id === user.id || isAdmin);
-
     return (
-        <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 space-y-4">
-            <PHeading size="lg" tag="h2">Show Poster</PHeading>
-            <PDivider />
+        <div className="space-y-3">
+            <PText size="xs" weight="semi-bold" className="uppercase tracking-wide" style={{ color: isFoil ? '#c084fc' : 'var(--p-color-contrast-medium)' }}>
+                {label}
+            </PText>
 
             {error && (
                 <PInlineNotification heading="Error" description={error} state="error" dismissButton={false} />
             )}
 
-            {/* Upload trigger — left-aligned, shown when form is closed */}
             {canUpload && !showUploadForm && (
                 <button
                     className={btnSecondary}
                     style={{ color: 'var(--p-color-contrast-medium)' }}
                     onClick={() => setShowUploadForm(true)}
                 >
-                    {poster ? 'Replace Poster' : 'Upload Poster'}
+                    {poster ? `Replace ${label}` : `Upload ${label}`}
                 </button>
             )}
 
-            {/* Upload Form */}
             {showUploadForm && (
                 <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
-                    <PHeading size="sm" tag="h3">{poster ? 'Replace Poster' : 'Upload Poster'}</PHeading>
+                    <PHeading size="sm" tag="h3">{poster ? `Replace ${label}` : `Upload ${label}`}</PHeading>
                     <div>
                         <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>
                             Poster Image (max 5MB)
@@ -140,11 +126,10 @@ export default function PostersSection({ showId }) {
                 </div>
             )}
 
-            {/* Poster Display */}
             {poster ? (
                 <div className="space-y-3">
-                    <div className="relative group cursor-pointer" onClick={() => setLightboxOpen(true)}>
-                        <img src={poster.poster_url} alt={poster.caption || 'Show poster'}
+                    <div className="relative group cursor-pointer" onClick={onImageClick}>
+                        <img src={poster.poster_url} alt={poster.caption || label}
                             className="w-full max-w-md mx-auto rounded-xl shadow-lg hover:opacity-90 transition-opacity" />
                         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 rounded-xl pointer-events-none">
                             <PText>Click to view full size</PText>
@@ -166,14 +151,68 @@ export default function PostersSection({ showId }) {
                 </div>
             ) : (
                 <div className="text-center py-8 space-y-2">
-                    <PText color="contrast-medium">No poster uploaded yet</PText>
-                    {user && <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>Be the first to upload a poster for this show!</PText>}
+                    <PText color="contrast-medium">No {label.toLowerCase()} uploaded yet</PText>
                 </div>
             )}
+        </div>
+    );
+}
 
-            <Lightbox open={lightboxOpen} close={() => setLightboxOpen(false)}
-                slides={poster ? [{ src: poster.poster_url, alt: poster.caption || 'Show poster', title: poster.caption }] : []}
-                index={0} />
+export default function PostersSection({ showId }) {
+    const { user, isAdmin } = useAuth();
+    const [posters, setPosters] = useState([]);
+    const [lightboxIndex, setLightboxIndex] = useState(-1);
+    const [error, setError] = useState(null);
+
+    const loadPosters = useCallback(async () => {
+        try {
+            const { posters: showPosters } = await getShowPoster(showId);
+            setPosters(showPosters || []);
+        } catch (err) {
+            console.error('Error loading posters:', err);
+            setError('Failed to load posters');
+        }
+    }, [showId]);
+
+    useEffect(() => { loadPosters(); }, [loadPosters]);
+
+    const regularPoster = posters.find(p => !p.is_foil) || null;
+    const foilPoster = posters.find(p => p.is_foil) || null;
+    const slides = posters.map(p => ({ src: p.poster_url, alt: p.caption || 'Show poster', title: p.caption }));
+
+    return (
+        <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 space-y-4">
+            <PHeading size="lg" tag="h2">Show Posters</PHeading>
+            <PDivider />
+
+            {error && (
+                <PInlineNotification heading="Error" description={error} state="error" dismissButton={false} />
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <PosterSlot
+                    label="Regular Poster"
+                    poster={regularPoster}
+                    isFoil={false}
+                    showId={showId}
+                    user={user}
+                    isAdmin={isAdmin}
+                    onImageClick={() => setLightboxIndex(posters.indexOf(regularPoster))}
+                    onChanged={loadPosters}
+                />
+                <PosterSlot
+                    label="Foil Poster"
+                    poster={foilPoster}
+                    isFoil={true}
+                    showId={showId}
+                    user={user}
+                    isAdmin={isAdmin}
+                    onImageClick={() => setLightboxIndex(posters.indexOf(foilPoster))}
+                    onChanged={loadPosters}
+                />
+            </div>
+
+            <Lightbox open={lightboxIndex >= 0} close={() => setLightboxIndex(-1)} slides={slides} index={Math.max(lightboxIndex, 0)} />
         </div>
     );
 }

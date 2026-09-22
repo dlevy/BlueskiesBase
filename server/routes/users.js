@@ -543,15 +543,16 @@ router.get('/profile/:username', async (req, res) => {
 
         // Poster collection — public once added, same as favorite show/venue (no
         // separate opt-in toggle; owning a poster isn't personally sensitive the way
-        // real name/location/attendance history can be).
+        // real name/location/attendance history can be). Foil status comes from the
+        // poster itself (user_posters.is_foil), not tracked separately here.
         const { data: collectionRows } = await supabase
             .from('user_poster_collection')
             .select(`
                 id,
-                has_foil,
                 user_posters (
                     id,
                     poster_url,
+                    is_foil,
                     shows ( id, show_date, artist_name, tour_name, venues ( name, city, state_country ) )
                 )
             `)
@@ -561,7 +562,7 @@ router.get('/profile/:username', async (req, res) => {
             .filter(row => row.user_posters?.shows)
             .map(row => ({
                 id: row.id,
-                hasFoil: row.has_foil,
+                hasFoil: row.user_posters.is_foil,
                 posterUrl: row.user_posters.poster_url,
                 show: row.user_posters.shows,
             }))

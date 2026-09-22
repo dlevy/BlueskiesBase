@@ -22,7 +22,7 @@ function PosterTile({ poster, onImageClick }) {
             <button
                 type="button"
                 onClick={onImageClick}
-                className="block w-full aspect-[2/3] overflow-hidden bg-white/5 cursor-pointer"
+                className="relative block w-full aspect-[2/3] overflow-hidden bg-white/5 cursor-pointer"
             >
                 <img
                     src={poster.poster_url}
@@ -30,6 +30,14 @@ function PosterTile({ poster, onImageClick }) {
                     loading="lazy"
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />
+                {poster.is_foil && (
+                    <span
+                        className="absolute top-1.5 right-1.5 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded"
+                        style={{ background: 'rgba(192,132,252,0.85)', color: '#1a0b2e' }}
+                    >
+                        Foil
+                    </span>
+                )}
             </button>
             <Link to={buildShowPath(show)} className="block p-3 hover:bg-white/[0.05] transition-colors">
                 <p className="text-[10px] font-mono uppercase tracking-wide" style={{ color: 'var(--p-color-contrast-low)' }}>

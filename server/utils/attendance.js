@@ -108,12 +108,12 @@ async function computeDebutDetails(pastShows, songsSeen) {
     try {
         const debutsByShow = await computeDebutsForShows(pastShows.map(s => s.id));
         Object.entries(debutsByShow).forEach(([showId, d]) => {
-            const show = showsById[showId];
+            const show = showsById[showId] || null;
             d.live_debut_song_ids.forEach(songId => {
-                liveDebuts.push({ songId, title: songsById[songId]?.title || null, showId, showDate: show?.show_date || null });
+                liveDebuts.push({ songId, title: songsById[songId]?.title || null, showId, showDate: show?.show_date || null, show });
             });
             d.tour_debut_song_ids.forEach(songId => {
-                tourDebuts.push({ songId, title: songsById[songId]?.title || null, showId, showDate: show?.show_date || null });
+                tourDebuts.push({ songId, title: songsById[songId]?.title || null, showId, showDate: show?.show_date || null, show });
             });
         });
     } catch (err) {

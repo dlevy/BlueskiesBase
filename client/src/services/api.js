@@ -1238,9 +1238,10 @@ export const getShowPoster = async (showId) => {
 };
 
 /**
- * Upload a poster (replaces existing poster if any)
+ * Upload a poster (replaces the existing poster of the same variant, if any —
+ * a show can have one regular and one foil poster, replaced independently).
  */
-export const uploadPoster = async (showId, file, caption = '') => {
+export const uploadPoster = async (showId, file, caption = '', isFoil = false) => {
     const token = await getAuthToken();
     if (!token) {
         throw new Error('Not authenticated');
@@ -1249,6 +1250,7 @@ export const uploadPoster = async (showId, file, caption = '') => {
     const formData = new FormData();
     formData.append('poster', file);
     formData.append('show_id', showId);
+    formData.append('is_foil', isFoil ? 'true' : 'false');
     if (caption) {
         formData.append('caption', caption);
     }
@@ -1327,38 +1329,23 @@ export const getMyPosterCollection = async () => {
 };
 
 /**
- * Add a poster to the logged-in user's collection (or update its foil flag if
- * already owned).
+ * Add a poster to the logged-in user's collection. Whether it's the foil
+ * variant is a property of the poster itself (which posterId you pass), not a
+ * separate flag — the regular and foil editions are distinct poster rows.
  */
-export const addToPosterCollection = async (posterId, hasFoil = false) => {
+export const addToPosterCollection = async (posterId) => {
     const token = await getAuthToken();
     if (!token) throw new Error('Not authenticated');
 
     const response = await fetchWithAuth(`${API_BASE_URL}/api/posters/collection`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ posterId, hasFoil }),
+        body: JSON.stringify({ posterId }),
     });
     if (!response.ok) {
         const error = await response.json().catch(() => ({}));
         throw new Error(error.error || 'Failed to add poster to collection');
     }
-    return response.json();
-};
-
-/**
- * Update the foil flag on a poster collection entry.
- */
-export const updatePosterCollectionFoil = async (entryId, hasFoil) => {
-    const token = await getAuthToken();
-    if (!token) throw new Error('Not authenticated');
-
-    const response = await fetchWithAuth(`${API_BASE_URL}/api/posters/collection/${entryId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ hasFoil }),
-    });
-    if (!response.ok) throw new Error('Failed to update poster');
     return response.json();
 };
 
