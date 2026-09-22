@@ -2,10 +2,16 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { PHeading, PText, PButton, PInlineNotification } from '@porsche-design-system/components-react';
 import { useAuth } from '../contexts/AuthContext';
-import { updateMyProfile, uploadAvatar } from '../services/api';
+import { updateMyProfile, uploadAvatar, getUserStats } from '../services/api';
 
 const inputClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-transparent placeholder:text-gray-500";
+const selectClass = "w-full rounded-lg border border-white/10 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-transparent";
 const labelClass = "block text-xs font-medium mb-1.5";
+
+function formatDate(dateString) {
+    const [year, month, day] = dateString.split('-');
+    return new Date(year, month - 1, day).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+}
 
 export default function EditProfilePage() {
     const { user, profile, getToken, refreshProfile } = useAuth();
@@ -17,10 +23,14 @@ export default function EditProfilePage() {
         bio: '',
         facebookUrl: '',
         redditUrl: '',
+        instagramUrl: '',
         showAttendancePublic: false,
+        favoriteShowId: '',
+        favoriteVenueId: '',
     });
     const [avatarFile, setAvatarFile] = useState(null);
     const [avatarPreview, setAvatarPreview] = useState(null);
+    const [pastShows, setPastShows] = useState([]);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
@@ -31,16 +41,46 @@ export default function EditProfilePage() {
 
     useEffect(() => {
         if (!profile) return;
-        setFormData({
+        setFormData(prev => ({
+            ...prev,
             displayName: profile.display_name || '',
             location: profile.location || '',
             bio: profile.bio || '',
             facebookUrl: profile.facebook_url || '',
             redditUrl: profile.reddit_url || '',
+            instagramUrl: profile.instagram_url || '',
             showAttendancePublic: profile.show_attendance_public || false,
-        });
+            favoriteShowId: profile.favorite_show_id || '',
+            favoriteVenueId: profile.favorite_venue_id || '',
+        }));
         setAvatarPreview(profile.avatar_url || null);
     }, [profile]);
+
+    // Favorite show/venue can only be picked from shows the user has actually
+    // attended (validated server-side too, not just by limiting the picker options).
+    useEffect(() => {
+        if (!user) return;
+        getUserStats()
+            .then(data => {
+                const todayStr = new Date().toISOString().slice(0, 10);
+                const past = (data.attendedShows || [])
+                    .filter(s => s?.show_date && s.show_date <= todayStr)
+                    .sort((a, b) => b.show_date.localeCompare(a.show_date));
+                setPastShows(past);
+            })
+            .catch(err => console.error('[EditProfilePage] Error loading attended shows:', err));
+    }, [user]);
+
+    const venueOptions = [];
+    const seenVenueIds = new Set();
+    for (const show of pastShows) {
+        const v = show.venues;
+        if (v?.id && !seenVenueIds.has(v.id)) {
+            seenVenueIds.add(v.id);
+            venueOptions.push(v);
+        }
+    }
+    venueOptions.sort((a, b) => a.name.localeCompare(b.name));
 
     if (!user || !profile) return null;
 
@@ -59,16 +99,21 @@ export default function EditProfilePage() {
         setAvatarPreview(URL.createObjectURL(file));
     };
 
-    const validateUrl = (url, requiredHost, label) => {
-        if (!url.trim()) return true;
+    // Tolerates a protocol-less URL (e.g. "facebook.com/name", very natural to type)
+    // rather than rejecting the whole save over it. Returns the corrected URL (with
+    // https:// added if it was missing), or null if the field was left blank.
+    // Throws if the value still isn't a valid URL for the expected host.
+    const normalizeUrl = (url, requiredHost, label) => {
+        const trimmed = url.trim();
+        if (!trimmed) return null;
+        const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
         try {
-            const parsed = new URL(url.trim());
+            const parsed = new URL(withProtocol);
             if (!parsed.hostname.toLowerCase().includes(requiredHost)) throw new Error();
-            return true;
         } catch {
-            setError(`Please enter a valid ${label} URL`);
-            return false;
+            throw new Error(`Please enter a valid ${label} URL`);
         }
+        return withProtocol;
     };
 
     const handleSubmit = async (e) => {
@@ -76,17 +121,25 @@ export default function EditProfilePage() {
         setError('');
         setSuccess(false);
 
-        if (!validateUrl(formData.facebookUrl, 'facebook.com', 'Facebook')) return;
-        if (!validateUrl(formData.redditUrl, 'reddit.com', 'Reddit')) return;
+        let facebookUrl, redditUrl, instagramUrl;
+        try {
+            facebookUrl = normalizeUrl(formData.facebookUrl, 'facebook.com', 'Facebook') || '';
+            redditUrl = normalizeUrl(formData.redditUrl, 'reddit.com', 'Reddit') || '';
+            instagramUrl = normalizeUrl(formData.instagramUrl, 'instagram.com', 'Instagram') || '';
+        } catch (err) {
+            setError(err.message);
+            return;
+        }
 
         setSaving(true);
         try {
-            await updateMyProfile(formData);
+            await updateMyProfile({ ...formData, facebookUrl, redditUrl, instagramUrl });
             if (avatarFile) {
                 await uploadAvatar(avatarFile);
             }
             await refreshProfile();
             setAvatarFile(null);
+            setFormData(prev => ({ ...prev, facebookUrl, redditUrl, instagramUrl }));
             setSuccess(true);
         } catch (err) {
             console.error('[EditProfilePage] Error saving profile:', err);
@@ -148,6 +201,35 @@ export default function EditProfilePage() {
                 </div>
 
                 <div>
+                    <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>Favorite Show</label>
+                    <select name="favoriteShowId" value={formData.favoriteShowId} onChange={handleChange}
+                        className={selectClass} style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
+                        <option value="">— None —</option>
+                        {pastShows.map(show => (
+                            <option key={show.id} value={show.id}>
+                                {formatDate(show.show_date)} — {show.artist_name}{show.venues ? ` @ ${show.venues.name}` : ''}
+                            </option>
+                        ))}
+                    </select>
+                    {pastShows.length === 0 && (
+                        <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }} className="mt-1 block">
+                            Mark a show as attended to pick a favorite.
+                        </PText>
+                    )}
+                </div>
+
+                <div>
+                    <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>Favorite Venue</label>
+                    <select name="favoriteVenueId" value={formData.favoriteVenueId} onChange={handleChange}
+                        className={selectClass} style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
+                        <option value="">— None —</option>
+                        {venueOptions.map(v => (
+                            <option key={v.id} value={v.id}>{v.name} — {v.city}</option>
+                        ))}
+                    </select>
+                </div>
+
+                <div>
                     <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>Facebook URL</label>
                     <input type="url" name="facebookUrl" value={formData.facebookUrl} onChange={handleChange}
                         placeholder="https://facebook.com/yourname" className={inputClass} />
@@ -157,6 +239,12 @@ export default function EditProfilePage() {
                     <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>Reddit URL</label>
                     <input type="url" name="redditUrl" value={formData.redditUrl} onChange={handleChange}
                         placeholder="https://reddit.com/user/yourname" className={inputClass} />
+                </div>
+
+                <div>
+                    <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>Instagram URL</label>
+                    <input type="url" name="instagramUrl" value={formData.instagramUrl} onChange={handleChange}
+                        placeholder="https://instagram.com/yourname" className={inputClass} />
                 </div>
 
                 <label className="flex items-start gap-2 cursor-pointer">

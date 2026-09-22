@@ -71,12 +71,11 @@ async function computeSongsSeenForShows(showIds) {
 }
 
 /**
- * Live/tour debuts witnessed and how many all-time-rarest songs were seen, for a set
- * of a user's past attended shows plus their already-computed songsSeen list. Shared
- * by the personal stats route and the public profile route so both agree on the same
- * definitions (same debut/rarity utilities either way).
+ * Live/tour debuts witnessed at a set of a user's past attended shows. Shared by the
+ * personal stats route and the public profile route so both agree on the same
+ * definition (same debut utility either way).
  */
-async function computeDebutAndRarityCounts(pastShowIds, songsSeen) {
+async function computeDebutCounts(pastShowIds) {
     let liveDebutsWitnessed = 0;
     let tourDebutsWitnessed = 0;
     try {
@@ -86,9 +85,17 @@ async function computeDebutAndRarityCounts(pastShowIds, songsSeen) {
             tourDebutsWitnessed += d.tour_debut_song_ids.length;
         });
     } catch (err) {
-        console.error('[computeDebutAndRarityCounts] Error computing debuts witnessed:', err);
+        console.error('[computeDebutCounts] Error computing debuts witnessed:', err);
     }
+    return { liveDebutsWitnessed, tourDebutsWitnessed };
+}
 
+/**
+ * How many all-time-rarest songs a user has seen (and the single rarest match), given
+ * their already-computed songsSeen list. Used by the personal stats route only — the
+ * public profile page doesn't surface this.
+ */
+async function computeRarityCounts(songsSeen) {
     let rareSongsSeenCount = 0;
     let rarestSongSeen = null;
     try {
@@ -104,10 +111,9 @@ async function computeDebutAndRarityCounts(pastShowIds, songsSeen) {
             rarestSongSeen = rarestMatch ? { title: rarestMatch.title, playCount: rarestMatch.playCount } : null;
         }
     } catch (err) {
-        console.error('[computeDebutAndRarityCounts] Error computing rare songs seen:', err);
+        console.error('[computeRarityCounts] Error computing rare songs seen:', err);
     }
-
-    return { liveDebutsWitnessed, tourDebutsWitnessed, rareSongsSeenCount, rarestSongSeen };
+    return { rareSongsSeenCount, rarestSongSeen };
 }
 
-module.exports = { computeSongsSeenForShows, computeDebutAndRarityCounts };
+module.exports = { computeSongsSeenForShows, computeDebutCounts, computeRarityCounts };

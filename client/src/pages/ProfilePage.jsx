@@ -24,9 +24,18 @@ function initials(name) {
         .join('');
 }
 
+// For plain YYYY-MM-DD show dates — constructed from local y/m/d parts rather than
+// passed straight to `new Date()`, which would parse the bare date as UTC midnight
+// and can display as the previous day in negative-UTC-offset timezones.
 function formatDate(dateString) {
     const [year, month, day] = dateString.split('-');
     return new Date(year, month - 1, day).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+// For full ISO timestamps (e.g. profiles.created_at) — these already carry an
+// explicit UTC offset, so no manual y/m/d reconstruction is needed here.
+function formatDateTime(isoString) {
+    return new Date(isoString).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
 export default function ProfilePage() {
@@ -109,10 +118,10 @@ export default function ProfilePage() {
                             <PText size="small" color="contrast-medium" className="mt-1 block">{profile.location}</PText>
                         )}
                         <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }} className="mt-1 block">
-                            Member since {formatDate(profile.memberSince)}
+                            Member since {formatDateTime(profile.memberSince)}
                         </PText>
 
-                        {(profile.facebookUrl || profile.redditUrl) && (
+                        {(profile.facebookUrl || profile.redditUrl || profile.instagramUrl) && (
                             <div className="flex flex-wrap gap-3 mt-3">
                                 {profile.facebookUrl && (
                                     <a href={profile.facebookUrl} target="_blank" rel="noopener noreferrer"
@@ -124,6 +133,12 @@ export default function ProfilePage() {
                                     <a href={profile.redditUrl} target="_blank" rel="noopener noreferrer"
                                         className="text-xs font-medium text-amber-400 hover:opacity-80 transition-opacity">
                                         Reddit →
+                                    </a>
+                                )}
+                                {profile.instagramUrl && (
+                                    <a href={profile.instagramUrl} target="_blank" rel="noopener noreferrer"
+                                        className="text-xs font-medium text-amber-400 hover:opacity-80 transition-opacity">
+                                        Instagram →
                                     </a>
                                 )}
                             </div>
@@ -146,26 +161,21 @@ export default function ProfilePage() {
                     {profile.firstShow && (
                         <FactCard label="First Show" value={formatDate(profile.firstShow.show_date)} />
                     )}
-                    {profile.favoriteVenue && (
-                        <FactCard label="Favorite Venue" value={profile.favoriteVenue.name} sub={`${profile.favoriteVenue.city} · ${profile.favoriteVenue.count}x`} />
+                    {profile.favoriteShow && (
+                        <FactCard
+                            label="Favorite Show"
+                            value={profile.favoriteShow.artist_name}
+                            sub={`${formatDate(profile.favoriteShow.show_date)}${profile.favoriteShow.venues ? ' · ' + profile.favoriteShow.venues.name : ''}`}
+                        />
                     )}
-                    {profile.favoriteCity && (
-                        <FactCard label="Favorite City" value={profile.favoriteCity.name} sub={`${profile.favoriteCity.count} show${profile.favoriteCity.count !== 1 ? 's' : ''}`} />
+                    {profile.favoriteVenue && (
+                        <FactCard label="Favorite Venue" value={profile.favoriteVenue.name} sub={profile.favoriteVenue.city} />
                     )}
                     {profile.uniqueCities > 0 && (
                         <FactCard label="Cities Visited" value={`${profile.uniqueCities} cities`} />
                     )}
-                    {profile.mostAttendedYear && (
-                        <FactCard label="Most Active Year" value={profile.mostAttendedYear.year} sub={`${profile.mostAttendedYear.count} shows`} />
-                    )}
                     {profile.mostPlayedSong && (
                         <FactCard label="Most-Played Song" value={profile.mostPlayedSong.title} sub={`Seen ${profile.mostPlayedSong.playCount}x`} />
-                    )}
-                    {profile.rarestSongSeen && (
-                        <FactCard label="Rarest Song Seen" value={profile.rarestSongSeen.title} sub={`${profile.rarestSongSeen.playCount} play${profile.rarestSongSeen.playCount !== 1 ? 's' : ''} ever`} />
-                    )}
-                    {profile.rareSongsSeenCount > 0 && (
-                        <FactCard label="Rare Songs Seen" value={profile.rareSongsSeenCount} sub="among the all-time rarest" />
                     )}
                     {profile.liveDebutsWitnessed > 0 && (
                         <FactCard label="Live Debuts Witnessed" value={profile.liveDebutsWitnessed} />

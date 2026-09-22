@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const { supabase, supabaseAdmin } = require('../config/supabase');
-const { computeSongsSeenForShows, computeDebutAndRarityCounts } = require('../utils/attendance');
+const { computeSongsSeenForShows, computeDebutCounts, computeRarityCounts } = require('../utils/attendance');
 const { computeFunStats } = require('../utils/funStats');
 
 const AVATARS_BUCKET = 'avatars';
@@ -280,6 +280,7 @@ router.get('/stats', async (req, res) => {
                     artist_name,
                     tour_name,
                     venues (
+                        id,
                         name,
                         city,
                         state_country
@@ -434,8 +435,8 @@ router.get('/stats', async (req, res) => {
             .filter(us => us.shows?.show_date && us.shows.show_date <= todayStr)
             .map(us => us.show_id);
 
-        const { liveDebutsWitnessed, tourDebutsWitnessed, rareSongsSeenCount } =
-            await computeDebutAndRarityCounts(pastAttendedShowIds, songsSeen);
+        const { liveDebutsWitnessed, tourDebutsWitnessed } = await computeDebutCounts(pastAttendedShowIds);
+        const { rareSongsSeenCount } = await computeRarityCounts(songsSeen);
 
         const endTime = Date.now();
         const duration = endTime - startTime;
@@ -515,8 +516,30 @@ router.get('/profile/:username', async (req, res) => {
 
         const songsSeen = await computeSongsSeenForShows(pastShowIds);
         const funStats = computeFunStats(pastShows, songsSeen);
-        const { liveDebutsWitnessed, tourDebutsWitnessed, rareSongsSeenCount, rarestSongSeen } =
-            await computeDebutAndRarityCounts(pastShowIds, songsSeen);
+        const { liveDebutsWitnessed, tourDebutsWitnessed } = await computeDebutCounts(pastShowIds);
+
+        // User-picked favorites (not auto-computed) — looked up directly rather than
+        // cross-referenced from pastShows so they still resolve correctly even in any
+        // edge case where the pick isn't in that particular list.
+        let favoriteShow = null;
+        if (profile.favorite_show_id) {
+            const { data } = await supabase
+                .from('shows')
+                .select('id, show_date, artist_name, tour_name, venues ( name, city, state_country )')
+                .eq('id', profile.favorite_show_id)
+                .single();
+            favoriteShow = data || null;
+        }
+
+        let favoriteVenue = null;
+        if (profile.favorite_venue_id) {
+            const { data } = await supabase
+                .from('venues')
+                .select('id, name, city, state_country')
+                .eq('id', profile.favorite_venue_id)
+                .single();
+            favoriteVenue = data || null;
+        }
 
         const response = {
             username: profile.username,
@@ -525,20 +548,18 @@ router.get('/profile/:username', async (req, res) => {
             ...(profile.avatar_url && { avatarUrl: profile.avatar_url }),
             ...(profile.facebook_url && { facebookUrl: profile.facebook_url }),
             ...(profile.reddit_url && { redditUrl: profile.reddit_url }),
+            ...(profile.instagram_url && { instagramUrl: profile.instagram_url }),
             ...(profile.bio && { bio: profile.bio }),
 
             memberSince: profile.created_at,
             totalShowsAttended: pastShows.length,
-            favoriteVenue: funStats?.topVenue || null,
-            favoriteCity: funStats?.topCity || null,
+            favoriteShow,
+            favoriteVenue,
             mostPlayedSong: funStats?.topSong || null,
             firstShow: funStats?.firstShow || null,
             uniqueCities: funStats?.uniqueCities || 0,
-            mostAttendedYear: funStats?.topYear || null,
-            rarestSongSeen,
             liveDebutsWitnessed,
             tourDebutsWitnessed,
-            rareSongsSeenCount,
         };
 
         if (profile.show_attendance_public) {
@@ -555,7 +576,11 @@ router.get('/profile/:username', async (req, res) => {
 /**
  * PUT /api/users/profile
  * Update the logged-in user's own opt-in profile fields. Requires authentication.
- * Body: { displayName, location, facebookUrl, redditUrl, bio, showAttendancePublic }
+ * Body: { displayName, location, facebookUrl, redditUrl, instagramUrl, bio,
+ *         showAttendancePublic, favoriteShowId, favoriteVenueId }
+ * favoriteShowId/favoriteVenueId (when non-null) must reference a show the user has
+ * actually attended (in the past) / a venue from one of those shows — validated
+ * against user_shows here, not just enforced by the picker UI.
  */
 router.put('/profile', async (req, res) => {
     try {
@@ -571,20 +596,23 @@ router.put('/profile', async (req, res) => {
             return res.status(401).json({ error: 'Unauthorized' });
         }
 
-        const { displayName, location, facebookUrl, redditUrl, bio, showAttendancePublic } = req.body;
+        const { displayName, location, facebookUrl, redditUrl, instagramUrl, bio, showAttendancePublic, favoriteShowId, favoriteVenueId } = req.body;
 
         const validateUrl = (url, requiredHost) => {
             if (!url) return null;
+            // Tolerate a protocol-less URL (e.g. "facebook.com/name") rather than
+            // rejecting the whole save over it — a very natural thing to type.
+            const withProtocol = /^https?:\/\//i.test(url) ? url : `https://${url}`;
             let parsed;
             try {
-                parsed = new URL(url);
+                parsed = new URL(withProtocol);
             } catch {
                 throw new Error(`Please enter a valid ${requiredHost.split('.')[0]} URL`);
             }
             if (!parsed.hostname.toLowerCase().includes(requiredHost)) {
                 throw new Error(`Please enter a valid ${requiredHost.split('.')[0]} URL`);
             }
-            return url.trim();
+            return withProtocol;
         };
 
         const validateLength = (value, max, label) => {
@@ -602,10 +630,49 @@ router.put('/profile', async (req, res) => {
                 bio: validateLength(bio, 500, 'Bio'),
                 facebook_url: validateUrl(facebookUrl?.trim(), 'facebook.com'),
                 reddit_url: validateUrl(redditUrl?.trim(), 'reddit.com'),
+                instagram_url: validateUrl(instagramUrl?.trim(), 'instagram.com'),
                 show_attendance_public: Boolean(showAttendancePublic),
             };
         } catch (validationError) {
             return res.status(400).json({ error: validationError.message });
+        }
+
+        // Favorite show/venue must come from the user's own past attended shows.
+        if (favoriteShowId !== undefined || favoriteVenueId !== undefined) {
+            const todayStr = new Date().toISOString().slice(0, 10);
+            const { data: attended, error: attendedError } = await supabase
+                .from('user_shows')
+                .select('shows ( id, show_date, venue_id )')
+                .eq('user_id', user.id);
+
+            if (attendedError) {
+                console.error('[Update Profile] Error fetching attended shows:', attendedError);
+                return res.status(500).json({ error: 'Failed to validate favorite show/venue' });
+            }
+
+            const pastAttended = (attended || [])
+                .map(row => row.shows)
+                .filter(s => s?.show_date && s.show_date <= todayStr);
+            const validShowIds = new Set(pastAttended.map(s => s.id));
+            const validVenueIds = new Set(pastAttended.map(s => s.venue_id).filter(Boolean));
+
+            if (favoriteShowId) {
+                if (!validShowIds.has(favoriteShowId)) {
+                    return res.status(400).json({ error: 'You can only pick a favorite show from shows you\'ve attended' });
+                }
+                updates.favorite_show_id = favoriteShowId;
+            } else if (favoriteShowId !== undefined) {
+                updates.favorite_show_id = null;
+            }
+
+            if (favoriteVenueId) {
+                if (!validVenueIds.has(favoriteVenueId)) {
+                    return res.status(400).json({ error: 'You can only pick a favorite venue from shows you\'ve attended' });
+                }
+                updates.favorite_venue_id = favoriteVenueId;
+            } else if (favoriteVenueId !== undefined) {
+                updates.favorite_venue_id = null;
+            }
         }
 
         const { data, error } = await supabaseAdmin
