@@ -11,6 +11,7 @@ import PostersPage from './pages/PostersPage'
 import PhotosPage from './pages/PhotosPage'
 import TourStatsPage from './pages/TourStatsPage'
 import ProfilePage from './pages/ProfilePage'
+import FanMapPage from './pages/FanMapPage'
 import EditProfilePage from './pages/EditProfilePage'
 import LoginPage from './pages/LoginPage'
 import MemberLoginPage from './pages/MemberLoginPage'
@@ -49,6 +50,9 @@ function App() {
                 currently auto-generated, not user-chosen. */}
             <Route path="profile/edit" element={<EditProfilePage />} />
             <Route path="profile/:username" element={<ProfilePage />} />
+            {/* Unlisted — not linked from any nav, reachable only by direct URL
+                until it finds a permanent home in the site's navigation. */}
+            <Route path="fan-map-x7q2k9" element={<FanMapPage />} />
           </Route>
 
           {/* Member Auth Routes */}
