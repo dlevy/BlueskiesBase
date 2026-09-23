@@ -175,17 +175,6 @@ export const getCommunityStats = async () => {
 };
 
 /**
- * Get every show at least one signed-up member has attended, with attendee counts
- */
-export const getCommunityShowMap = async () => {
-    const response = await fetch(`${API_BASE_URL}/api/users/community-map`);
-    if (!response.ok) {
-        throw new Error('Failed to fetch community show map');
-    }
-    return response.json();
-};
-
-/**
  * Create a new song
  */
 export const createSong = async (songData) => {
