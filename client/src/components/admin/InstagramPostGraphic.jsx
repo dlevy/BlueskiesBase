@@ -19,13 +19,31 @@ const HEADER_FOOTER_OVERHEAD = 577;
 const MIN_SONG_FONT = 14;
 const MAX_SONG_FONT = 34;
 
+// Fixed high-contrast palette used when the background is a photo (the show
+// poster) instead of a flat color — a tour's color style can't be trusted to
+// read well over an arbitrary image, so poster mode always uses this instead
+// of the selected style's colors. Paired with a dark scrim over the image and
+// a text-shadow on every text layer so legibility never depends on which part
+// of the poster happens to sit behind a given line of text.
+const POSTER_OVERLAY_PALETTE = {
+    heading: '#ffffff',
+    body: 'rgba(255,255,255,0.92)',
+    muted: 'rgba(255,255,255,0.7)',
+    accent: '#fbbf24',
+    divider: 'rgba(255,255,255,0.35)',
+};
+const POSTER_TEXT_SHADOW = '0 2px 10px rgba(0,0,0,0.85), 0 1px 3px rgba(0,0,0,0.7)';
+
 function DebutTag({ label, color, songFontSize }) {
     return (
         <span style={{
             display: 'inline-flex', alignItems: 'center', flexShrink: 0,
             fontSize: Math.max(10, Math.round(songFontSize * 0.4)),
             fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5,
-            color, background: `${color}22`, borderRadius: 4, padding: '0.15em 0.5em',
+            // Solid fill + near-black text, not a color-tinted background —
+            // contrast this way comes from the pill itself, so it stays legible
+            // whether the page behind it is a light or dark style, or a photo.
+            color: '#0b0e13', background: color, borderRadius: 4, padding: '0.15em 0.5em',
         }}>
             {label}
         </span>
@@ -72,9 +90,17 @@ function splitIntoColumns(songs, columns) {
 // Fixed-pixel-size graphic (1080-wide, height depends on format) captured via
 // html-to-image. Layout is identical across styles/tours — only colors change —
 // so a new tour style never requires touching this component.
-const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({ show, formatKey, styleKey, liveDebutSongIds, tourDebutSongIds }, ref) {
+const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({
+    show, formatKey, styleKey, liveDebutSongIds, tourDebutSongIds, backgroundMode = 'style', posterUrl,
+}, ref) {
     const format = getFormatByKey(formatKey);
     const style = getStyleByKey(styleKey);
+    const usePoster = backgroundMode === 'poster' && !!posterUrl;
+    // Poster mode never trusts the selected color style for text — an arbitrary
+    // photo can't be assumed to work with any given palette — so it always uses
+    // the fixed high-contrast overlay palette instead, paired with a scrim.
+    const palette = usePoster ? POSTER_OVERLAY_PALETTE : style;
+    const textShadow = usePoster ? POSTER_TEXT_SHADOW : 'none';
 
     const songs = SET_KEYS.flatMap(key => show.setlist?.[key] || []);
     const totalSongs = songs.length;
@@ -89,83 +115,108 @@ const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({ show, fo
         <div
             ref={ref}
             style={{
+                position: 'relative',
                 width: format.width,
                 height: format.height,
-                background: style.background,
-                color: style.body,
+                background: usePoster ? '#0b0e13' : style.background,
                 fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
-                display: 'flex',
-                flexDirection: 'column',
-                padding: 64,
                 boxSizing: 'border-box',
                 overflow: 'hidden',
             }}
         >
-            {/* Header */}
-            <div style={{ flexShrink: 0 }}>
-                {show.tour_name && (
+            {usePoster && (
+                <>
+                    <img
+                        src={posterUrl}
+                        crossOrigin="anonymous"
+                        alt=""
+                        style={{
+                            position: 'absolute', inset: 0, width: '100%', height: '100%',
+                            objectFit: 'cover', objectPosition: 'center',
+                        }}
+                    />
+                    {/* Scrim — darkest at top/bottom where header/footer text sits,
+                        never light enough in the middle for the setlist to risk
+                        landing on a bright, low-contrast patch of the poster. */}
                     <div style={{
-                        fontSize: 26, fontWeight: 700, letterSpacing: 3, textTransform: 'uppercase',
-                        color: style.accent, marginBottom: 16,
-                    }}>
-                        {show.tour_name}
-                    </div>
-                )}
-                <div style={{
-                    fontFamily: "'Space Grotesk', ui-sans-serif, system-ui, sans-serif",
-                    fontWeight: 700, fontSize: 64, lineHeight: 1.1, color: style.heading, marginBottom: 20,
-                }}>
-                    {show.artist_name}
-                </div>
-                {venueLine && (
-                    <div style={{ fontSize: 32, fontWeight: 600, color: style.body, marginBottom: 6 }}>
-                        {venueLine}
-                    </div>
-                )}
-                <div style={{ fontSize: 28, color: style.muted }}>
-                    {formatLongDate(show.show_date)}
-                </div>
-                <div style={{ height: 1, background: style.divider, marginTop: 32 }} />
-            </div>
+                        position: 'absolute', inset: 0,
+                        background: 'linear-gradient(180deg, rgba(3,4,7,0.78) 0%, rgba(3,4,7,0.52) 22%, rgba(3,4,7,0.58) 78%, rgba(3,4,7,0.82) 100%)',
+                    }} />
+                </>
+            )}
 
-            {/* Setlist — vertically centered in the remaining space */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', overflow: 'hidden' }}>
-                <div style={{ display: 'flex', gap: 56 }}>
-                    {splitIntoColumns(songs, columns).map((columnSongs, colIndex) => (
-                        <div key={colIndex} style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                            {columnSongs.map(({ song, i }) => {
-                                const isLiveDebut = song.song_id != null && liveDebutSongIds?.has(song.song_id);
-                                const isTourDebut = song.song_id != null && tourDebutSongIds?.has(song.song_id);
-                                return (
-                                    <div
-                                        key={song.id || i}
-                                        style={{
-                                            fontSize: songFontSize, lineHeight: 1.45, color: style.heading,
-                                            display: 'flex', flexWrap: 'nowrap', alignItems: 'center', gap: 10,
-                                        }}
-                                    >
-                                        <span style={{ flexShrink: 0, color: style.muted, fontVariantNumeric: 'tabular-nums' }}>{i + 1}.</span>
-                                        <span style={{
-                                            minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                                        }}>
-                                            {song.title}{song.jams_into ? ' →' : ''}
-                                        </span>
-                                        {isLiveDebut && <DebutTag label="Live Debut" color="#34d399" songFontSize={songFontSize} />}
-                                        {isTourDebut && <DebutTag label="Tour Debut" color="#22d3ee" songFontSize={songFontSize} />}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    ))}
-                </div>
-            </div>
-
-            {/* Footer */}
+            {/* Content layer — sits above the poster image + scrim when present */}
             <div style={{
-                flexShrink: 0, textAlign: 'center', fontSize: 48, fontWeight: 800,
-                letterSpacing: 1, color: style.heading, marginTop: 32,
+                position: 'relative', zIndex: 1, width: '100%', height: '100%',
+                display: 'flex', flexDirection: 'column', padding: 64, boxSizing: 'border-box',
+                color: palette.body, textShadow,
             }}>
-                skysets.org
+                {/* Header */}
+                <div style={{ flexShrink: 0 }}>
+                    {show.tour_name && (
+                        <div style={{
+                            fontSize: 26, fontWeight: 700, letterSpacing: 3, textTransform: 'uppercase',
+                            color: palette.accent, marginBottom: 16,
+                        }}>
+                            {show.tour_name}
+                        </div>
+                    )}
+                    <div style={{
+                        fontFamily: "'Space Grotesk', ui-sans-serif, system-ui, sans-serif",
+                        fontWeight: 700, fontSize: 64, lineHeight: 1.1, color: palette.heading, marginBottom: 20,
+                    }}>
+                        {show.artist_name}
+                    </div>
+                    {venueLine && (
+                        <div style={{ fontSize: 32, fontWeight: 600, color: palette.body, marginBottom: 6 }}>
+                            {venueLine}
+                        </div>
+                    )}
+                    <div style={{ fontSize: 28, color: palette.muted }}>
+                        {formatLongDate(show.show_date)}
+                    </div>
+                    <div style={{ height: 1, background: palette.divider, marginTop: 32 }} />
+                </div>
+
+                {/* Setlist — vertically centered in the remaining space */}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', overflow: 'hidden' }}>
+                    <div style={{ display: 'flex', gap: 56 }}>
+                        {splitIntoColumns(songs, columns).map((columnSongs, colIndex) => (
+                            <div key={colIndex} style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                                {columnSongs.map(({ song, i }) => {
+                                    const isLiveDebut = song.song_id != null && liveDebutSongIds?.has(song.song_id);
+                                    const isTourDebut = song.song_id != null && tourDebutSongIds?.has(song.song_id);
+                                    return (
+                                        <div
+                                            key={song.id || i}
+                                            style={{
+                                                fontSize: songFontSize, lineHeight: 1.45, color: palette.heading,
+                                                display: 'flex', flexWrap: 'nowrap', alignItems: 'center', gap: 10,
+                                            }}
+                                        >
+                                            <span style={{ flexShrink: 0, color: palette.muted, fontVariantNumeric: 'tabular-nums' }}>{i + 1}.</span>
+                                            <span style={{
+                                                minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                            }}>
+                                                {song.title}{song.jams_into ? ' →' : ''}
+                                            </span>
+                                            {isLiveDebut && <DebutTag label="Live Debut" color="#34d399" songFontSize={songFontSize} />}
+                                            {isTourDebut && <DebutTag label="Tour Debut" color="#22d3ee" songFontSize={songFontSize} />}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Footer */}
+                <div style={{
+                    flexShrink: 0, textAlign: 'center', fontSize: 48, fontWeight: 800,
+                    letterSpacing: 1, color: palette.heading, marginTop: 32,
+                }}>
+                    skysets.org
+                </div>
             </div>
         </div>
     );

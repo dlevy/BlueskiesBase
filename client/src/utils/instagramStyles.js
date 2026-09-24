@@ -23,7 +23,9 @@ export const POST_STYLES = [
         accent: '#334155',
         heading: '#1e293b',
         body: '#475569',
-        muted: '#94a3b8',
+        // Was #94a3b8 — only 2.3:1 against this background, below the WCAG AA
+        // floor even for large text, so song numbers/dates were hard to read.
+        muted: '#64748b',
         divider: 'rgba(15,23,42,0.12)',
     },
     {
@@ -78,7 +80,9 @@ export const POST_STYLES = [
         accent: '#c2410c',
         heading: '#431407',
         body: '#7c4a2d',
-        muted: '#b08968',
+        // Was #b08968 — only 2.7:1 against this background, below the WCAG AA
+        // floor even for large text, so song numbers/dates were hard to read.
+        muted: '#8b5e3c',
         divider: 'rgba(15,23,42,0.12)',
     },
     {

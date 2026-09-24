@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { toPng } from 'html-to-image';
 import { PHeading, PText, PButton, PButtonPure, PInlineNotification, PSpinner } from '@porsche-design-system/components-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { getShowById, getShowDebuts, getShowPhotos } from '../../services/api';
+import { getShowById, getShowDebuts, getShowPhotos, getShowPoster } from '../../services/api';
 import { buildShowPath } from '../../utils/showSlug';
 import InstagramPostGraphic from '../../components/admin/InstagramPostGraphic';
 import { POST_STYLES, POST_FORMATS, DEFAULT_STYLE_KEY, DEFAULT_FORMAT_KEY, getFormatByKey } from '../../utils/instagramStyles';
@@ -29,6 +29,9 @@ export default function InstagramPostPage() {
     const [tourDebutSongIds, setTourDebutSongIds] = useState(new Set());
     const [photos, setPhotos] = useState([]);
     const [lightboxIndex, setLightboxIndex] = useState(-1);
+    const [posters, setPosters] = useState([]);
+    const [backgroundMode, setBackgroundMode] = useState('style');
+    const [posterVariant, setPosterVariant] = useState('regular');
 
     const graphicRef = useRef(null);
 
@@ -55,6 +58,12 @@ export default function InstagramPostPage() {
         getShowPhotos(id)
             .then(data => setPhotos(data.photos || []))
             .catch(err => console.error('[InstagramPostPage] Error loading photos:', err));
+    }, [id]);
+
+    useEffect(() => {
+        getShowPoster(id)
+            .then(data => setPosters(data.posters || []))
+            .catch(err => console.error('[InstagramPostPage] Error loading poster:', err));
     }, [id]);
 
     // Load the style already assigned to this tour, if any
@@ -127,6 +136,11 @@ export default function InstagramPostPage() {
     }
 
     const format = getFormatByKey(formatKey);
+    const regularPoster = posters.find(p => !p.is_foil) || null;
+    const foilPoster = posters.find(p => p.is_foil) || null;
+    const hasBothPosterVariants = !!regularPoster && !!foilPoster;
+    const activePoster = (posterVariant === 'foil' && foilPoster) ? foilPoster : (regularPoster || foilPoster);
+    const posterUrl = activePoster?.poster_url || null;
     const previewHeight = Math.round(PREVIEW_WIDTH * (format.height / format.width));
     const previewScale = PREVIEW_WIDTH / format.width;
 
@@ -172,6 +186,63 @@ export default function InstagramPostPage() {
 
                     <div>
                         <label className="block text-xs font-medium uppercase tracking-wide mb-2" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                            Background
+                        </label>
+                        <div className="space-y-1.5">
+                            <button
+                                type="button"
+                                onClick={() => setBackgroundMode('style')}
+                                className={`w-full text-left text-sm px-3 py-2 rounded-lg border transition-all ${
+                                    backgroundMode === 'style'
+                                        ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
+                                        : 'border-white/10 hover:border-white/25 hover:bg-white/5'
+                                }`}
+                                style={backgroundMode !== 'style' ? { color: 'var(--p-color-contrast-medium)' } : undefined}
+                            >
+                                Color Style
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => posters.length > 0 && setBackgroundMode('poster')}
+                                disabled={posters.length === 0}
+                                className={`w-full text-left text-sm px-3 py-2 rounded-lg border transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
+                                    backgroundMode === 'poster'
+                                        ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
+                                        : 'border-white/10 hover:border-white/25 hover:bg-white/5'
+                                }`}
+                                style={backgroundMode !== 'poster' ? { color: 'var(--p-color-contrast-medium)' } : undefined}
+                            >
+                                Show Poster
+                            </button>
+                        </div>
+
+                        {posters.length === 0 ? (
+                            <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }} className="mt-2 block">
+                                No poster uploaded for this show yet.
+                            </PText>
+                        ) : hasBothPosterVariants && backgroundMode === 'poster' ? (
+                            <div className="flex gap-2 mt-2">
+                                {['regular', 'foil'].map(variant => (
+                                    <button
+                                        key={variant}
+                                        type="button"
+                                        onClick={() => setPosterVariant(variant)}
+                                        className={`flex-1 text-xs px-2 py-1.5 rounded-md border capitalize transition-all ${
+                                            posterVariant === variant
+                                                ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
+                                                : 'border-white/10 hover:border-white/25'
+                                        }`}
+                                        style={posterVariant !== variant ? { color: 'var(--p-color-contrast-medium)' } : undefined}
+                                    >
+                                        {variant}
+                                    </button>
+                                ))}
+                            </div>
+                        ) : null}
+                    </div>
+
+                    <div style={backgroundMode === 'poster' ? { opacity: 0.45, pointerEvents: 'none' } : undefined}>
+                        <label className="block text-xs font-medium uppercase tracking-wide mb-2" style={{ color: 'var(--p-color-contrast-medium)' }}>
                             Style
                         </label>
                         <div className="space-y-1.5">
@@ -193,7 +264,11 @@ export default function InstagramPostPage() {
                             ))}
                         </div>
 
-                        {show.tour_name ? (
+                        {backgroundMode === 'poster' ? (
+                            <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }} className="mt-3 block">
+                                Not used while background is set to Show Poster — poster mode always uses a fixed high-contrast overlay for readability.
+                            </PText>
+                        ) : show.tour_name ? (
                             <div className="mt-3">
                                 <PButtonPure
                                     size="x-small"
@@ -229,6 +304,8 @@ export default function InstagramPostPage() {
                                     styleKey={styleKey}
                                     liveDebutSongIds={liveDebutSongIds}
                                     tourDebutSongIds={tourDebutSongIds}
+                                    backgroundMode={backgroundMode}
+                                    posterUrl={posterUrl}
                                 />
                             </div>
                         </div>
