@@ -21,7 +21,7 @@ const BOTTOM_PADDING = 180;
 // the tagline beneath the footer link) take up as rendered content — NOT
 // including the safe-zone padding above/below, which is accounted for
 // separately. Used to figure out how much room is actually left for the
-// setlist so it fills the fixed 1080x1440 post instead of leaving empty
+// setlist so it fills the fixed 1080x1350 post instead of leaving empty
 // bands top/bottom. Approximate on purpose: exact isn't the goal, but it
 // needs to stay in the right ballpark, since the font size below is computed
 // from this estimate, not measured from the real rendered header/footer.
@@ -155,7 +155,7 @@ function splitIntoColumns(songs, columns) {
     return result;
 }
 
-// Fixed-pixel-size graphic (1080x1440, the only size offered) captured via
+// Fixed-pixel-size graphic (1080x1350, the only size offered) captured via
 // html-to-image. Layout is identical across styles/tours — only colors change —
 // so a new tour style never requires touching this component.
 const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({

@@ -54,6 +54,6 @@ export function getStyleByKey(key) {
     return POST_STYLES.find(s => s.key === key) || POST_STYLES[0];
 }
 
-// Single fixed post size (3:4) — no format picker; every post is this size.
+// Single fixed post size (4:5) — no format picker; every post is this size.
 export const POST_WIDTH = 1080;
-export const POST_HEIGHT = 1440;
+export const POST_HEIGHT = 1350;
