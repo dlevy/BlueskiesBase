@@ -20,6 +20,26 @@ const SET_KEYS = ['set1', 'set2', 'set3', 'encore'];
 const HEADER_FOOTER_OVERHEAD = 613;
 const MAX_SONG_FONT = 34;
 
+// Must match the actual rendered layout below (content padding, gap between
+// the two columns, gap within a song row) — the width-fitting math needs the
+// real pixel values, not estimates, since a fixed gap doesn't scale with font
+// size the way text does.
+const CONTENT_PADDING = 64;
+const COLUMN_GAP = 56;
+const ROW_GAP = 10;
+const FONT_STACK = "'Inter', ui-sans-serif, system-ui, sans-serif";
+
+// Canvas-based text measurement, reused across calls — lets the layout know
+// the actual pixel width a title/number/badge will render at, rather than
+// guessing, so font size can be shrunk exactly as far as needed and no
+// further.
+let measureCtx = null;
+function measureTextWidth(text, fontSizePx, fontWeight) {
+    if (!measureCtx) measureCtx = document.createElement('canvas').getContext('2d');
+    measureCtx.font = `${fontWeight} ${fontSizePx}px ${FONT_STACK}`;
+    return measureCtx.measureText(text).width;
+}
+
 // Fixed high-contrast palette used when the background is an image (the show
 // poster or an uploaded show photo) instead of a flat color — a tour's color
 // style can't be trusted to read well over an arbitrary image, so image
@@ -52,18 +72,61 @@ function DebutTag({ label, color, songFontSize }) {
     );
 }
 
+// The widest a single song's row (number + title + any debut badges) can be
+// at a given font size — a song's row never wraps (see the render below), so
+// if this exceeds the column width the title gets ellipsis-truncated. Badge
+// font size and padding are both proportional to songFontSize (see
+// DebutTag), so their width scales with it too; only the flex gaps between
+// elements are fixed pixel values that don't scale with font size.
+function measureRowWidth(song, index, fontSize, liveDebutSongIds, tourDebutSongIds) {
+    const numberWidth = measureTextWidth(`${index + 1}.`, fontSize, 400);
+    const titleText = `${song.title}${song.jams_into ? ' →' : ''}`;
+    const titleWidth = measureTextWidth(titleText, fontSize, 400);
+    let width = numberWidth + ROW_GAP + titleWidth;
+
+    const badgeFontSize = Math.max(10, Math.round(fontSize * 0.4));
+    const isLiveDebut = song.song_id != null && liveDebutSongIds?.has(song.song_id);
+    const isTourDebut = song.song_id != null && tourDebutSongIds?.has(song.song_id);
+    [isLiveDebut && 'Live Debut', isTourDebut && 'Tour Debut'].filter(Boolean).forEach(label => {
+        // DebutTag's own padding is '0.15em 0.5em' — 0.5em each side, 1em top/bottom half.
+        const badgePadding = badgeFontSize; // 0.5em * 2 sides = 1em = badgeFontSize px
+        width += ROW_GAP + measureTextWidth(label, badgeFontSize, 700) + badgePadding;
+    });
+    return width;
+}
+
 // Always two columns. The font has no minimum floor — it shrinks as far as
-// necessary so every song fits within the available height. A floor here is
-// exactly what used to cause songs to get silently clipped off the top/bottom
-// of very long setlists: the row height budget would be exceeded the moment
-// the "readable minimum" size didn't actually fit.
-function pickSongLayout(totalSongs, availableHeight) {
+// necessary so every song fits, both vertically (within the available
+// height) and horizontally (no title ellipsis-truncates within its column).
+// A floor here is exactly what used to cause songs to get silently clipped
+// off the top/bottom of long setlists, or individual titles to truncate —
+// the row/row-height budget would be exceeded the moment the "readable
+// minimum" size didn't actually fit.
+function pickSongLayout(songs, availableHeight, columnWidth, liveDebutSongIds, tourDebutSongIds) {
     const usable = Math.max(availableHeight, 100);
     const columns = 2;
-    const rows = Math.max(1, Math.ceil(totalSongs / columns));
+    const rows = Math.max(1, Math.ceil(songs.length / columns));
     const lineHeight = usable / rows;
-    const songFontSize = Math.min(lineHeight / 1.45, MAX_SONG_FONT);
-    return { columns, songFontSize };
+    const heightFontSize = lineHeight / 1.45;
+
+    // Binary-search the largest font size at which every song's row still
+    // fits within columnWidth — badge width doesn't scale perfectly linearly
+    // with font size (Math.max(10, Math.round(...)) floors/rounds it), so a
+    // closed-form solve isn't reliable; a quick search is simpler and exact
+    // enough at pixel scale.
+    let lo = 1;
+    let hi = Math.min(heightFontSize, MAX_SONG_FONT);
+    const fits = (fontSize) => songs.every((song, i) =>
+        measureRowWidth(song, i, fontSize, liveDebutSongIds, tourDebutSongIds) <= columnWidth
+    );
+    if (hi <= lo || fits(hi)) {
+        return { columns, songFontSize: Math.max(hi, lo) };
+    }
+    for (let iter = 0; iter < 20; iter++) {
+        const mid = (lo + hi) / 2;
+        if (fits(mid)) lo = mid; else hi = mid;
+    }
+    return { columns, songFontSize: lo };
 }
 
 // Splits songs into `columns` chunks for rendering, preserving each song's
@@ -101,10 +164,10 @@ const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({
     const textShadow = useImageBackground ? IMAGE_TEXT_SHADOW : 'none';
 
     const songs = SET_KEYS.flatMap(key => show.setlist?.[key] || []);
-    const totalSongs = songs.length;
 
     const availableHeight = POST_HEIGHT - HEADER_FOOTER_OVERHEAD;
-    const { columns, songFontSize } = pickSongLayout(totalSongs, availableHeight);
+    const columnWidth = (POST_WIDTH - CONTENT_PADDING * 2 - COLUMN_GAP) / 2;
+    const { columns, songFontSize } = pickSongLayout(songs, availableHeight, columnWidth, liveDebutSongIds, tourDebutSongIds);
     const venueLine = show.venues
         ? `${show.venues.name} — ${show.venues.city}${show.venues.state_country ? ', ' + show.venues.state_country : ''}`
         : null;
@@ -117,7 +180,7 @@ const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({
                 width: POST_WIDTH,
                 height: POST_HEIGHT,
                 background: useImageBackground ? '#0b0e13' : style.background,
-                fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
+                fontFamily: FONT_STACK,
                 boxSizing: 'border-box',
                 overflow: 'hidden',
             }}
@@ -146,7 +209,7 @@ const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({
             {/* Content layer — sits above the poster image + scrim when present */}
             <div style={{
                 position: 'relative', zIndex: 1, width: '100%', height: '100%',
-                display: 'flex', flexDirection: 'column', padding: 64, boxSizing: 'border-box',
+                display: 'flex', flexDirection: 'column', padding: CONTENT_PADDING, boxSizing: 'border-box',
                 color: palette.body, textShadow,
             }}>
                 {/* Header */}
@@ -178,7 +241,7 @@ const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({
 
                 {/* Setlist — vertically centered in the remaining space */}
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', overflow: 'hidden' }}>
-                    <div style={{ display: 'flex', gap: 56 }}>
+                    <div style={{ display: 'flex', gap: COLUMN_GAP }}>
                         {splitIntoColumns(songs, columns).map((columnSongs, colIndex) => (
                             <div key={colIndex} style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                                 {columnSongs.map(({ song, i }) => {
@@ -189,7 +252,7 @@ const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({
                                             key={song.id || i}
                                             style={{
                                                 fontSize: songFontSize, lineHeight: 1.45, color: palette.heading,
-                                                display: 'flex', flexWrap: 'nowrap', alignItems: 'center', gap: 10,
+                                                display: 'flex', flexWrap: 'nowrap', alignItems: 'center', gap: ROW_GAP,
                                             }}
                                         >
                                             <span style={{ flexShrink: 0, color: palette.muted, fontVariantNumeric: 'tabular-nums' }}>{i + 1}.</span>
