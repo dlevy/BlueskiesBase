@@ -5,7 +5,7 @@ import { PHeading, PText, PButton, PButtonPure, PInlineNotification, PSpinner } 
 import { getShowById, getShowDebuts, getShowPhotos, getShowPoster } from '../../services/api';
 import { buildShowPath } from '../../utils/showSlug';
 import InstagramPostGraphic from '../../components/admin/InstagramPostGraphic';
-import { POST_STYLES, POST_FORMATS, DEFAULT_STYLE_KEY, DEFAULT_FORMAT_KEY, getFormatByKey } from '../../utils/instagramStyles';
+import { POST_STYLES, DEFAULT_STYLE_KEY, POST_WIDTH, POST_HEIGHT } from '../../utils/instagramStyles';
 import Lightbox from 'yet-another-react-lightbox';
 import 'yet-another-react-lightbox/styles.css';
 
@@ -17,7 +17,6 @@ export default function InstagramPostPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    const [formatKey, setFormatKey] = useState(DEFAULT_FORMAT_KEY);
     const [styleKey, setStyleKey] = useState(DEFAULT_STYLE_KEY);
     const [generating, setGenerating] = useState(false);
     const [liveDebutSongIds, setLiveDebutSongIds] = useState(new Set());
@@ -90,15 +89,14 @@ export default function InstagramPostPage() {
         return <PInlineNotification heading="Error" description={error || 'Show not found'} state="error" dismissButton={false} />;
     }
 
-    const format = getFormatByKey(formatKey);
     const regularPoster = posters.find(p => !p.is_foil) || null;
     const foilPoster = posters.find(p => p.is_foil) || null;
     const hasBothPosterVariants = !!regularPoster && !!foilPoster;
     const activePoster = (posterVariant === 'foil' && foilPoster) ? foilPoster : (regularPoster || foilPoster);
     const posterUrl = activePoster?.poster_url || null;
     const backgroundImageUrl = backgroundMode === 'poster' ? posterUrl : backgroundMode === 'photo' ? selectedPhotoUrl : null;
-    const previewHeight = Math.round(PREVIEW_WIDTH * (format.height / format.width));
-    const previewScale = PREVIEW_WIDTH / format.width;
+    const previewHeight = Math.round(PREVIEW_WIDTH * (POST_HEIGHT / POST_WIDTH));
+    const previewScale = PREVIEW_WIDTH / POST_WIDTH;
 
     return (
         <div className="space-y-6">
@@ -117,29 +115,6 @@ export default function InstagramPostPage() {
             <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6">
                 {/* Controls */}
                 <div className="space-y-5 rounded-2xl border border-white/10 p-5" style={{ background: 'var(--p-color-surface)' }}>
-                    <div>
-                        <label className="block text-xs font-medium uppercase tracking-wide mb-2" style={{ color: 'var(--p-color-contrast-medium)' }}>
-                            Format
-                        </label>
-                        <div className="space-y-1.5">
-                            {POST_FORMATS.map(f => (
-                                <button
-                                    key={f.key}
-                                    type="button"
-                                    onClick={() => setFormatKey(f.key)}
-                                    className={`w-full text-left text-sm px-3 py-2 rounded-lg border transition-all ${
-                                        formatKey === f.key
-                                            ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
-                                            : 'border-white/10 hover:border-white/25 hover:bg-white/5'
-                                    }`}
-                                    style={formatKey !== f.key ? { color: 'var(--p-color-contrast-medium)' } : undefined}
-                                >
-                                    {f.label} <span style={{ color: 'var(--p-color-contrast-low)' }}>({f.width}&times;{f.height})</span>
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
                     <div>
                         <label className="block text-xs font-medium uppercase tracking-wide mb-2" style={{ color: 'var(--p-color-contrast-medium)' }}>
                             Background
@@ -273,11 +248,10 @@ export default function InstagramPostPage() {
                 <div className="space-y-5">
                     <div className="flex items-start justify-center rounded-2xl border border-white/10 p-8" style={{ background: 'var(--p-color-canvas)' }}>
                         <div style={{ width: PREVIEW_WIDTH, height: previewHeight, overflow: 'hidden', borderRadius: 12, boxShadow: '0 10px 40px rgba(0,0,0,0.4)' }}>
-                            <div style={{ width: format.width, height: format.height, transform: `scale(${previewScale})`, transformOrigin: 'top left' }}>
+                            <div style={{ width: POST_WIDTH, height: POST_HEIGHT, transform: `scale(${previewScale})`, transformOrigin: 'top left' }}>
                                 <InstagramPostGraphic
                                     ref={graphicRef}
                                     show={show}
-                                    formatKey={formatKey}
                                     styleKey={styleKey}
                                     liveDebutSongIds={liveDebutSongIds}
                                     tourDebutSongIds={tourDebutSongIds}

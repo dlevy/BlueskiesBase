@@ -54,13 +54,6 @@ export function getStyleByKey(key) {
     return POST_STYLES.find(s => s.key === key) || POST_STYLES[0];
 }
 
-export const POST_FORMATS = [
-    { key: 'square', label: 'Feed – Square', width: 1080, height: 1080 },
-    { key: 'portrait', label: 'Feed – Portrait', width: 1080, height: 1350 },
-];
-
-export const DEFAULT_FORMAT_KEY = 'portrait';
-
-export function getFormatByKey(key) {
-    return POST_FORMATS.find(f => f.key === key) || POST_FORMATS[0];
-}
+// Single fixed post size (3:4) — no format picker; every post is this size.
+export const POST_WIDTH = 1080;
+export const POST_HEIGHT = 1440;

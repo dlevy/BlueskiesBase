@@ -1,5 +1,5 @@
 import { forwardRef } from 'react';
-import { getFormatByKey, getStyleByKey } from '../../utils/instagramStyles';
+import { POST_WIDTH, POST_HEIGHT, getStyleByKey } from '../../utils/instagramStyles';
 
 function formatLongDate(dateString) {
     const [y, m, d] = dateString.split('-');
@@ -10,11 +10,10 @@ function formatLongDate(dateString) {
 
 const SET_KEYS = ['set1', 'set2', 'set3', 'encore'];
 
-// Roughly how much vertical space the header + divider + footer take up,
-// regardless of format — used to figure out how much room is actually left
-// for the setlist so it can be sized to fill each format instead of just
-// square. Approximate on purpose: exact isn't the goal, avoiding big empty
-// bands top/bottom on the taller formats is.
+// Roughly how much vertical space the header + divider + footer take up —
+// used to figure out how much room is actually left for the setlist so it
+// fills the fixed 1080x1440 post instead of leaving empty bands top/bottom.
+// Approximate on purpose: exact isn't the goal.
 const HEADER_FOOTER_OVERHEAD = 577;
 const MIN_SONG_FONT = 14;
 const MAX_SONG_FONT = 34;
@@ -88,13 +87,12 @@ function splitIntoColumns(songs, columns) {
     return result;
 }
 
-// Fixed-pixel-size graphic (1080-wide, height depends on format) captured via
+// Fixed-pixel-size graphic (1080x1440, the only size offered) captured via
 // html-to-image. Layout is identical across styles/tours — only colors change —
 // so a new tour style never requires touching this component.
 const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({
-    show, formatKey, styleKey, liveDebutSongIds, tourDebutSongIds, backgroundMode = 'style', backgroundImageUrl,
+    show, styleKey, liveDebutSongIds, tourDebutSongIds, backgroundMode = 'style', backgroundImageUrl,
 }, ref) {
-    const format = getFormatByKey(formatKey);
     const style = getStyleByKey(styleKey);
     const useImageBackground = (backgroundMode === 'poster' || backgroundMode === 'photo') && !!backgroundImageUrl;
     // An image background never trusts the selected color style for text — an
@@ -107,7 +105,7 @@ const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({
     const songs = SET_KEYS.flatMap(key => show.setlist?.[key] || []);
     const totalSongs = songs.length;
 
-    const availableHeight = format.height - HEADER_FOOTER_OVERHEAD;
+    const availableHeight = POST_HEIGHT - HEADER_FOOTER_OVERHEAD;
     const { columns, songFontSize } = pickSongLayout(totalSongs, availableHeight);
     const venueLine = show.venues
         ? `${show.venues.name} — ${show.venues.city}${show.venues.state_country ? ', ' + show.venues.state_country : ''}`
@@ -118,8 +116,8 @@ const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({
             ref={ref}
             style={{
                 position: 'relative',
-                width: format.width,
-                height: format.height,
+                width: POST_WIDTH,
+                height: POST_HEIGHT,
                 background: useImageBackground ? '#0b0e13' : style.background,
                 fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
                 boxSizing: 'border-box',
