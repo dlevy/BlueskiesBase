@@ -39,7 +39,7 @@ function ListTag({ label, color }) {
 }
 
 export default function SearchPage() {
-    const { user, isAdmin } = useAuth();
+    const { user, isEditorOrAdmin } = useAuth();
 
     const [urlParams] = useSearchParams();
     const activeTab = urlParams.get('tab') || 'search';
@@ -647,7 +647,7 @@ export default function SearchPage() {
                                                 </Link>
 
                                                 {/* Attendance + admin actions — outside the link */}
-                                                {(user || isAdmin) && (
+                                                {(user || isEditorOrAdmin) && (
                                                     <div className="shrink-0 flex flex-col items-center justify-center px-3 border-l border-white/5 gap-1.5">
                                                         {user && (
                                                             <button
@@ -672,7 +672,7 @@ export default function SearchPage() {
                                                                 </span>
                                                             </button>
                                                         )}
-                                                        {isAdmin && (
+                                                        {isEditorOrAdmin && (
                                                             <Link
                                                                 to={`/admin/shows/edit/${show.id}`}
                                                                 className="text-xs hover:opacity-80 transition-opacity"

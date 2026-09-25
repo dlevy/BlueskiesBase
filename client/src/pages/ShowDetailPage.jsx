@@ -230,7 +230,7 @@ function SetList({ songs, tourRarity, liveDebutSongIds, tourDebutSongIds }) {
 export default function ShowDetailPage() {
     const { artist, date, locationSlug } = useParams();
     const navigate = useNavigate();
-    const { user, isAdmin } = useAuth();
+    const { user, isEditorOrAdmin } = useAuth();
     const [show, setShow] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -488,7 +488,7 @@ export default function ShowDetailPage() {
                         {show.artist_name}
                     </h1>
                     <div className="flex items-center gap-2 shrink-0">
-                    {isAdmin && (
+                    {isEditorOrAdmin && (
                         <button
                             onClick={() => navigate(`/admin/shows/edit/${show.id}`)}
                             className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-sm border border-white/15 hover:border-white/25 hover:bg-white/5 transition-all"
@@ -500,7 +500,7 @@ export default function ShowDetailPage() {
                             Edit
                         </button>
                     )}
-                    {isAdmin && (
+                    {isEditorOrAdmin && (
                         <button
                             onClick={() => navigate(`/admin/shows/${show.id}/instagram`)}
                             className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-sm border border-white/15 hover:border-white/25 hover:bg-white/5 transition-all"

@@ -86,7 +86,7 @@ function App() {
 }
 
 function PublicLayout() {
-  const { user, isAdmin, signOut, getToken } = useAuth();
+  const { user, isEditorOrAdmin, signOut, getToken } = useAuth();
   const navigate = useNavigate();
   const [isSigningOut, setIsSigningOut] = useState(false);
 
@@ -189,7 +189,7 @@ function PublicLayout() {
               <span className="text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>
                 A fan archive. Not affiliated with Sturgill Simpson.
               </span>
-              {isAdmin && (
+              {isEditorOrAdmin && (
                 <Link
                   to="/admin"
                   className="text-xs hover:opacity-80 transition-opacity"

@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { toPng } from 'html-to-image';
 import { PHeading, PText, PButton, PButtonPure, PInlineNotification, PSpinner } from '@porsche-design-system/components-react';
-import { useAuth } from '../../contexts/AuthContext';
 import { getShowById, getShowDebuts, getShowPhotos, getShowPoster } from '../../services/api';
 import { buildShowPath } from '../../utils/showSlug';
 import InstagramPostGraphic from '../../components/admin/InstagramPostGraphic';
@@ -10,20 +9,16 @@ import { POST_STYLES, POST_FORMATS, DEFAULT_STYLE_KEY, DEFAULT_FORMAT_KEY, getFo
 import Lightbox from 'yet-another-react-lightbox';
 import 'yet-another-react-lightbox/styles.css';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 const PREVIEW_WIDTH = 380;
 
 export default function InstagramPostPage() {
     const { id } = useParams();
-    const { getToken } = useAuth();
     const [show, setShow] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
     const [formatKey, setFormatKey] = useState(DEFAULT_FORMAT_KEY);
     const [styleKey, setStyleKey] = useState(DEFAULT_STYLE_KEY);
-    const [savedStyleKey, setSavedStyleKey] = useState(null);
-    const [savingStyle, setSavingStyle] = useState(false);
     const [generating, setGenerating] = useState(false);
     const [liveDebutSongIds, setLiveDebutSongIds] = useState(new Set());
     const [tourDebutSongIds, setTourDebutSongIds] = useState(new Set());
@@ -32,6 +27,7 @@ export default function InstagramPostPage() {
     const [posters, setPosters] = useState([]);
     const [backgroundMode, setBackgroundMode] = useState('style');
     const [posterVariant, setPosterVariant] = useState('regular');
+    const [selectedPhotoUrl, setSelectedPhotoUrl] = useState(null);
 
     const graphicRef = useRef(null);
 
@@ -65,47 +61,6 @@ export default function InstagramPostPage() {
             .then(data => setPosters(data.posters || []))
             .catch(err => console.error('[InstagramPostPage] Error loading poster:', err));
     }, [id]);
-
-    // Load the style already assigned to this tour, if any
-    useEffect(() => {
-        if (!show?.tour_name) return;
-        (async () => {
-            try {
-                const token = await getToken();
-                const res = await fetch(`${API_BASE}/api/admin/tour-style/${encodeURIComponent(show.tour_name)}`, {
-                    headers: { Authorization: `Bearer ${token}` },
-                });
-                if (!res.ok) return;
-                const data = await res.json();
-                if (data.style_key) {
-                    setStyleKey(data.style_key);
-                    setSavedStyleKey(data.style_key);
-                }
-            } catch (err) {
-                console.error('[InstagramPostPage] Error loading tour style:', err);
-            }
-        })();
-    }, [show?.tour_name, getToken]);
-
-    const handleSaveStyleForTour = useCallback(async () => {
-        if (!show?.tour_name) return;
-        setSavingStyle(true);
-        try {
-            const token = await getToken();
-            const res = await fetch(`${API_BASE}/api/admin/tour-style/${encodeURIComponent(show.tour_name)}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                body: JSON.stringify({ style_key: styleKey }),
-            });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            setSavedStyleKey(styleKey);
-        } catch (err) {
-            console.error('[InstagramPostPage] Error saving tour style:', err);
-            alert('Failed to save style for this tour');
-        } finally {
-            setSavingStyle(false);
-        }
-    }, [show?.tour_name, styleKey, getToken]);
 
     const handleDownload = useCallback(async () => {
         if (!graphicRef.current) return;
@@ -141,6 +96,7 @@ export default function InstagramPostPage() {
     const hasBothPosterVariants = !!regularPoster && !!foilPoster;
     const activePoster = (posterVariant === 'foil' && foilPoster) ? foilPoster : (regularPoster || foilPoster);
     const posterUrl = activePoster?.poster_url || null;
+    const backgroundImageUrl = backgroundMode === 'poster' ? posterUrl : backgroundMode === 'photo' ? selectedPhotoUrl : null;
     const previewHeight = Math.round(PREVIEW_WIDTH * (format.height / format.width));
     const previewScale = PREVIEW_WIDTH / format.width;
 
@@ -214,9 +170,26 @@ export default function InstagramPostPage() {
                             >
                                 Show Poster
                             </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (photos.length === 0) return;
+                                    setBackgroundMode('photo');
+                                    if (!selectedPhotoUrl) setSelectedPhotoUrl(photos[0].photo_url);
+                                }}
+                                disabled={photos.length === 0}
+                                className={`w-full text-left text-sm px-3 py-2 rounded-lg border transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
+                                    backgroundMode === 'photo'
+                                        ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
+                                        : 'border-white/10 hover:border-white/25 hover:bg-white/5'
+                                }`}
+                                style={backgroundMode !== 'photo' ? { color: 'var(--p-color-contrast-medium)' } : undefined}
+                            >
+                                Show Photos
+                            </button>
                         </div>
 
-                        {posters.length === 0 ? (
+                        {posters.length === 0 && backgroundMode !== 'photo' ? (
                             <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }} className="mt-2 block">
                                 No poster uploaded for this show yet.
                             </PText>
@@ -239,9 +212,29 @@ export default function InstagramPostPage() {
                                 ))}
                             </div>
                         ) : null}
+
+                        {photos.length === 0 && backgroundMode !== 'poster' ? (
+                            <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }} className="mt-2 block">
+                                No photos uploaded for this show yet.
+                            </PText>
+                        ) : backgroundMode === 'photo' ? (
+                            <div className="grid grid-cols-5 gap-1.5 mt-2">
+                                {photos.map(photo => (
+                                    <button
+                                        key={photo.id}
+                                        type="button"
+                                        onClick={() => setSelectedPhotoUrl(photo.photo_url)}
+                                        className="aspect-square rounded-md overflow-hidden border-2 transition-all"
+                                        style={{ borderColor: selectedPhotoUrl === photo.photo_url ? '#f59e0b' : 'transparent' }}
+                                    >
+                                        <img src={photo.photo_url} alt={photo.caption || 'Show photo'} className="w-full h-full object-cover" />
+                                    </button>
+                                ))}
+                            </div>
+                        ) : null}
                     </div>
 
-                    <div style={backgroundMode === 'poster' ? { opacity: 0.45, pointerEvents: 'none' } : undefined}>
+                    <div style={backgroundMode !== 'style' ? { opacity: 0.45, pointerEvents: 'none' } : undefined}>
                         <label className="block text-xs font-medium uppercase tracking-wide mb-2" style={{ color: 'var(--p-color-contrast-medium)' }}>
                             Style
                         </label>
@@ -264,25 +257,9 @@ export default function InstagramPostPage() {
                             ))}
                         </div>
 
-                        {backgroundMode === 'poster' ? (
+                        {backgroundMode !== 'style' && (
                             <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }} className="mt-3 block">
-                                Not used while background is set to Show Poster — poster mode always uses a fixed high-contrast overlay for readability.
-                            </PText>
-                        ) : show.tour_name ? (
-                            <div className="mt-3">
-                                <PButtonPure
-                                    size="x-small"
-                                    disabled={savingStyle || savedStyleKey === styleKey}
-                                    onClick={handleSaveStyleForTour}
-                                >
-                                    {savedStyleKey === styleKey
-                                        ? `Saved as default for "${show.tour_name}"`
-                                        : `Use for all "${show.tour_name}" posts`}
-                                </PButtonPure>
-                            </div>
-                        ) : (
-                            <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }} className="mt-3 block">
-                                This show has no tour name, so the style choice won't be remembered.
+                                Not used while background is set to {backgroundMode === 'poster' ? 'Show Poster' : 'Show Photos'} — image backgrounds always use a fixed high-contrast overlay for readability.
                             </PText>
                         )}
                     </div>
@@ -305,7 +282,7 @@ export default function InstagramPostPage() {
                                     liveDebutSongIds={liveDebutSongIds}
                                     tourDebutSongIds={tourDebutSongIds}
                                     backgroundMode={backgroundMode}
-                                    posterUrl={posterUrl}
+                                    backgroundImageUrl={backgroundImageUrl}
                                 />
                             </div>
                         </div>
