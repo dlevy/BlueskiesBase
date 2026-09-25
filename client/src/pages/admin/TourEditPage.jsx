@@ -37,7 +37,7 @@ export default function TourEditPage() {
     const { tourName: encodedTourName } = useParams();
     const tourName = decodeURIComponent(encodedTourName);
     const navigate = useNavigate();
-    const { getToken } = useAuth();
+    const { getToken, isAdmin } = useAuth();
 
     const [allShows, setAllShows] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -151,20 +151,22 @@ export default function TourEditPage() {
 
             {error && <PInlineNotification heading="Error" description={error} state="error" dismissButton={false} />}
 
-            {/* Rename */}
-            <div className="rounded-2xl border border-white/10 p-5 space-y-3" style={{ background: 'var(--p-color-surface)' }}>
-                <PHeading size="md" tag="h2">Rename Tour</PHeading>
-                {renameError && <PInlineNotification heading="Error" description={renameError} state="error" dismissButton={false} />}
-                <form onSubmit={handleRename} className="flex gap-2">
-                    <input type="text" value={renameValue} onChange={(e) => setRenameValue(e.target.value)} className={inputClass} />
-                    <PButton type="submit" size="small" loading={renaming} disabled={!renameValue.trim() || renameValue.trim() === tourName}>
-                        Rename
-                    </PButton>
-                </form>
-                <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>
-                    Renaming updates every show currently in this tour, plus its Instagram post style.
-                </PText>
-            </div>
+            {/* Rename — admin only */}
+            {isAdmin && (
+                <div className="rounded-2xl border border-white/10 p-5 space-y-3" style={{ background: 'var(--p-color-surface)' }}>
+                    <PHeading size="md" tag="h2">Rename Tour</PHeading>
+                    {renameError && <PInlineNotification heading="Error" description={renameError} state="error" dismissButton={false} />}
+                    <form onSubmit={handleRename} className="flex gap-2">
+                        <input type="text" value={renameValue} onChange={(e) => setRenameValue(e.target.value)} className={inputClass} />
+                        <PButton type="submit" size="small" loading={renaming} disabled={!renameValue.trim() || renameValue.trim() === tourName}>
+                            Rename
+                        </PButton>
+                    </form>
+                    <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>
+                        Renaming updates every show currently in this tour, plus its Instagram post style.
+                    </PText>
+                </div>
+            )}
 
             {/* Shows in tour */}
             <div className="rounded-2xl border border-white/10 overflow-hidden" style={{ background: 'var(--p-color-surface)' }}>

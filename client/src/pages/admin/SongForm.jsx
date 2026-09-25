@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import { PHeading, PText, PButton, PButtonPure, PInlineNotification } from '@porsche-design-system/components-react';
 import { createSong, updateSong, deleteSong, getAlbums } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 
 const inputClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--p-color-info)] focus:border-transparent placeholder:text-gray-500";
 const selectClass = "w-full rounded-lg border border-white/10 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--p-color-info)] focus:border-transparent";
 const labelClass = "block text-xs font-medium mb-1.5";
 
 export default function SongForm({ song, onClose }) {
+    const { isAdmin } = useAuth();
     const [formData, setFormData] = useState({
         title: '',
         is_original: true,
@@ -165,7 +167,7 @@ export default function SongForm({ song, onClose }) {
 
                 <div className="flex justify-between items-center pt-4 border-t border-white/10">
                     <div>
-                        {song && (
+                        {song && isAdmin && (
                             <PButtonPure onClick={() => setShowDeleteConfirm(true)}
                                 style={{ color: 'var(--p-color-error)' }}>
                                 Delete Song

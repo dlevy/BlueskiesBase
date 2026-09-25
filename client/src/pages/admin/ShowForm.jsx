@@ -4,6 +4,7 @@ import { PHeading, PText, PButton, PButtonPure, PInlineNotification, PSpinner } 
 import { getShowById, createShow, updateShow, deleteShow, getVenues, updateSetlist, createVenue, getBands, createBand } from '../../services/api';
 import { fetchTourList } from '../../utils/tourSongCounts';
 import SetlistEditor from '../../components/SetlistEditor';
+import { useAuth } from '../../contexts/AuthContext';
 
 const NEW_TOUR_VALUE = '__new__';
 
@@ -12,6 +13,7 @@ const selectClass = "w-full rounded-lg border border-white/10 py-2 px-3 text-sm 
 const labelClass = "block text-xs font-medium mb-1.5";
 
 export default function ShowForm() {
+    const { isAdmin } = useAuth();
     const { id } = useParams();
     const navigate = useNavigate();
     const isEdit = Boolean(id);
@@ -448,7 +450,7 @@ export default function ShowForm() {
                             Cancel
                         </PButton>
                     </div>
-                    {isEdit && (
+                    {isEdit && isAdmin && (
                         <button type="button" onClick={handleDelete}
                             className="rounded-lg border px-4 py-2 text-sm font-medium transition-colors hover:bg-red-500/10"
                             style={{ color: 'var(--p-color-notification-error)', borderColor: 'var(--p-color-notification-error)' }}>

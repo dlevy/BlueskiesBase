@@ -4,6 +4,7 @@ import { PHeading, PText, PButton, PButtonPure, PInlineNotification, PSpinner } 
 import { getShows, searchShows, deleteShow } from '../../services/api';
 import { buildShowPath } from '../../utils/showSlug';
 import { supabase } from '../../services/supabase';
+import { useAuth } from '../../contexts/AuthContext';
 
 const selectClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-transparent";
 
@@ -23,6 +24,7 @@ function getRecentRange() {
 }
 
 export default function ShowsList() {
+    const { isAdmin } = useAuth();
     const [searchParams, setSearchParams] = useSearchParams();
     const [shows, setShows] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -417,11 +419,13 @@ export default function ShowsList() {
                                             <Link to={`/admin/shows/${show.id}/instagram`}>
                                                 <PButtonPure size="x-small">IG Post</PButtonPure>
                                             </Link>
-                                            <PButtonPure size="x-small"
-                                                onClick={() => handleDelete(show.id, formatDate(show.show_date), show.artist_name)}
-                                                style={{ color: 'var(--p-color-error)' }}>
-                                                Delete
-                                            </PButtonPure>
+                                            {isAdmin && (
+                                                <PButtonPure size="x-small"
+                                                    onClick={() => handleDelete(show.id, formatDate(show.show_date), show.artist_name)}
+                                                    style={{ color: 'var(--p-color-error)' }}>
+                                                    Delete
+                                                </PButtonPure>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>

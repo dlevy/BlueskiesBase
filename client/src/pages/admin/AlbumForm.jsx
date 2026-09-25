@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { PHeading, PText, PButton, PButtonPure, PInlineNotification, PSpinner } from '@porsche-design-system/components-react';
 import { createAlbum, updateAlbum, deleteAlbum, getSongs, getAlbumSongs, addSongToAlbum, removeSongFromAlbum, reorderAlbumSongs } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 
 const inputClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--p-color-info)] focus:border-transparent placeholder:text-gray-500";
 const selectClass = "w-full rounded-lg border border-white/10 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--p-color-info)] focus:border-transparent";
@@ -17,6 +18,7 @@ function GripIcon() {
 }
 
 export default function AlbumForm({ album, onClose }) {
+    const { isAdmin } = useAuth();
     const [formData, setFormData] = useState({
         title: '',
         artist_name: 'Johnny Blue Skies',
@@ -391,7 +393,7 @@ export default function AlbumForm({ album, onClose }) {
                 </div>
             )}
 
-            {album && (
+            {album && isAdmin && (
                 <div className="rounded-2xl border p-6 space-y-4" style={{ borderColor: 'var(--p-color-error)' }}>
                     <PHeading size="lg" tag="h2" style={{ color: 'var(--p-color-error)' }}>Danger Zone</PHeading>
                     <PText size="small" color="contrast-medium">
