@@ -312,6 +312,41 @@ export default function ProfilePage() {
                 </div>
             )}
 
+            {/* Posters wanted — a wishlist, distinct from the collection above */}
+            {profile.postersWanted?.length > 0 && (
+                <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6">
+                    <PHeading size="lg" tag="h2">Posters Wanted</PHeading>
+                    <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }} className="mt-1 block">
+                        Looking to find a poster for these shows
+                    </PText>
+                    <ul className="mt-4 space-y-1">
+                        {profile.postersWanted.map(entry => (
+                            <li key={entry.id}>
+                                <Link
+                                    to={buildShowPath(entry.show)}
+                                    className="flex items-center justify-between gap-3 py-2 px-2 -mx-2 rounded-lg hover:bg-white/5 transition-colors"
+                                >
+                                    <div className="min-w-0">
+                                        <PText size="small" weight="semi-bold" ellipsis>{entry.show.artist_name}</PText>
+                                        <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>
+                                            {formatDate(entry.show.show_date)}{entry.show.venues ? ` · ${entry.show.venues.name}` : ''}
+                                        </PText>
+                                    </div>
+                                    {entry.variant && entry.variant !== 'any' && (
+                                        <span
+                                            className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full shrink-0"
+                                            style={{ background: 'rgba(192,132,252,0.15)', color: '#c084fc' }}
+                                        >
+                                            {entry.variant}
+                                        </span>
+                                    )}
+                                </Link>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+
             {/* Show map — only present if this user opted in to sharing attendance */}
             {profile.attendedShows && (
                 <ShowMapShare pastShows={profile.attendedShows} upcomingShows={[]} title={`${displayLabel}'s Show Map`} />

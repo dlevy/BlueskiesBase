@@ -373,6 +373,120 @@ router.delete('/collection/:id', authenticate, async (req, res) => {
     }
 });
 
+// ============================================
+// POSTER WANTS ENDPOINTS
+// (shows a user is looking to acquire a poster for — a wishlist, independent
+// of anything they already own in user_poster_collection)
+// ============================================
+
+/**
+ * GET /api/posters/wants
+ * The logged-in user's own wanted-posters list, each entry joined with its
+ * show. Requires authentication.
+ */
+router.get('/wants', authenticate, async (req, res) => {
+    try {
+        const { data, error } = await supabaseAdmin
+            .from('user_poster_wants')
+            .select(`
+                id,
+                variant,
+                created_at,
+                shows (
+                    id,
+                    show_date,
+                    artist_name,
+                    tour_name,
+                    venues ( name, city, state_country )
+                )
+            `)
+            .eq('user_id', req.user.id)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Error fetching poster wants:', error);
+            return res.status(500).json({ error: 'Failed to fetch poster wants' });
+        }
+
+        res.json({ wants: data || [] });
+    } catch (error) {
+        console.error('Error in GET /api/posters/wants:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * POST /api/posters/wants
+ * Add a show to the logged-in user's wanted-posters list.
+ * Body: { showId, variant } — variant is 'any' | 'regular' | 'foil', defaults to 'any'.
+ */
+router.post('/wants', authenticate, async (req, res) => {
+    try {
+        const { showId, variant } = req.body;
+        if (!showId) {
+            return res.status(400).json({ error: 'showId is required' });
+        }
+        const validVariants = ['any', 'regular', 'foil'];
+        if (variant && !validVariants.includes(variant)) {
+            return res.status(400).json({ error: `variant must be one of: ${validVariants.join(', ')}` });
+        }
+
+        const { data: show, error: showError } = await supabaseAdmin
+            .from('shows')
+            .select('id')
+            .eq('id', showId)
+            .single();
+        if (showError || !show) {
+            return res.status(404).json({ error: 'Show not found' });
+        }
+
+        const { data, error } = await supabaseAdmin
+            .from('user_poster_wants')
+            .upsert(
+                { user_id: req.user.id, show_id: showId, variant: variant || 'any' },
+                { onConflict: 'user_id,show_id' }
+            )
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error adding poster want:', error);
+            return res.status(500).json({ error: 'Failed to add to wanted list' });
+        }
+
+        res.status(201).json(data);
+    } catch (error) {
+        console.error('Error in POST /api/posters/wants:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * DELETE /api/posters/wants/:id
+ * Remove a show from the logged-in user's wanted-posters list.
+ */
+router.delete('/wants/:id', authenticate, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const { error } = await supabaseAdmin
+            .from('user_poster_wants')
+            .delete()
+            .eq('id', id)
+            .eq('user_id', req.user.id);
+
+        if (error) {
+            console.error('Error removing poster want:', error);
+            return res.status(500).json({ error: 'Failed to remove from wanted list' });
+        }
+
+        res.json({ message: 'Removed from wanted list' });
+    } catch (error) {
+        console.error('Error in DELETE /api/posters/wants/:id:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 /**
  * PUT /api/posters/:posterId
  * Update poster caption

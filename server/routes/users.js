@@ -568,6 +568,25 @@ router.get('/profile/:username', async (req, res) => {
             }))
             .sort((a, b) => b.show.show_date.localeCompare(a.show.show_date));
 
+        // Posters wanted — same public-once-added treatment as the collection above.
+        const { data: wantRows } = await supabase
+            .from('user_poster_wants')
+            .select(`
+                id,
+                variant,
+                shows ( id, show_date, artist_name, tour_name, venues ( name, city, state_country ) )
+            `)
+            .eq('user_id', profile.id);
+
+        const postersWanted = (wantRows || [])
+            .filter(row => row.shows)
+            .map(row => ({
+                id: row.id,
+                variant: row.variant,
+                show: row.shows,
+            }))
+            .sort((a, b) => b.show.show_date.localeCompare(a.show.show_date));
+
         const response = {
             username: profile.username,
             role: profile.role || 'member',
@@ -589,6 +608,7 @@ router.get('/profile/:username', async (req, res) => {
             liveDebuts,
             tourDebuts,
             posterCollection,
+            postersWanted,
         };
 
         if (profile.show_attendance_public) {

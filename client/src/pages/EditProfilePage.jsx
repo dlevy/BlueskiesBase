@@ -3,8 +3,9 @@ import { useNavigate, Link } from 'react-router-dom';
 import { PHeading, PText, PButton, PInlineNotification } from '@porsche-design-system/components-react';
 import { useAuth } from '../contexts/AuthContext';
 import {
-    updateMyProfile, uploadAvatar, getUserStats,
+    updateMyProfile, uploadAvatar, getUserStats, getShows,
     getAllPosters, getMyPosterCollection, addToPosterCollection, removeFromPosterCollection,
+    getMyPosterWants, addPosterWant, removePosterWant,
 } from '../services/api';
 
 const inputClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-transparent placeholder:text-gray-500";
@@ -42,6 +43,12 @@ export default function EditProfilePage() {
     const [myCollection, setMyCollection] = useState([]);
     const [selectedPosterId, setSelectedPosterId] = useState('');
     const [posterError, setPosterError] = useState('');
+
+    const [allShows, setAllShows] = useState([]);
+    const [myWants, setMyWants] = useState([]);
+    const [selectedWantShowId, setSelectedWantShowId] = useState('');
+    const [selectedWantVariant, setSelectedWantVariant] = useState('any');
+    const [wantError, setWantError] = useState('');
 
     useEffect(() => {
         if (!user) navigate('/member-login');
@@ -125,6 +132,51 @@ export default function EditProfilePage() {
         } catch (err) {
             console.error('[EditProfilePage] Error removing poster:', err);
             setPosterError(err.message || 'Failed to remove poster');
+        }
+    };
+
+    const loadPosterWants = () => {
+        getMyPosterWants()
+            .then(data => setMyWants(data.wants || []))
+            .catch(err => console.error('[EditProfilePage] Error loading poster wants:', err));
+    };
+
+    useEffect(() => {
+        if (!user) return;
+        getShows(1, 1000)
+            .then(data => setAllShows(data.shows || []))
+            .catch(err => console.error('[EditProfilePage] Error loading shows:', err));
+        loadPosterWants();
+    }, [user]);
+
+    // A show can only be wanted once (server enforces this too) — regardless of
+    // variant, since the variant preference lives on that one entry.
+    const wantedShowIds = new Set(myWants.map(w => w.shows?.id));
+    const availableShowsForWant = allShows
+        .filter(s => !wantedShowIds.has(s.id))
+        .sort((a, b) => b.show_date.localeCompare(a.show_date));
+
+    const handleAddWant = async () => {
+        if (!selectedWantShowId) return;
+        setWantError('');
+        try {
+            await addPosterWant(selectedWantShowId, selectedWantVariant);
+            setSelectedWantShowId('');
+            setSelectedWantVariant('any');
+            loadPosterWants();
+        } catch (err) {
+            console.error('[EditProfilePage] Error adding poster want:', err);
+            setWantError(err.message || 'Failed to add to wanted list');
+        }
+    };
+
+    const handleRemoveWant = async (wantId) => {
+        try {
+            await removePosterWant(wantId);
+            loadPosterWants();
+        } catch (err) {
+            console.error('[EditProfilePage] Error removing poster want:', err);
+            setWantError(err.message || 'Failed to remove from wanted list');
         }
     };
 
@@ -392,6 +444,88 @@ export default function EditProfilePage() {
                         </select>
                     </div>
                     <PButton type="button" size="small" disabled={!selectedPosterId} onClick={handleAddPoster}>Add</PButton>
+                </div>
+            </div>
+
+            {/* Posters Wanted — a wishlist, separate from the collection above.
+                Any show can be picked, not just ones attended — the point is
+                acquiring a poster you don't have, which has nothing to do with
+                whether you were there. */}
+            <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 space-y-4">
+                <div>
+                    <PHeading size="lg" tag="h2">Posters I'm Looking For</PHeading>
+                    <PText size="small" color="contrast-medium">
+                        Flag shows you're hoping to find a poster for — shown on your public profile so other collectors know what to look for.
+                    </PText>
+                </div>
+
+                {wantError && <PInlineNotification heading="Error" description={wantError} state="error" dismissButton={false} />}
+
+                {myWants.length > 0 && (
+                    <div className="space-y-2">
+                        {myWants.map(entry => {
+                            const show = entry.shows;
+                            return (
+                                <div key={entry.id} className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/5 p-3">
+                                    <div className="min-w-0 flex-1">
+                                        {show ? (
+                                            <>
+                                                <div className="flex items-center gap-1.5">
+                                                    <PText size="small" weight="semi-bold" ellipsis>{show.artist_name}</PText>
+                                                    {entry.variant && entry.variant !== 'any' && (
+                                                        <span
+                                                            className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded shrink-0"
+                                                            style={{ background: 'rgba(192,132,252,0.15)', color: '#c084fc' }}
+                                                        >
+                                                            {entry.variant}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>
+                                                    {formatDate(show.show_date)}{show.venues ? ` · ${show.venues.name}` : ''}
+                                                </PText>
+                                            </>
+                                        ) : (
+                                            <PText size="small" color="contrast-medium">Show unavailable</PText>
+                                        )}
+                                    </div>
+                                    <PText
+                                        size="xs"
+                                        className="shrink-0 cursor-pointer hover:opacity-80"
+                                        style={{ color: 'var(--p-color-notification-error)' }}
+                                        onClick={() => handleRemoveWant(entry.id)}
+                                    >
+                                        Remove
+                                    </PText>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+
+                <div className="flex flex-wrap items-end gap-3 pt-2 border-t border-white/10">
+                    <div className="flex-1 min-w-[240px]">
+                        <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>Show</label>
+                        <select value={selectedWantShowId} onChange={e => setSelectedWantShowId(e.target.value)}
+                            className={selectClass} style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
+                            <option value="">— Select a show —</option>
+                            {availableShowsForWant.map(s => (
+                                <option key={s.id} value={s.id}>
+                                    {formatDate(s.show_date)} — {s.artist_name}{s.venues ? ` @ ${s.venues.name}, ${s.venues.city}` : ''}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="w-full sm:w-40">
+                        <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>Variant</label>
+                        <select value={selectedWantVariant} onChange={e => setSelectedWantVariant(e.target.value)}
+                            className={selectClass} style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
+                            <option value="any">Any</option>
+                            <option value="regular">Regular</option>
+                            <option value="foil">Foil</option>
+                        </select>
+                    </div>
+                    <PButton type="button" size="small" disabled={!selectedWantShowId} onClick={handleAddWant}>Add</PButton>
                 </div>
             </div>
         </div>

@@ -1385,3 +1385,53 @@ export const removeFromPosterCollection = async (entryId) => {
     return response.json();
 };
 
+/**
+ * The logged-in user's own wanted-posters list (shows they're looking to
+ * acquire a poster for, independent of anything they already own).
+ */
+export const getMyPosterWants = async () => {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/posters/wants`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!response.ok) throw new Error('Failed to fetch poster wants');
+    return response.json();
+};
+
+/**
+ * Add a show to the logged-in user's wanted-posters list.
+ * variant is 'any' | 'regular' | 'foil', defaults to 'any'.
+ */
+export const addPosterWant = async (showId, variant = 'any') => {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/posters/wants`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ showId, variant }),
+    });
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to add to wanted list');
+    }
+    return response.json();
+};
+
+/**
+ * Remove a show from the logged-in user's wanted-posters list.
+ */
+export const removePosterWant = async (wantId) => {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/posters/wants/${wantId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!response.ok) throw new Error('Failed to remove from wanted list');
+    return response.json();
+};
+
