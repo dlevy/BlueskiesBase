@@ -443,14 +443,17 @@ router.delete('/:posterId', authenticate, async (req, res) => {
         const { posterId } = req.params;
         const userId = req.user.id;
 
-        // Check if user is admin
+        // Check if user is an admin or editor — both can delete any poster,
+        // not just their own (editors help moderate a show's media alongside
+        // admins; they still can't delete other users' accounts or the
+        // catalog entities themselves — see server/middleware/requireRole.js).
         const { data: profile } = await supabaseAdmin
             .from('profiles')
-            .select('is_admin')
+            .select('role, is_admin')
             .eq('id', userId)
             .single();
 
-        const isAdmin = profile?.is_admin || false;
+        const canModerate = profile?.is_admin || profile?.role === 'editor' || false;
 
         // Get the poster to check ownership and get file path
         const { data: poster } = await supabaseAdmin
@@ -463,8 +466,8 @@ router.delete('/:posterId', authenticate, async (req, res) => {
             return res.status(404).json({ error: 'Poster not found' });
         }
 
-        // Check if user owns the poster or is admin
-        if (poster.user_id !== userId && !isAdmin) {
+        // Check if user owns the poster or can moderate
+        if (poster.user_id !== userId && !canModerate) {
             return res.status(403).json({ error: 'Not authorized to delete this poster' });
         }
 

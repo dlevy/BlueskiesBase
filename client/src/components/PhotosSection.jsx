@@ -20,7 +20,7 @@ function Spinner() {
 }
 
 export default function PhotosSection({ showId }) {
-    const { user, isAdmin } = useAuth();
+    const { user, isEditorOrAdmin } = useAuth();
     const [photos, setPhotos] = useState([]);
     const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
     const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -167,7 +167,7 @@ export default function PhotosSection({ showId }) {
                                     : 'Anonymous'} · {new Date(photos[currentPhotoIndex].created_at).toLocaleDateString()}
                             </PText>
                         </div>
-                        {(isAdmin || (user && photos[currentPhotoIndex].user_id === user.id)) && (
+                        {(isEditorOrAdmin || (user && photos[currentPhotoIndex].user_id === user.id)) && (
                             <PButtonPure size="x-small" icon="delete" onClick={() => handleDelete(photos[currentPhotoIndex].id)}>
                                 Delete
                             </PButtonPure>

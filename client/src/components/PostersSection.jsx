@@ -21,15 +21,18 @@ function Spinner() {
 
 // One variant slot (regular or foil) — its own upload form, display, and delete,
 // independent of the other variant.
-function PosterSlot({ label, poster, isFoil, showId, user, isAdmin, onImageClick, onChanged }) {
+function PosterSlot({ label, poster, isFoil, showId, user, isAdmin, isEditorOrAdmin, onImageClick, onChanged }) {
     const [uploading, setUploading] = useState(false);
     const [error, setError] = useState(null);
     const [selectedFile, setSelectedFile] = useState(null);
     const [caption, setCaption] = useState('');
     const [showUploadForm, setShowUploadForm] = useState(false);
 
+    // Replacing someone else's poster still requires full admin (matches the
+    // server's upload route), but deleting one is also open to editors —
+    // both help moderate a show's media alongside admins.
     const canUpload = user && (!poster || poster.user_id === user.id || isAdmin);
-    const canDelete = user && poster && (poster.user_id === user.id || isAdmin);
+    const canDelete = user && poster && (poster.user_id === user.id || isEditorOrAdmin);
 
     const handleFileSelect = (e) => {
         const file = e.target.files[0];
@@ -159,7 +162,7 @@ function PosterSlot({ label, poster, isFoil, showId, user, isAdmin, onImageClick
 }
 
 export default function PostersSection({ showId }) {
-    const { user, isAdmin } = useAuth();
+    const { user, isAdmin, isEditorOrAdmin } = useAuth();
     const [posters, setPosters] = useState([]);
     const [lightboxIndex, setLightboxIndex] = useState(-1);
     const [error, setError] = useState(null);
@@ -197,6 +200,7 @@ export default function PostersSection({ showId }) {
                     showId={showId}
                     user={user}
                     isAdmin={isAdmin}
+                    isEditorOrAdmin={isEditorOrAdmin}
                     onImageClick={() => setLightboxIndex(posters.indexOf(regularPoster))}
                     onChanged={loadPosters}
                 />
@@ -207,6 +211,7 @@ export default function PostersSection({ showId }) {
                     showId={showId}
                     user={user}
                     isAdmin={isAdmin}
+                    isEditorOrAdmin={isEditorOrAdmin}
                     onImageClick={() => setLightboxIndex(posters.indexOf(foilPoster))}
                     onChanged={loadPosters}
                 />
