@@ -1,27 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { supabase } = require('../config/supabase');
-
-// Middleware: verify the requester is an authenticated admin
-async function requireAdmin(req, res, next) {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) return res.status(401).json({ error: 'No authorization header' });
-
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error } = await supabase.auth.getUser(token);
-    if (error || !user) return res.status(401).json({ error: 'Unauthorized' });
-
-    const { data: profile } = await supabase
-        .from('profiles')
-        .select('is_admin')
-        .eq('id', user.id)
-        .single();
-
-    if (!profile?.is_admin) return res.status(403).json({ error: 'Forbidden' });
-
-    req.adminUser = user;
-    next();
-}
+const { requireAdmin, requireEditorOrAdmin } = require('../middleware/requireRole');
 
 /**
  * GET /api/admin/users
@@ -38,13 +18,22 @@ router.get('/users', requireAdmin, async (req, res) => {
             return res.status(500).json({ error: 'Failed to fetch users' });
         }
 
-        const users = (data.users || []).map(u => ({
+        const authUsers = data.users || [];
+        const { data: profiles } = await supabase
+            .from('profiles')
+            .select('id, role')
+            .in('id', authUsers.map(u => u.id));
+        const roleById = {};
+        (profiles || []).forEach(p => { roleById[p.id] = p.role || 'member'; });
+
+        const users = authUsers.map(u => ({
             id: u.id,
             email: u.email,
             created_at: u.created_at,
             email_confirmed_at: u.email_confirmed_at,
             last_sign_in_at: u.last_sign_in_at,
             confirmed: !!u.email_confirmed_at,
+            role: roleById[u.id] || 'member',
         }));
 
         res.json({ users, total: data.total ?? users.length });
@@ -145,6 +134,19 @@ router.delete('/users/:userId', requireAdmin, async (req, res) => {
     try {
         const { userId } = req.params;
 
+        if (userId === req.user.id) {
+            return res.status(400).json({ error: 'You cannot delete your own account' });
+        }
+
+        const { data: targetProfile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', userId)
+            .maybeSingle();
+        if (targetProfile?.role === 'admin') {
+            return res.status(403).json({ error: 'Cannot delete another admin account' });
+        }
+
         const { data: userData, error: getUserError } = await supabase.auth.admin.getUserById(userId);
         if (getUserError || !userData?.user) {
             return res.status(404).json({ error: 'User not found' });
@@ -189,12 +191,51 @@ router.delete('/users/:userId', requireAdmin, async (req, res) => {
     }
 });
 
+const VALID_ROLES = ['member', 'editor', 'admin'];
+
+/**
+ * PUT /api/admin/users/:userId/role
+ * Assign a user's role: member, editor (can create/edit shows, songs,
+ * venues, albums, bands and use the Instagram post tool, but not delete
+ * them, and can't manage users), or admin (unrestricted).
+ * Body: { role: string }
+ */
+router.put('/users/:userId/role', requireAdmin, async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const { role } = req.body;
+
+        if (!VALID_ROLES.includes(role)) {
+            return res.status(400).json({ error: `role must be one of: ${VALID_ROLES.join(', ')}` });
+        }
+
+        if (userId === req.user.id) {
+            return res.status(400).json({ error: 'You cannot change your own role' });
+        }
+
+        const { error } = await supabase
+            .from('profiles')
+            .update({ role, is_admin: role === 'admin' })
+            .eq('id', userId);
+
+        if (error) {
+            console.error('[admin/users/role] update error:', error);
+            return res.status(500).json({ error: 'Failed to update role' });
+        }
+
+        res.json({ success: true, user_id: userId, role });
+    } catch (err) {
+        console.error('[admin/users/role] error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 /**
  * GET /api/admin/tour-style/:tourName
  * The Instagram post style assigned to a tour, so posts stay visually
  * consistent within a tour. Returns { style_key: null } if unset.
  */
-router.get('/tour-style/:tourName', requireAdmin, async (req, res) => {
+router.get('/tour-style/:tourName', requireEditorOrAdmin, async (req, res) => {
     try {
         const { tourName } = req.params;
 
@@ -221,7 +262,7 @@ router.get('/tour-style/:tourName', requireAdmin, async (req, res) => {
  * Assign (or change) the Instagram post style for a tour.
  * Body: { style_key: string }
  */
-router.put('/tour-style/:tourName', requireAdmin, async (req, res) => {
+router.put('/tour-style/:tourName', requireEditorOrAdmin, async (req, res) => {
     try {
         const { tourName } = req.params;
         const { style_key } = req.body;

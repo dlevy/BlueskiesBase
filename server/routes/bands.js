@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { supabase } = require('../config/supabase');
+const { requireEditorOrAdmin } = require('../middleware/requireRole');
 
 /** GET /api/bands — all bands sorted alphabetically */
 router.get('/', async (req, res) => {
@@ -12,8 +13,8 @@ router.get('/', async (req, res) => {
     res.json({ bands: data });
 });
 
-/** POST /api/bands — create a new band */
-router.post('/', async (req, res) => {
+/** POST /api/bands — create a new band (editor or admin) */
+router.post('/', requireEditorOrAdmin, async (req, res) => {
     const { name } = req.body;
     if (!name?.trim()) return res.status(400).json({ error: 'name is required' });
 

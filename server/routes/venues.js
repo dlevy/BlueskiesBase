@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { supabase } = require('../config/supabase');
+const { requireEditorOrAdmin } = require('../middleware/requireRole');
 
 /**
  * GET /api/venues
@@ -70,13 +71,11 @@ router.get('/:id', async (req, res) => {
 
 /**
  * POST /api/venues
- * Create a new venue (admin only)
+ * Create a new venue (editor or admin)
  */
-router.post('/', async (req, res) => {
+router.post('/', requireEditorOrAdmin, async (req, res) => {
     try {
         const { name, city, state_country, address } = req.body;
-
-        // TODO: Add authentication middleware to verify admin status
 
         const { data: venue, error } = await supabase
             .from('venues')

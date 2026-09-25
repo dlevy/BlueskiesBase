@@ -149,11 +149,15 @@ export const AuthProvider = ({ children }) => {
         setProfile(p);
     }, [user]);
 
+    const role = profile?.role || 'member';
+
     const value = {
         user,
         profile,
         session,
         isAdmin: profile?.is_admin || false,
+        role,
+        isEditorOrAdmin: role === 'admin' || role === 'editor',
         loading,
         signIn,
         signUp,

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { supabase } = require('../config/supabase');
 const { computeDebutsForShows } = require('../utils/debuts');
+const { requireAdmin, requireEditorOrAdmin } = require('../middleware/requireRole');
 
 /**
  * GET /api/shows
@@ -430,13 +431,11 @@ router.get('/:id', async (req, res) => {
 
 /**
  * POST /api/shows
- * Create a new show (admin only)
+ * Create a new show (editor or admin)
  */
-router.post('/', async (req, res) => {
+router.post('/', requireEditorOrAdmin, async (req, res) => {
     try {
         const { venue_id, show_date, artist_name, tour_name, notes, source_types, opened_for_id, links } = req.body;
-
-        // TODO: Add authentication middleware to verify admin status
 
         const { data: show, error } = await supabase
             .from('shows')
@@ -482,7 +481,7 @@ router.post('/', async (req, res) => {
  * show field unconditionally from req.body, so a partial {tour_name} payload would
  * null out opened_for_id/links as a side effect.
  */
-router.patch('/:id/tour', async (req, res) => {
+router.patch('/:id/tour', requireEditorOrAdmin, async (req, res) => {
     try {
         const { id } = req.params;
         const { tour_name } = req.body;
@@ -508,14 +507,12 @@ router.patch('/:id/tour', async (req, res) => {
 
 /**
  * PUT /api/shows/:id
- * Update a show (admin only)
+ * Update a show (editor or admin)
  */
-router.put('/:id', async (req, res) => {
+router.put('/:id', requireEditorOrAdmin, async (req, res) => {
     try {
         const { id } = req.params;
         const { venue_id, show_date, artist_name, tour_name, notes, source_types, opened_for_id, links } = req.body;
-
-        // TODO: Add authentication middleware to verify admin status
 
         const { data: show, error } = await supabase
             .from('shows')
@@ -558,11 +555,9 @@ router.put('/:id', async (req, res) => {
  * DELETE /api/shows/:id
  * Delete a show (admin only)
  */
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requireAdmin, async (req, res) => {
     try {
         const { id } = req.params;
-
-        // TODO: Add authentication middleware to verify admin status
 
         // Delete dependent rows first to avoid FK constraint failures
         const dependents = ['setlist_songs', 'user_notes', 'user_photos', 'user_posters'];
@@ -598,12 +593,10 @@ router.delete('/:id', async (req, res) => {
  * Body: { setlist: [{ song_id, set_number, song_order, is_encore, notes, jams_into }] }
  * Note: is_cover and original_artist are NO LONGER accepted - all song metadata comes from songs table
  */
-router.put('/:id/setlist', async (req, res) => {
+router.put('/:id/setlist', requireEditorOrAdmin, async (req, res) => {
     try {
         const { id } = req.params;
         const { setlist } = req.body;
-
-        // TODO: Add authentication middleware to verify admin status
 
         // If setlist is empty, delete all entries and return
         if (!setlist || setlist.length === 0) {
@@ -785,12 +778,10 @@ router.put('/:id/setlist', async (req, res) => {
  * Add a single song to a show's setlist (admin only)
  * Note: is_cover and original_artist are NO LONGER accepted - all song metadata comes from songs table
  */
-router.post('/:id/setlist/song', async (req, res) => {
+router.post('/:id/setlist/song', requireEditorOrAdmin, async (req, res) => {
     try {
         const { id } = req.params;
         const { song_id, set_number, song_order, is_encore, notes, jams_into, performance_type } = req.body;
-
-        // TODO: Add authentication middleware to verify admin status
 
         // ============================================================
         // VALIDATE INPUT DATA
@@ -922,11 +913,9 @@ router.post('/:id/setlist/song', async (req, res) => {
  * DELETE /api/shows/:showId/setlist/:setlistId
  * Remove a song from a show's setlist (admin only)
  */
-router.delete('/:showId/setlist/:setlistId', async (req, res) => {
+router.delete('/:showId/setlist/:setlistId', requireEditorOrAdmin, async (req, res) => {
     try {
         const { setlistId } = req.params;
-
-        // TODO: Add authentication middleware to verify admin status
 
         const { error } = await supabase
             .from('setlist_songs')

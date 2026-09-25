@@ -87,8 +87,10 @@ function exportCsv(rows, filterLabel) {
     URL.revokeObjectURL(url);
 }
 
+const ROLES = ['member', 'editor', 'admin'];
+
 export default function AdminUsers() {
-    const { getToken } = useAuth();
+    const { user: currentUser, isAdmin, getToken } = useAuth();
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -100,6 +102,8 @@ export default function AdminUsers() {
     const [copiedLink, setCopiedLink] = useState(null);
     const [deleting, setDeleting] = useState(null);
     const [deleteError, setDeleteError] = useState(null);
+    const [updatingRole, setUpdatingRole] = useState(null);
+    const [roleError, setRoleError] = useState(null);
     const [search, setSearch] = useState('');
     const [filterMode, setFilterMode] = useState('all');
     const [inactiveDays, setInactiveDays] = useState(90);
@@ -122,7 +126,10 @@ export default function AdminUsers() {
         }
     };
 
-    useEffect(() => { fetchUsers(); }, []);
+    useEffect(() => {
+        if (!isAdmin) { setLoading(false); return; }
+        fetchUsers();
+    }, [isAdmin]);
 
     const resendConfirmation = async (userId, email) => {
         setResending(userId);
@@ -192,6 +199,26 @@ export default function AdminUsers() {
         }
     };
 
+    const updateRole = async (userId, role) => {
+        setUpdatingRole(userId);
+        setRoleError(null);
+        try {
+            const token = await getToken();
+            const res = await fetch(`${API_BASE}/api/admin/users/${userId}/role`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ role }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to update role');
+            setUsers(prev => prev.map(u => (u.id === userId ? { ...u, role } : u)));
+        } catch (err) {
+            setRoleError(err.message);
+        } finally {
+            setUpdatingRole(null);
+        }
+    };
+
     const filterApplied = applyFilter(users, filterMode, inactiveDays);
     const filtered = filterApplied.filter(u =>
         !search || u.email.toLowerCase().includes(search.toLowerCase())
@@ -231,12 +258,29 @@ export default function AdminUsers() {
         );
     }
 
+    if (!isAdmin) {
+        return (
+            <PText color="contrast-medium">
+                User management is restricted to full admins.
+            </PText>
+        );
+    }
+
     return (
         <div className="space-y-8">
             {deleteError && (
                 <PInlineNotification
                     heading="Failed to delete user"
                     description={deleteError}
+                    state="error"
+                    dismissButton={false}
+                />
+            )}
+
+            {roleError && (
+                <PInlineNotification
+                    heading="Failed to update role"
+                    description={roleError}
                     state="error"
                     dismissButton={false}
                 />
@@ -356,7 +400,7 @@ export default function AdminUsers() {
                     <table className="w-full text-sm">
                         <thead>
                             <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-                                {['Email', 'Signed Up', 'Last Sign In', 'Status', ''].map(h => (
+                                {['Email', 'Signed Up', 'Last Sign In', 'Status', 'Role', ''].map(h => (
                                     <th key={h} className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider"
                                         style={{ color: 'var(--p-color-contrast-low)' }}>
                                         {h}
@@ -392,6 +436,25 @@ export default function AdminUsers() {
                                                 <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(248,113,113,0.1)', color: '#f87171' }}>
                                                     Unconfirmed
                                                 </span>
+                                            )}
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            {user.id === currentUser?.id ? (
+                                                <span className="text-xs capitalize" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                                                    {user.role} <span style={{ color: 'var(--p-color-contrast-low)' }}>(you)</span>
+                                                </span>
+                                            ) : (
+                                                <select
+                                                    value={user.role}
+                                                    disabled={updatingRole === user.id}
+                                                    onChange={e => updateRole(user.id, e.target.value)}
+                                                    className="text-xs rounded-lg px-2 py-1 bg-white/5 border border-white/10 outline-none focus:border-white/25 transition-colors capitalize disabled:opacity-50"
+                                                    style={{ color: 'var(--p-color-primary)' }}
+                                                >
+                                                    {ROLES.map(r => (
+                                                        <option key={r} value={r} className="capitalize">{r}</option>
+                                                    ))}
+                                                </select>
                                             )}
                                         </td>
                                         <td className="px-4 py-3">
@@ -453,14 +516,16 @@ export default function AdminUsers() {
                                                         </>
                                                     )}
                                                 </div>
-                                                <button
-                                                    onClick={() => deleteUser(user.id, user.email)}
-                                                    disabled={deleting === user.id}
-                                                    className="text-xs px-3 py-1 rounded-lg border transition-all disabled:opacity-50"
-                                                    style={{ border: '1px solid rgba(248,113,113,0.3)', color: '#f87171' }}
-                                                >
-                                                    {deleting === user.id ? 'Deleting…' : 'Delete'}
-                                                </button>
+                                                {user.id !== currentUser?.id && (
+                                                    <button
+                                                        onClick={() => deleteUser(user.id, user.email)}
+                                                        disabled={deleting === user.id}
+                                                        className="text-xs px-3 py-1 rounded-lg border transition-all disabled:opacity-50"
+                                                        style={{ border: '1px solid rgba(248,113,113,0.3)', color: '#f87171' }}
+                                                    >
+                                                        {deleting === user.id ? 'Deleting…' : 'Delete'}
+                                                    </button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>
@@ -468,7 +533,7 @@ export default function AdminUsers() {
                             })}
                             {filtered.length === 0 && (
                                 <tr>
-                                    <td colSpan={5} className="px-4 py-8 text-center">
+                                    <td colSpan={6} className="px-4 py-8 text-center">
                                         <PText color="contrast-medium">No users match your search.</PText>
                                     </td>
                                 </tr>

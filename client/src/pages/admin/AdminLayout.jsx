@@ -4,7 +4,7 @@ import { PHeading, PText, PButton, PButtonPure } from '@porsche-design-system/co
 import { useAuth } from '../../contexts/AuthContext';
 
 export default function AdminLayout() {
-    const { user, signOut } = useAuth();
+    const { user, isAdmin, signOut } = useAuth();
     const navigate = useNavigate();
     const [isSigningOut, setIsSigningOut] = useState(false);
 
@@ -58,7 +58,9 @@ export default function AdminLayout() {
                             { to: '/admin/albums', label: 'Albums' },
                             { to: '/admin/tours', label: 'Tours' },
                             { to: '/admin/venues', label: 'Venues' },
-                            { to: '/admin/users', label: 'Users' },
+                            // Full admins only — user management (including deleting
+                            // accounts) is intentionally out of reach for editors.
+                            ...(isAdmin ? [{ to: '/admin/users', label: 'Users' }] : []),
                         ].map(({ to, label }) => (
                             <li key={to} className="shrink-0">
                                 <Link to={to} className={navLinkClass} style={{ color: 'var(--p-color-primary)' }}>

@@ -3,7 +3,7 @@ import { PSpinner, PText, PButtonPure } from '@porsche-design-system/components-
 import { useAuth } from '../contexts/AuthContext';
 
 export default function ProtectedRoute({ children }) {
-    const { user, isAdmin, loading } = useAuth();
+    const { user, isEditorOrAdmin, loading } = useAuth();
     const location = useLocation();
 
     if (loading) {
@@ -19,7 +19,7 @@ export default function ProtectedRoute({ children }) {
         return <Navigate to="/login" state={{ from: location }} replace />;
     }
 
-    if (!isAdmin) {
+    if (!isEditorOrAdmin) {
         return (
             <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'var(--p-color-canvas)' }}>
                 <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#1a1e26] p-8 text-center space-y-4">

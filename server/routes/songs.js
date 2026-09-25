@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { supabase } = require('../config/supabase');
 const { computeGlobalSongStats } = require('../utils/songStats');
+const { requireAdmin, requireEditorOrAdmin } = require('../middleware/requireRole');
 
 /**
  * GET /api/songs
@@ -198,13 +199,11 @@ router.get('/:id', async (req, res) => {
 
 /**
  * POST /api/songs
- * Create a new song (admin only)
+ * Create a new song (editor or admin)
  */
-router.post('/', async (req, res) => {
+router.post('/', requireEditorOrAdmin, async (req, res) => {
     try {
         const { title, original_artist, is_original, written_by, lyrics, notes, album_id } = req.body;
-
-        // TODO: Add authentication middleware to verify admin status
 
         const { data: song, error } = await supabase
             .from('songs')
@@ -227,14 +226,12 @@ router.post('/', async (req, res) => {
 
 /**
  * PUT /api/songs/:id
- * Update a song (admin only)
+ * Update a song (editor or admin)
  */
-router.put('/:id', async (req, res) => {
+router.put('/:id', requireEditorOrAdmin, async (req, res) => {
     try {
         const { id } = req.params;
         const { title, original_artist, is_original, written_by, lyrics, notes, album_id, track_order } = req.body;
-
-        // TODO: Add authentication middleware to verify admin status
 
         const { data: song, error } = await supabase
             .from('songs')
@@ -264,11 +261,9 @@ router.put('/:id', async (req, res) => {
  *
  * This endpoint checks if the song is used in setlists and prevents deletion if so.
  */
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requireAdmin, async (req, res) => {
     try {
         const { id } = req.params;
-
-        // TODO: Add authentication middleware to verify admin status
 
         // Check if song is used in any setlists
         const { data: usages, error: usageError } = await supabase

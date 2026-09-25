@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { supabase } = require('../config/supabase');
+const { requireAdmin, requireEditorOrAdmin } = require('../middleware/requireRole');
 
 /**
  * GET /api/albums
@@ -79,9 +80,8 @@ router.get('/:id', async (req, res) => {
  * POST /api/albums
  * Create a new album (admin only)
  */
-router.post('/', async (req, res) => {
+router.post('/', requireEditorOrAdmin, async (req, res) => {
     try {
-        // TODO: Add authentication middleware to verify admin status
         const { title, artist_name, release_date, album_art_url, album_type, notes } = req.body;
 
         if (!title) {
@@ -118,9 +118,8 @@ router.post('/', async (req, res) => {
  * PUT /api/albums/:id
  * Update an album (admin only)
  */
-router.put('/:id', async (req, res) => {
+router.put('/:id', requireEditorOrAdmin, async (req, res) => {
     try {
-        // TODO: Add authentication middleware to verify admin status
         const { id } = req.params;
         const { title, artist_name, release_date, album_art_url, album_type, notes } = req.body;
 
@@ -158,9 +157,8 @@ router.put('/:id', async (req, res) => {
  * Delete an album (admin only)
  * Note: This will set album_id to NULL for all songs associated with this album
  */
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requireAdmin, async (req, res) => {
     try {
-        // TODO: Add authentication middleware to verify admin status
         const { id } = req.params;
 
         const { error } = await supabase
@@ -207,7 +205,7 @@ router.get('/:id/songs', async (req, res) => {
  * POST /api/albums/:id/songs
  * Add a song to an album
  */
-router.post('/:id/songs', async (req, res) => {
+router.post('/:id/songs', requireEditorOrAdmin, async (req, res) => {
     try {
         const { id: album_id } = req.params;
         const { song_id, track_order } = req.body;
@@ -234,7 +232,7 @@ router.post('/:id/songs', async (req, res) => {
  * Save track order — must be defined before /:id/songs/:songId to avoid route collision
  * Body: { songs: [{ song_id, track_order }] }
  */
-router.put('/:id/songs/order', async (req, res) => {
+router.put('/:id/songs/order', requireEditorOrAdmin, async (req, res) => {
     try {
         const { id: album_id } = req.params;
         const { songs } = req.body;
@@ -259,7 +257,7 @@ router.put('/:id/songs/order', async (req, res) => {
  * DELETE /api/albums/:id/songs/:songId
  * Remove a song from an album
  */
-router.delete('/:id/songs/:songId', async (req, res) => {
+router.delete('/:id/songs/:songId', requireEditorOrAdmin, async (req, res) => {
     try {
         const { id: album_id, songId: song_id } = req.params;
 
