@@ -140,7 +140,7 @@ const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({
                         landing on a bright, low-contrast patch of the poster. */}
                     <div style={{
                         position: 'absolute', inset: 0,
-                        background: 'linear-gradient(180deg, rgba(3,4,7,0.78) 0%, rgba(3,4,7,0.52) 22%, rgba(3,4,7,0.58) 78%, rgba(3,4,7,0.82) 100%)',
+                        background: 'linear-gradient(180deg, rgba(3,4,7,0.84) 0%, rgba(3,4,7,0.72) 22%, rgba(3,4,7,0.75) 78%, rgba(3,4,7,0.88) 100%)',
                     }} />
                 </>
             )}
