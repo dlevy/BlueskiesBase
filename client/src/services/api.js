@@ -392,10 +392,12 @@ export const getVenueById = async (id) => {
  * Create a new venue
  */
 export const createVenue = async (venueData) => {
+    const token = await getAuthToken();
     const response = await fetch(`${API_BASE_URL}/api/venues`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
+            ...(token && { Authorization: `Bearer ${token}` }),
         },
         body: JSON.stringify(venueData),
     });
@@ -436,9 +438,10 @@ export const getBands = async () => {
 };
 
 export const createBand = async (name) => {
+    const token = await getAuthToken();
     const response = await fetch(`${API_BASE_URL}/api/bands`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }) },
         body: JSON.stringify({ name }),
     });
     if (!response.ok) {
@@ -456,10 +459,12 @@ export const createBand = async (name) => {
  * Create a new show
  */
 export const createShow = async (showData) => {
+    const token = await getAuthToken();
     const response = await fetch(`${API_BASE_URL}/api/shows`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
+            ...(token && { Authorization: `Bearer ${token}` }),
         },
         body: JSON.stringify(showData),
     });
@@ -473,10 +478,12 @@ export const createShow = async (showData) => {
  * Update a show
  */
 export const updateShow = async (id, showData) => {
+    const token = await getAuthToken();
     const response = await fetch(`${API_BASE_URL}/api/shows/${id}`, {
         method: 'PUT',
         headers: {
             'Content-Type': 'application/json',
+            ...(token && { Authorization: `Bearer ${token}` }),
         },
         body: JSON.stringify(showData),
     });
@@ -492,10 +499,12 @@ export const updateShow = async (id, showData) => {
  * from updateShow).
  */
 export const updateShowTour = async (id, tourName) => {
+    const token = await getAuthToken();
     const response = await fetch(`${API_BASE_URL}/api/shows/${id}/tour`, {
         method: 'PATCH',
         headers: {
             'Content-Type': 'application/json',
+            ...(token && { Authorization: `Bearer ${token}` }),
         },
         body: JSON.stringify({ tour_name: tourName || null }),
     });
@@ -509,8 +518,12 @@ export const updateShowTour = async (id, tourName) => {
  * Delete a show
  */
 export const deleteShow = async (id) => {
+    const token = await getAuthToken();
     const response = await fetch(`${API_BASE_URL}/api/shows/${id}`, {
         method: 'DELETE',
+        headers: {
+            ...(token && { Authorization: `Bearer ${token}` }),
+        },
     });
     if (!response.ok) {
         throw new Error('Failed to delete show');
@@ -522,10 +535,12 @@ export const deleteShow = async (id) => {
  * Update the entire setlist for a show
  */
 export const updateSetlist = async (showId, setlist) => {
+    const token = await getAuthToken();
     const response = await fetch(`${API_BASE_URL}/api/shows/${showId}/setlist`, {
         method: 'PUT',
         headers: {
             'Content-Type': 'application/json',
+            ...(token && { Authorization: `Bearer ${token}` }),
         },
         body: JSON.stringify({ setlist }),
     });
@@ -539,10 +554,12 @@ export const updateSetlist = async (showId, setlist) => {
  * Add a song to a show's setlist
  */
 export const addSongToSetlist = async (showId, songData) => {
+    const token = await getAuthToken();
     const response = await fetch(`${API_BASE_URL}/api/shows/${showId}/setlist/song`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
+            ...(token && { Authorization: `Bearer ${token}` }),
         },
         body: JSON.stringify(songData),
     });
@@ -556,8 +573,12 @@ export const addSongToSetlist = async (showId, songData) => {
  * Remove a song from a show's setlist
  */
 export const removeSongFromSetlist = async (showId, setlistId) => {
+    const token = await getAuthToken();
     const response = await fetch(`${API_BASE_URL}/api/shows/${showId}/setlist/${setlistId}`, {
         method: 'DELETE',
+        headers: {
+            ...(token && { Authorization: `Bearer ${token}` }),
+        },
     });
     if (!response.ok) {
         throw new Error('Failed to remove song from setlist');
