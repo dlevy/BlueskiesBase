@@ -10,21 +10,28 @@ function formatLongDate(dateString) {
 
 const SET_KEYS = ['set1', 'set2', 'set3', 'encore'];
 
+// Instagram's recommended safe zone for a 3:4 feed post — content is kept
+// clear of these margins so it isn't cropped in grid view or covered by the
+// app's own UI chrome. The bottom gets much more room than the sides since
+// that's where feed UI overlaps the image most.
+const SIDE_PADDING = 50;
+const BOTTOM_PADDING = 180;
+
 // Roughly how much vertical space the header + divider + footer (including
-// the tagline beneath the footer link) take up — used to figure out how much
-// room is actually left for the setlist so it fills the fixed 1080x1440 post
-// instead of leaving empty bands top/bottom. Approximate on purpose: exact
-// isn't the goal, but it needs to stay in the right ballpark, since the font
-// size below is computed from this estimate, not measured from the real
-// rendered header/footer.
-const HEADER_FOOTER_OVERHEAD = 613;
+// the tagline beneath the footer link) take up as rendered content — NOT
+// including the safe-zone padding above/below, which is accounted for
+// separately. Used to figure out how much room is actually left for the
+// setlist so it fills the fixed 1080x1440 post instead of leaving empty
+// bands top/bottom. Approximate on purpose: exact isn't the goal, but it
+// needs to stay in the right ballpark, since the font size below is computed
+// from this estimate, not measured from the real rendered header/footer.
+const HEADER_FOOTER_CONTENT = 485;
 const MAX_SONG_FONT = 34;
 
-// Must match the actual rendered layout below (content padding, gap between
-// the two columns, gap within a song row) — the width-fitting math needs the
-// real pixel values, not estimates, since a fixed gap doesn't scale with font
-// size the way text does.
-const CONTENT_PADDING = 64;
+// Must match the actual rendered layout below (gap between the two columns,
+// gap within a song row) — the width-fitting math needs the real pixel
+// values, not estimates, since a fixed gap doesn't scale with font size the
+// way text does.
 const COLUMN_GAP = 56;
 const ROW_GAP = 10;
 const FONT_STACK = "'Inter', ui-sans-serif, system-ui, sans-serif";
@@ -165,8 +172,8 @@ const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({
 
     const songs = SET_KEYS.flatMap(key => show.setlist?.[key] || []);
 
-    const availableHeight = POST_HEIGHT - HEADER_FOOTER_OVERHEAD;
-    const columnWidth = (POST_WIDTH - CONTENT_PADDING * 2 - COLUMN_GAP) / 2;
+    const availableHeight = POST_HEIGHT - SIDE_PADDING - BOTTOM_PADDING - HEADER_FOOTER_CONTENT;
+    const columnWidth = (POST_WIDTH - SIDE_PADDING * 2 - COLUMN_GAP) / 2;
     const { columns, songFontSize } = pickSongLayout(songs, availableHeight, columnWidth, liveDebutSongIds, tourDebutSongIds);
     const venueLine = show.venues
         ? `${show.venues.name} — ${show.venues.city}${show.venues.state_country ? ', ' + show.venues.state_country : ''}`
@@ -209,7 +216,9 @@ const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({
             {/* Content layer — sits above the poster image + scrim when present */}
             <div style={{
                 position: 'relative', zIndex: 1, width: '100%', height: '100%',
-                display: 'flex', flexDirection: 'column', padding: CONTENT_PADDING, boxSizing: 'border-box',
+                display: 'flex', flexDirection: 'column',
+                paddingLeft: SIDE_PADDING, paddingRight: SIDE_PADDING, paddingTop: SIDE_PADDING, paddingBottom: BOTTOM_PADDING,
+                boxSizing: 'border-box',
                 color: palette.body, textShadow,
             }}>
                 {/* Header */}
