@@ -10,12 +10,14 @@ function formatLongDate(dateString) {
 
 const SET_KEYS = ['set1', 'set2', 'set3', 'encore'];
 
-// Roughly how much vertical space the header + divider + footer take up —
-// used to figure out how much room is actually left for the setlist so it
-// fills the fixed 1080x1440 post instead of leaving empty bands top/bottom.
-// Approximate on purpose: exact isn't the goal.
-const HEADER_FOOTER_OVERHEAD = 577;
-const MIN_SONG_FONT = 14;
+// Roughly how much vertical space the header + divider + footer (including
+// the tagline beneath the footer link) take up — used to figure out how much
+// room is actually left for the setlist so it fills the fixed 1080x1440 post
+// instead of leaving empty bands top/bottom. Approximate on purpose: exact
+// isn't the goal, but it needs to stay in the right ballpark, since the font
+// size below is computed from this estimate, not measured from the real
+// rendered header/footer.
+const HEADER_FOOTER_OVERHEAD = 613;
 const MAX_SONG_FONT = 34;
 
 // Fixed high-contrast palette used when the background is an image (the show
@@ -50,22 +52,18 @@ function DebutTag({ label, color, songFontSize }) {
     );
 }
 
+// Always two columns. The font has no minimum floor — it shrinks as far as
+// necessary so every song fits within the available height. A floor here is
+// exactly what used to cause songs to get silently clipped off the top/bottom
+// of very long setlists: the row height budget would be exceeded the moment
+// the "readable minimum" size didn't actually fit.
 function pickSongLayout(totalSongs, availableHeight) {
     const usable = Math.max(availableHeight, 100);
-    // Try 1 and 2 columns, and keep whichever actually yields the larger
-    // (more readable) font — a single threshold check on 1-column font size
-    // alone can land just above MIN_SONG_FONT and stick with a cramped
-    // single column even when 2 columns would render noticeably bigger.
-    let best = null;
-    for (let columns = 1; columns <= 2; columns++) {
-        const rows = Math.ceil(totalSongs / columns);
-        const lineHeight = usable / rows;
-        const songFontSize = Math.min(Math.max(lineHeight / 1.45, MIN_SONG_FONT), MAX_SONG_FONT);
-        if (!best || songFontSize > best.songFontSize) {
-            best = { columns, songFontSize };
-        }
-    }
-    return best;
+    const columns = 2;
+    const rows = Math.max(1, Math.ceil(totalSongs / columns));
+    const lineHeight = usable / rows;
+    const songFontSize = Math.min(lineHeight / 1.45, MAX_SONG_FONT);
+    return { columns, songFontSize };
 }
 
 // Splits songs into `columns` chunks for rendering, preserving each song's
@@ -211,11 +209,13 @@ const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({
                 </div>
 
                 {/* Footer */}
-                <div style={{
-                    flexShrink: 0, textAlign: 'center', fontSize: 48, fontWeight: 800,
-                    letterSpacing: 1, color: palette.heading, marginTop: 32,
-                }}>
-                    skysets.org
+                <div style={{ flexShrink: 0, textAlign: 'center', marginTop: 32 }}>
+                    <div style={{ fontSize: 48, fontWeight: 800, letterSpacing: 1, color: palette.heading }}>
+                        skysets.org
+                    </div>
+                    <div style={{ fontSize: 20, fontWeight: 500, color: palette.muted, marginTop: 8 }}>
+                        your ultimate archive for all things Johnny Blue Skies & the Dark Clouds
+                    </div>
                 </div>
             </div>
         </div>
