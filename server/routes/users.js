@@ -570,6 +570,7 @@ router.get('/profile/:username', async (req, res) => {
 
         const response = {
             username: profile.username,
+            role: profile.role || 'member',
             ...(profile.display_name && { displayName: profile.display_name }),
             ...(profile.location && { location: profile.location }),
             ...(profile.avatar_url && { avatarUrl: profile.avatar_url }),

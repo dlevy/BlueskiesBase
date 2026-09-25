@@ -6,6 +6,26 @@ import { buildShowPath } from '../utils/showSlug';
 import SEO from '../components/SEO';
 import ShowMapShare from '../components/ShowMapShare';
 
+// Site-role badges shown on a public profile — driven entirely by profiles.role,
+// so any future admin/editor gets the same treatment automatically.
+const ROLE_BADGES = {
+    admin: { label: 'Curator', emoji: '🏛️', color: '#fbbf24', bg: 'rgba(245,158,11,0.14)', border: 'rgba(245,158,11,0.5)' },
+    editor: { label: 'Archivist', emoji: '📜', color: '#67e8f9', bg: 'rgba(34,211,238,0.14)', border: 'rgba(34,211,238,0.5)' },
+};
+
+function RoleBadge({ badge }) {
+    if (!badge) return null;
+    return (
+        <span
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide shrink-0"
+            style={{ background: badge.bg, color: badge.color, border: `1px solid ${badge.border}`, boxShadow: `0 0 14px ${badge.border}` }}
+        >
+            <span aria-hidden="true">{badge.emoji}</span>
+            {badge.label}
+        </span>
+    );
+}
+
 function FactCard({ label, value, sub }) {
     return (
         <div className="rounded-xl border border-white/10 bg-[#1a1e26] px-4 py-3 space-y-0.5">
@@ -88,6 +108,7 @@ export default function ProfilePage() {
     }
 
     const displayLabel = profile.displayName || profile.username;
+    const roleBadge = ROLE_BADGES[profile.role];
 
     return (
         <div className="px-4 py-8 max-w-4xl mx-auto space-y-6">
@@ -111,7 +132,10 @@ export default function ProfilePage() {
                         </div>
                     )}
                     <div className="min-w-0 flex-1">
-                        <PHeading size="xl" tag="h1">{displayLabel}</PHeading>
+                        <div className="flex items-center gap-2.5 flex-wrap">
+                            <PHeading size="xl" tag="h1">{displayLabel}</PHeading>
+                            <RoleBadge badge={roleBadge} />
+                        </div>
                         {profile.displayName && (
                             <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>@{profile.username}</PText>
                         )}
