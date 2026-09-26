@@ -40,26 +40,7 @@ function PosterTile({ poster, onImageClick }) {
                 )}
             </button>
 
-            {/* Fixed-height row so tiles stay aligned whether or not a poster artist is credited */}
-            <div className="px-3 pt-2 h-5 flex items-center justify-center text-center">
-                {show.poster_artist_name ? (
-                    <p className="text-xs truncate" style={{ color: 'var(--p-color-contrast-medium)' }}>
-                        Poster art by{' '}
-                        {show.poster_artist_url ? (
-                            <a href={show.poster_artist_url} target="_blank" rel="noopener noreferrer"
-                                className="font-semibold text-amber-400 hover:underline">
-                                {show.poster_artist_name}
-                            </a>
-                        ) : (
-                            <span className="font-semibold" style={{ color: 'var(--p-color-primary)' }}>{show.poster_artist_name}</span>
-                        )}
-                    </p>
-                ) : (
-                    <span aria-hidden="true">&nbsp;</span>
-                )}
-            </div>
-
-            <Link to={buildShowPath(show)} className="block p-3 pt-1 hover:bg-white/[0.05] transition-colors">
+            <Link to={buildShowPath(show)} className="block p-3 pb-1 hover:bg-white/[0.05] transition-colors">
                 <p className="text-[10px] font-mono uppercase tracking-wide" style={{ color: 'var(--p-color-contrast-low)' }}>
                     {formatDate(show.show_date)}
                 </p>
@@ -75,6 +56,26 @@ function PosterTile({ poster, onImageClick }) {
                     </p>
                 )}
             </Link>
+
+            {/* Own row (not inside the Link) so the credit's own <a> isn't nested inside
+                the show-page link; fixed height so tiles stay aligned either way. */}
+            <div className="px-3 pb-3 h-4">
+                {show.poster_artist_name ? (
+                    <p className="text-[10px] font-mono truncate text-left" style={{ color: 'var(--p-color-contrast-low)' }}>
+                        Poster art by{' '}
+                        {show.poster_artist_url ? (
+                            <a href={show.poster_artist_url} target="_blank" rel="noopener noreferrer"
+                                className="font-semibold text-amber-400 hover:underline">
+                                {show.poster_artist_name}
+                            </a>
+                        ) : (
+                            <span className="font-semibold" style={{ color: 'var(--p-color-contrast-medium)' }}>{show.poster_artist_name}</span>
+                        )}
+                    </p>
+                ) : (
+                    <span aria-hidden="true">&nbsp;</span>
+                )}
+            </div>
         </div>
     );
 }

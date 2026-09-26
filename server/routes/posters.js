@@ -80,7 +80,13 @@ router.get('/', async (req, res) => {
         // A poster whose show has since been deleted would embed shows as null —
         // exclude it rather than ship a gallery tile with nothing to link to.
         const withShow = (posters || []).filter(p => p.shows);
-        withShow.sort((a, b) => b.shows.show_date.localeCompare(a.shows.show_date));
+        withShow.sort((a, b) => {
+            const dateCompare = b.shows.show_date.localeCompare(a.shows.show_date);
+            if (dateCompare !== 0) return dateCompare;
+            if (a.shows.id !== b.shows.id) return String(a.shows.id).localeCompare(String(b.shows.id));
+            // Same show: regular poster always before its foil variant.
+            return (a.is_foil ? 1 : 0) - (b.is_foil ? 1 : 0);
+        });
 
         res.json({ posters: withShow });
     } catch (error) {
