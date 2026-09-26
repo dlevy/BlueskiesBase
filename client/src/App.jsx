@@ -17,6 +17,7 @@ import MemberLoginPage from './pages/MemberLoginPage'
 import SignupPage from './pages/SignupPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import AuthDebugPage from './pages/AuthDebugPage'
+import InstagramFollowBanner from './components/InstagramFollowBanner'
 import AdminLayout from './pages/admin/AdminLayout'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import ShowsList from './pages/admin/ShowsList'
@@ -172,6 +173,8 @@ function PublicLayout() {
           </div>
         </div>
       </header>
+
+      <InstagramFollowBanner />
 
       {/* Main content */}
       <main className="flex-1">
