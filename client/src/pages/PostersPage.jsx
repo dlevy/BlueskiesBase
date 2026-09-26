@@ -41,7 +41,7 @@ function PosterTile({ poster, onImageClick }) {
             </button>
 
             <Link to={buildShowPath(show)} className="block p-3 pb-1 hover:bg-white/[0.05] transition-colors">
-                <p className="text-[10px] font-mono uppercase tracking-wide" style={{ color: 'var(--p-color-contrast-low)' }}>
+                <p className="text-xs font-mono uppercase tracking-wide" style={{ color: 'var(--p-color-contrast-low)' }}>
                     {formatDate(show.show_date)}
                 </p>
                 <p className="text-sm font-semibold truncate mt-0.5" style={{ color: 'var(--p-color-primary)' }}>
@@ -59,9 +59,9 @@ function PosterTile({ poster, onImageClick }) {
 
             {/* Own row (not inside the Link) so the credit's own <a> isn't nested inside
                 the show-page link; fixed height so tiles stay aligned either way. */}
-            <div className="px-3 pb-3 h-4">
+            <div className="px-3 pb-3 h-5">
                 {show.poster_artist_name ? (
-                    <p className="text-[10px] font-mono truncate text-left" style={{ color: 'var(--p-color-contrast-low)' }}>
+                    <p className="text-xs font-mono truncate text-left" style={{ color: 'var(--p-color-contrast-low)' }}>
                         Poster art by{' '}
                         {show.poster_artist_url ? (
                             <a href={show.poster_artist_url} target="_blank" rel="noopener noreferrer"
