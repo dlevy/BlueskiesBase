@@ -66,6 +66,8 @@ router.get('/', async (req, res) => {
                     show_date,
                     artist_name,
                     tour_name,
+                    poster_artist_name,
+                    poster_artist_url,
                     venues ( name, city, state_country )
                 )
             `);

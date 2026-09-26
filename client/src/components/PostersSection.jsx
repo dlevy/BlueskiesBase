@@ -161,7 +161,7 @@ function PosterSlot({ label, poster, isFoil, showId, user, isAdmin, isEditorOrAd
     );
 }
 
-export default function PostersSection({ showId }) {
+export default function PostersSection({ showId, posterArtistName, posterArtistUrl }) {
     const { user, isAdmin, isEditorOrAdmin } = useAuth();
     const [posters, setPosters] = useState([]);
     const [lightboxIndex, setLightboxIndex] = useState(-1);
@@ -185,7 +185,21 @@ export default function PostersSection({ showId }) {
 
     return (
         <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 space-y-4">
-            <PHeading size="lg" tag="h2">Show Posters</PHeading>
+            <div className="flex items-baseline justify-between gap-3 flex-wrap">
+                <PHeading size="lg" tag="h2">Show Posters</PHeading>
+                {posterArtistName && (
+                    <PText size="small" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                        Poster art by{' '}
+                        {posterArtistUrl ? (
+                            <a href={posterArtistUrl} target="_blank" rel="noopener noreferrer" className="text-amber-400 hover:underline">
+                                {posterArtistName}
+                            </a>
+                        ) : (
+                            <span className="font-semibold" style={{ color: 'var(--p-color-primary)' }}>{posterArtistName}</span>
+                        )}
+                    </PText>
+                )}
+            </div>
             <PDivider />
 
             {error && (

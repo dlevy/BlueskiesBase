@@ -680,7 +680,7 @@ export default function ShowDetailPage() {
             )}
 
             <PhotosSection showId={show.id} />
-            <PostersSection showId={show.id} />
+            <PostersSection showId={show.id} posterArtistName={show.poster_artist_name} posterArtistUrl={show.poster_artist_url} />
 
             {/* Videos & Links */}
             {show.links?.length > 0 && (

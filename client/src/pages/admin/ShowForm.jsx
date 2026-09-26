@@ -64,6 +64,8 @@ export default function ShowForm() {
         source_types: [],
         opened_for_id: '',
         links: [],
+        poster_artist_name: '',
+        poster_artist_url: '',
     });
 
     const sourceTypeOptions = ['SBD', 'AUD', 'Matrix', 'FM', 'Video'];
@@ -113,6 +115,8 @@ export default function ShowForm() {
                 source_types:  show.source_types   || [],
                 opened_for_id: show.opened_for_id  || '',
                 links:         show.links          || [],
+                poster_artist_name: show.poster_artist_name || '',
+                poster_artist_url:  show.poster_artist_url  || '',
             });
             setInitialSetlist(show.setlist || {});
             setTourInputMode('select');
@@ -435,6 +439,20 @@ export default function ShowForm() {
                                             <PText size="small">{sourceType}</PText>
                                         </label>
                                     ))}
+                                </div>
+                            </div>
+
+                            {/* Poster Artist */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>Poster Artist</label>
+                                    <input type="text" name="poster_artist_name" value={formData.poster_artist_name}
+                                        onChange={handleChange} placeholder="e.g., Jane Doe" className={inputClass} />
+                                </div>
+                                <div>
+                                    <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>Poster Artist Link</label>
+                                    <input type="url" name="poster_artist_url" value={formData.poster_artist_url}
+                                        onChange={handleChange} placeholder="https://example.com" className={inputClass} />
                                 </div>
                             </div>
                         </div>

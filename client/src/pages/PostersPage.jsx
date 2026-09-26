@@ -15,30 +15,66 @@ function formatDate(dateStr) {
     });
 }
 
+function PosterArtistBadge({ name, url }) {
+    return (
+        <div className="absolute top-1.5 left-1.5 z-10 inline-flex group/artist" onClick={(e) => e.stopPropagation()}>
+            <span
+                className="inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold cursor-default"
+                style={{ background: 'rgba(0,0,0,0.55)', color: '#fbbf24' }}
+                aria-label={`Poster art by ${name}`}
+            >
+                i
+            </span>
+            <div className="pointer-events-none absolute z-50 left-0 top-full mt-1.5
+                            opacity-0 scale-95
+                            group-hover/artist:opacity-100 group-hover/artist:scale-100
+                            transition-all duration-100
+                            w-max max-w-[12rem] rounded-lg border border-white/10 bg-[#0e1117] shadow-xl px-2.5 py-1.5">
+                <div className="text-[11px]" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                    Poster art by{' '}
+                    {url ? (
+                        <a href={url} target="_blank" rel="noopener noreferrer"
+                            className="pointer-events-auto font-semibold text-amber-400 hover:underline">
+                            {name}
+                        </a>
+                    ) : (
+                        <span className="font-semibold" style={{ color: 'var(--p-color-primary)' }}>{name}</span>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
+
 function PosterTile({ poster, onImageClick }) {
     const show = poster.shows;
     return (
         <div className="group rounded-xl overflow-hidden border border-white/10 bg-white/[0.03] hover:border-amber-500/30 hover:-translate-y-1 hover:shadow-lg hover:shadow-black/30 transition-all duration-150">
-            <button
-                type="button"
-                onClick={onImageClick}
-                className="relative block w-full aspect-[2/3] overflow-hidden bg-white/5 cursor-pointer"
-            >
-                <img
-                    src={poster.poster_url}
-                    alt={poster.caption || `${show.artist_name} poster — ${show.venues?.name || show.venues?.city || ''}`}
-                    loading="lazy"
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                />
-                {poster.is_foil && (
-                    <span
-                        className="absolute top-1.5 right-1.5 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded"
-                        style={{ background: 'rgba(192,132,252,0.85)', color: '#1a0b2e' }}
-                    >
-                        Foil
-                    </span>
+            <div className="relative">
+                {show.poster_artist_name && (
+                    <PosterArtistBadge name={show.poster_artist_name} url={show.poster_artist_url} />
                 )}
-            </button>
+                <button
+                    type="button"
+                    onClick={onImageClick}
+                    className="relative block w-full aspect-[2/3] overflow-hidden bg-white/5 cursor-pointer"
+                >
+                    <img
+                        src={poster.poster_url}
+                        alt={poster.caption || `${show.artist_name} poster — ${show.venues?.name || show.venues?.city || ''}`}
+                        loading="lazy"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                    {poster.is_foil && (
+                        <span
+                            className="absolute top-1.5 right-1.5 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded"
+                            style={{ background: 'rgba(192,132,252,0.85)', color: '#1a0b2e' }}
+                        >
+                            Foil
+                        </span>
+                    )}
+                </button>
+            </div>
             <Link to={buildShowPath(show)} className="block p-3 hover:bg-white/[0.05] transition-colors">
                 <p className="text-[10px] font-mono uppercase tracking-wide" style={{ color: 'var(--p-color-contrast-low)' }}>
                     {formatDate(show.show_date)}
