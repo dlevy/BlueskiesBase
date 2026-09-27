@@ -48,7 +48,7 @@ function ShowPhotoSection({ show, photos, onPhotoClick }) {
                         className="block aspect-square overflow-hidden rounded-md bg-white/5 group cursor-pointer"
                     >
                         <img
-                            src={photo.photo_url}
+                            src={photo.thumbnail_url || photo.photo_url}
                             alt={photo.caption || `${show.artist_name} — ${show.venues?.city || ''}`}
                             loading="lazy"
                             className="w-full h-full object-cover group-hover:scale-105 group-hover:opacity-90 transition-all duration-300"

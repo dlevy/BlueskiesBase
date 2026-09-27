@@ -25,7 +25,7 @@ function PosterTile({ poster, onImageClick }) {
                 className="relative block w-full aspect-[2/3] overflow-hidden bg-white/5 cursor-pointer"
             >
                 <img
-                    src={poster.poster_url}
+                    src={poster.thumbnail_url || poster.poster_url}
                     alt={poster.caption || `${show.artist_name} poster — ${show.venues?.name || show.venues?.city || ''}`}
                     loading="lazy"
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"

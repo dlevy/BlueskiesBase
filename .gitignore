@@ -52,6 +52,9 @@ coverage/
 temp/
 tmp/
 
+# Local backups made by scripts/optimize_existing_images.js before overwriting originals
+.image-optimize-backups/
+
 # Test/Debug scripts
 test_*.js
 audit_*.js

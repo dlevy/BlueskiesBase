@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const { supabase, supabaseAdmin } = require('../config/supabase');
+const { optimizeFullImage, generateThumbnail } = require('../utils/imageProcessing');
 
 // Configure multer for memory storage
 const upload = multer({
@@ -59,6 +60,7 @@ router.get('/', async (req, res) => {
             .select(`
                 id,
                 photo_url,
+                thumbnail_url,
                 caption,
                 display_order,
                 created_at,
@@ -143,15 +145,21 @@ router.post('/upload', authenticate, upload.single('photo'), async (req, res) =>
             return res.status(400).json({ error: 'No photo file provided' });
         }
 
-        // Generate unique filename
-        const fileExt = file.originalname.split('.').pop();
-        const fileName = `${userId}/${show_id}/${Date.now()}.${fileExt}`;
+        // Re-encode for storage (strips metadata, caps dimensions, re-compresses
+        // without visible quality loss) and derive a small gallery-grid thumbnail
+        // from the original bytes.
+        const optimized = await optimizeFullImage(file.buffer, file.mimetype);
+        const thumbnail = await generateThumbnail(file.buffer);
 
-        // Upload to Supabase Storage
-        const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
+        const base = `${userId}/${show_id}/${Date.now()}`;
+        const fileName = `${base}.${optimized.ext}`;
+        const thumbFileName = `${base}_thumb.${thumbnail.ext}`;
+
+        // Upload full image + thumbnail to Supabase Storage
+        const { error: uploadError } = await supabaseAdmin.storage
             .from('show-photos')
-            .upload(fileName, file.buffer, {
-                contentType: file.mimetype,
+            .upload(fileName, optimized.buffer, {
+                contentType: optimized.contentType,
                 upsert: false
             });
 
@@ -160,10 +168,25 @@ router.post('/upload', authenticate, upload.single('photo'), async (req, res) =>
             return res.status(500).json({ error: 'Failed to upload photo' });
         }
 
-        // Get public URL
+        const { error: thumbUploadError } = await supabaseAdmin.storage
+            .from('show-photos')
+            .upload(thumbFileName, thumbnail.buffer, {
+                contentType: thumbnail.contentType,
+                upsert: false
+            });
+        if (thumbUploadError) {
+            // Non-fatal — the full image is what matters; the gallery just falls
+            // back to it when thumbnail_url is null.
+            console.error('Error uploading photo thumbnail:', thumbUploadError);
+        }
+
+        // Get public URLs
         const { data: { publicUrl } } = supabaseAdmin.storage
             .from('show-photos')
             .getPublicUrl(fileName);
+        const thumbnailUrl = thumbUploadError ? null : supabaseAdmin.storage
+            .from('show-photos')
+            .getPublicUrl(thumbFileName).data.publicUrl;
 
         // Get the next display order
         const { data: existingPhotos } = await supabaseAdmin
@@ -184,6 +207,7 @@ router.post('/upload', authenticate, upload.single('photo'), async (req, res) =>
                 user_id: userId,
                 show_id,
                 photo_url: publicUrl,
+                thumbnail_url: thumbnailUrl,
                 caption: caption || null,
                 display_order: nextOrder
             })
@@ -199,8 +223,8 @@ router.post('/upload', authenticate, upload.single('photo'), async (req, res) =>
 
         if (dbError) {
             console.error('Error saving photo record:', dbError);
-            // Try to delete the uploaded file
-            await supabaseAdmin.storage.from('show-photos').remove([fileName]);
+            // Try to delete the uploaded files
+            await supabaseAdmin.storage.from('show-photos').remove([fileName, thumbFileName]);
             return res.status(500).json({ error: 'Failed to save photo record' });
         }
 
@@ -296,7 +320,7 @@ router.delete('/:photoId', authenticate, async (req, res) => {
         // Get the photo to check ownership and get URL
         const { data: photo, error: fetchError } = await supabaseAdmin
             .from('user_photos')
-            .select('user_id, photo_url')
+            .select('user_id, photo_url, thumbnail_url')
             .eq('id', photoId)
             .single();
 
@@ -309,9 +333,10 @@ router.delete('/:photoId', authenticate, async (req, res) => {
             return res.status(403).json({ error: 'Not authorized to delete this photo' });
         }
 
-        // Extract file path from URL
+        // Extract file path(s) from URL(s)
         const urlParts = photo.photo_url.split('/show-photos/');
         const filePath = urlParts.length > 1 ? urlParts[1] : null;
+        const thumbFilePath = photo.thumbnail_url?.split('/show-photos/')[1];
 
         // Delete from database
         const { error: deleteError } = await supabaseAdmin
@@ -325,10 +350,11 @@ router.delete('/:photoId', authenticate, async (req, res) => {
         }
 
         // Delete from storage
-        if (filePath) {
+        const toRemove = [filePath, thumbFilePath].filter(Boolean);
+        if (toRemove.length > 0) {
             const { error: storageError } = await supabaseAdmin.storage
                 .from('show-photos')
-                .remove([filePath]);
+                .remove(toRemove);
 
             if (storageError) {
                 console.error('Error deleting photo from storage:', storageError);

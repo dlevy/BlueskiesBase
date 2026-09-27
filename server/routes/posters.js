@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const { supabase, supabaseAdmin } = require('../config/supabase');
+const { optimizeFullImage, generateThumbnail } = require('../utils/imageProcessing');
 
 // Configure multer for memory storage
 const upload = multer({
@@ -58,6 +59,7 @@ router.get('/', async (req, res) => {
             .select(`
                 id,
                 poster_url,
+                thumbnail_url,
                 caption,
                 is_foil,
                 created_at,
@@ -156,7 +158,7 @@ router.post('/upload', authenticate, upload.single('poster'), async (req, res) =
         // the regular and foil editions are replaced independently.
         const { data: existingPoster } = await supabaseAdmin
             .from('user_posters')
-            .select('id, poster_url, user_id')
+            .select('id, poster_url, thumbnail_url, user_id')
             .eq('show_id', show_id)
             .eq('is_foil', isFoil)
             .single();
@@ -174,15 +176,21 @@ router.post('/upload', authenticate, upload.single('poster'), async (req, res) =
             }
         }
 
-        // Generate unique filename
-        const fileExt = file.originalname.split('.').pop();
-        const fileName = `${userId}/${show_id}/${Date.now()}.${fileExt}`;
+        // Re-encode for storage (strips metadata, caps dimensions, re-compresses
+        // without visible quality loss) and derive a small gallery-grid thumbnail
+        // from the original bytes.
+        const optimized = await optimizeFullImage(file.buffer, file.mimetype);
+        const thumbnail = await generateThumbnail(file.buffer);
 
-        // Upload to Supabase Storage
-        const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
+        const base = `${userId}/${show_id}/${Date.now()}`;
+        const fileName = `${base}.${optimized.ext}`;
+        const thumbFileName = `${base}_thumb.${thumbnail.ext}`;
+
+        // Upload full image + thumbnail to Supabase Storage
+        const { error: uploadError } = await supabaseAdmin.storage
             .from('show-posters')
-            .upload(fileName, file.buffer, {
-                contentType: file.mimetype,
+            .upload(fileName, optimized.buffer, {
+                contentType: optimized.contentType,
                 upsert: false
             });
 
@@ -191,17 +199,34 @@ router.post('/upload', authenticate, upload.single('poster'), async (req, res) =
             return res.status(500).json({ error: 'Failed to upload poster' });
         }
 
-        // Get public URL
+        const { error: thumbUploadError } = await supabaseAdmin.storage
+            .from('show-posters')
+            .upload(thumbFileName, thumbnail.buffer, {
+                contentType: thumbnail.contentType,
+                upsert: false
+            });
+        if (thumbUploadError) {
+            // Non-fatal — the full image is what matters; the gallery just falls
+            // back to it when thumbnail_url is null.
+            console.error('Error uploading poster thumbnail:', thumbUploadError);
+        }
+
+        // Get public URLs
         const { data: { publicUrl } } = supabaseAdmin.storage
             .from('show-posters')
             .getPublicUrl(fileName);
+        const thumbnailUrl = thumbUploadError ? null : supabaseAdmin.storage
+            .from('show-posters')
+            .getPublicUrl(thumbFileName).data.publicUrl;
 
-        // If poster exists, delete old file and update record
+        // If poster exists, delete old file(s) and update record
         if (existingPoster) {
-            // Extract old file path from URL
+            // Extract old file paths from their URLs
             const oldFileName = existingPoster.poster_url.split('/show-posters/')[1];
-            if (oldFileName) {
-                await supabaseAdmin.storage.from('show-posters').remove([oldFileName]);
+            const oldThumbFileName = existingPoster.thumbnail_url?.split('/show-posters/')[1];
+            const toRemove = [oldFileName, oldThumbFileName].filter(Boolean);
+            if (toRemove.length > 0) {
+                await supabaseAdmin.storage.from('show-posters').remove(toRemove);
             }
 
             // Update existing poster record
@@ -210,6 +235,7 @@ router.post('/upload', authenticate, upload.single('poster'), async (req, res) =
                 .update({
                     user_id: userId,
                     poster_url: publicUrl,
+                    thumbnail_url: thumbnailUrl,
                     caption: caption || null,
                     updated_at: new Date().toISOString()
                 })
@@ -226,7 +252,7 @@ router.post('/upload', authenticate, upload.single('poster'), async (req, res) =
 
             if (dbError) {
                 console.error('Error updating poster record:', dbError);
-                await supabaseAdmin.storage.from('show-posters').remove([fileName]);
+                await supabaseAdmin.storage.from('show-posters').remove([fileName, thumbFileName]);
                 return res.status(500).json({ error: 'Failed to update poster record' });
             }
 
@@ -240,6 +266,7 @@ router.post('/upload', authenticate, upload.single('poster'), async (req, res) =
                 user_id: userId,
                 show_id,
                 poster_url: publicUrl,
+                thumbnail_url: thumbnailUrl,
                 caption: caption || null,
                 is_foil: isFoil
             })
@@ -255,8 +282,8 @@ router.post('/upload', authenticate, upload.single('poster'), async (req, res) =
 
         if (dbError) {
             console.error('Error saving poster record:', dbError);
-            // Try to delete the uploaded file
-            await supabaseAdmin.storage.from('show-posters').remove([fileName]);
+            // Try to delete the uploaded files
+            await supabaseAdmin.storage.from('show-posters').remove([fileName, thumbFileName]);
             return res.status(500).json({ error: 'Failed to save poster record' });
         }
 
@@ -580,7 +607,7 @@ router.delete('/:posterId', authenticate, async (req, res) => {
         // Get the poster to check ownership and get file path
         const { data: poster } = await supabaseAdmin
             .from('user_posters')
-            .select('user_id, poster_url')
+            .select('user_id, poster_url, thumbnail_url')
             .eq('id', posterId)
             .single();
 
@@ -604,12 +631,14 @@ router.delete('/:posterId', authenticate, async (req, res) => {
             return res.status(500).json({ error: 'Failed to delete poster' });
         }
 
-        // Delete file from storage
+        // Delete file(s) from storage
         const fileName = poster.poster_url.split('/show-posters/')[1];
-        if (fileName) {
+        const thumbFileName = poster.thumbnail_url?.split('/show-posters/')[1];
+        const toRemove = [fileName, thumbFileName].filter(Boolean);
+        if (toRemove.length > 0) {
             const { error: storageError } = await supabaseAdmin.storage
                 .from('show-posters')
-                .remove([fileName]);
+                .remove(toRemove);
 
             if (storageError) {
                 console.error('Error deleting poster file:', storageError);

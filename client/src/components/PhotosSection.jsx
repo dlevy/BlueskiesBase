@@ -181,7 +181,7 @@ export default function PhotosSection({ showId }) {
                             </PText>
                             <div className="flex gap-2 overflow-x-auto pb-1">
                                 {photos.map((photo, index) => (
-                                    <img key={photo.id} src={photo.photo_url} alt={`Thumbnail ${index + 1}`}
+                                    <img key={photo.id} src={photo.thumbnail_url || photo.photo_url} alt={`Thumbnail ${index + 1}`}
                                         onClick={() => setCurrentPhotoIndex(index)}
                                         className={`w-20 h-20 object-cover rounded-lg cursor-pointer transition-all shrink-0 ${
                                             index === currentPhotoIndex ? 'ring-2 ring-[var(--p-color-primary)]' : 'opacity-60 hover:opacity-100'
