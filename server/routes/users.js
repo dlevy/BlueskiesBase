@@ -469,6 +469,43 @@ router.get('/stats', async (req, res) => {
 });
 
 /**
+ * GET /api/users/directory
+ * Every registered member, for the public /members directory. Public — no
+ * authentication required. Explicitly whitelisted fields only (never email,
+ * which lives only in Supabase auth.users, never in profiles) — same shape
+ * discipline as GET /shows/:id/attendees.
+ */
+router.get('/directory', async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('id, username, display_name, location, avatar_url, role')
+            .order('username', { ascending: true });
+
+        if (error) {
+            console.error('[GET /users/directory] Error:', error);
+            return res.status(500).json({ error: 'Failed to fetch directory' });
+        }
+
+        const members = (data || [])
+            .filter(p => p.username)
+            .map(p => ({
+                id: p.id,
+                username: p.username,
+                displayName: p.display_name || null,
+                location: p.location || null,
+                avatarUrl: p.avatar_url || null,
+                role: p.role || 'member',
+            }));
+
+        res.json({ members });
+    } catch (err) {
+        console.error('[GET /users/directory] Error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
  * GET /api/users/profile/:username
  * Public profile — no auth required. Always includes aggregate stats; opt-in
  * identity fields (displayName/location/avatarUrl/facebookUrl/redditUrl/bio) are

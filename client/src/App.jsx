@@ -9,6 +9,8 @@ import ShowDetailPage from './pages/ShowDetailPage'
 import StatsPage from './pages/StatsPage'
 import PostersPage from './pages/PostersPage'
 import PhotosPage from './pages/PhotosPage'
+import LinksPage from './pages/LinksPage'
+import MembersPage from './pages/MembersPage'
 import TourStatsPage from './pages/TourStatsPage'
 import ProfilePage from './pages/ProfilePage'
 import EditProfilePage from './pages/EditProfilePage'
@@ -18,12 +20,14 @@ import SignupPage from './pages/SignupPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import AuthDebugPage from './pages/AuthDebugPage'
 import InstagramFollowBanner from './components/InstagramFollowBanner'
+import Avatar from './components/Avatar'
 import AdminLayout from './pages/admin/AdminLayout'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import ShowsList from './pages/admin/ShowsList'
 import ShowForm from './pages/admin/ShowForm'
 import SongsList from './pages/admin/SongsList'
 import AlbumsList from './pages/admin/AlbumsList'
+import LinksList from './pages/admin/LinksList'
 import ToursList from './pages/admin/ToursList'
 import TourEditPage from './pages/admin/TourEditPage'
 import AdminUsers from './pages/admin/AdminUsers'
@@ -42,6 +46,8 @@ function App() {
             <Route path="stats" element={<StatsPage />} />
             <Route path="posters" element={<PostersPage />} />
             <Route path="photos" element={<PhotosPage />} />
+            <Route path="links" element={<LinksPage />} />
+            <Route path="members" element={<MembersPage />} />
             <Route path="tour-stats" element={<TourStatsPage />} />
             {/* Static "edit" segment ranks above the dynamic :username in React
                 Router's matcher regardless of declaration order, so a user whose
@@ -76,6 +82,7 @@ function App() {
             <Route path="shows/:id/instagram" element={<InstagramPostPage />} />
             <Route path="songs" element={<SongsList />} />
             <Route path="albums" element={<AlbumsList />} />
+            <Route path="links" element={<LinksList />} />
             <Route path="tours" element={<ToursList />} />
             <Route path="tours/:tourName" element={<TourEditPage />} />
             <Route path="users" element={<AdminUsers />} />
@@ -87,7 +94,7 @@ function App() {
 }
 
 function PublicLayout() {
-  const { user, isEditorOrAdmin, signOut, getToken } = useAuth();
+  const { user, profile, isEditorOrAdmin, signOut, getToken } = useAuth();
   const navigate = useNavigate();
   const [isSigningOut, setIsSigningOut] = useState(false);
 
@@ -144,10 +151,17 @@ function PublicLayout() {
               <>
                 <Link
                   to="/profile/edit"
-                  className="hidden md:block text-sm truncate max-w-[180px] hover:opacity-80 transition-opacity"
-                  style={{ color: 'var(--p-color-contrast-medium)' }}
+                  title="Edit Profile"
+                  aria-label="Edit Profile"
+                  className="flex items-center gap-2 hover:opacity-80 transition-opacity"
                 >
-                  {user.email}
+                  <Avatar url={profile?.avatar_url} name={profile?.display_name || profile?.username || user.email} size="sm" />
+                  <span
+                    className="hidden md:block text-sm truncate max-w-[140px]"
+                    style={{ color: 'var(--p-color-contrast-medium)' }}
+                  >
+                    {profile?.display_name || profile?.username || user.email}
+                  </span>
                 </Link>
                 <button
                   onClick={handleSignOut}

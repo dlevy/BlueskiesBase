@@ -43,6 +43,7 @@ app.use('/api/photos', require('./server/routes/photos'));
 app.use('/api/posters', require('./server/routes/posters'));
 app.use('/api/bands',  require('./server/routes/bands'));
 app.use('/api/setlist-submissions', require('./server/routes/setlist-submissions'));
+app.use('/api/links', require('./server/routes/links'));
 
 // Error handling middleware
 app.use((err, req, res, next) => {

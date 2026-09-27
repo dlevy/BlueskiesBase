@@ -56,6 +56,7 @@ export default function AdminLayout() {
                             { to: '/admin/shows', label: 'Shows' },
                             { to: '/admin/songs', label: 'Songs' },
                             { to: '/admin/albums', label: 'Albums' },
+                            { to: '/admin/links', label: 'Links' },
                             { to: '/admin/tours', label: 'Tours' },
                             { to: '/admin/venues', label: 'Venues' },
                             // Full admins only — user management (including deleting

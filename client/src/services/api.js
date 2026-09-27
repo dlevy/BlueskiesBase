@@ -366,6 +366,148 @@ export const reorderAlbumSongs = async (albumId, songs) => {
     return response.json();
 };
 
+// ============================================
+// LINKS API
+// ============================================
+
+/**
+ * Get all links (each with its category embedded)
+ */
+export const getLinks = async () => {
+    const response = await fetch(`${API_BASE_URL}/api/links`);
+    if (!response.ok) {
+        throw new Error('Failed to fetch links');
+    }
+    return response.json();
+};
+
+/**
+ * Create a new link
+ */
+export const createLink = async (linkData) => {
+    const token = await getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/api/links`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            ...(token && { 'Authorization': `Bearer ${token}` })
+        },
+        body: JSON.stringify(linkData)
+    });
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to create link');
+    }
+    return response.json();
+};
+
+/**
+ * Update an existing link
+ */
+export const updateLink = async (id, linkData) => {
+    const token = await getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/api/links/${id}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            ...(token && { 'Authorization': `Bearer ${token}` })
+        },
+        body: JSON.stringify(linkData)
+    });
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to update link');
+    }
+    return response.json();
+};
+
+/**
+ * Delete a link
+ */
+export const deleteLink = async (id) => {
+    const token = await getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/api/links/${id}`, {
+        method: 'DELETE',
+        headers: {
+            ...(token && { 'Authorization': `Bearer ${token}` })
+        }
+    });
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to delete link');
+    }
+    return response.json();
+};
+
+/**
+ * Get all link categories, in display order
+ */
+export const getLinkCategories = async () => {
+    const response = await fetch(`${API_BASE_URL}/api/links/categories`);
+    if (!response.ok) {
+        throw new Error('Failed to fetch link categories');
+    }
+    return response.json();
+};
+
+/**
+ * Create a new link category
+ */
+export const createLinkCategory = async (name) => {
+    const token = await getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/api/links/categories`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            ...(token && { 'Authorization': `Bearer ${token}` })
+        },
+        body: JSON.stringify({ name })
+    });
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to create category');
+    }
+    return response.json();
+};
+
+/**
+ * Update a link category's name and/or sort_order
+ */
+export const updateLinkCategory = async (id, data) => {
+    const token = await getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/api/links/categories/${id}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            ...(token && { 'Authorization': `Bearer ${token}` })
+        },
+        body: JSON.stringify(data)
+    });
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to update category');
+    }
+    return response.json();
+};
+
+/**
+ * Delete a link category
+ */
+export const deleteLinkCategory = async (id) => {
+    const token = await getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/api/links/categories/${id}`, {
+        method: 'DELETE',
+        headers: {
+            ...(token && { 'Authorization': `Bearer ${token}` })
+        }
+    });
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to delete category');
+    }
+    return response.json();
+};
+
 /**
  * Get all venues
  */
@@ -838,6 +980,17 @@ export const getUserStats = async () => {
         console.error('[API] getUserStats: Error:', error);
         throw error;
     }
+};
+
+/**
+ * Every registered member, for the public member directory.
+ */
+export const getMemberDirectory = async () => {
+    const response = await fetch(`${API_BASE_URL}/api/users/directory`);
+    if (!response.ok) {
+        throw new Error('Failed to fetch member directory');
+    }
+    return response.json();
 };
 
 /**
