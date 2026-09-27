@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { PSpinner, PText } from '@porsche-design-system/components-react';
+import { PSpinner, PText, PButtonPure } from '@porsche-design-system/components-react';
 import { getMemberDirectory } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 import MainNavTabs from '../components/MainNavTabs';
 import SEO from '../components/SEO';
 import Avatar from '../components/Avatar';
@@ -39,13 +40,17 @@ function MemberCard({ member }) {
 }
 
 export default function MembersPage() {
+    const { user } = useAuth();
     const [members, setMembers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [query, setQuery] = useState('');
 
     useEffect(() => {
+        if (!user) { setLoading(false); return; }
+
         let cancelled = false;
+        setLoading(true);
 
         getMemberDirectory()
             .then(data => {
@@ -61,7 +66,7 @@ export default function MembersPage() {
             });
 
         return () => { cancelled = true; };
-    }, []);
+    }, [user]);
 
     const q = query.trim().toLowerCase();
     const filteredMembers = q
@@ -86,42 +91,57 @@ export default function MembersPage() {
                 </p>
             </div>
 
-            {!loading && !error && members.length > 0 && (
-                <input
-                    type="text"
-                    value={query}
-                    onChange={e => setQuery(e.target.value)}
-                    placeholder="Search by name or location…"
-                    className="w-full max-w-md mb-6 rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-transparent placeholder:text-gray-500"
-                />
-            )}
-
-            {loading && (
-                <div className="flex justify-center py-16">
-                    <PSpinner size="medium" aria={{ 'aria-label': 'Loading members' }} />
+            {!user ? (
+                <div className="py-16 text-center space-y-3">
+                    <PText color="contrast-medium">
+                        Log in to browse the member directory.
+                    </PText>
+                    <div>
+                        <Link to="/member-login">
+                            <PButtonPure>Log In</PButtonPure>
+                        </Link>
+                    </div>
                 </div>
-            )}
+            ) : (
+                <>
+                    {!loading && !error && members.length > 0 && (
+                        <input
+                            type="text"
+                            value={query}
+                            onChange={e => setQuery(e.target.value)}
+                            placeholder="Search by name or location…"
+                            className="w-full max-w-md mb-6 rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-transparent placeholder:text-gray-500"
+                        />
+                    )}
 
-            {!loading && error && (
-                <PText color="notification-error" align="center" className="py-16">{error}</PText>
-            )}
+                    {loading && (
+                        <div className="flex justify-center py-16">
+                            <PSpinner size="medium" aria={{ 'aria-label': 'Loading members' }} />
+                        </div>
+                    )}
 
-            {!loading && !error && members.length === 0 && (
-                <PText color="contrast-medium" align="center" className="py-16">
-                    No members yet.
-                </PText>
-            )}
+                    {!loading && error && (
+                        <PText color="notification-error" align="center" className="py-16">{error}</PText>
+                    )}
 
-            {!loading && !error && members.length > 0 && filteredMembers.length === 0 && (
-                <PText color="contrast-medium" align="center" className="py-16">
-                    No members match "{query}".
-                </PText>
-            )}
+                    {!loading && !error && members.length === 0 && (
+                        <PText color="contrast-medium" align="center" className="py-16">
+                            No members yet.
+                        </PText>
+                    )}
 
-            {!loading && !error && filteredMembers.length > 0 && (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {filteredMembers.map(member => <MemberCard key={member.id} member={member} />)}
-                </div>
+                    {!loading && !error && members.length > 0 && filteredMembers.length === 0 && (
+                        <PText color="contrast-medium" align="center" className="py-16">
+                            No members match "{query}".
+                        </PText>
+                    )}
+
+                    {!loading && !error && filteredMembers.length > 0 && (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                            {filteredMembers.map(member => <MemberCard key={member.id} member={member} />)}
+                        </div>
+                    )}
+                </>
             )}
         </div>
     );

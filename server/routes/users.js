@@ -470,13 +470,26 @@ router.get('/stats', async (req, res) => {
 
 /**
  * GET /api/users/directory
- * Every registered member, for the public /members directory. Public — no
- * authentication required. Explicitly whitelisted fields only (never email,
- * which lives only in Supabase auth.users, never in profiles) — same shape
+ * Every registered member, for the /members directory. Requires
+ * authentication — any signed-in member can browse, but it's not public to
+ * anonymous visitors. Explicitly whitelisted fields only (never email, which
+ * lives only in Supabase auth.users, never in profiles) — same shape
  * discipline as GET /shows/:id/attendees.
  */
 router.get('/directory', async (req, res) => {
     try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) {
+            return res.status(401).json({ error: 'No authorization header' });
+        }
+
+        const token = authHeader.replace('Bearer ', '');
+        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+
+        if (authError || !user) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
         const { data, error } = await supabase
             .from('profiles')
             .select('id, username, display_name, location, avatar_url, role')

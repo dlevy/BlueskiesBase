@@ -983,10 +983,20 @@ export const getUserStats = async () => {
 };
 
 /**
- * Every registered member, for the public member directory.
+ * Every registered member, for the member directory. Requires the viewer to
+ * be signed in — not visible to anonymous visitors.
  */
 export const getMemberDirectory = async () => {
-    const response = await fetch(`${API_BASE_URL}/api/users/directory`);
+    const token = await getAuthToken();
+    if (!token) {
+        throw new Error('Not authenticated');
+    }
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/users/directory`, {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+        },
+    });
     if (!response.ok) {
         throw new Error('Failed to fetch member directory');
     }
