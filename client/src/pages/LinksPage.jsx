@@ -9,21 +9,21 @@ import Avatar from '../components/Avatar';
 function LinkCard({ link }) {
     const member = link.member;
     return (
-        <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 hover:border-amber-500/30 hover:bg-white/[0.05] transition-all">
+        <div className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 hover:border-amber-500/30 hover:bg-white/[0.05] transition-all">
             {/* Its own <a>, not nested inside the member <Link> below */}
-            <a href={link.url} target="_blank" rel="noopener noreferrer" className="block">
-                <div className="flex items-start justify-between gap-3">
-                    <PText weight="semi-bold">{link.title}</PText>
-                    <span className="text-amber-400 shrink-0">→</span>
+            <a href={link.url} target="_blank" rel="noopener noreferrer" className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                    <PText size="small" weight="semi-bold" ellipsis>{link.title}</PText>
+                    {link.description && (
+                        <PText size="x-small" color="contrast-medium" className="block mt-0.5">{link.description}</PText>
+                    )}
                 </div>
-                {link.description && (
-                    <PText size="small" color="contrast-medium" className="mt-1 block">{link.description}</PText>
-                )}
+                <span className="text-amber-400 shrink-0 text-sm">→</span>
             </a>
             {member && (
                 <Link
                     to={`/profile/${member.username}`}
-                    className="flex items-center gap-1.5 mt-2 pt-2 border-t border-white/5 hover:opacity-80 transition-opacity"
+                    className="flex items-center gap-1.5 mt-1 hover:opacity-80 transition-opacity"
                 >
                     <Avatar url={member.avatar_url} name={member.display_name || member.username} size="sm" />
                     <PText size="xs" color="contrast-medium">
@@ -113,20 +113,23 @@ export default function LinksPage() {
             )}
 
             {!loading && !error && (
-                <div className="space-y-8">
+                // CSS multi-column layout, not a grid — each category block gets
+                // break-inside-avoid-column so it never splits across columns;
+                // shorter categories simply pack in wherever they fit.
+                <div className="columns-1 md:columns-2 gap-6">
                     {sections.map(({ category, links: categoryLinks }) => (
-                        <div key={category.id}>
-                            <PHeading size="lg" tag="h2" className="mb-3">{category.name}</PHeading>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div key={category.id} className="break-inside-avoid-column mb-6">
+                            <PHeading size="lg" tag="h2" className="mb-2">{category.name}</PHeading>
+                            <div className="space-y-2">
                                 {categoryLinks.map(link => <LinkCard key={link.id} link={link} />)}
                             </div>
                         </div>
                     ))}
 
                     {otherLinks.length > 0 && (
-                        <div>
-                            <PHeading size="lg" tag="h2" className="mb-3">Other</PHeading>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="break-inside-avoid-column mb-6">
+                            <PHeading size="lg" tag="h2" className="mb-2">Other</PHeading>
+                            <div className="space-y-2">
                                 {otherLinks.map(link => <LinkCard key={link.id} link={link} />)}
                             </div>
                         </div>
