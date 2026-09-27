@@ -285,6 +285,28 @@ export default function SearchPage() {
         }
     };
 
+    // Hydrate filters from the URL once on mount — e.g. an admin "view shows"
+    // link like /?song=Kansas%20City encodes a filter, but this page's own UI
+    // never touches the URL, so without this the link lands on an unfiltered
+    // page instead of actually applying the song filter it carries.
+    useEffect(() => {
+        const song = urlParams.get('song') || '';
+        const year = urlParams.get('year') || '';
+        const month = urlParams.get('month') || '';
+        const source = urlParams.get('source') || '';
+        const hasNotes = urlParams.get('hasNotes') === 'true';
+        const hasPhotos = urlParams.get('hasPhotos') === 'true';
+        const hasPoster = urlParams.get('hasPoster') === 'true';
+
+        if (!song && !year && !month && !source && !hasNotes && !hasPhotos && !hasPoster) return;
+
+        const initParams = { year, month, song, source, hasNotes, hasPhotos, hasPoster };
+        setSearchParams(initParams);
+        performSearch(initParams);
+        // Intentionally only ever hydrates from the URL once, on first load.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     const handleInputChange = (e) => {
         const { name, value, type, checked } = e.target;
         const newParams = { ...searchParams, [name]: type === 'checkbox' ? checked : value };
