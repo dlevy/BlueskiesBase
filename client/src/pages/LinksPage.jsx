@@ -1,25 +1,37 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { PSpinner, PText, PHeading } from '@porsche-design-system/components-react';
 import { getLinks, getLinkCategories } from '../services/api';
 import MainNavTabs from '../components/MainNavTabs';
 import SEO from '../components/SEO';
+import Avatar from '../components/Avatar';
 
 function LinkCard({ link }) {
+    const member = link.member;
     return (
-        <a
-            href={link.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block rounded-xl border border-white/10 bg-white/[0.03] p-4 hover:border-amber-500/30 hover:bg-white/[0.05] transition-all"
-        >
-            <div className="flex items-start justify-between gap-3">
-                <PText weight="semi-bold">{link.title}</PText>
-                <span className="text-amber-400 shrink-0">→</span>
-            </div>
-            {link.description && (
-                <PText size="small" color="contrast-medium" className="mt-1 block">{link.description}</PText>
+        <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 hover:border-amber-500/30 hover:bg-white/[0.05] transition-all">
+            {/* Its own <a>, not nested inside the member <Link> below */}
+            <a href={link.url} target="_blank" rel="noopener noreferrer" className="block">
+                <div className="flex items-start justify-between gap-3">
+                    <PText weight="semi-bold">{link.title}</PText>
+                    <span className="text-amber-400 shrink-0">→</span>
+                </div>
+                {link.description && (
+                    <PText size="small" color="contrast-medium" className="mt-1 block">{link.description}</PText>
+                )}
+            </a>
+            {member && (
+                <Link
+                    to={`/profile/${member.username}`}
+                    className="flex items-center gap-1.5 mt-2 pt-2 border-t border-white/5 hover:opacity-80 transition-opacity"
+                >
+                    <Avatar url={member.avatar_url} name={member.display_name || member.username} size="sm" />
+                    <PText size="xs" color="contrast-medium">
+                        by {member.display_name || member.username}
+                    </PText>
+                </Link>
             )}
-        </a>
+        </div>
     );
 }
 

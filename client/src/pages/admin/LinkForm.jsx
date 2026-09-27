@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { PHeading, PText, PButton, PButtonPure, PInlineNotification } from '@porsche-design-system/components-react';
-import { createLink, updateLink, deleteLink } from '../../services/api';
+import { createLink, updateLink, deleteLink, getMemberDirectory } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 
 const inputClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--p-color-info)] focus:border-transparent placeholder:text-gray-500";
@@ -14,10 +14,20 @@ export default function LinkForm({ link, categories, onClose }) {
         url: '',
         description: '',
         category_id: '',
+        member_id: '',
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+    const [members, setMembers] = useState([]);
+    const [memberSearch, setMemberSearch] = useState('');
+
+    useEffect(() => {
+        getMemberDirectory()
+            .then(data => setMembers(data.members || []))
+            .catch(err => console.error('Error loading members:', err));
+    }, []);
 
     useEffect(() => {
         if (link) {
@@ -26,9 +36,16 @@ export default function LinkForm({ link, categories, onClose }) {
                 url: link.url || '',
                 description: link.description || '',
                 category_id: link.category_id || '',
+                member_id: link.member_id || '',
             });
         }
     }, [link]);
+
+    const selectedMember = members.find(m => m.id === formData.member_id);
+    const memberSearchLower = memberSearch.trim().toLowerCase();
+    const filteredMembers = memberSearchLower
+        ? members.filter(m => [m.username, m.displayName].some(f => f?.toLowerCase().includes(memberSearchLower)))
+        : members;
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -40,7 +57,7 @@ export default function LinkForm({ link, categories, onClose }) {
         setLoading(true);
         setError(null);
         try {
-            const payload = { ...formData, category_id: formData.category_id || null };
+            const payload = { ...formData, category_id: formData.category_id || null, member_id: formData.member_id || null };
             if (link) {
                 await updateLink(link.id, payload);
             } else {
@@ -108,6 +125,48 @@ export default function LinkForm({ link, categories, onClose }) {
                             <option key={category.id} value={category.id}>{category.name}</option>
                         ))}
                     </select>
+                </div>
+
+                <div>
+                    <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>
+                        Associated Member
+                    </label>
+                    <PText size="x-small" color="contrast-medium" className="mb-1.5 block">
+                        Optional — if this link belongs to a SkySets.org member (e.g. a poster artist who's also a
+                        member), their profile link is shown alongside it on the public Links page.
+                    </PText>
+                    {selectedMember ? (
+                        <div className="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/5 py-2 px-3">
+                            <PText size="small">{selectedMember.displayName || selectedMember.username}</PText>
+                            <PButtonPure size="x-small" onClick={() => setFormData(prev => ({ ...prev, member_id: '' }))}>
+                                Clear
+                            </PButtonPure>
+                        </div>
+                    ) : (
+                        <div className="space-y-2">
+                            <input
+                                type="text"
+                                value={memberSearch}
+                                onChange={e => setMemberSearch(e.target.value)}
+                                placeholder="Search members by name or username…"
+                                className={inputClass}
+                            />
+                            <select
+                                value=""
+                                onChange={e => { setFormData(prev => ({ ...prev, member_id: e.target.value })); setMemberSearch(''); }}
+                                className={selectClass}
+                                style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}
+                            >
+                                <option value="" disabled>Select a member…</option>
+                                {filteredMembers.map(m => (
+                                    <option key={m.id} value={m.id}>{m.displayName || m.username}</option>
+                                ))}
+                            </select>
+                            {memberSearch && filteredMembers.length === 0 && (
+                                <PText size="x-small" color="contrast-medium">No matching members found.</PText>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 <div>

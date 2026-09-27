@@ -3,6 +3,10 @@ const router = express.Router();
 const { supabase } = require('../config/supabase');
 const { requireAdmin, requireEditorOrAdmin } = require('../middleware/requireRole');
 
+// Shared select — embeds both the category and the optional associated
+// member account (shown as "by @username" on the public page).
+const LINK_SELECT = '*, link_categories(id, name, sort_order), member:profiles!links_member_id_fkey(id, username, display_name, avatar_url)';
+
 // ============================================
 // LINK CATEGORIES
 // Declared before the generic /:id link routes below, same ordering posters.js
@@ -146,7 +150,7 @@ router.get('/', async (req, res) => {
     try {
         const { data, error } = await supabase
             .from('links')
-            .select('*, link_categories(id, name, sort_order)')
+            .select(LINK_SELECT)
             .order('sort_order', { ascending: true });
 
         if (error) {
@@ -167,7 +171,7 @@ router.get('/', async (req, res) => {
  */
 router.post('/', requireEditorOrAdmin, async (req, res) => {
     try {
-        const { category_id, title, url, description, sort_order } = req.body;
+        const { category_id, member_id, title, url, description, sort_order } = req.body;
 
         if (!title || !title.trim()) {
             return res.status(400).json({ error: 'Link title is required' });
@@ -180,12 +184,13 @@ router.post('/', requireEditorOrAdmin, async (req, res) => {
             .from('links')
             .insert([{
                 category_id: category_id || null,
+                member_id: member_id || null,
                 title: title.trim(),
                 url: url.trim(),
                 description: description || null,
                 sort_order: sort_order ?? 0,
             }])
-            .select('*, link_categories(id, name, sort_order)')
+            .select(LINK_SELECT)
             .single();
 
         if (error) {
@@ -207,10 +212,11 @@ router.post('/', requireEditorOrAdmin, async (req, res) => {
 router.put('/:id', requireEditorOrAdmin, async (req, res) => {
     try {
         const { id } = req.params;
-        const { category_id, title, url, description, sort_order } = req.body;
+        const { category_id, member_id, title, url, description, sort_order } = req.body;
 
         const updates = {};
         if (category_id !== undefined) updates.category_id = category_id || null;
+        if (member_id !== undefined) updates.member_id = member_id || null;
         if (title !== undefined) updates.title = title.trim();
         if (url !== undefined) updates.url = url.trim();
         if (description !== undefined) updates.description = description || null;
@@ -221,7 +227,7 @@ router.put('/:id', requireEditorOrAdmin, async (req, res) => {
             .from('links')
             .update(updates)
             .eq('id', id)
-            .select('*, link_categories(id, name, sort_order)')
+            .select(LINK_SELECT)
             .single();
 
         if (error) {

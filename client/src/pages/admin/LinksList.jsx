@@ -161,14 +161,19 @@ export default function LinksList() {
     const { isAdmin } = useAuth();
     const [links, setLinks] = useState([]);
     const [categories, setCategories] = useState([]);
-    const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [showForm, setShowForm] = useState(false);
     const [editingLink, setEditingLink] = useState(null);
 
+    // Only the very first load shows the full-page spinner. Refetches
+    // triggered by category add/rename/reorder/delete (via CategoriesPanel's
+    // onChanged) must NOT fall back to it — that would unmount CategoriesPanel
+    // and reset its "expanded" state, kicking the admin back out of the panel
+    // they were mid-reorder in.
+    const [initialLoading, setInitialLoading] = useState(true);
+
     const fetchData = async () => {
         try {
-            setLoading(true);
             const [linksData, categoriesData] = await Promise.all([getLinks(), getLinkCategories()]);
             setLinks(linksData.links || []);
             setCategories(categoriesData.categories || []);
@@ -177,7 +182,7 @@ export default function LinksList() {
             console.error('Error fetching links:', err);
             setError('Failed to load links');
         } finally {
-            setLoading(false);
+            setInitialLoading(false);
         }
     };
 
@@ -187,7 +192,7 @@ export default function LinksList() {
     const handleNew = () => { setEditingLink(null); setShowForm(true); };
     const handleFormClose = () => { setShowForm(false); setEditingLink(null); fetchData(); };
 
-    if (loading) return <div className="flex justify-center items-center py-12"><PSpinner size="medium" /></div>;
+    if (initialLoading) return <div className="flex justify-center items-center py-12"><PSpinner size="medium" /></div>;
     if (error) return <PInlineNotification heading="Error" description={error} state="error" dismissButton={false} />;
     if (showForm) return <LinkForm link={editingLink} categories={categories} onClose={handleFormClose} />;
 
@@ -210,9 +215,9 @@ export default function LinksList() {
                     <table className="w-full">
                         <thead className="border-b border-white/10" style={{ background: 'var(--p-color-canvas)' }}>
                             <tr>
-                                {['Title', 'Category', 'URL', 'Actions'].map((h, i) => (
+                                {['Title', 'Category', 'Member', 'URL', 'Actions'].map((h, i) => (
                                     <th key={h}
-                                        className={`px-4 py-3 text-xs font-medium uppercase tracking-wider ${i === 3 ? 'text-right' : 'text-left'}`}
+                                        className={`px-4 py-3 text-xs font-medium uppercase tracking-wider ${i === 4 ? 'text-right' : 'text-left'}`}
                                         style={{ color: 'var(--p-color-contrast-medium)' }}>
                                         {h}
                                     </th>
@@ -222,7 +227,7 @@ export default function LinksList() {
                         <tbody className="divide-y divide-white/5">
                             {links.length === 0 ? (
                                 <tr>
-                                    <td colSpan="4" className="px-4 py-8 text-center">
+                                    <td colSpan="5" className="px-4 py-8 text-center">
                                         <PText color="contrast-medium">No links found. Click "Add Link" to create one.</PText>
                                     </td>
                                 </tr>
@@ -237,6 +242,11 @@ export default function LinksList() {
                                         </td>
                                         <td className="px-4 py-3">
                                             <PText size="small" color="contrast-medium">{link.link_categories?.name || 'Other'}</PText>
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <PText size="small" color="contrast-medium">
+                                                {link.member ? (link.member.display_name || link.member.username) : '—'}
+                                            </PText>
                                         </td>
                                         <td className="px-4 py-3 max-w-xs">
                                             <PText size="small" color="contrast-medium" ellipsis>{link.url}</PText>
