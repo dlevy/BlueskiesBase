@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { PSpinner, PText, PButtonPure } from '@porsche-design-system/components-react';
+import { PSpinner, PText, PButtonPure, PHeading } from '@porsche-design-system/components-react';
 import { getMemberDirectory } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import MainNavTabs from '../components/MainNavTabs';
@@ -10,6 +10,9 @@ import Avatar from '../components/Avatar';
 // Same badge look as ProfilePage.jsx's role badges, kept minimal here since a
 // directory card only needs a compact indicator, not the full badge treatment.
 const ROLE_LABEL = { admin: 'Admin', editor: 'Curator' };
+const ROLE_RANK = { admin: 0, editor: 1 };
+
+const nameOf = (m) => (m.displayName || m.username || '').toLowerCase();
 
 function MemberCard({ member }) {
     const name = member.displayName || member.username;
@@ -68,10 +71,15 @@ export default function MembersPage() {
         return () => { cancelled = true; };
     }, [user]);
 
+    const team = members
+        .filter(m => m.role === 'admin' || m.role === 'editor')
+        .sort((a, b) => ROLE_RANK[a.role] - ROLE_RANK[b.role] || nameOf(a).localeCompare(nameOf(b)));
+    const regularMembers = members.filter(m => m.role !== 'admin' && m.role !== 'editor');
+
     const q = query.trim().toLowerCase();
     const filteredMembers = q
-        ? members.filter(m => [m.username, m.displayName, m.location].some(f => f?.toLowerCase().includes(q)))
-        : members;
+        ? regularMembers.filter(m => [m.username, m.displayName, m.location].some(f => f?.toLowerCase().includes(q)))
+        : regularMembers;
 
     return (
         <div className="px-4 py-4 md:py-6 max-w-6xl mx-auto">
@@ -104,16 +112,6 @@ export default function MembersPage() {
                 </div>
             ) : (
                 <>
-                    {!loading && !error && members.length > 0 && (
-                        <input
-                            type="text"
-                            value={query}
-                            onChange={e => setQuery(e.target.value)}
-                            placeholder="Search by name or location…"
-                            className="w-full max-w-md mb-6 rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-transparent placeholder:text-gray-500"
-                        />
-                    )}
-
                     {loading && (
                         <div className="flex justify-center py-16">
                             <PSpinner size="medium" aria={{ 'aria-label': 'Loading members' }} />
@@ -130,15 +128,36 @@ export default function MembersPage() {
                         </PText>
                     )}
 
-                    {!loading && !error && members.length > 0 && filteredMembers.length === 0 && (
-                        <PText color="contrast-medium" align="center" className="py-16">
-                            No members match "{query}".
-                        </PText>
+                    {!loading && !error && team.length > 0 && (
+                        <div className="mb-8">
+                            <PHeading size="lg" tag="h2" className="mb-4">SkySets.org Team</PHeading>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                                {team.map(member => <MemberCard key={member.id} member={member} />)}
+                            </div>
+                        </div>
                     )}
 
-                    {!loading && !error && filteredMembers.length > 0 && (
-                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                            {filteredMembers.map(member => <MemberCard key={member.id} member={member} />)}
+                    {!loading && !error && members.length > 0 && (
+                        <div>
+                            <PHeading size="lg" tag="h2" className="mb-4">Members</PHeading>
+
+                            <input
+                                type="text"
+                                value={query}
+                                onChange={e => setQuery(e.target.value)}
+                                placeholder="Search by name or location…"
+                                className="w-full max-w-md mb-6 rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-transparent placeholder:text-gray-500"
+                            />
+
+                            {filteredMembers.length === 0 ? (
+                                <PText color="contrast-medium" align="center" className="py-16 block">
+                                    {q ? `No members match "${query}".` : 'No members yet.'}
+                                </PText>
+                            ) : (
+                                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                                    {filteredMembers.map(member => <MemberCard key={member.id} member={member} />)}
+                                </div>
+                            )}
                         </div>
                     )}
                 </>
