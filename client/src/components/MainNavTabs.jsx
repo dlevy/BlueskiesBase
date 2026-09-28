@@ -22,22 +22,27 @@ export default function MainNavTabs() {
     const activeTab = ROUTE_TAB[location.pathname] || urlParams.get('tab') || 'search';
 
     return (
-        <div className="flex border-b border-white/[0.07] mb-6">
-            {TABS.map(({ id, label, to }) => {
-                const isActive = activeTab === id;
-                return (
-                    <Link
-                        key={id}
-                        to={to}
-                        className={`h-9 px-4 flex items-center text-sm font-medium transition-colors -mb-px border-b-2 ${
-                            isActive ? 'border-amber-400 text-amber-300' : 'border-transparent'
-                        }`}
-                        style={{ color: isActive ? undefined : 'var(--p-color-contrast-medium)' }}
-                    >
-                        {label}
-                    </Link>
-                );
-            })}
+        // Horizontally scrollable — same treatment as AdminLayout's nav — so
+        // seven tabs on a narrow phone screen scroll/slide sideways instead of
+        // wrapping to a second line and pushing the rest of the page down.
+        <div className="border-b border-white/[0.07] mb-6 overflow-x-auto">
+            <div className="flex flex-nowrap w-max min-w-full">
+                {TABS.map(({ id, label, to }) => {
+                    const isActive = activeTab === id;
+                    return (
+                        <Link
+                            key={id}
+                            to={to}
+                            className={`h-9 px-4 flex items-center text-sm font-medium transition-colors -mb-px border-b-2 shrink-0 ${
+                                isActive ? 'border-amber-400 text-amber-300' : 'border-transparent'
+                            }`}
+                            style={{ color: isActive ? undefined : 'var(--p-color-contrast-medium)' }}
+                        >
+                            {label}
+                        </Link>
+                    );
+                })}
+            </div>
         </div>
     );
 }
