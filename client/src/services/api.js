@@ -551,6 +551,44 @@ export const createVenue = async (venueData) => {
 };
 
 /**
+ * Update an existing venue
+ */
+export const updateVenue = async (id, venueData) => {
+    const token = await getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/api/venues/${id}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            ...(token && { Authorization: `Bearer ${token}` }),
+        },
+        body: JSON.stringify(venueData),
+    });
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to update venue');
+    }
+    return response.json();
+};
+
+/**
+ * Delete a venue
+ */
+export const deleteVenue = async (id) => {
+    const token = await getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/api/venues/${id}`, {
+        method: 'DELETE',
+        headers: {
+            ...(token && { Authorization: `Bearer ${token}` }),
+        },
+    });
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to delete venue');
+    }
+    return response.json();
+};
+
+/**
  * Search for songs
  */
 export const searchSongs = async (filters = {}) => {

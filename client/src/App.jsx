@@ -28,6 +28,7 @@ import ShowForm from './pages/admin/ShowForm'
 import SongsList from './pages/admin/SongsList'
 import AlbumsList from './pages/admin/AlbumsList'
 import LinksList from './pages/admin/LinksList'
+import VenuesList from './pages/admin/VenuesList'
 import ToursList from './pages/admin/ToursList'
 import TourEditPage from './pages/admin/TourEditPage'
 import AdminUsers from './pages/admin/AdminUsers'
@@ -83,6 +84,7 @@ function App() {
             <Route path="songs" element={<SongsList />} />
             <Route path="albums" element={<AlbumsList />} />
             <Route path="links" element={<LinksList />} />
+            <Route path="venues" element={<VenuesList />} />
             <Route path="tours" element={<ToursList />} />
             <Route path="tours/:tourName" element={<TourEditPage />} />
             <Route path="users" element={<AdminUsers />} />
