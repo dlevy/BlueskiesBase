@@ -152,7 +152,7 @@ function DebutBadge({ label, color, title }) {
 const LiveDebutBadge = () => <DebutBadge label="Live Debut" color="#34d399" title="First live performance of this song, ever" />;
 const TourDebutBadge = () => <DebutBadge label="Tour Debut" color="#22d3ee" title="First time this song has been played on this tour" />;
 
-function SongRow({ song, position, isChained, tourRarity, liveDebutSongIds, tourDebutSongIds }) {
+function SongRow({ song, position, tourRarity, liveDebutSongIds, tourDebutSongIds }) {
     const tourCount = tourRarity?.total_shows > 0 && song.song_id
         ? tourRarity.song_counts[song.song_id]
         : undefined;
@@ -161,14 +161,17 @@ function SongRow({ song, position, isChained, tourRarity, liveDebutSongIds, tour
     const isTourDebut = song.song_id != null && tourDebutSongIds?.has(song.song_id);
 
     return (
-        <li className={`flex gap-3 py-0.5 items-start ${isChained ? 'ml-10 pl-3 border-l-2 border-white/10' : ''}`}>
-            <span className={`shrink-0 font-mono text-sm leading-relaxed ${isChained ? 'w-4 text-white/25' : 'w-6 text-right font-bold text-amber-400'}`}>
-                {isChained ? '›' : position}
+        <li className="flex gap-3 py-0.5 items-start">
+            {/* position is null for a jam's return to a song already numbered
+                earlier in the same chain — left blank rather than renumbered,
+                but the slot stays the same width so the title still lines up
+                under every other title in the list. */}
+            <span className="shrink-0 w-6 text-right font-mono text-sm leading-relaxed font-bold text-amber-400">
+                {position ?? ''}
             </span>
             <div className="flex-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <span className={`text-sm leading-relaxed ${isChained ? '' : 'font-semibold'}`}
-                        style={{ color: isChained ? 'var(--p-color-contrast-medium)' : 'var(--p-color-primary)' }}>
+                    <span className="text-sm leading-relaxed font-semibold" style={{ color: 'var(--p-color-primary)' }}>
                         {song.title}
                     </span>
                     {song.performance_type === 'tease' && (
@@ -206,23 +209,53 @@ function SongRow({ song, position, isChained, tourRarity, liveDebutSongIds, tour
     );
 }
 
+// Assigns the visible track number to every song, with one exception: when a
+// jam returns to a song already numbered earlier in the same unbroken chain
+// (e.g. A Good Look -> Life During Wartime -> back into A Good Look), that
+// return doesn't get a new number — it's the same performance resuming, not
+// a new one. A song jammed into for the first time (Life During Wartime here)
+// still gets the next sequential number like any other song; only a repeat
+// within the same chain is left blank. Numbers never skip: the counter only
+// advances for rows that actually display one.
+function assignDisplayNumbers(songs) {
+    let counter = 0;
+    let chainSongIds = null; // song_ids seen so far in the current unbroken chain
+    return songs.map((song, index) => {
+        const prev = songs[index - 1];
+        const continuingChain = index > 0 && prev.jams_into != null;
+
+        if (!continuingChain) {
+            chainSongIds = null;
+        } else if (chainSongIds === null) {
+            chainSongIds = new Set([prev.song_id]);
+        }
+
+        const isReturnWithinChain = continuingChain && song.song_id != null && chainSongIds.has(song.song_id);
+
+        if (continuingChain && song.song_id != null && !isReturnWithinChain) {
+            chainSongIds.add(song.song_id);
+        }
+
+        if (!isReturnWithinChain) counter++;
+
+        return { song, position: isReturnWithinChain ? null : counter };
+    });
+}
+
 function SetList({ songs, tourRarity, liveDebutSongIds, tourDebutSongIds }) {
+    const rows = assignDisplayNumbers(songs);
     return (
         <ol className="space-y-1">
-            {songs.map((song, index) => {
-                const isChained = index > 0 && songs[index - 1].jams_into != null;
-                return (
-                    <SongRow
-                        key={song.id || index}
-                        song={song}
-                        position={index + 1}
-                        isChained={isChained}
-                        tourRarity={tourRarity}
-                        liveDebutSongIds={liveDebutSongIds}
-                        tourDebutSongIds={tourDebutSongIds}
-                    />
-                );
-            })}
+            {rows.map(({ song, position }, index) => (
+                <SongRow
+                    key={song.id || index}
+                    song={song}
+                    position={position}
+                    tourRarity={tourRarity}
+                    liveDebutSongIds={liveDebutSongIds}
+                    tourDebutSongIds={tourDebutSongIds}
+                />
+            ))}
         </ol>
     );
 }
