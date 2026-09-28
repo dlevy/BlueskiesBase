@@ -6,6 +6,7 @@ import {
 } from '@porsche-design-system/components-react';
 import { getShowBySlug, getTourRarity, getShowDebuts, getAdjacentShows, checkShowAttendance, markShowAttended, unmarkShowAttended } from '../services/api';
 import { buildShowPath } from '../utils/showSlug';
+import { assignSetlistDisplayNumbers } from '../utils/setlist';
 import { useAuth } from '../contexts/AuthContext';
 import NotesSection from '../components/NotesSection';
 import WhoWasThereSection from '../components/WhoWasThereSection';
@@ -209,41 +210,8 @@ function SongRow({ song, position, tourRarity, liveDebutSongIds, tourDebutSongId
     );
 }
 
-// Assigns the visible track number to every song, with one exception: when a
-// jam returns to a song already numbered earlier in the same unbroken chain
-// (e.g. A Good Look -> Life During Wartime -> back into A Good Look), that
-// return doesn't get a new number — it's the same performance resuming, not
-// a new one. A song jammed into for the first time (Life During Wartime here)
-// still gets the next sequential number like any other song; only a repeat
-// within the same chain is left blank. Numbers never skip: the counter only
-// advances for rows that actually display one.
-function assignDisplayNumbers(songs) {
-    let counter = 0;
-    let chainSongIds = null; // song_ids seen so far in the current unbroken chain
-    return songs.map((song, index) => {
-        const prev = songs[index - 1];
-        const continuingChain = index > 0 && prev.jams_into != null;
-
-        if (!continuingChain) {
-            chainSongIds = null;
-        } else if (chainSongIds === null) {
-            chainSongIds = new Set([prev.song_id]);
-        }
-
-        const isReturnWithinChain = continuingChain && song.song_id != null && chainSongIds.has(song.song_id);
-
-        if (continuingChain && song.song_id != null && !isReturnWithinChain) {
-            chainSongIds.add(song.song_id);
-        }
-
-        if (!isReturnWithinChain) counter++;
-
-        return { song, position: isReturnWithinChain ? null : counter };
-    });
-}
-
 function SetList({ songs, tourRarity, liveDebutSongIds, tourDebutSongIds }) {
-    const rows = assignDisplayNumbers(songs);
+    const rows = assignSetlistDisplayNumbers(songs);
     return (
         <ol className="space-y-1">
             {rows.map(({ song, position }, index) => (

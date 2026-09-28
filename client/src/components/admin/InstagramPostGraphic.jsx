@@ -1,5 +1,6 @@
 import { forwardRef } from 'react';
 import { POST_WIDTH, POST_HEIGHT, getStyleByKey } from '../../utils/instagramStyles';
+import { assignSetlistDisplayNumbers } from '../../utils/setlist';
 
 function formatLongDate(dateString) {
     const [y, m, d] = dateString.split('-');
@@ -85,8 +86,11 @@ function DebutTag({ label, color, songFontSize }) {
 // font size and padding are both proportional to songFontSize (see
 // DebutTag), so their width scales with it too; only the flex gaps between
 // elements are fixed pixel values that don't scale with font size.
-function measureRowWidth(song, index, fontSize, liveDebutSongIds, tourDebutSongIds) {
-    const numberWidth = measureTextWidth(`${index + 1}.`, fontSize, 400);
+// `position` is null for a jam's return to a song already numbered earlier
+// in the same chain (see assignSetlistDisplayNumbers) — no number is drawn
+// for that row, so it contributes no width here either.
+function measureRowWidth(song, position, fontSize, liveDebutSongIds, tourDebutSongIds) {
+    const numberWidth = position != null ? measureTextWidth(`${position}.`, fontSize, 400) : 0;
     const titleText = `${song.title}${song.jams_into ? ' →' : ''}`;
     const titleWidth = measureTextWidth(titleText, fontSize, 400);
     let width = numberWidth + ROW_GAP + titleWidth;
@@ -109,10 +113,10 @@ function measureRowWidth(song, index, fontSize, liveDebutSongIds, tourDebutSongI
 // off the top/bottom of long setlists, or individual titles to truncate —
 // the row/row-height budget would be exceeded the moment the "readable
 // minimum" size didn't actually fit.
-function pickSongLayout(songs, availableHeight, columnWidth, liveDebutSongIds, tourDebutSongIds) {
+function pickSongLayout(numberedSongs, availableHeight, columnWidth, liveDebutSongIds, tourDebutSongIds) {
     const usable = Math.max(availableHeight, 100);
     const columns = 2;
-    const rows = Math.max(1, Math.ceil(songs.length / columns));
+    const rows = Math.max(1, Math.ceil(numberedSongs.length / columns));
     const lineHeight = usable / rows;
     const heightFontSize = lineHeight / 1.45;
 
@@ -123,8 +127,8 @@ function pickSongLayout(songs, availableHeight, columnWidth, liveDebutSongIds, t
     // enough at pixel scale.
     let lo = 1;
     let hi = Math.min(heightFontSize, MAX_SONG_FONT);
-    const fits = (fontSize) => songs.every((song, i) =>
-        measureRowWidth(song, i, fontSize, liveDebutSongIds, tourDebutSongIds) <= columnWidth
+    const fits = (fontSize) => numberedSongs.every(({ song, position }) =>
+        measureRowWidth(song, position, fontSize, liveDebutSongIds, tourDebutSongIds) <= columnWidth
     );
     if (hi <= lo || fits(hi)) {
         return { columns, songFontSize: Math.max(hi, lo) };
@@ -144,13 +148,12 @@ function pickSongLayout(songs, availableHeight, columnWidth, liveDebutSongIds, t
 // browser's native column-balancing had placed lower down — even though the
 // on-screen preview (rendered natively, not through that capture path)
 // looks completely fine. Plain flexbox columns render identically in both.
-function splitIntoColumns(songs, columns) {
-    const indexed = songs.map((song, i) => ({ song, i }));
-    if (columns <= 1) return [indexed];
-    const perColumn = Math.ceil(indexed.length / columns);
+function splitIntoColumns(numberedSongs, columns) {
+    if (columns <= 1) return [numberedSongs];
+    const perColumn = Math.ceil(numberedSongs.length / columns);
     const result = [];
     for (let c = 0; c < columns; c++) {
-        result.push(indexed.slice(c * perColumn, (c + 1) * perColumn));
+        result.push(numberedSongs.slice(c * perColumn, (c + 1) * perColumn));
     }
     return result;
 }
@@ -171,10 +174,11 @@ const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({
     const textShadow = useImageBackground ? IMAGE_TEXT_SHADOW : 'none';
 
     const songs = SET_KEYS.flatMap(key => show.setlist?.[key] || []);
+    const numberedSongs = assignSetlistDisplayNumbers(songs);
 
     const availableHeight = POST_HEIGHT - SIDE_PADDING - BOTTOM_PADDING - HEADER_FOOTER_CONTENT;
     const columnWidth = (POST_WIDTH - SIDE_PADDING * 2 - COLUMN_GAP) / 2;
-    const { columns, songFontSize } = pickSongLayout(songs, availableHeight, columnWidth, liveDebutSongIds, tourDebutSongIds);
+    const { columns, songFontSize } = pickSongLayout(numberedSongs, availableHeight, columnWidth, liveDebutSongIds, tourDebutSongIds);
     const venueLine = show.venues
         ? `${show.venues.name} — ${show.venues.city}${show.venues.state_country ? ', ' + show.venues.state_country : ''}`
         : null;
@@ -251,9 +255,9 @@ const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({
                 {/* Setlist — vertically centered in the remaining space */}
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', overflow: 'hidden' }}>
                     <div style={{ display: 'flex', gap: COLUMN_GAP }}>
-                        {splitIntoColumns(songs, columns).map((columnSongs, colIndex) => (
+                        {splitIntoColumns(numberedSongs, columns).map((columnSongs, colIndex) => (
                             <div key={colIndex} style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                                {columnSongs.map(({ song, i }) => {
+                                {columnSongs.map(({ song, position }, i) => {
                                     const isLiveDebut = song.song_id != null && liveDebutSongIds?.has(song.song_id);
                                     const isTourDebut = song.song_id != null && tourDebutSongIds?.has(song.song_id);
                                     return (
@@ -264,7 +268,9 @@ const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({
                                                 display: 'flex', flexWrap: 'nowrap', alignItems: 'center', gap: ROW_GAP,
                                             }}
                                         >
-                                            <span style={{ flexShrink: 0, color: palette.muted, fontVariantNumeric: 'tabular-nums' }}>{i + 1}.</span>
+                                            {position != null && (
+                                                <span style={{ flexShrink: 0, color: palette.muted, fontVariantNumeric: 'tabular-nums' }}>{position}.</span>
+                                            )}
                                             <span style={{
                                                 minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                                             }}>
