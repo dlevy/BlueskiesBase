@@ -173,6 +173,20 @@ const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({
     const palette = useImageBackground ? IMAGE_OVERLAY_PALETTE : style;
     const textShadow = useImageBackground ? IMAGE_TEXT_SHADOW : 'none';
 
+    // Same-origin-storage thumbnails of this exact image are already on the
+    // page elsewhere (the poster/photo picker grids) loaded WITHOUT
+    // crossOrigin. Safari/WebKit has a long-standing bug where a later
+    // <img crossOrigin="anonymous"> request for a URL it already cached
+    // without CORS reuses that cached, non-CORS-validated response instead
+    // of re-fetching — on iOS this makes the image fail to render at all
+    // rather than just tainting a canvas. Appending a harmless, distinct
+    // query param gives the CORS-flagged request its own cache key so it
+    // always does a fresh, proper CORS fetch. Desktop browsers are unaffected
+    // either way; this is a no-op for them.
+    const crossOriginSafeBackgroundUrl = backgroundImageUrl
+        ? `${backgroundImageUrl}${backgroundImageUrl.includes('?') ? '&' : '?'}ig-bg=1`
+        : null;
+
     const songs = SET_KEYS.flatMap(key => show.setlist?.[key] || []);
     const numberedSongs = assignSetlistDisplayNumbers(songs);
 
@@ -199,7 +213,7 @@ const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({
             {useImageBackground && (
                 <>
                     <img
-                        src={backgroundImageUrl}
+                        src={crossOriginSafeBackgroundUrl}
                         crossOrigin="anonymous"
                         alt=""
                         style={{

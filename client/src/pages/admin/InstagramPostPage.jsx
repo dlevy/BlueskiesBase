@@ -27,6 +27,12 @@ export default function InstagramPostPage() {
     const [backgroundMode, setBackgroundMode] = useState('style');
     const [posterVariant, setPosterVariant] = useState('regular');
     const [selectedPhotoUrl, setSelectedPhotoUrl] = useState(null);
+    // iOS Safari doesn't support triggering a file save via a synthetic
+    // <a download> click — tapping "Download PNG" there does nothing
+    // visible. Showing the result in a real <img> (via the lightbox) lets
+    // any touch user long-press it and "Save Image" instead, which always
+    // works. Desktop browsers still get the instant auto-download below too.
+    const [generatedImageUrl, setGeneratedImageUrl] = useState(null);
 
     const graphicRef = useRef(null);
 
@@ -73,6 +79,7 @@ export default function InstagramPostPage() {
             link.download = `${datePart}-${artistPart}-setlist.png`;
             link.href = dataUrl;
             link.click();
+            setGeneratedImageUrl(dataUrl);
         } catch (err) {
             console.error('[InstagramPostPage] Error generating image:', err);
             alert('Failed to generate image');
@@ -242,6 +249,10 @@ export default function InstagramPostPage() {
                     <PButton onClick={handleDownload} loading={generating} className="w-full">
                         Download PNG
                     </PButton>
+                    <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }} className="block -mt-3">
+                        On iPhone/iPad: Safari can't auto-download images — after generating, a full-size preview opens
+                        below. Long-press it and tap "Save Image" instead.
+                    </PText>
                 </div>
 
                 {/* Preview */}
@@ -296,6 +307,15 @@ export default function InstagramPostPage() {
                 close={() => setLightboxIndex(-1)}
                 index={lightboxIndex}
                 slides={photos.map(p => ({ src: p.photo_url, alt: p.caption || 'Show photo', title: p.caption }))}
+            />
+
+            {/* Generated-image preview — a real <img> so a long-press on
+                mobile (iOS Safari especially) can "Save Image" even though
+                the auto-download above doesn't work there. */}
+            <Lightbox
+                open={!!generatedImageUrl}
+                close={() => setGeneratedImageUrl(null)}
+                slides={generatedImageUrl ? [{ src: generatedImageUrl, alt: 'Generated Instagram post' }] : []}
             />
         </div>
     );
