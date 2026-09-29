@@ -309,14 +309,35 @@ export default function InstagramPostPage() {
                 slides={photos.map(p => ({ src: p.photo_url, alt: p.caption || 'Show photo', title: p.caption }))}
             />
 
-            {/* Generated-image preview — a real <img> so a long-press on
-                mobile (iOS Safari especially) can "Save Image" even though
-                the auto-download above doesn't work there. */}
-            <Lightbox
-                open={!!generatedImageUrl}
-                close={() => setGeneratedImageUrl(null)}
-                slides={generatedImageUrl ? [{ src: generatedImageUrl, alt: 'Generated Instagram post' }] : []}
-            />
+            {/* Generated-image preview — a plain <img> in a bare modal, NOT the
+                yet-another-react-lightbox above. That library is built for
+                browsing/swiping and disables the native long-press callout
+                (and intercepts touch gestures) to do it, which is exactly
+                what breaks "long-press to Save Image" on iOS here. */}
+            {generatedImageUrl && (
+                <div
+                    className="fixed inset-0 z-[100] flex flex-col items-center justify-center p-4 gap-4"
+                    style={{ background: 'rgba(0,0,0,0.92)' }}
+                    onClick={() => setGeneratedImageUrl(null)}
+                >
+                    <button
+                        type="button"
+                        onClick={() => setGeneratedImageUrl(null)}
+                        className="absolute top-4 right-4 text-sm text-white px-3 py-1.5 rounded-lg border border-white/30 hover:bg-white/10"
+                    >
+                        Close
+                    </button>
+                    <img
+                        src={generatedImageUrl}
+                        alt="Generated Instagram post"
+                        onClick={(e) => e.stopPropagation()}
+                        style={{ maxWidth: '100%', maxHeight: '80vh', borderRadius: 12 }}
+                    />
+                    <p className="text-center text-xs text-white/80 max-w-sm">
+                        On iPhone/iPad: long-press the image above and tap "Save Image" or "Add to Photos".
+                    </p>
+                </div>
+            )}
         </div>
     );
 }
