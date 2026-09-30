@@ -484,11 +484,11 @@ export default function ShowDetailPage() {
             {/* Show header */}
             <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 md:p-8">
                 {/* Artist name + attendance button */}
-                <div className="flex items-start justify-between gap-4">
-                    <h1 className="font-display font-bold text-2xl md:text-4xl leading-tight" style={{ color: 'var(--p-color-primary)' }}>
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                    <h1 className="font-display font-bold text-2xl md:text-4xl leading-tight min-w-0" style={{ color: 'var(--p-color-primary)' }}>
                         {show.artist_name}
                     </h1>
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-2 flex-wrap justify-end w-full sm:w-auto">
                     {isEditorOrAdmin && (
                         <button
                             onClick={() => navigate(`/admin/shows/edit/${show.id}`)}
