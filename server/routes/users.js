@@ -500,6 +500,32 @@ router.get('/directory', async (req, res) => {
             return res.status(500).json({ error: 'Failed to fetch directory' });
         }
 
+        // Shows-attended count per member, so the client can compute each
+        // member's attendance badge (utils/badges.js) the same way
+        // GET /profile/:username's totalShowsAttended does — past shows only,
+        // not ones they're just marked attending in the future. Paginated
+        // since user_shows can exceed PostgREST's 1000-row default as the
+        // community grows (same pattern as GET /community-stats).
+        const todayStr = new Date().toISOString().slice(0, 10);
+        const attendedCounts = {};
+        for (let rangeStart = 0; ;) {
+            const { data: page, error: pageError } = await supabase
+                .from('user_shows')
+                .select('user_id, shows(show_date)')
+                .order('id')
+                .range(rangeStart, rangeStart + 999);
+            if (pageError) {
+                console.error('[GET /users/directory] Error fetching attendance:', pageError);
+                return res.status(500).json({ error: 'Failed to fetch directory' });
+            }
+            (page || []).forEach(row => {
+                if (!row.user_id || !row.shows?.show_date || row.shows.show_date > todayStr) return;
+                attendedCounts[row.user_id] = (attendedCounts[row.user_id] || 0) + 1;
+            });
+            if (!page || page.length < 1000) break;
+            rangeStart += 1000;
+        }
+
         const members = (data || [])
             .filter(p => p.username)
             .map(p => ({
@@ -509,6 +535,7 @@ router.get('/directory', async (req, res) => {
                 location: p.location || null,
                 avatarUrl: p.avatar_url || null,
                 role: p.role || 'member',
+                showsAttended: attendedCounts[p.id] || 0,
             }));
 
         res.json({ members });

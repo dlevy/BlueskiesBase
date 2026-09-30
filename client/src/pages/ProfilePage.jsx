@@ -7,6 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 import SEO from '../components/SEO';
 import ShowMapShare from '../components/ShowMapShare';
 import Avatar from '../components/Avatar';
+import { getHighestBadge } from '../utils/badges';
 
 // Site-role badges shown on a public profile — driven entirely by profiles.role,
 // so any future admin/editor gets the same treatment automatically. Both editors
@@ -23,6 +24,22 @@ function RoleBadge({ badge }) {
         >
             <span aria-hidden="true">{badge.emoji}</span>
             {badge.label}
+        </span>
+    );
+}
+
+// Attendance-tier badge (utils/badges.js) — same amber treatment BadgesPanel
+// uses for a member's highest-earned tier, shown here as a compact pill.
+function AttendanceBadge({ badge }) {
+    if (!badge) return null;
+    return (
+        <span
+            title={`${badge.name} — "${badge.song}" (${badge.threshold}+ shows)`}
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold shrink-0"
+            style={{ background: 'rgba(245,158,11,0.14)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.5)', boxShadow: '0 0 14px rgba(245,158,11,0.5)' }}
+        >
+            <span aria-hidden="true">{badge.emoji}</span>
+            {badge.name}
         </span>
     );
 }
@@ -103,6 +120,7 @@ export default function ProfilePage() {
     const displayLabel = profile.displayName || profile.username;
     const isCurator = profile.role === 'admin' || profile.role === 'editor';
     const isAdmin = profile.role === 'admin';
+    const attendanceBadge = getHighestBadge(profile.totalShowsAttended);
     const isOwnProfile = Boolean(viewerProfile?.username) && viewerProfile.username === profile.username;
 
     return (
@@ -119,6 +137,7 @@ export default function ProfilePage() {
                                 <PHeading size="xl" tag="h1">{displayLabel}</PHeading>
                                 {isCurator && <RoleBadge badge={CURATOR_BADGE} />}
                                 {isAdmin && <RoleBadge badge={ADMIN_BADGE} />}
+                                {attendanceBadge && <AttendanceBadge badge={attendanceBadge} />}
                             </div>
                             {isOwnProfile && (
                                 <Link to="/profile/edit">

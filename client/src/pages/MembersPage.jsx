@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import MainNavTabs from '../components/MainNavTabs';
 import SEO from '../components/SEO';
 import Avatar from '../components/Avatar';
+import { getHighestBadge } from '../utils/badges';
 
 // Same badge look as ProfilePage.jsx's role badges, kept minimal here since a
 // directory card only needs a compact indicator, not the full badge treatment.
@@ -17,6 +18,7 @@ const nameOf = (m) => (m.displayName || m.username || '').toLowerCase();
 function MemberCard({ member }) {
     const name = member.displayName || member.username;
     const roleLabel = ROLE_LABEL[member.role];
+    const attendanceBadge = getHighestBadge(member.showsAttended);
 
     return (
         <Link
@@ -29,13 +31,27 @@ function MemberCard({ member }) {
                 {member.location && (
                     <PText size="xs" color="contrast-medium" ellipsis>{member.location}</PText>
                 )}
-                {roleLabel && (
-                    <span
-                        className="inline-block mt-1 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full"
-                        style={{ background: 'rgba(245,158,11,0.14)', color: '#fbbf24' }}
-                    >
-                        {roleLabel}
-                    </span>
+                {(roleLabel || attendanceBadge) && (
+                    <div className="flex flex-wrap items-center justify-center gap-1 mt-1">
+                        {roleLabel && (
+                            <span
+                                className="inline-block text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full"
+                                style={{ background: 'rgba(245,158,11,0.14)', color: '#fbbf24' }}
+                            >
+                                {roleLabel}
+                            </span>
+                        )}
+                        {attendanceBadge && (
+                            <span
+                                title={`${attendanceBadge.name} — "${attendanceBadge.song}" (${attendanceBadge.threshold}+ shows)`}
+                                className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full"
+                                style={{ background: 'rgba(245,158,11,0.14)', color: '#f59e0b' }}
+                            >
+                                <span aria-hidden="true">{attendanceBadge.emoji}</span>
+                                {attendanceBadge.name}
+                            </span>
+                        )}
+                    </div>
                 )}
             </div>
         </Link>
