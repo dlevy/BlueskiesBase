@@ -3,6 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const { supabase, supabaseAdmin } = require('../config/supabase');
 const { optimizeFullImage, generateThumbnail } = require('../utils/imageProcessing');
+const { requireEditorOrAdmin } = require('../middleware/requireRole');
 
 // Configure multer for memory storage
 const upload = multer({
@@ -46,23 +47,32 @@ const authenticate = async (req, res, next) => {
 
 /**
  * GET /api/posters
- * Every show poster, each with its show's date/artist/venue/tour — for the public
- * Posters gallery page. Public, no auth required (same as GET /show/:showId).
- * Sorted newest show first in JS rather than via PostgREST's foreignTable ordering —
- * the poster count is small (a few dozen) so there's no real cost to it, and it avoids
- * depending on ordering-by-embedded-column syntax this route doesn't otherwise need.
+ * One tile per poster, for the public Posters gallery page. Public, no auth
+ * required (same as GET /show/:showId). A poster linked to more than one show
+ * (poster_show_links — e.g. a single poster used for a whole tour leg) shows
+ * up exactly once here: `shows` is its earliest linked show (kept as the
+ * link/display target, same shape single-show posters always had), and
+ * `linkedShows`/`showCount` carry the full set so the client can render a
+ * date range instead of one date.
+ * Sorted newest (last linked show) first in JS rather than via PostgREST's
+ * foreignTable ordering — the poster count is small (a few dozen) so there's
+ * no real cost to it, and it avoids depending on ordering-by-embedded-column
+ * syntax this route doesn't otherwise need.
  */
 router.get('/', async (req, res) => {
     try {
-        const { data: posters, error } = await supabaseAdmin
-            .from('user_posters')
+        const { data: rows, error } = await supabaseAdmin
+            .from('poster_show_links')
             .select(`
-                id,
-                poster_url,
-                thumbnail_url,
-                caption,
-                is_foil,
-                created_at,
+                poster_id,
+                user_posters (
+                    id,
+                    poster_url,
+                    thumbnail_url,
+                    caption,
+                    is_foil,
+                    created_at
+                ),
                 shows (
                     id,
                     show_date,
@@ -79,9 +89,27 @@ router.get('/', async (req, res) => {
             return res.status(500).json({ error: 'Failed to fetch posters' });
         }
 
-        // A poster whose show has since been deleted would embed shows as null —
-        // exclude it rather than ship a gallery tile with nothing to link to.
-        const withShow = (posters || []).filter(p => p.shows);
+        // A link whose poster or show has since been deleted embeds null —
+        // skip it rather than ship a gallery tile with nothing to show/link to.
+        const byPoster = new Map();
+        (rows || []).forEach(row => {
+            if (!row.user_posters || !row.shows) return;
+            if (!byPoster.has(row.poster_id)) {
+                byPoster.set(row.poster_id, { poster: row.user_posters, shows: [] });
+            }
+            byPoster.get(row.poster_id).shows.push(row.shows);
+        });
+
+        const withShow = Array.from(byPoster.values()).map(({ poster, shows }) => {
+            shows.sort((a, b) => a.show_date.localeCompare(b.show_date));
+            return {
+                ...poster,
+                shows: shows[0],
+                linkedShows: shows,
+                showCount: shows.length,
+            };
+        });
+
         withShow.sort((a, b) => {
             const dateCompare = b.shows.show_date.localeCompare(a.shows.show_date);
             if (dateCompare !== 0) return dateCompare;
@@ -100,32 +128,41 @@ router.get('/', async (req, res) => {
 /**
  * GET /api/posters/show/:showId
  * Both poster variants for a specific show (regular and/or foil — either, both,
- * or neither may exist). Response: { posters: [...] }, at most one entry per
- * is_foil value.
+ * or neither may exist). Resolved through poster_show_links rather than
+ * user_posters.show_id directly, so a poster linked to this show as part of a
+ * multi-show tour-leg poster (see POST /:posterId/link-range) shows up here
+ * exactly the same as a poster uploaded just for this one show.
+ * Response: { posters: [...] }, at most one entry per is_foil value.
  */
 router.get('/show/:showId', async (req, res) => {
     try {
         const { showId } = req.params;
 
-        const { data: posters, error } = await supabaseAdmin
-            .from('user_posters')
+        const { data: links, error } = await supabaseAdmin
+            .from('poster_show_links')
             .select(`
-                *,
-                profiles:user_id (
-                    id,
-                    username,
-                    display_name
+                user_posters (
+                    *,
+                    profiles:user_id (
+                        id,
+                        username,
+                        display_name
+                    )
                 )
             `)
-            .eq('show_id', showId)
-            .order('is_foil');
+            .eq('show_id', showId);
 
         if (error) {
             console.error('Error fetching posters:', error);
             return res.status(500).json({ error: 'Failed to fetch posters' });
         }
 
-        res.json({ posters: posters || [] });
+        const posters = (links || [])
+            .map(l => l.user_posters)
+            .filter(Boolean)
+            .sort((a, b) => (a.is_foil ? 1 : 0) - (b.is_foil ? 1 : 0));
+
+        res.json({ posters });
     } catch (error) {
         console.error('Error in GET /api/posters/show/:showId:', error);
         res.status(500).json({ error: 'Internal server error' });
@@ -155,13 +192,38 @@ router.post('/upload', authenticate, upload.single('poster'), async (req, res) =
         }
 
         // Check if a poster of this same variant already exists for this show —
-        // the regular and foil editions are replaced independently.
-        const { data: existingPoster } = await supabaseAdmin
-            .from('user_posters')
-            .select('id, poster_url, thumbnail_url, user_id')
+        // the regular and foil editions are replaced independently. Resolved
+        // through poster_show_links rather than user_posters.show_id directly,
+        // so this also finds a shared tour-leg poster (see POST
+        // /:posterId/link-range) covering this show but anchored elsewhere.
+        const { data: existingLink } = await supabaseAdmin
+            .from('poster_show_links')
+            .select('user_posters ( id, poster_url, thumbnail_url, user_id )')
             .eq('show_id', show_id)
             .eq('is_foil', isFoil)
-            .single();
+            .maybeSingle();
+        const existingPoster = existingLink?.user_posters || null;
+
+        // Replacing a poster that's shared across multiple shows would
+        // silently change the image everywhere it's linked, not just here —
+        // surprising and easy to do by accident. Require an explicit
+        // confirmation flag rather than treating it the same as an ordinary
+        // single-show replace.
+        if (existingPoster) {
+            const { count: linkedShowCount } = await supabaseAdmin
+                .from('poster_show_links')
+                .select('id', { count: 'exact', head: true })
+                .eq('poster_id', existingPoster.id);
+
+            const confirmedSharedReplace = req.body.confirm_shared_replace === 'true' || req.body.confirm_shared_replace === true;
+            if ((linkedShowCount || 0) > 1 && !confirmedSharedReplace) {
+                return res.status(409).json({
+                    error: `This poster is also used by ${linkedShowCount - 1} other show(s) — replacing it here will replace it everywhere it's linked.`,
+                    sharedWithShowCount: linkedShowCount - 1,
+                    requiresConfirmation: true,
+                });
+            }
+        }
 
         // If poster exists and user is not the owner, check if user is admin
         if (existingPoster && existingPoster.user_id !== userId) {
@@ -287,9 +349,188 @@ router.post('/upload', authenticate, upload.single('poster'), async (req, res) =
             return res.status(500).json({ error: 'Failed to save poster record' });
         }
 
+        // Anchor the new poster to this show — every poster needs at least
+        // one link row (see GET /show/:showId, GET / and POST /:posterId/link-range).
+        const { error: linkError } = await supabaseAdmin
+            .from('poster_show_links')
+            .insert({ poster_id: poster.id, show_id, is_foil: isFoil });
+        if (linkError) {
+            console.error('Error linking new poster to its show:', linkError);
+            await supabaseAdmin.from('user_posters').delete().eq('id', poster.id);
+            await supabaseAdmin.storage.from('show-posters').remove([fileName, thumbFileName]);
+            return res.status(500).json({ error: 'Failed to save poster record' });
+        }
+
         res.json({ poster });
     } catch (error) {
         console.error('Error in POST /api/posters/upload:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * GET /api/posters/:posterId/shows
+ * Every show currently linked to this poster, for an admin "manage links"
+ * panel. A poster uploaded for just one show has exactly one entry here;
+ * a tour-leg poster (see POST /:posterId/link-range) has one per show it
+ * covers. Editor/admin only.
+ */
+router.get('/:posterId/shows', requireEditorOrAdmin, async (req, res) => {
+    try {
+        const { posterId } = req.params;
+
+        const { data: links, error } = await supabaseAdmin
+            .from('poster_show_links')
+            .select('id, shows ( id, show_date, artist_name, venues ( name, city, state_country ) )')
+            .eq('poster_id', posterId);
+
+        if (error) {
+            console.error('Error fetching poster shows:', error);
+            return res.status(500).json({ error: 'Failed to fetch linked shows' });
+        }
+
+        const shows = (links || [])
+            .filter(l => l.shows)
+            .map(l => ({ linkId: l.id, ...l.shows }))
+            .sort((a, b) => a.show_date.localeCompare(b.show_date));
+
+        res.json({ shows });
+    } catch (error) {
+        console.error('Error in GET /api/posters/:posterId/shows:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * POST /api/posters/:posterId/link-range
+ * Link this poster to every show by the same artist within [startDate,
+ * endDate] (inclusive) that doesn't already have a *different* poster of the
+ * same variant — e.g. one poster used for a whole tour leg. Shows already
+ * linked to a different poster of this variant are reported as skipped, not
+ * overwritten, so the admin can resolve any conflict manually. Safe to
+ * re-run: shows already linked to *this* poster are reported separately and
+ * left alone.
+ * Body: { startDate, endDate } (YYYY-MM-DD, inclusive). Editor/admin only.
+ */
+router.post('/:posterId/link-range', requireEditorOrAdmin, async (req, res) => {
+    try {
+        const { posterId } = req.params;
+        const { startDate, endDate } = req.body;
+
+        if (!startDate || !endDate) {
+            return res.status(400).json({ error: 'startDate and endDate are required' });
+        }
+        if (startDate > endDate) {
+            return res.status(400).json({ error: 'startDate must be on or before endDate' });
+        }
+
+        const { data: poster, error: posterError } = await supabaseAdmin
+            .from('user_posters')
+            .select('id, is_foil, shows ( artist_name )')
+            .eq('id', posterId)
+            .single();
+        if (posterError || !poster) {
+            return res.status(404).json({ error: 'Poster not found' });
+        }
+
+        const { data: candidateShows, error: showsError } = await supabaseAdmin
+            .from('shows')
+            .select('id, show_date, artist_name, venues ( name, city, state_country )')
+            .eq('artist_name', poster.shows.artist_name)
+            .gte('show_date', startDate)
+            .lte('show_date', endDate)
+            .order('show_date');
+
+        if (showsError) {
+            console.error('Error fetching candidate shows:', showsError);
+            return res.status(500).json({ error: 'Failed to look up shows in range' });
+        }
+
+        if (!candidateShows || candidateShows.length === 0) {
+            return res.json({ linked: [], alreadyLinked: [], skipped: [] });
+        }
+
+        const showIds = candidateShows.map(s => s.id);
+        const { data: existingLinks, error: linksError } = await supabaseAdmin
+            .from('poster_show_links')
+            .select('show_id, poster_id')
+            .eq('is_foil', poster.is_foil)
+            .in('show_id', showIds);
+
+        if (linksError) {
+            console.error('Error checking existing poster links:', linksError);
+            return res.status(500).json({ error: 'Failed to check existing poster links' });
+        }
+
+        const posterIdByShowId = new Map((existingLinks || []).map(l => [l.show_id, l.poster_id]));
+
+        const toLink = [];
+        const alreadyLinked = [];
+        const skipped = [];
+        candidateShows.forEach(show => {
+            const linkedPosterId = posterIdByShowId.get(show.id);
+            if (linkedPosterId === poster.id) alreadyLinked.push(show);
+            else if (linkedPosterId) skipped.push(show);
+            else toLink.push(show);
+        });
+
+        if (toLink.length > 0) {
+            const { error: insertError } = await supabaseAdmin
+                .from('poster_show_links')
+                .insert(toLink.map(show => ({ poster_id: poster.id, show_id: show.id, is_foil: poster.is_foil })));
+
+            if (insertError) {
+                console.error('Error linking poster to range:', insertError);
+                return res.status(500).json({ error: 'Failed to link poster to shows' });
+            }
+        }
+
+        res.json({ linked: toLink, alreadyLinked, skipped });
+    } catch (error) {
+        console.error('Error in POST /api/posters/:posterId/link-range:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * DELETE /api/posters/:posterId/shows/:showId
+ * Unlink one show from a poster without deleting the poster itself (it may
+ * still be linked to other shows). Refuses to remove a poster's last
+ * remaining link — delete the poster instead if that's the goal, so it
+ * doesn't silently vanish from every page while still taking up storage.
+ * Editor/admin only.
+ */
+router.delete('/:posterId/shows/:showId', requireEditorOrAdmin, async (req, res) => {
+    try {
+        const { posterId, showId } = req.params;
+
+        const { count, error: countError } = await supabaseAdmin
+            .from('poster_show_links')
+            .select('id', { count: 'exact', head: true })
+            .eq('poster_id', posterId);
+
+        if (countError) {
+            console.error('Error counting poster links:', countError);
+            return res.status(500).json({ error: 'Failed to unlink show' });
+        }
+        if ((count || 0) <= 1) {
+            return res.status(400).json({ error: "Can't unlink a poster's last remaining show — delete the poster instead." });
+        }
+
+        const { error } = await supabaseAdmin
+            .from('poster_show_links')
+            .delete()
+            .eq('poster_id', posterId)
+            .eq('show_id', showId);
+
+        if (error) {
+            console.error('Error unlinking show:', error);
+            return res.status(500).json({ error: 'Failed to unlink show' });
+        }
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error in DELETE /api/posters/:posterId/shows/:showId:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });

@@ -1475,8 +1475,13 @@ export const getShowPoster = async (showId) => {
 /**
  * Upload a poster (replaces the existing poster of the same variant, if any —
  * a show can have one regular and one foil poster, replaced independently).
+ * If the existing poster is shared with other shows (a tour-leg poster, see
+ * linkPosterToRange), the server refuses with a 409 unless
+ * confirmSharedReplace is set — the thrown error then carries
+ * `requiresConfirmation: true` and `sharedWithShowCount` so the caller can
+ * confirm with the user and retry.
  */
-export const uploadPoster = async (showId, file, caption = '', isFoil = false) => {
+export const uploadPoster = async (showId, file, caption = '', isFoil = false, confirmSharedReplace = false) => {
     const token = await getAuthToken();
     if (!token) {
         throw new Error('Not authenticated');
@@ -1489,6 +1494,9 @@ export const uploadPoster = async (showId, file, caption = '', isFoil = false) =
     if (caption) {
         formData.append('caption', caption);
     }
+    if (confirmSharedReplace) {
+        formData.append('confirm_shared_replace', 'true');
+    }
 
     const response = await fetchWithAuth(`${API_BASE_URL}/api/posters/upload`, {
         method: 'POST',
@@ -1498,8 +1506,13 @@ export const uploadPoster = async (showId, file, caption = '', isFoil = false) =
         body: formData,
     });
     if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to upload poster');
+        const errorBody = await response.json().catch(() => ({}));
+        const error = new Error(errorBody.error || 'Failed to upload poster');
+        if (errorBody.requiresConfirmation) {
+            error.requiresConfirmation = true;
+            error.sharedWithShowCount = errorBody.sharedWithShowCount;
+        }
+        throw error;
     }
     return response.json();
 };
@@ -1544,6 +1557,66 @@ export const deletePoster = async (posterId) => {
     });
     if (!response.ok) {
         throw new Error('Failed to delete poster');
+    }
+    return response.json();
+};
+
+/**
+ * Every show currently linked to a poster (its full linked-shows set) — for
+ * the "manage links" panel on a tour-leg poster. Editor/admin only.
+ */
+export const getPosterShows = async (posterId) => {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/posters/${posterId}/shows`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to fetch linked shows');
+    }
+    return response.json();
+};
+
+/**
+ * Link a poster to every show by the same artist within [startDate, endDate]
+ * that doesn't already have a different poster of the same variant — e.g.
+ * one poster used for a whole tour leg. Editor/admin only.
+ */
+export const linkPosterToRange = async (posterId, startDate, endDate) => {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/posters/${posterId}/link-range`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ startDate, endDate }),
+    });
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to link poster to shows');
+    }
+    return response.json();
+};
+
+/**
+ * Unlink one show from a poster without deleting the poster itself. Editor/admin only.
+ */
+export const unlinkPosterShow = async (posterId, showId) => {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/posters/${posterId}/shows/${showId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to unlink show');
     }
     return response.json();
 };

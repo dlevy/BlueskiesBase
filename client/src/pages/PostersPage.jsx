@@ -17,6 +17,10 @@ function formatDate(dateStr) {
 
 function PosterTile({ poster, onImageClick }) {
     const show = poster.shows;
+    const showCount = poster.showCount || 1;
+    const isTourPoster = showCount > 1;
+    const lastShow = isTourPoster ? poster.linkedShows[poster.linkedShows.length - 1] : null;
+
     return (
         <div className="group rounded-xl overflow-hidden border border-white/10 bg-white/[0.03] hover:border-amber-500/30 hover:-translate-y-1 hover:shadow-lg hover:shadow-black/30 transition-all duration-150">
             <button
@@ -42,12 +46,18 @@ function PosterTile({ poster, onImageClick }) {
 
             <Link to={buildShowPath(show)} className="block p-3 pb-1 hover:bg-white/[0.05] transition-colors">
                 <p className="text-xs font-mono uppercase tracking-wide" style={{ color: 'var(--p-color-contrast-low)' }}>
-                    {formatDate(show.show_date)}
+                    {isTourPoster
+                        ? `${formatDate(show.show_date)} – ${formatDate(lastShow.show_date)}`
+                        : formatDate(show.show_date)}
                 </p>
                 <p className="text-sm font-semibold truncate mt-0.5" style={{ color: 'var(--p-color-primary)' }}>
                     {show.artist_name}
                 </p>
-                {show.venues && (
+                {isTourPoster ? (
+                    <p className="text-xs truncate" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                        {showCount} shows
+                    </p>
+                ) : show.venues && (
                     <p className="text-xs truncate" style={{ color: 'var(--p-color-contrast-medium)' }}>
                         {show.venues.name}
                         <span style={{ color: 'var(--p-color-contrast-low)' }}>
