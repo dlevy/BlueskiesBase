@@ -447,11 +447,6 @@ export default function ShowDetailPage() {
 
             <MainNavTabs />
 
-            {/* Back navigation */}
-            <PButtonPure icon="arrow-left" onClick={() => navigate('/')}>
-                Back to Search
-            </PButtonPure>
-
             {/* Prev / Next show navigation */}
             {(adjacent.prev || adjacent.next) && (
                 <div className="flex items-center justify-between gap-4">
@@ -731,11 +726,6 @@ export default function ShowDetailPage() {
             <div id="community-setlist" style={{ scrollMarginTop: '4.5rem' }}>
                 <SetlistSubmissionSection showId={show.id} />
             </div>
-
-            {/* Bottom back link */}
-            <PButtonPure icon="arrow-left" onClick={() => navigate('/')}>
-                Back to Search
-            </PButtonPure>
         </div>
     );
 }
