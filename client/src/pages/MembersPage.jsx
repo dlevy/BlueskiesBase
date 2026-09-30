@@ -25,33 +25,19 @@ function MemberCard({ member }) {
             to={`/profile/${member.username}`}
             className="flex flex-col items-center text-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-4 hover:border-amber-500/30 hover:-translate-y-0.5 transition-all"
         >
-            <Avatar url={member.avatarUrl} name={name} size="lg" />
+            <Avatar url={member.avatarUrl} name={name} size="lg" badge={attendanceBadge} />
             <div className="min-w-0 w-full">
                 <PText weight="semi-bold" ellipsis>{name}</PText>
                 {member.location && (
                     <PText size="xs" color="contrast-medium" ellipsis>{member.location}</PText>
                 )}
-                {(roleLabel || attendanceBadge) && (
-                    <div className="flex flex-wrap items-center justify-center gap-1 mt-1">
-                        {roleLabel && (
-                            <span
-                                className="inline-block text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full"
-                                style={{ background: 'rgba(245,158,11,0.14)', color: '#fbbf24' }}
-                            >
-                                {roleLabel}
-                            </span>
-                        )}
-                        {attendanceBadge && (
-                            <span
-                                title={`${attendanceBadge.name} — "${attendanceBadge.song}" (${attendanceBadge.threshold}+ shows)`}
-                                className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full"
-                                style={{ background: 'rgba(245,158,11,0.14)', color: '#f59e0b' }}
-                            >
-                                <span aria-hidden="true">{attendanceBadge.emoji}</span>
-                                {attendanceBadge.name}
-                            </span>
-                        )}
-                    </div>
+                {roleLabel && (
+                    <span
+                        className="inline-block mt-1 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full"
+                        style={{ background: 'rgba(245,158,11,0.14)', color: '#fbbf24' }}
+                    >
+                        {roleLabel}
+                    </span>
                 )}
             </div>
         </Link>
@@ -64,6 +50,7 @@ export default function MembersPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [query, setQuery] = useState('');
+    const [sortBy, setSortBy] = useState('shows');
 
     useEffect(() => {
         if (!user) { setLoading(false); return; }
@@ -93,9 +80,15 @@ export default function MembersPage() {
     const regularMembers = members.filter(m => m.role !== 'admin' && m.role !== 'editor');
 
     const q = query.trim().toLowerCase();
-    const filteredMembers = q
+    const searchedMembers = q
         ? regularMembers.filter(m => [m.username, m.displayName, m.location].some(f => f?.toLowerCase().includes(q)))
         : regularMembers;
+
+    const filteredMembers = [...searchedMembers].sort((a, b) => (
+        sortBy === 'username'
+            ? nameOf(a).localeCompare(nameOf(b))
+            : (b.showsAttended || 0) - (a.showsAttended || 0) || nameOf(a).localeCompare(nameOf(b))
+    ));
 
     return (
         <div className="px-4 py-4 md:py-6 max-w-6xl mx-auto">
@@ -157,13 +150,24 @@ export default function MembersPage() {
                         <div>
                             <PHeading size="lg" tag="h2" className="mb-4">Members</PHeading>
 
-                            <input
-                                type="text"
-                                value={query}
-                                onChange={e => setQuery(e.target.value)}
-                                placeholder="Search by name or location…"
-                                className="w-full max-w-md mb-6 rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-transparent placeholder:text-gray-500"
-                            />
+                            <div className="flex flex-wrap gap-3 mb-6">
+                                <input
+                                    type="text"
+                                    value={query}
+                                    onChange={e => setQuery(e.target.value)}
+                                    placeholder="Search by name or location…"
+                                    className="flex-1 min-w-[200px] max-w-md rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-transparent placeholder:text-gray-500"
+                                />
+                                <select
+                                    value={sortBy}
+                                    onChange={e => setSortBy(e.target.value)}
+                                    className="rounded-lg border border-white/10 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-transparent"
+                                    style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}
+                                >
+                                    <option value="shows">Sort: Most Shows Attended</option>
+                                    <option value="username">Sort: Username (A–Z)</option>
+                                </select>
+                            </div>
 
                             {filteredMembers.length === 0 ? (
                                 <PText color="contrast-medium" align="center" className="py-16 block">

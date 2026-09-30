@@ -28,22 +28,6 @@ function RoleBadge({ badge }) {
     );
 }
 
-// Attendance-tier badge (utils/badges.js) — same amber treatment BadgesPanel
-// uses for a member's highest-earned tier, shown here as a compact pill.
-function AttendanceBadge({ badge }) {
-    if (!badge) return null;
-    return (
-        <span
-            title={`${badge.name} — "${badge.song}" (${badge.threshold}+ shows)`}
-            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold shrink-0"
-            style={{ background: 'rgba(245,158,11,0.14)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.5)', boxShadow: '0 0 14px rgba(245,158,11,0.5)' }}
-        >
-            <span aria-hidden="true">{badge.emoji}</span>
-            {badge.name}
-        </span>
-    );
-}
-
 function FactCard({ label, value, sub }) {
     return (
         <div className="rounded-xl border border-white/10 bg-[#1a1e26] px-4 py-3 space-y-0.5">
@@ -130,14 +114,13 @@ export default function ProfilePage() {
             {/* Identity card */}
             <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 md:p-8">
                 <div className="flex items-start gap-5">
-                    <Avatar url={profile.avatarUrl} name={displayLabel} size="lg" />
+                    <Avatar url={profile.avatarUrl} name={displayLabel} size="lg" badge={attendanceBadge} />
                     <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-2.5 flex-wrap">
                             <div className="flex items-center gap-2.5 flex-wrap">
                                 <PHeading size="xl" tag="h1">{displayLabel}</PHeading>
                                 {isCurator && <RoleBadge badge={CURATOR_BADGE} />}
                                 {isAdmin && <RoleBadge badge={ADMIN_BADGE} />}
-                                {attendanceBadge && <AttendanceBadge badge={attendanceBadge} />}
                             </div>
                             {isOwnProfile && (
                                 <Link to="/profile/edit">
