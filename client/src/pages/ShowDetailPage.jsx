@@ -431,7 +431,7 @@ export default function ShowDetailPage() {
 
     const attendanceLabel = attended
         ? (isFutureShow ? "I'm Attending" : 'I Was There')
-        : (isFutureShow ? 'Mark as Attending' : 'Mark as Attended');
+        : (isFutureShow ? 'Attending' : 'Attended');
     const attendanceIcon = attended ? 'check' : 'plus';
 
     const setlistStats = computeSetlistStats(show, tourRarity, liveDebutSongIds, tourDebutSongIds);
