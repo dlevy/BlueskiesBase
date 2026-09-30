@@ -145,10 +145,10 @@ export default function PhotosSection({ showId }) {
             {/* Photo Display */}
             {photos.length > 0 ? (
                 <div className="space-y-3">
-                    <div className="relative cursor-pointer group" onClick={() => setLightboxOpen(true)}>
+                    <div className="relative cursor-pointer group h-96 rounded-xl overflow-hidden bg-black/20 flex items-center justify-center" onClick={() => setLightboxOpen(true)}>
                         <img src={photos[currentPhotoIndex].photo_url}
                             alt={photos[currentPhotoIndex].caption || 'Show photo'}
-                            className="w-full h-96 object-cover rounded-xl" />
+                            className="max-w-full max-h-full w-auto h-auto object-contain" />
                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all rounded-xl flex items-center justify-center">
                             <PText className="opacity-0 group-hover:opacity-100 transition-opacity text-white">
                                 Click to view full size
