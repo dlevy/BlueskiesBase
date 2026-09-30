@@ -19,7 +19,11 @@ const ROUTE_TAB = { '/posters': 'posters', '/photos': 'photos', '/links': 'links
 export default function MainNavTabs() {
     const location = useLocation();
     const [urlParams] = useSearchParams();
-    const activeTab = ROUTE_TAB[location.pathname] || urlParams.get('tab') || 'search';
+    // Falls back to 'search' only on the homepage itself (no ?tab param there
+    // still means the Search view) — any other unmatched route (e.g. a show
+    // detail page) gets no active tab at all, rather than misleadingly
+    // highlighting Search.
+    const activeTab = ROUTE_TAB[location.pathname] || urlParams.get('tab') || (location.pathname === '/' ? 'search' : null);
 
     return (
         // Horizontally scrollable — same treatment as AdminLayout's nav — so

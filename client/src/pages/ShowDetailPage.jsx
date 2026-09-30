@@ -14,6 +14,7 @@ import PhotosSection from '../components/PhotosSection';
 import PostersSection from '../components/PostersSection';
 import SetlistSubmissionSection from '../components/SetlistSubmissionSection';
 import SEO from '../components/SEO';
+import MainNavTabs from '../components/MainNavTabs';
 
 function getYouTubeId(url) {
     try {
@@ -367,15 +368,19 @@ export default function ShowDetailPage() {
 
     if (loading) {
         return (
-            <div className="min-h-[60vh] flex items-center justify-center">
-                <PSpinner size="large" aria={{ 'aria-label': 'Loading show details' }} />
+            <div className="px-4 py-4 md:py-6 max-w-4xl mx-auto">
+                <MainNavTabs />
+                <div className="min-h-[60vh] flex items-center justify-center">
+                    <PSpinner size="large" aria={{ 'aria-label': 'Loading show details' }} />
+                </div>
             </div>
         );
     }
 
     if (error || !show) {
         return (
-            <div className="px-4 py-8 max-w-4xl mx-auto space-y-4">
+            <div className="px-4 py-4 md:py-6 max-w-4xl mx-auto space-y-4">
+                <MainNavTabs />
                 <PInlineNotification
                     heading="Could not load show"
                     description={error || 'Show not found'}
@@ -439,6 +444,8 @@ export default function ShowDetailPage() {
     return (
         <div className="px-4 py-8 max-w-4xl mx-auto space-y-6">
             <SEO title={seoTitle} description={seoDescription} jsonLd={jsonLd} />
+
+            <MainNavTabs />
 
             {/* Back navigation */}
             <PButtonPure icon="arrow-left" onClick={() => navigate('/')}>
