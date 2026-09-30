@@ -1,10 +1,25 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { PSpinner, PText, PHeading } from '@porsche-design-system/components-react';
-import { getLinks, getLinkCategories } from '../services/api';
+import { getLinks, getLinkCategories, getMemberChannels } from '../services/api';
 import MainNavTabs from '../components/MainNavTabs';
 import SEO from '../components/SEO';
 import Avatar from '../components/Avatar';
+
+function MemberChannelCard({ member }) {
+    const name = member.displayName || member.username;
+    return (
+        <div className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 hover:border-amber-500/30 hover:bg-white/[0.05] transition-all">
+            <a href={member.youtubeUrl} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                    <Avatar url={member.avatarUrl} name={name} size="sm" />
+                    <PText size="small" weight="semi-bold" ellipsis>{name}</PText>
+                </div>
+                <span className="text-amber-400 shrink-0 text-sm">→</span>
+            </a>
+        </div>
+    );
+}
 
 function LinkCard({ link }) {
     const member = link.member;
@@ -38,17 +53,19 @@ function LinkCard({ link }) {
 export default function LinksPage() {
     const [categories, setCategories] = useState([]);
     const [links, setLinks] = useState([]);
+    const [memberChannels, setMemberChannels] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
     useEffect(() => {
         let cancelled = false;
 
-        Promise.all([getLinks(), getLinkCategories()])
-            .then(([linksData, categoriesData]) => {
+        Promise.all([getLinks(), getLinkCategories(), getMemberChannels()])
+            .then(([linksData, categoriesData, channelsData]) => {
                 if (cancelled) return;
                 setLinks(linksData.links || []);
                 setCategories(categoriesData.categories || []);
+                setMemberChannels(channelsData.members || []);
             })
             .catch(err => {
                 console.error('[LinksPage] Error loading links:', err);
@@ -134,6 +151,18 @@ export default function LinksPage() {
                             </div>
                         </div>
                     )}
+                </div>
+            )}
+
+            {!loading && !error && memberChannels.length > 0 && (
+                <div className="mt-2 pt-6 border-t border-white/10">
+                    <PHeading size="lg" tag="h2" className="mb-1">Member Channels</PHeading>
+                    <PText size="small" color="contrast-medium" className="block mb-3">
+                        YouTube channels shared by SkySets.org members
+                    </PText>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                        {memberChannels.map(member => <MemberChannelCard key={member.id} member={member} />)}
+                    </div>
                 </div>
             )}
         </div>

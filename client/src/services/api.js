@@ -1042,6 +1042,18 @@ export const getMemberDirectory = async () => {
 };
 
 /**
+ * Every member who has added a YouTube channel to their profile. Public, no
+ * auth required — used by the "Member Channels" section on /links.
+ */
+export const getMemberChannels = async () => {
+    const response = await fetch(`${API_BASE_URL}/api/users/channels`);
+    if (!response.ok) {
+        throw new Error('Failed to fetch member channels');
+    }
+    return response.json();
+};
+
+/**
  * Public profile for a given username. Returns null (not throw) on a 404 so
  * callers can render a "not found" state without a try/catch.
  */

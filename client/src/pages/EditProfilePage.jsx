@@ -28,6 +28,7 @@ export default function EditProfilePage() {
         facebookUrl: '',
         redditUrl: '',
         instagramUrl: '',
+        youtubeUrl: '',
         showAttendancePublic: false,
         favoriteShowId: '',
         favoriteVenueId: '',
@@ -73,6 +74,7 @@ export default function EditProfilePage() {
             facebookUrl: profile.facebook_url || '',
             redditUrl: profile.reddit_url || '',
             instagramUrl: profile.instagram_url || '',
+            youtubeUrl: profile.youtube_url || '',
             showAttendancePublic: profile.show_attendance_public || false,
             favoriteShowId: profile.favorite_show_id || '',
             favoriteVenueId: profile.favorite_venue_id || '',
@@ -212,13 +214,14 @@ export default function EditProfilePage() {
     // rather than rejecting the whole save over it. Returns the corrected URL (with
     // https:// added if it was missing), or null if the field was left blank.
     // Throws if the value still isn't a valid URL for the expected host.
-    const normalizeUrl = (url, requiredHost, label) => {
+    const normalizeUrl = (url, requiredHosts, label) => {
         const trimmed = url.trim();
         if (!trimmed) return null;
+        const hosts = Array.isArray(requiredHosts) ? requiredHosts : [requiredHosts];
         const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
         try {
             const parsed = new URL(withProtocol);
-            if (!parsed.hostname.toLowerCase().includes(requiredHost)) throw new Error();
+            if (!hosts.some(host => parsed.hostname.toLowerCase().includes(host))) throw new Error();
         } catch {
             throw new Error(`Please enter a valid ${label} URL`);
         }
@@ -230,11 +233,12 @@ export default function EditProfilePage() {
         setError('');
         setSuccess(false);
 
-        let facebookUrl, redditUrl, instagramUrl;
+        let facebookUrl, redditUrl, instagramUrl, youtubeUrl;
         try {
             facebookUrl = normalizeUrl(formData.facebookUrl, 'facebook.com', 'Facebook') || '';
             redditUrl = normalizeUrl(formData.redditUrl, 'reddit.com', 'Reddit') || '';
             instagramUrl = normalizeUrl(formData.instagramUrl, 'instagram.com', 'Instagram') || '';
+            youtubeUrl = normalizeUrl(formData.youtubeUrl, ['youtube.com', 'youtu.be'], 'YouTube') || '';
         } catch (err) {
             setError(err.message);
             return;
@@ -242,13 +246,13 @@ export default function EditProfilePage() {
 
         setSaving(true);
         try {
-            await updateMyProfile({ ...formData, facebookUrl, redditUrl, instagramUrl });
+            await updateMyProfile({ ...formData, facebookUrl, redditUrl, instagramUrl, youtubeUrl });
             if (avatarFile) {
                 await uploadAvatar(avatarFile);
             }
             await refreshProfile();
             setAvatarFile(null);
-            setFormData(prev => ({ ...prev, facebookUrl, redditUrl, instagramUrl }));
+            setFormData(prev => ({ ...prev, facebookUrl, redditUrl, instagramUrl, youtubeUrl }));
             setSuccess(true);
         } catch (err) {
             console.error('[EditProfilePage] Error saving profile:', err);
@@ -354,6 +358,15 @@ export default function EditProfilePage() {
                     <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>Instagram URL</label>
                     <input type="url" name="instagramUrl" value={formData.instagramUrl} onChange={handleChange}
                         placeholder="https://instagram.com/yourname" className={inputClass} />
+                </div>
+
+                <div>
+                    <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>YouTube Channel URL</label>
+                    <input type="url" name="youtubeUrl" value={formData.youtubeUrl} onChange={handleChange}
+                        placeholder="https://youtube.com/@yourchannel" className={inputClass} />
+                    <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }} className="mt-1 block">
+                        Also listed in the "Member Channels" section of the Links page.
+                    </PText>
                 </div>
 
                 <label className="flex items-start gap-2 cursor-pointer">

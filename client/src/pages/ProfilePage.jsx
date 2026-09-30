@@ -136,7 +136,7 @@ export default function ProfilePage() {
                             Member since {formatDateTime(profile.memberSince)}
                         </PText>
 
-                        {(profile.facebookUrl || profile.redditUrl || profile.instagramUrl) && (
+                        {(profile.facebookUrl || profile.redditUrl || profile.instagramUrl || profile.youtubeUrl) && (
                             <div className="flex flex-wrap gap-3 mt-3">
                                 {profile.facebookUrl && (
                                     <a href={profile.facebookUrl} target="_blank" rel="noopener noreferrer"
@@ -154,6 +154,12 @@ export default function ProfilePage() {
                                     <a href={profile.instagramUrl} target="_blank" rel="noopener noreferrer"
                                         className="text-xs font-medium text-amber-400 hover:opacity-80 transition-opacity">
                                         Instagram →
+                                    </a>
+                                )}
+                                {profile.youtubeUrl && (
+                                    <a href={profile.youtubeUrl} target="_blank" rel="noopener noreferrer"
+                                        className="text-xs font-medium text-amber-400 hover:opacity-80 transition-opacity">
+                                        YouTube →
                                     </a>
                                 )}
                             </div>

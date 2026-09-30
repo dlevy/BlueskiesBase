@@ -519,11 +519,48 @@ router.get('/directory', async (req, res) => {
 });
 
 /**
+ * GET /api/users/channels
+ * Public, no auth required — every member who has added a YouTube channel to
+ * their profile. Powers the "Member Channels" section at the bottom of the
+ * public /links page, separate from the admin-managed links table.
+ */
+router.get('/channels', async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('id, username, display_name, avatar_url, youtube_url')
+            .not('youtube_url', 'is', null)
+            .order('username', { ascending: true });
+
+        if (error) {
+            console.error('[GET /users/channels] Error:', error);
+            return res.status(500).json({ error: 'Failed to fetch member channels' });
+        }
+
+        const members = (data || [])
+            .filter(p => p.username)
+            .map(p => ({
+                id: p.id,
+                username: p.username,
+                displayName: p.display_name || null,
+                avatarUrl: p.avatar_url || null,
+                youtubeUrl: p.youtube_url,
+            }));
+
+        res.json({ members });
+    } catch (err) {
+        console.error('[GET /users/channels] Error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
  * GET /api/users/profile/:username
  * Public profile — no auth required. Always includes aggregate stats; opt-in
- * identity fields (displayName/location/avatarUrl/facebookUrl/redditUrl/bio) are
- * included only when set; the itemized attendedShows list is included only when
- * the profile has show_attendance_public = true.
+ * identity fields (displayName/location/avatarUrl/facebookUrl/redditUrl/
+ * instagramUrl/youtubeUrl/bio) are included only when set; the itemized
+ * attendedShows list is included only when the profile has
+ * show_attendance_public = true.
  */
 router.get('/profile/:username', async (req, res) => {
     try {
@@ -646,6 +683,7 @@ router.get('/profile/:username', async (req, res) => {
             ...(profile.facebook_url && { facebookUrl: profile.facebook_url }),
             ...(profile.reddit_url && { redditUrl: profile.reddit_url }),
             ...(profile.instagram_url && { instagramUrl: profile.instagram_url }),
+            ...(profile.youtube_url && { youtubeUrl: profile.youtube_url }),
             ...(profile.bio && { bio: profile.bio }),
 
             memberSince: profile.created_at,
@@ -675,8 +713,8 @@ router.get('/profile/:username', async (req, res) => {
 /**
  * PUT /api/users/profile
  * Update the logged-in user's own opt-in profile fields. Requires authentication.
- * Body: { displayName, location, facebookUrl, redditUrl, instagramUrl, bio,
- *         showAttendancePublic, favoriteShowId, favoriteVenueId }
+ * Body: { displayName, location, facebookUrl, redditUrl, instagramUrl,
+ *         youtubeUrl, bio, showAttendancePublic, favoriteShowId, favoriteVenueId }
  * favoriteShowId/favoriteVenueId (when non-null) must reference a show the user has
  * actually attended (in the past) / a venue from one of those shows — validated
  * against user_shows here, not just enforced by the picker UI.
@@ -695,10 +733,11 @@ router.put('/profile', async (req, res) => {
             return res.status(401).json({ error: 'Unauthorized' });
         }
 
-        const { displayName, location, facebookUrl, redditUrl, instagramUrl, bio, showAttendancePublic, favoriteShowId, favoriteVenueId } = req.body;
+        const { displayName, location, facebookUrl, redditUrl, instagramUrl, youtubeUrl, bio, showAttendancePublic, favoriteShowId, favoriteVenueId } = req.body;
 
-        const validateUrl = (url, requiredHost) => {
+        const validateUrl = (url, requiredHosts, label) => {
             if (!url) return null;
+            const hosts = Array.isArray(requiredHosts) ? requiredHosts : [requiredHosts];
             // Tolerate a protocol-less URL (e.g. "facebook.com/name") rather than
             // rejecting the whole save over it — a very natural thing to type.
             const withProtocol = /^https?:\/\//i.test(url) ? url : `https://${url}`;
@@ -706,10 +745,10 @@ router.put('/profile', async (req, res) => {
             try {
                 parsed = new URL(withProtocol);
             } catch {
-                throw new Error(`Please enter a valid ${requiredHost.split('.')[0]} URL`);
+                throw new Error(`Please enter a valid ${label || hosts[0].split('.')[0]} URL`);
             }
-            if (!parsed.hostname.toLowerCase().includes(requiredHost)) {
-                throw new Error(`Please enter a valid ${requiredHost.split('.')[0]} URL`);
+            if (!hosts.some(host => parsed.hostname.toLowerCase().includes(host))) {
+                throw new Error(`Please enter a valid ${label || hosts[0].split('.')[0]} URL`);
             }
             return withProtocol;
         };
@@ -730,6 +769,7 @@ router.put('/profile', async (req, res) => {
                 facebook_url: validateUrl(facebookUrl?.trim(), 'facebook.com'),
                 reddit_url: validateUrl(redditUrl?.trim(), 'reddit.com'),
                 instagram_url: validateUrl(instagramUrl?.trim(), 'instagram.com'),
+                youtube_url: validateUrl(youtubeUrl?.trim(), ['youtube.com', 'youtu.be'], 'YouTube'),
                 show_attendance_public: Boolean(showAttendancePublic),
             };
         } catch (validationError) {
