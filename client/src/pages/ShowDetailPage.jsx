@@ -488,7 +488,7 @@ export default function ShowDetailPage() {
                     <h1 className="font-display font-bold text-2xl md:text-4xl leading-tight min-w-0" style={{ color: 'var(--p-color-primary)' }}>
                         {show.artist_name}
                     </h1>
-                    <div className="flex items-center gap-2 flex-wrap justify-end w-full sm:w-auto">
+                    <div className="flex items-center gap-2 flex-wrap">
                     {isEditorOrAdmin && (
                         <button
                             onClick={() => navigate(`/admin/shows/edit/${show.id}`)}
