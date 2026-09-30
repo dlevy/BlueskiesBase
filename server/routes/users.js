@@ -519,22 +519,23 @@ router.get('/directory', async (req, res) => {
 });
 
 /**
- * GET /api/users/channels
- * Public, no auth required — every member who has added a YouTube channel to
- * their profile. Powers the "Member Channels" section at the bottom of the
- * public /links page, separate from the admin-managed links table.
+ * GET /api/users/social-links
+ * Public, no auth required — every member who has added at least one of
+ * Facebook/Reddit/Instagram/YouTube to their profile. Powers the "Member
+ * Links" section at the bottom of the public /links page, separate from the
+ * admin-managed links table.
  */
-router.get('/channels', async (req, res) => {
+router.get('/social-links', async (req, res) => {
     try {
         const { data, error } = await supabase
             .from('profiles')
-            .select('id, username, display_name, avatar_url, youtube_url')
-            .not('youtube_url', 'is', null)
+            .select('id, username, display_name, avatar_url, facebook_url, reddit_url, instagram_url, youtube_url')
+            .or('facebook_url.not.is.null,reddit_url.not.is.null,instagram_url.not.is.null,youtube_url.not.is.null')
             .order('username', { ascending: true });
 
         if (error) {
-            console.error('[GET /users/channels] Error:', error);
-            return res.status(500).json({ error: 'Failed to fetch member channels' });
+            console.error('[GET /users/social-links] Error:', error);
+            return res.status(500).json({ error: 'Failed to fetch member links' });
         }
 
         const members = (data || [])
@@ -544,12 +545,15 @@ router.get('/channels', async (req, res) => {
                 username: p.username,
                 displayName: p.display_name || null,
                 avatarUrl: p.avatar_url || null,
-                youtubeUrl: p.youtube_url,
+                ...(p.facebook_url && { facebookUrl: p.facebook_url }),
+                ...(p.reddit_url && { redditUrl: p.reddit_url }),
+                ...(p.instagram_url && { instagramUrl: p.instagram_url }),
+                ...(p.youtube_url && { youtubeUrl: p.youtube_url }),
             }));
 
         res.json({ members });
     } catch (err) {
-        console.error('[GET /users/channels] Error:', err);
+        console.error('[GET /users/social-links] Error:', err);
         res.status(500).json({ error: 'Internal server error' });
     }
 });

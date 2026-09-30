@@ -1042,13 +1042,14 @@ export const getMemberDirectory = async () => {
 };
 
 /**
- * Every member who has added a YouTube channel to their profile. Public, no
- * auth required — used by the "Member Channels" section on /links.
+ * Every member who has added at least one social link (Facebook/Reddit/
+ * Instagram/YouTube) to their profile. Public, no auth required — used by the
+ * "Member Links" section on /links.
  */
-export const getMemberChannels = async () => {
-    const response = await fetch(`${API_BASE_URL}/api/users/channels`);
+export const getMemberSocialLinks = async () => {
+    const response = await fetch(`${API_BASE_URL}/api/users/social-links`);
     if (!response.ok) {
-        throw new Error('Failed to fetch member channels');
+        throw new Error('Failed to fetch member links');
     }
     return response.json();
 };

@@ -1,22 +1,36 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { PSpinner, PText, PHeading } from '@porsche-design-system/components-react';
-import { getLinks, getLinkCategories, getMemberChannels } from '../services/api';
+import { getLinks, getLinkCategories, getMemberSocialLinks } from '../services/api';
 import MainNavTabs from '../components/MainNavTabs';
 import SEO from '../components/SEO';
 import Avatar from '../components/Avatar';
 
-function MemberChannelCard({ member }) {
+const SOCIAL_PLATFORMS = [
+    { key: 'facebookUrl', label: 'Facebook' },
+    { key: 'redditUrl', label: 'Reddit' },
+    { key: 'instagramUrl', label: 'Instagram' },
+    { key: 'youtubeUrl', label: 'YouTube' },
+];
+
+function MemberLinksCard({ member }) {
     const name = member.displayName || member.username;
+    const platforms = SOCIAL_PLATFORMS.filter(p => member[p.key]);
+
     return (
         <div className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 hover:border-amber-500/30 hover:bg-white/[0.05] transition-all">
-            <a href={member.youtubeUrl} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0">
-                    <Avatar url={member.avatarUrl} name={name} size="sm" />
-                    <PText size="small" weight="semi-bold" ellipsis>{name}</PText>
-                </div>
-                <span className="text-amber-400 shrink-0 text-sm">→</span>
-            </a>
+            <Link to={`/profile/${member.username}`} className="flex items-center gap-2 min-w-0 hover:opacity-80 transition-opacity">
+                <Avatar url={member.avatarUrl} name={name} size="sm" />
+                <PText size="small" weight="semi-bold" ellipsis>{name}</PText>
+            </Link>
+            <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5">
+                {platforms.map(p => (
+                    <a key={p.key} href={member[p.key]} target="_blank" rel="noopener noreferrer"
+                        className="text-xs font-medium text-amber-400 hover:opacity-80 transition-opacity">
+                        {p.label} →
+                    </a>
+                ))}
+            </div>
         </div>
     );
 }
@@ -53,19 +67,19 @@ function LinkCard({ link }) {
 export default function LinksPage() {
     const [categories, setCategories] = useState([]);
     const [links, setLinks] = useState([]);
-    const [memberChannels, setMemberChannels] = useState([]);
+    const [memberLinks, setMemberLinks] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
     useEffect(() => {
         let cancelled = false;
 
-        Promise.all([getLinks(), getLinkCategories(), getMemberChannels()])
-            .then(([linksData, categoriesData, channelsData]) => {
+        Promise.all([getLinks(), getLinkCategories(), getMemberSocialLinks()])
+            .then(([linksData, categoriesData, memberLinksData]) => {
                 if (cancelled) return;
                 setLinks(linksData.links || []);
                 setCategories(categoriesData.categories || []);
-                setMemberChannels(channelsData.members || []);
+                setMemberLinks(memberLinksData.members || []);
             })
             .catch(err => {
                 console.error('[LinksPage] Error loading links:', err);
@@ -154,14 +168,14 @@ export default function LinksPage() {
                 </div>
             )}
 
-            {!loading && !error && memberChannels.length > 0 && (
+            {!loading && !error && memberLinks.length > 0 && (
                 <div className="mt-2 pt-6 border-t border-white/10">
-                    <PHeading size="lg" tag="h2" className="mb-1">Member Channels</PHeading>
+                    <PHeading size="lg" tag="h2" className="mb-1">Member Links</PHeading>
                     <PText size="small" color="contrast-medium" className="block mb-3">
-                        YouTube channels shared by SkySets.org members
+                        Social links shared by SkySets.org members on their profiles
                     </PText>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                        {memberChannels.map(member => <MemberChannelCard key={member.id} member={member} />)}
+                        {memberLinks.map(member => <MemberLinksCard key={member.id} member={member} />)}
                     </div>
                 </div>
             )}
