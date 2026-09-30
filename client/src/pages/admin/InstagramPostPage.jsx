@@ -121,13 +121,27 @@ export default function InstagramPostPage() {
         try {
             await document.fonts.ready;
 
-            // Guard against capturing the DOM before the background <img>
-            // has actually finished decoding — the load event (and even the
-            // state update above) don't guarantee decoded pixel data is
-            // ready to paint yet. Never blocks the export on a single image
-            // failing to decode.
-            const images = Array.from(graphicRef.current.querySelectorAll('img'));
-            await Promise.all(images.map(img => img.decode?.().catch(() => {})));
+            // Guard against capturing the DOM before the background image has
+            // actually finished decoding. It's a CSS background-image now
+            // (not an <img>), so there's nothing in the DOM to call
+            // .decode() on directly — decode an offscreen copy of the exact
+            // same data: URL instead. Once that resolves, the browser has
+            // the bitmap ready in its image cache, so the background-image
+            // reference to the same URL can paint immediately instead of
+            // decoding for the first time mid-capture (which is what made
+            // the first "Download PNG" click after picking an image come out
+            // with no background, while a second click right after worked —
+            // by then the browser had already decoded it once).
+            if (backgroundImageDataUrl) {
+                const preload = new Image();
+                preload.src = backgroundImageDataUrl;
+                await preload.decode?.().catch(() => {});
+            }
+
+            // Also wait a couple of paint frames so the now-decoded
+            // background has actually been composited on screen, not just
+            // decoded in memory, before html-to-image reads the DOM.
+            await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
             const dataUrl = await toPng(graphicRef.current, { pixelRatio: 2, cacheBust: true });
             const link = document.createElement('a');
