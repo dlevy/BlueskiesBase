@@ -2,7 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Link, Outlet, useNavigate } fro
 import { useState, useEffect } from 'react'
 import { PButtonPure } from '@porsche-design-system/components-react'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
-import { setTokenGetter } from './services/api'
+import { setTokenGetter, getSiteSettings } from './services/api'
 import ProtectedRoute from './components/ProtectedRoute'
 import HomePage from './pages/HomePage'
 import ShowDetailPage from './pages/ShowDetailPage'
@@ -32,6 +32,7 @@ import VenuesList from './pages/admin/VenuesList'
 import ToursList from './pages/admin/ToursList'
 import TourEditPage from './pages/admin/TourEditPage'
 import AdminUsers from './pages/admin/AdminUsers'
+import SiteSettingsPage from './pages/admin/SiteSettingsPage'
 import InstagramPostPage from './pages/admin/InstagramPostPage'
 import './App.css'
 
@@ -88,6 +89,7 @@ function App() {
             <Route path="tours" element={<ToursList />} />
             <Route path="tours/:tourName" element={<TourEditPage />} />
             <Route path="users" element={<AdminUsers />} />
+            <Route path="settings" element={<SiteSettingsPage />} />
           </Route>
         </Routes>
       </Router>
@@ -95,16 +97,33 @@ function App() {
   )
 }
 
+const DEFAULT_HEADER_TITLE = 'Skysets.org - JBS / Sturgill Simpson Media Archive';
+const DEFAULT_HEADER_SUBTITLE = 'Johnny Blue Skies & The Dark Clouds Concert Setlist Archive';
+
 function PublicLayout() {
   const { user, profile, isEditorOrAdmin, signOut, getToken } = useAuth();
   const navigate = useNavigate();
   const [isSigningOut, setIsSigningOut] = useState(false);
+  // Defaults match the historical hardcoded text exactly, so there's no
+  // flash/layout shift for the common case where an admin hasn't changed it —
+  // this just gets overwritten once the fetch resolves, if it differs.
+  const [headerTitle, setHeaderTitle] = useState(DEFAULT_HEADER_TITLE);
+  const [headerSubtitle, setHeaderSubtitle] = useState(DEFAULT_HEADER_SUBTITLE);
 
   useEffect(() => {
     if (getToken) {
       setTokenGetter(getToken);
     }
   }, [getToken]);
+
+  useEffect(() => {
+    getSiteSettings()
+      .then(data => {
+        if (data.headerTitle) setHeaderTitle(data.headerTitle);
+        if (data.headerSubtitle !== undefined) setHeaderSubtitle(data.headerSubtitle);
+      })
+      .catch(err => console.error('[PublicLayout] Error loading site settings:', err));
+  }, []);
 
   const handleSignOut = async () => {
     if (isSigningOut) return;
@@ -137,14 +156,16 @@ function PublicLayout() {
             <img src="/logo.png" alt="" className="h-12 w-12 shrink-0" />
             <div className="flex flex-col items-start min-w-0">
               <span className="font-display font-bold text-lg leading-none" style={{ color: 'var(--p-color-primary)' }}>
-                Skysets.org - JBS / Sturgill Simpson Media Archive
+                {headerTitle}
               </span>
-              <span
-                className="hidden md:block text-xs mt-0.5 truncate"
-                style={{ color: 'var(--p-color-contrast-low)' }}
-              >
-                 Johnny Blue Skies & The Dark Clouds Concert Setlist Archive
-              </span>
+              {headerSubtitle && (
+                <span
+                  className="hidden md:block text-xs mt-0.5 truncate"
+                  style={{ color: 'var(--p-color-contrast-low)' }}
+                >
+                  {headerSubtitle}
+                </span>
+              )}
             </div>
           </Link>
 

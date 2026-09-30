@@ -62,6 +62,7 @@ export default function AdminLayout() {
                             // Full admins only — user management (including deleting
                             // accounts) is intentionally out of reach for editors.
                             ...(isAdmin ? [{ to: '/admin/users', label: 'Users' }] : []),
+                            ...(isAdmin ? [{ to: '/admin/settings', label: 'Site Settings' }] : []),
                         ].map(({ to, label }) => (
                             <li key={to} className="shrink-0">
                                 <Link to={to} className={navLinkClass} style={{ color: 'var(--p-color-primary)' }}>

@@ -1722,3 +1722,38 @@ export const removePosterWant = async (wantId) => {
     return response.json();
 };
 
+/**
+ * Site-wide editable text — currently the header title/subtitle shown on
+ * every page. Public, no auth required.
+ */
+export const getSiteSettings = async () => {
+    const response = await fetch(`${API_BASE_URL}/api/settings`);
+    if (!response.ok) {
+        throw new Error('Failed to fetch site settings');
+    }
+    return response.json();
+};
+
+/**
+ * Update site-wide editable text. Admin only.
+ * Body: { headerTitle?, headerSubtitle? }
+ */
+export const updateSiteSettings = async (updates) => {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/settings`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(updates),
+    });
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to update site settings');
+    }
+    return response.json();
+};
+
