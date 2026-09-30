@@ -125,13 +125,7 @@ export default function InstagramPostPage() {
             // actually finished decoding. It's a CSS background-image now
             // (not an <img>), so there's nothing in the DOM to call
             // .decode() on directly — decode an offscreen copy of the exact
-            // same data: URL instead. Once that resolves, the browser has
-            // the bitmap ready in its image cache, so the background-image
-            // reference to the same URL can paint immediately instead of
-            // decoding for the first time mid-capture (which is what made
-            // the first "Download PNG" click after picking an image come out
-            // with no background, while a second click right after worked —
-            // by then the browser had already decoded it once).
+            // same data: URL instead.
             if (backgroundImageDataUrl) {
                 const preload = new Image();
                 preload.src = backgroundImageDataUrl;
@@ -143,6 +137,22 @@ export default function InstagramPostPage() {
             // decoded in memory, before html-to-image reads the DOM.
             await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
+            // html-to-image rasterizes the DOM by serializing it into an SVG
+            // <foreignObject>, loading that SVG as a data: URL into an
+            // offscreen <img>, and drawing that image onto a canvas once it
+            // fires `onload`. On iOS/Safari, the very first time a given
+            // WebKit process rasterizes a *new* SVG payload that embeds a
+            // background image, `onload` can fire before the embedded raster
+            // content is actually painted into the decoded image — so the
+            // canvas draw captures a blank/background-less frame. Every
+            // *subsequent* rasterization of that same kind of payload (even
+            // with different embedded bytes) succeeds, which is exactly the
+            // "fails once, then works every time after" symptom reported.
+            // This is a known WebKit quirk with html2canvas/html-to-image
+            // (not specific to our data-URL or decode handling above) — the
+            // standard workaround is to render once and throw the result
+            // away to "warm up" the pipeline, then render again for real.
+            await toPng(graphicRef.current, { pixelRatio: 2, cacheBust: true }).catch(() => {});
             const dataUrl = await toPng(graphicRef.current, { pixelRatio: 2, cacheBust: true });
             const link = document.createElement('a');
             const datePart = show.show_date;
@@ -157,7 +167,7 @@ export default function InstagramPostPage() {
         } finally {
             setGenerating(false);
         }
-    }, [show]);
+    }, [show, backgroundImageDataUrl]);
 
     if (loading) {
         return <div className="flex justify-center items-center py-12"><PSpinner size="medium" /></div>;
