@@ -27,6 +27,16 @@ export default function InstagramPostPage() {
     const [backgroundMode, setBackgroundMode] = useState('style');
     const [posterVariant, setPosterVariant] = useState('regular');
     const [selectedPhotoUrl, setSelectedPhotoUrl] = useState(null);
+    // The background image is fetched and inlined as a data: URL rather than
+    // handed to the graphic as a remote Supabase URL. Safari/WebKit's
+    // cross-origin canvas rules are notoriously unreliable for the
+    // html-to-image export specifically (see handleDownload) — even once the
+    // live on-screen <img> renders fine, the export's own SVG->canvas
+    // rasterization step can still come back with the image missing. A data:
+    // URL has no cross-origin/canvas-taint question at all, for the preview
+    // or the export, on any browser.
+    const [backgroundImageDataUrl, setBackgroundImageDataUrl] = useState(null);
+    const [backgroundImageLoading, setBackgroundImageLoading] = useState(false);
     // iOS Safari doesn't support triggering a file save via a synthetic
     // <a download> click — tapping "Download PNG" there does nothing
     // visible. Showing the result in a real <img> (via the lightbox) lets
@@ -67,11 +77,58 @@ export default function InstagramPostPage() {
             .catch(err => console.error('[InstagramPostPage] Error loading poster:', err));
     }, [id]);
 
+    // Derived early (not after the loading/error guards below) so the hook
+    // that depends on it stays unconditional, same as every other effect here.
+    const regularPoster = posters.find(p => !p.is_foil) || null;
+    const foilPoster = posters.find(p => p.is_foil) || null;
+    const activePoster = (posterVariant === 'foil' && foilPoster) ? foilPoster : (regularPoster || foilPoster);
+    const posterUrl = activePoster?.poster_url || null;
+    const rawBackgroundImageUrl = backgroundMode === 'poster' ? posterUrl : backgroundMode === 'photo' ? selectedPhotoUrl : null;
+
+    useEffect(() => {
+        if (!rawBackgroundImageUrl) {
+            setBackgroundImageDataUrl(null);
+            setBackgroundImageLoading(false);
+            return;
+        }
+        let cancelled = false;
+        setBackgroundImageLoading(true);
+        (async () => {
+            try {
+                const res = await fetch(rawBackgroundImageUrl);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const blob = await res.blob();
+                const dataUrl = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = () => reject(reader.error);
+                    reader.readAsDataURL(blob);
+                });
+                if (!cancelled) setBackgroundImageDataUrl(dataUrl);
+            } catch (err) {
+                console.error('[InstagramPostPage] Failed to inline background image, falling back to remote URL:', err);
+                if (!cancelled) setBackgroundImageDataUrl(rawBackgroundImageUrl);
+            } finally {
+                if (!cancelled) setBackgroundImageLoading(false);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [rawBackgroundImageUrl]);
+
     const handleDownload = useCallback(async () => {
         if (!graphicRef.current) return;
         setGenerating(true);
         try {
             await document.fonts.ready;
+
+            // Guard against capturing the DOM before the background <img>
+            // has actually finished decoding — the load event (and even the
+            // state update above) don't guarantee decoded pixel data is
+            // ready to paint yet. Never blocks the export on a single image
+            // failing to decode.
+            const images = Array.from(graphicRef.current.querySelectorAll('img'));
+            await Promise.all(images.map(img => img.decode?.().catch(() => {})));
+
             const dataUrl = await toPng(graphicRef.current, { pixelRatio: 2, cacheBust: true });
             const link = document.createElement('a');
             const datePart = show.show_date;
@@ -96,12 +153,7 @@ export default function InstagramPostPage() {
         return <PInlineNotification heading="Error" description={error || 'Show not found'} state="error" dismissButton={false} />;
     }
 
-    const regularPoster = posters.find(p => !p.is_foil) || null;
-    const foilPoster = posters.find(p => p.is_foil) || null;
     const hasBothPosterVariants = !!regularPoster && !!foilPoster;
-    const activePoster = (posterVariant === 'foil' && foilPoster) ? foilPoster : (regularPoster || foilPoster);
-    const posterUrl = activePoster?.poster_url || null;
-    const backgroundImageUrl = backgroundMode === 'poster' ? posterUrl : backgroundMode === 'photo' ? selectedPhotoUrl : null;
     const previewHeight = Math.round(PREVIEW_WIDTH * (POST_HEIGHT / POST_WIDTH));
     const previewScale = PREVIEW_WIDTH / POST_WIDTH;
 
@@ -246,8 +298,8 @@ export default function InstagramPostPage() {
                         )}
                     </div>
 
-                    <PButton onClick={handleDownload} loading={generating} className="w-full">
-                        Download PNG
+                    <PButton onClick={handleDownload} loading={generating} disabled={backgroundImageLoading} className="w-full">
+                        {backgroundImageLoading ? 'Loading background…' : 'Download PNG'}
                     </PButton>
                     <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }} className="block -mt-3">
                         On iPhone/iPad: Safari can't auto-download images — after generating, a full-size preview opens
@@ -267,7 +319,7 @@ export default function InstagramPostPage() {
                                     liveDebutSongIds={liveDebutSongIds}
                                     tourDebutSongIds={tourDebutSongIds}
                                     backgroundMode={backgroundMode}
-                                    backgroundImageUrl={backgroundImageUrl}
+                                    backgroundImageUrl={backgroundImageDataUrl}
                                 />
                             </div>
                         </div>

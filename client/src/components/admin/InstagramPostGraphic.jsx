@@ -173,6 +173,13 @@ const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({
     const palette = useImageBackground ? IMAGE_OVERLAY_PALETTE : style;
     const textShadow = useImageBackground ? IMAGE_TEXT_SHADOW : 'none';
 
+    // InstagramPostPage now fetches the selected poster/photo itself and
+    // hands this component a data: URL, not the remote Supabase URL — a
+    // data: URL has no cross-origin/canvas-taint question at all, for either
+    // the live preview or the html-to-image export, on any browser. The
+    // remote-URL path below only runs if that fetch failed and the caller
+    // fell back to the original URL.
+    const isDataUrl = backgroundImageUrl?.startsWith('data:');
     // Same-origin-storage thumbnails of this exact image are already on the
     // page elsewhere (the poster/photo picker grids) loaded WITHOUT
     // crossOrigin. Safari/WebKit has a long-standing bug where a later
@@ -183,9 +190,9 @@ const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({
     // query param gives the CORS-flagged request its own cache key so it
     // always does a fresh, proper CORS fetch. Desktop browsers are unaffected
     // either way; this is a no-op for them.
-    const crossOriginSafeBackgroundUrl = backgroundImageUrl
-        ? `${backgroundImageUrl}${backgroundImageUrl.includes('?') ? '&' : '?'}ig-bg=1`
-        : null;
+    const crossOriginSafeBackgroundUrl = !backgroundImageUrl || isDataUrl
+        ? backgroundImageUrl
+        : `${backgroundImageUrl}${backgroundImageUrl.includes('?') ? '&' : '?'}ig-bg=1`;
 
     const songs = SET_KEYS.flatMap(key => show.setlist?.[key] || []);
     const numberedSongs = assignSetlistDisplayNumbers(songs);
@@ -214,7 +221,7 @@ const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({
                 <>
                     <img
                         src={crossOriginSafeBackgroundUrl}
-                        crossOrigin="anonymous"
+                        crossOrigin={isDataUrl ? undefined : 'anonymous'}
                         alt=""
                         style={{
                             position: 'absolute', inset: 0, width: '100%', height: '100%',
