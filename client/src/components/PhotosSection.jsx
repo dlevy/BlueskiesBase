@@ -161,8 +161,8 @@ export default function PhotosSection({ showId }) {
                             {photos[currentPhotoIndex].caption && (
                                 <PText size="sm">{photos[currentPhotoIndex].caption}</PText>
                             )}
-                            <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>
-                                By {photos[currentPhotoIndex].profiles?.username
+                            <PText size="2xs" style={{ color: 'var(--p-color-contrast-low)' }}>
+                                Uploaded by {photos[currentPhotoIndex].profiles?.username
                                     ? <Link to={`/profile/${photos[currentPhotoIndex].profiles.username}`} className="hover:underline">{photos[currentPhotoIndex].profiles.display_name || photos[currentPhotoIndex].profiles.username}</Link>
                                     : 'Anonymous'} · {new Date(photos[currentPhotoIndex].created_at).toLocaleDateString()}
                             </PText>
