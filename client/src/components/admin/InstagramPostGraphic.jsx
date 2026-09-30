@@ -173,27 +173,16 @@ const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({
     const palette = useImageBackground ? IMAGE_OVERLAY_PALETTE : style;
     const textShadow = useImageBackground ? IMAGE_TEXT_SHADOW : 'none';
 
-    // InstagramPostPage now fetches the selected poster/photo itself and
-    // hands this component a data: URL, not the remote Supabase URL — a
-    // data: URL has no cross-origin/canvas-taint question at all, for either
-    // the live preview or the html-to-image export, on any browser. The
-    // remote-URL path below only runs if that fetch failed and the caller
-    // fell back to the original URL.
-    const isDataUrl = backgroundImageUrl?.startsWith('data:');
-    // Same-origin-storage thumbnails of this exact image are already on the
-    // page elsewhere (the poster/photo picker grids) loaded WITHOUT
-    // crossOrigin. Safari/WebKit has a long-standing bug where a later
-    // <img crossOrigin="anonymous"> request for a URL it already cached
-    // without CORS reuses that cached, non-CORS-validated response instead
-    // of re-fetching — on iOS this makes the image fail to render at all
-    // rather than just tainting a canvas. Appending a harmless, distinct
-    // query param gives the CORS-flagged request its own cache key so it
-    // always does a fresh, proper CORS fetch. Desktop browsers are unaffected
-    // either way; this is a no-op for them.
-    const crossOriginSafeBackgroundUrl = !backgroundImageUrl || isDataUrl
-        ? backgroundImageUrl
-        : `${backgroundImageUrl}${backgroundImageUrl.includes('?') ? '&' : '?'}ig-bg=1`;
-
+    // InstagramPostPage fetches the selected poster/photo itself and hands
+    // this component a data: URL, not the remote Supabase URL — removing any
+    // cross-origin/canvas-taint question for the live preview or the
+    // html-to-image export. Separately, the background is a CSS
+    // background-image div here, not an <img>: WebKit's SVG-foreignObject
+    // rasterization (what html-to-image uses to produce the export) has a
+    // long-standing history of dropping <img> "replaced" elements while
+    // still painting plain CSS backgrounds correctly — switching this from
+    // object-fit:cover on an <img> to background-size:cover on a div is a
+    // known, much more reliable path through that same rasterization step.
     const songs = SET_KEYS.flatMap(key => show.setlist?.[key] || []);
     const numberedSongs = assignSetlistDisplayNumbers(songs);
 
@@ -219,13 +208,13 @@ const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({
         >
             {useImageBackground && (
                 <>
-                    <img
-                        src={crossOriginSafeBackgroundUrl}
-                        crossOrigin={isDataUrl ? undefined : 'anonymous'}
-                        alt=""
+                    <div
+                        role="img"
+                        aria-label=""
                         style={{
-                            position: 'absolute', inset: 0, width: '100%', height: '100%',
-                            objectFit: 'cover', objectPosition: 'center',
+                            position: 'absolute', inset: 0,
+                            backgroundImage: `url("${backgroundImageUrl}")`,
+                            backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat',
                         }}
                     />
                     {/* Scrim — darkest at top/bottom where header/footer text sits,
