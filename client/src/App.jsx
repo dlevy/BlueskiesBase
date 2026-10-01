@@ -22,6 +22,7 @@ import AuthDebugPage from './pages/AuthDebugPage'
 import InstagramFollowBanner from './components/InstagramFollowBanner'
 import Avatar from './components/Avatar'
 import NotificationBell from './components/NotificationBell'
+import NotificationsPage from './pages/NotificationsPage'
 import AdminLayout from './pages/admin/AdminLayout'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import ShowsList from './pages/admin/ShowsList'
@@ -59,6 +60,7 @@ function App() {
                 currently auto-generated, not user-chosen. */}
             <Route path="profile/edit" element={<EditProfilePage />} />
             <Route path="profile/:username" element={<ProfilePage />} />
+            <Route path="notifications" element={<NotificationsPage />} />
           </Route>
 
           {/* Member Auth Routes */}

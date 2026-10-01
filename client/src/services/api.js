@@ -1817,15 +1817,48 @@ export const removeThanks = async (contentType, contentId) => {
  * The logged-in user's own notifications (most recent first) plus a precise
  * unread count, for the header notification bell.
  */
-export const getNotifications = async () => {
+export const getNotifications = async ({ includeDismissed = false, limit } = {}) => {
     const token = await getAuthToken();
     if (!token) throw new Error('Not authenticated');
 
-    const response = await fetchWithAuth(`${API_BASE_URL}/api/notifications`, {
+    const params = new URLSearchParams();
+    if (includeDismissed) params.set('includeDismissed', 'true');
+    if (limit) params.set('limit', String(limit));
+    const query = params.toString() ? `?${params.toString()}` : '';
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/notifications${query}`, {
         headers: { 'Authorization': `Bearer ${token}` },
     });
     if (!response.ok) {
         throw new Error('Failed to fetch notifications');
+    }
+    return response.json();
+};
+
+export const dismissNotification = async (notificationId) => {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/notifications/${notificationId}/dismiss`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!response.ok) {
+        throw new Error('Failed to dismiss notification');
+    }
+    return response.json();
+};
+
+export const restoreNotification = async (notificationId) => {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/notifications/${notificationId}/restore`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!response.ok) {
+        throw new Error('Failed to restore notification');
     }
     return response.json();
 };

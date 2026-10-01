@@ -1,34 +1,24 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { getNotifications, markAllNotificationsRead } from '../services/api';
+import { getNotifications, markAllNotificationsRead, dismissNotification } from '../services/api';
 import { buildShowPath } from '../utils/showSlug';
-
-const CONTENT_LABEL = {
-    photo: 'photo',
-    poster: 'poster',
-    note: 'comment',
-    setlist_submission: 'setlist submission',
-};
+import { timeAgo, notificationText, notificationShowLabel } from '../utils/notifications';
 
 const POLL_INTERVAL_MS = 60000;
-
-function timeAgo(dateString) {
-    const seconds = Math.floor((Date.now() - new Date(dateString).getTime()) / 1000);
-    if (seconds < 60) return 'just now';
-    const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) return `${minutes}m ago`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours}h ago`;
-    const days = Math.floor(hours / 24);
-    if (days < 30) return `${days}d ago`;
-    return new Date(dateString).toLocaleDateString();
-}
 
 function BellIcon() {
     return (
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+        </svg>
+    );
+}
+
+function CloseIcon() {
+    return (
+        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
         </svg>
     );
 }
@@ -84,6 +74,20 @@ export default function NotificationBell() {
         }
     };
 
+    const handleDismiss = async (e, notificationId) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const wasUnread = notifications.find(n => n.id === notificationId && !n.read_at);
+        setNotifications(prev => prev.filter(n => n.id !== notificationId));
+        if (wasUnread) setUnreadCount(prev => Math.max(0, prev - 1));
+        try {
+            await dismissNotification(notificationId);
+        } catch (err) {
+            console.error('[NotificationBell] Error dismissing notification:', err);
+            await load();
+        }
+    };
+
     if (!user) return null;
 
     return (
@@ -126,24 +130,29 @@ export default function NotificationBell() {
                             </p>
                         ) : (
                             notifications.map(n => {
-                                const actorName = n.actor?.display_name || n.actor?.username || 'Someone';
-                                const label = CONTENT_LABEL[n.content_type] || 'contribution';
-                                const text = `${actorName} thanked you for your ${label}`;
-                                const showLabel = n.shows
-                                    ? `${n.shows.artist_name} — ${n.shows.venues?.city || ''}${n.shows.venues?.state_country ? `, ${n.shows.venues.state_country}` : ''}`
-                                    : null;
+                                const showLabel = notificationShowLabel(n);
                                 const content = (
                                     <div className="px-4 py-3 hover:bg-white/5 transition-colors flex gap-2 items-start">
                                         {!n.read_at && (
                                             <span className="mt-1.5 w-1.5 h-1.5 rounded-full shrink-0" style={{ background: '#f59e0b' }} />
                                         )}
-                                        <div className="min-w-0">
-                                            <p className="text-sm" style={{ color: 'var(--p-color-primary)' }}>{text}</p>
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-sm" style={{ color: 'var(--p-color-primary)' }}>{notificationText(n)}</p>
                                             {showLabel && (
                                                 <p className="text-xs truncate" style={{ color: 'var(--p-color-contrast-medium)' }}>{showLabel}</p>
                                             )}
                                             <p className="text-xs mt-0.5" style={{ color: 'var(--p-color-contrast-low)' }}>{timeAgo(n.created_at)}</p>
                                         </div>
+                                        <button
+                                            type="button"
+                                            onClick={(e) => handleDismiss(e, n.id)}
+                                            aria-label="Dismiss notification"
+                                            title="Dismiss"
+                                            className="shrink-0 h-6 w-6 flex items-center justify-center rounded-full opacity-0 group-hover:opacity-100 hover:bg-white/10 transition-all"
+                                            style={{ color: 'var(--p-color-contrast-low)' }}
+                                        >
+                                            <CloseIcon />
+                                        </button>
                                     </div>
                                 );
                                 return n.shows ? (
@@ -156,6 +165,15 @@ export default function NotificationBell() {
                             })
                         )}
                     </div>
+
+                    <Link
+                        to="/notifications"
+                        onClick={() => setOpen(false)}
+                        className="block px-4 py-2.5 text-xs text-center font-medium border-t border-white/10 hover:bg-white/5 transition-colors"
+                        style={{ color: 'var(--p-color-primary)' }}
+                    >
+                        Show all notifications
+                    </Link>
                 </div>
             )}
         </div>
