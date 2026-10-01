@@ -29,16 +29,23 @@ export default function WhoWasThereSection({ showId, refreshOn, isFutureShow }) 
                 {isFutureShow ? 'Who Is Attending?' : 'Who Was There'}
             </PText>
             <div className="flex flex-wrap items-center gap-1.5">
-                {attendees.map(a => (
-                    <Link
-                        key={a.id}
-                        to={`/profile/${a.username}`}
-                        className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border border-white/10 bg-white/5 hover:border-white/25 hover:bg-white/10 transition-colors"
-                        style={{ color: 'var(--p-color-contrast-medium)' }}
-                    >
-                        {a.displayName || a.username}
-                    </Link>
-                ))}
+                {attendees.map((a, i) => {
+                    const pillClass = "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border border-white/10 bg-white/5 transition-colors";
+                    return a.username ? (
+                        <Link
+                            key={a.id}
+                            to={`/profile/${a.username}`}
+                            className={`${pillClass} hover:border-white/25 hover:bg-white/10`}
+                            style={{ color: 'var(--p-color-contrast-medium)' }}
+                        >
+                            {a.displayName || a.username}
+                        </Link>
+                    ) : (
+                        <span key={`hidden-${i}`} className={pillClass} style={{ color: 'var(--p-color-contrast-low)' }}>
+                            {a.displayName || 'Private'}
+                        </span>
+                    );
+                })}
                 {count > attendees.length && (
                     <span className="text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>
                         +{count - attendees.length} more

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { supabase, supabaseAdmin } = require('../config/supabase');
+const { resolveDisplayName } = require('../utils/privacy');
 
 /**
  * Middleware to verify authentication
@@ -81,7 +82,7 @@ router.get('/show/:showId', async (req, res) => {
 
         const { data: rows, error } = await supabaseAdmin
             .from('thanks')
-            .select('content_type, content_id, thanked_by, profiles:thanked_by(username, display_name)')
+            .select('content_type, content_id, thanked_by, profiles:thanked_by(username, display_name, hide_from_directory)')
             .in('content_id', allIds);
 
         if (error) {
@@ -97,7 +98,7 @@ router.get('/show/:showId', async (req, res) => {
                 contentType: r.content_type,
                 contentId: r.content_id,
                 thankedBy: r.thanked_by,
-                thankedByName: r.profiles?.display_name || r.profiles?.username || 'Someone',
+                thankedByName: resolveDisplayName(r.profiles),
             }));
 
         res.json({ thanks: relevant });

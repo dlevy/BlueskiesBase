@@ -233,7 +233,7 @@ export default function CommentsSection({ showId, thanksRows = [], onThanksChang
                                         <PText size="xs" weight="semi-bold">
                                             {comment.profiles?.username
                                                 ? <Link to={`/profile/${comment.profiles.username}`} className="hover:underline">{comment.profiles.display_name || comment.profiles.username}</Link>
-                                                : 'Anonymous'}
+                                                : (comment.profiles?.display_name || 'Anonymous')}
                                         </PText>
                                         <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>{new Date(comment.created_at).toLocaleDateString()}</PText>
                                         <ThanksButton

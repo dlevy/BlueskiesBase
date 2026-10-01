@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { supabase, supabaseAdmin } = require('../config/supabase');
 const { notifyShowAttendees, notifyMentions } = require('../utils/notify');
+const { redactProfile } = require('../utils/privacy');
 
 /**
  * Middleware to verify authentication
@@ -60,7 +61,8 @@ router.get('/show/:showId', async (req, res) => {
                 profiles:user_id (
                     id,
                     username,
-                    display_name
+                    display_name,
+                    hide_from_directory
                 )
             `)
             .eq('show_id', showId)
@@ -71,7 +73,8 @@ router.get('/show/:showId', async (req, res) => {
             return res.status(500).json({ error: 'Failed to fetch notes' });
         }
 
-        res.json({ notes });
+        const redacted = (notes || []).map(n => ({ ...n, profiles: redactProfile(n.profiles) }));
+        res.json({ notes: redacted });
     } catch (error) {
         console.error('Error in GET /api/notes/show/:showId:', error);
         res.status(500).json({ error: 'Internal server error' });

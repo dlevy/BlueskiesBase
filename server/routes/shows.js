@@ -4,6 +4,7 @@ const { supabase } = require('../config/supabase');
 const { computeDebutsForShows } = require('../utils/debuts');
 const { requireAdmin, requireEditorOrAdmin } = require('../middleware/requireRole');
 const { notifySetlistUpdated } = require('../utils/notify');
+const { redactProfile } = require('../utils/privacy');
 
 // Sorted, song_order-independent signature for a set of setlist rows — used
 // to tell "a real correction" (song/set/encore/notes/performance_type
@@ -281,7 +282,8 @@ router.get('/:id/attendees', async (req, res) => {
                 profiles:user_id (
                     id,
                     username,
-                    display_name
+                    display_name,
+                    hide_from_directory
                 )
             `)
             .eq('show_id', id);
@@ -293,7 +295,10 @@ router.get('/:id/attendees', async (req, res) => {
 
         const attendees = (data || [])
             .filter(row => row.profiles?.username)
-            .map(row => ({ id: row.profiles.id, username: row.profiles.username, displayName: row.profiles.display_name || null }));
+            .map(row => {
+                const p = redactProfile(row.profiles);
+                return { id: p.id, username: p.username, displayName: p.display_name || null };
+            });
 
         res.json({ attendees, count: (data || []).length });
 
