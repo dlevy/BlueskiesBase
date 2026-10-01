@@ -29,7 +29,11 @@ export default function MainNavTabs() {
         // Horizontally scrollable — same treatment as AdminLayout's nav — so
         // seven tabs on a narrow phone screen scroll/slide sideways instead of
         // wrapping to a second line and pushing the rest of the page down.
-        <div className="border-b border-white/[0.07] mb-6 overflow-x-auto">
+        // overflow-y-hidden is deliberate: setting only overflow-x makes
+        // browsers treat overflow-y as auto too, so a sub-pixel vertical
+        // overflow (from the active tab's border trick) was popping a stray
+        // vertical scrollbar on the right edge.
+        <div className="border-b border-white/[0.07] mb-6 overflow-x-auto overflow-y-hidden">
             <div className="flex flex-nowrap w-max min-w-full">
                 {TABS.map(({ id, label, to }) => {
                     const isActive = activeTab === id;
