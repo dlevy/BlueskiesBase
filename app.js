@@ -45,6 +45,8 @@ app.use('/api/bands',  require('./server/routes/bands'));
 app.use('/api/setlist-submissions', require('./server/routes/setlist-submissions'));
 app.use('/api/links', require('./server/routes/links'));
 app.use('/api/settings', require('./server/routes/settings'));
+app.use('/api/thanks', require('./server/routes/thanks'));
+app.use('/api/notifications', require('./server/routes/notifications'));
 
 // Error handling middleware
 app.use((err, req, res, next) => {

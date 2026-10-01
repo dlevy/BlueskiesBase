@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { PHeading, PText, PButtonPure, PInlineNotification, PDivider, PSpinner } from '@porsche-design-system/components-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getShowNotes, getUserNote, saveNote, deleteNote } from '../services/api';
+import ThanksButton from './ThanksButton';
 
 const textareaClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-transparent placeholder:text-gray-500 resize-none";
 const btnPrimary = "inline-flex items-center gap-1.5 h-7 px-3 rounded-lg text-xs font-medium border border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/18 transition-all disabled:opacity-50 disabled:cursor-not-allowed";
@@ -17,7 +18,7 @@ function Spinner() {
     );
 }
 
-export default function NotesSection({ showId }) {
+export default function NotesSection({ showId, thanksRows = [], onThanksChanged }) {
     const { user, isAdmin } = useAuth();
     const [notes, setNotes] = useState([]);
     const [userNote, setUserNote] = useState(null);
@@ -147,26 +148,37 @@ export default function NotesSection({ showId }) {
             {notes.length > 0 && (
                 <div className="space-y-3">
                     <PHeading size="sm" tag="h3">Community Notes ({notes.length})</PHeading>
-                    {notes.map((note) => (
-                        <div key={note.id} className="rounded-xl border border-white/5 bg-white/5 p-4 space-y-2">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                    <PText size="xs" weight="semi-bold">
-                                        {note.profiles?.username
-                                            ? <Link to={`/profile/${note.profiles.username}`} className="hover:underline">{note.profiles.display_name || note.profiles.username}</Link>
-                                            : 'Anonymous'}
-                                    </PText>
-                                    <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>{new Date(note.created_at).toLocaleDateString()}</PText>
+                    {notes.map((note) => {
+                        const noteThanks = thanksRows.filter(t => t.contentType === 'note' && t.contentId === note.id);
+                        return (
+                            <div key={note.id} className="rounded-xl border border-white/5 bg-white/5 p-4 space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <PText size="xs" weight="semi-bold">
+                                            {note.profiles?.username
+                                                ? <Link to={`/profile/${note.profiles.username}`} className="hover:underline">{note.profiles.display_name || note.profiles.username}</Link>
+                                                : 'Anonymous'}
+                                        </PText>
+                                        <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>{new Date(note.created_at).toLocaleDateString()}</PText>
+                                        <ThanksButton
+                                            contentType="note"
+                                            contentId={note.id}
+                                            count={noteThanks.length}
+                                            thankedByMe={!!user && noteThanks.some(t => t.thankedBy === user.id)}
+                                            isOwnContent={!!user && note.user_id === user.id}
+                                            onToggled={onThanksChanged}
+                                        />
+                                    </div>
+                                    {isAdmin && (
+                                        <PButtonPure size="x-small" icon="delete" onClick={() => handleDelete(note.id)}>
+                                            Delete
+                                        </PButtonPure>
+                                    )}
                                 </div>
-                                {isAdmin && (
-                                    <PButtonPure size="x-small" icon="delete" onClick={() => handleDelete(note.id)}>
-                                        Delete
-                                    </PButtonPure>
-                                )}
+                                <PText size="sm">{note.note_text}</PText>
                             </div>
-                            <PText size="sm">{note.note_text}</PText>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             )}
 

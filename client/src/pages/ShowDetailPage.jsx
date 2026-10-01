@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
     PHeading, PText, PButtonPure, PTag, PSpinner,
     PInlineNotification
 } from '@porsche-design-system/components-react';
-import { getShowBySlug, getTourRarity, getShowDebuts, getAdjacentShows, checkShowAttendance, markShowAttended, unmarkShowAttended } from '../services/api';
+import { getShowBySlug, getTourRarity, getShowDebuts, getAdjacentShows, checkShowAttendance, markShowAttended, unmarkShowAttended, getShowThanks } from '../services/api';
 import { buildShowPath } from '../utils/showSlug';
 import { assignSetlistDisplayNumbers } from '../utils/setlist';
 import { useAuth } from '../contexts/AuthContext';
@@ -243,7 +243,20 @@ export default function ShowDetailPage() {
     const [liveDebutSongIds, setLiveDebutSongIds] = useState(null);
     const [tourDebutSongIds, setTourDebutSongIds] = useState(null);
     const [adjacent, setAdjacent] = useState({ prev: null, next: null });
+    const [thanksRows, setThanksRows] = useState([]);
     const initialLoad = useRef(true);
+
+    const loadThanks = useCallback(async () => {
+        if (!show?.id) return;
+        try {
+            const { thanks } = await getShowThanks(show.id);
+            setThanksRows(thanks || []);
+        } catch (err) {
+            console.error('[ShowDetail] thanks fetch failed:', err);
+        }
+    }, [show?.id]);
+
+    useEffect(() => { loadThanks(); }, [loadThanks]);
 
     useEffect(() => {
         const fetchShow = async () => {
@@ -682,8 +695,8 @@ export default function ShowDetailPage() {
                 </div>
             )}
 
-            <PhotosSection showId={show.id} />
-            <PostersSection showId={show.id} showDate={show.show_date} posterArtistName={show.poster_artist_name} posterArtistUrl={show.poster_artist_url} />
+            <PhotosSection showId={show.id} thanksRows={thanksRows} onThanksChanged={loadThanks} />
+            <PostersSection showId={show.id} showDate={show.show_date} posterArtistName={show.poster_artist_name} posterArtistUrl={show.poster_artist_url} thanksRows={thanksRows} onThanksChanged={loadThanks} />
 
             {/* Videos & Links */}
             {show.links?.length > 0 && (
@@ -719,12 +732,12 @@ export default function ShowDetailPage() {
                 </div>
             )}
 
-            <NotesSection showId={show.id} />
+            <NotesSection showId={show.id} thanksRows={thanksRows} onThanksChanged={loadThanks} />
 
             {/* Setlist Submission */}
             {/* scroll-margin-top clears the sticky header (h-14) when jumped to via the anchor above */}
             <div id="community-setlist" style={{ scrollMarginTop: '4.5rem' }}>
-                <SetlistSubmissionSection showId={show.id} />
+                <SetlistSubmissionSection showId={show.id} thanksRows={thanksRows} onThanksChanged={loadThanks} />
             </div>
         </div>
     );

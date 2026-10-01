@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { PHeading, PText, PButtonPure, PInlineNotification, PDivider } from '@porsche-design-system/components-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getShowPoster, uploadPoster, deletePoster, getPosterShows, linkPosterToRange, unlinkPosterShow } from '../services/api';
+import ThanksButton from './ThanksButton';
 import Lightbox from 'yet-another-react-lightbox';
 import 'yet-another-react-lightbox/styles.css';
 
@@ -178,7 +179,7 @@ function Spinner() {
 
 // One variant slot (regular or foil) — its own upload form, display, and delete,
 // independent of the other variant.
-function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, isEditorOrAdmin, onImageClick, onChanged }) {
+function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, isEditorOrAdmin, onImageClick, onChanged, thanksRows = [], onThanksChanged }) {
     const [uploading, setUploading] = useState(false);
     const [error, setError] = useState(null);
     const [selectedFile, setSelectedFile] = useState(null);
@@ -190,6 +191,7 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
     // both help moderate a show's media alongside admins.
     const canUpload = user && (!poster || poster.user_id === user.id || isAdmin);
     const canDelete = user && poster && (poster.user_id === user.id || isEditorOrAdmin);
+    const posterThanks = poster ? thanksRows.filter(t => t.contentType === 'poster' && t.contentId === poster.id) : [];
 
     const handleFileSelect = (e) => {
         const file = e.target.files[0];
@@ -318,11 +320,21 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
                     {poster.caption && <PText size="sm" color="contrast-medium" align="center">{poster.caption}</PText>}
 
                     <div className="flex items-center justify-between pt-3 border-t border-white/5">
-                        <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>
-                            Uploaded by {poster.profiles?.username
-                                ? <Link to={`/profile/${poster.profiles.username}`} className="hover:underline">{poster.profiles.display_name || poster.profiles.username}</Link>
-                                : 'Unknown'}
-                        </PText>
+                        <div className="space-y-1">
+                            <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>
+                                Uploaded by {poster.profiles?.username
+                                    ? <Link to={`/profile/${poster.profiles.username}`} className="hover:underline">{poster.profiles.display_name || poster.profiles.username}</Link>
+                                    : 'Unknown'}
+                            </PText>
+                            <ThanksButton
+                                contentType="poster"
+                                contentId={poster.id}
+                                count={posterThanks.length}
+                                thankedByMe={!!user && posterThanks.some(t => t.thankedBy === user.id)}
+                                isOwnContent={!!user && poster.user_id === user.id}
+                                onToggled={onThanksChanged}
+                            />
+                        </div>
                         {canDelete && (
                             <PButtonPure size="x-small" icon="delete" onClick={handleDelete}>Delete</PButtonPure>
                         )}
@@ -339,7 +351,7 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
     );
 }
 
-export default function PostersSection({ showId, showDate, posterArtistName, posterArtistUrl }) {
+export default function PostersSection({ showId, showDate, posterArtistName, posterArtistUrl, thanksRows = [], onThanksChanged }) {
     const { user, isAdmin, isEditorOrAdmin } = useAuth();
     const [posters, setPosters] = useState([]);
     const [lightboxIndex, setLightboxIndex] = useState(-1);
@@ -396,6 +408,8 @@ export default function PostersSection({ showId, showDate, posterArtistName, pos
                     isEditorOrAdmin={isEditorOrAdmin}
                     onImageClick={() => setLightboxIndex(posters.indexOf(regularPoster))}
                     onChanged={loadPosters}
+                    thanksRows={thanksRows}
+                    onThanksChanged={onThanksChanged}
                 />
                 <PosterSlot
                     label="Foil Poster"
@@ -408,6 +422,8 @@ export default function PostersSection({ showId, showDate, posterArtistName, pos
                     isEditorOrAdmin={isEditorOrAdmin}
                     onImageClick={() => setLightboxIndex(posters.indexOf(foilPoster))}
                     onChanged={loadPosters}
+                    thanksRows={thanksRows}
+                    onThanksChanged={onThanksChanged}
                 />
             </div>
 

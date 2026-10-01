@@ -1757,3 +1757,90 @@ export const updateSiteSettings = async (updates) => {
     return response.json();
 };
 
+/**
+ * Every thanks row relevant to a show's photos/posters/notes/setlist
+ * submissions, in one request. Public, no auth required.
+ */
+export const getShowThanks = async (showId) => {
+    const response = await fetch(`${API_BASE_URL}/api/thanks/show/${showId}`);
+    if (!response.ok) {
+        throw new Error('Failed to fetch thanks');
+    }
+    return response.json();
+};
+
+/**
+ * Thank a piece of content (photo/poster/note/setlist_submission).
+ * Idempotent — thanking something already thanked is a harmless no-op.
+ */
+export const addThanks = async (contentType, contentId) => {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/thanks`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ contentType, contentId }),
+    });
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to save thanks');
+    }
+    return response.json();
+};
+
+/**
+ * Un-thank a piece of content.
+ */
+export const removeThanks = async (contentType, contentId) => {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/thanks/${contentType}/${contentId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to remove thanks');
+    }
+    return response.json();
+};
+
+/**
+ * The logged-in user's own notifications (most recent first) plus a precise
+ * unread count, for the header notification bell.
+ */
+export const getNotifications = async () => {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/notifications`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!response.ok) {
+        throw new Error('Failed to fetch notifications');
+    }
+    return response.json();
+};
+
+/**
+ * Mark all of the logged-in user's unread notifications as read.
+ */
+export const markAllNotificationsRead = async () => {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/notifications/read-all`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!response.ok) {
+        throw new Error('Failed to mark notifications read');
+    }
+    return response.json();
+};
+

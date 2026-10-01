@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { PHeading, PText, PButtonPure, PInlineNotification, PDivider } from '@porsche-design-system/components-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getShowPhotos, uploadPhoto, deletePhoto } from '../services/api';
+import ThanksButton from './ThanksButton';
 import Lightbox from 'yet-another-react-lightbox';
 import 'yet-another-react-lightbox/styles.css';
 
@@ -19,7 +20,7 @@ function Spinner() {
     );
 }
 
-export default function PhotosSection({ showId }) {
+export default function PhotosSection({ showId, thanksRows = [], onThanksChanged }) {
     const { user, isEditorOrAdmin } = useAuth();
     const [photos, setPhotos] = useState([]);
     const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
@@ -81,6 +82,8 @@ export default function PhotosSection({ showId }) {
     };
 
     const lightboxSlides = photos.map(p => ({ src: p.photo_url, alt: p.caption || 'Show photo', title: p.caption }));
+    const currentPhoto = photos[currentPhotoIndex];
+    const currentPhotoThanks = currentPhoto ? thanksRows.filter(t => t.contentType === 'photo' && t.contentId === currentPhoto.id) : [];
 
     return (
         <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 space-y-4">
@@ -166,6 +169,16 @@ export default function PhotosSection({ showId }) {
                                     ? <Link to={`/profile/${photos[currentPhotoIndex].profiles.username}`} className="hover:underline">{photos[currentPhotoIndex].profiles.display_name || photos[currentPhotoIndex].profiles.username}</Link>
                                     : 'Anonymous'} · {new Date(photos[currentPhotoIndex].created_at).toLocaleDateString()}
                             </PText>
+                            <div className="mt-1">
+                                <ThanksButton
+                                    contentType="photo"
+                                    contentId={currentPhoto.id}
+                                    count={currentPhotoThanks.length}
+                                    thankedByMe={!!user && currentPhotoThanks.some(t => t.thankedBy === user.id)}
+                                    isOwnContent={!!user && currentPhoto.user_id === user.id}
+                                    onToggled={onThanksChanged}
+                                />
+                            </div>
                         </div>
                         {(isEditorOrAdmin || (user && photos[currentPhotoIndex].user_id === user.id)) && (
                             <PButtonPure size="x-small" icon="delete" onClick={() => handleDelete(photos[currentPhotoIndex].id)}>

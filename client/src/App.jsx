@@ -21,6 +21,7 @@ import ResetPasswordPage from './pages/ResetPasswordPage'
 import AuthDebugPage from './pages/AuthDebugPage'
 import InstagramFollowBanner from './components/InstagramFollowBanner'
 import Avatar from './components/Avatar'
+import NotificationBell from './components/NotificationBell'
 import AdminLayout from './pages/admin/AdminLayout'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import ShowsList from './pages/admin/ShowsList'
@@ -172,6 +173,7 @@ function PublicLayout() {
           <div className="flex items-center gap-2 md:gap-3 shrink-0">
             {user ? (
               <>
+                <NotificationBell />
                 <Link
                   to="/profile/edit"
                   title="Edit Profile"

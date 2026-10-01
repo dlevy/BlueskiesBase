@@ -7,6 +7,7 @@ import {
     deleteSetlistSubmission, mergeSetlistSubmissionSong, getSongs
 } from '../services/api';
 import QuickAddSong from './QuickAddSong';
+import ThanksButton from './ThanksButton';
 
 const textareaClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-transparent placeholder:text-gray-500 resize-none";
 const btnPrimary = "inline-flex items-center gap-1.5 h-7 px-3 rounded-lg text-xs font-medium border border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/18 transition-all disabled:opacity-50 disabled:cursor-not-allowed";
@@ -63,7 +64,7 @@ const MergedBadge = () => (
  * record when an admin pulls individual songs in (the "Add to official setlist" control
  * below, visible to admins only).
  */
-export default function SetlistSubmissionSection({ showId }) {
+export default function SetlistSubmissionSection({ showId, thanksRows = [], onThanksChanged }) {
     const { user, isAdmin } = useAuth();
 
     const [submissions, setSubmissions] = useState([]);
@@ -298,13 +299,23 @@ export default function SetlistSubmissionSection({ showId }) {
                     <PHeading size="sm" tag="h3">
                         {user ? 'Other Submissions' : 'Community Submissions'} ({othersSubmissions.length})
                     </PHeading>
-                    {othersSubmissions.map((submission) => (
+                    {othersSubmissions.map((submission) => {
+                        const submissionThanks = thanksRows.filter(t => t.contentType === 'setlist_submission' && t.contentId === submission.id);
+                        return (
                         <div key={submission.id} className="rounded-xl border border-white/5 bg-white/5 p-4 space-y-2">
                             <div className="flex items-center gap-2">
                                 <PText size="xs" weight="semi-bold">{submission.profiles?.username || 'Anonymous'}</PText>
                                 <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>
                                     {new Date(submission.created_at).toLocaleDateString()}
                                 </PText>
+                                <ThanksButton
+                                    contentType="setlist_submission"
+                                    contentId={submission.id}
+                                    count={submissionThanks.length}
+                                    thankedByMe={!!user && submissionThanks.some(t => t.thankedBy === user.id)}
+                                    isOwnContent={!!user && submission.profiles?.id === user.id}
+                                    onToggled={onThanksChanged}
+                                />
                             </div>
                             <ol className="space-y-1">
                                 {submission.setlist_submission_songs.map((row) => (
@@ -338,7 +349,8 @@ export default function SetlistSubmissionSection({ showId }) {
                                 </PButtonPure>
                             )}
                         </div>
-                    ))}
+                        );
+                    })}
                 </div>
             )}
 
