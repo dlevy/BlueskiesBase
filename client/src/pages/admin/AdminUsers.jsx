@@ -104,6 +104,8 @@ export default function AdminUsers() {
     const [deleteError, setDeleteError] = useState(null);
     const [updatingRole, setUpdatingRole] = useState(null);
     const [roleError, setRoleError] = useState(null);
+    const [updatingHidden, setUpdatingHidden] = useState(null);
+    const [hiddenError, setHiddenError] = useState(null);
     const [search, setSearch] = useState('');
     const [filterMode, setFilterMode] = useState('all');
     const [inactiveDays, setInactiveDays] = useState(90);
@@ -219,6 +221,26 @@ export default function AdminUsers() {
         }
     };
 
+    const toggleHidden = async (userId, hidden) => {
+        setUpdatingHidden(userId);
+        setHiddenError(null);
+        try {
+            const token = await getToken();
+            const res = await fetch(`${API_BASE}/api/admin/users/${userId}/hide-from-directory`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ hidden }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to update');
+            setUsers(prev => prev.map(u => (u.id === userId ? { ...u, hideFromDirectory: hidden } : u)));
+        } catch (err) {
+            setHiddenError(err.message);
+        } finally {
+            setUpdatingHidden(null);
+        }
+    };
+
     const filterApplied = applyFilter(users, filterMode, inactiveDays);
     const filtered = filterApplied.filter(u =>
         !search || u.email.toLowerCase().includes(search.toLowerCase())
@@ -281,6 +303,15 @@ export default function AdminUsers() {
                 <PInlineNotification
                     heading="Failed to update role"
                     description={roleError}
+                    state="error"
+                    dismissButton={false}
+                />
+            )}
+
+            {hiddenError && (
+                <PInlineNotification
+                    heading="Failed to update directory visibility"
+                    description={hiddenError}
                     state="error"
                     dismissButton={false}
                 />
@@ -516,6 +547,21 @@ export default function AdminUsers() {
                                                         </>
                                                     )}
                                                 </div>
+                                                <button
+                                                    onClick={() => toggleHidden(user.id, !user.hideFromDirectory)}
+                                                    disabled={updatingHidden === user.id}
+                                                    className="text-xs px-3 py-1 rounded-lg border transition-all disabled:opacity-50"
+                                                    style={
+                                                        user.hideFromDirectory
+                                                            ? { border: '1px solid rgba(245,158,11,0.3)', color: '#f59e0b' }
+                                                            : { border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.6)' }
+                                                    }
+                                                    title="Hide or show this account in the public member directory and Links page"
+                                                >
+                                                    {updatingHidden === user.id
+                                                        ? 'Updating…'
+                                                        : user.hideFromDirectory ? 'Hidden from directory' : 'Hide from directory'}
+                                                </button>
                                                 {user.id !== currentUser?.id && (
                                                     <button
                                                         onClick={() => deleteUser(user.id, user.email)}

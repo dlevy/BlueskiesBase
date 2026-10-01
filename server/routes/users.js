@@ -492,7 +492,7 @@ router.get('/directory', async (req, res) => {
 
         const { data, error } = await supabase
             .from('profiles')
-            .select('id, username, display_name, location, avatar_url, role')
+            .select('id, username, display_name, location, avatar_url, role, hide_from_directory')
             .order('username', { ascending: true });
 
         if (error) {
@@ -527,7 +527,7 @@ router.get('/directory', async (req, res) => {
         }
 
         const members = (data || [])
-            .filter(p => p.username)
+            .filter(p => p.username && !p.hide_from_directory)
             .map(p => ({
                 id: p.id,
                 username: p.username,
@@ -595,7 +595,7 @@ router.get('/social-links', async (req, res) => {
     try {
         const { data, error } = await supabase
             .from('profiles')
-            .select('id, username, display_name, avatar_url, facebook_url, reddit_url, instagram_url, youtube_url')
+            .select('id, username, display_name, avatar_url, facebook_url, reddit_url, instagram_url, youtube_url, hide_from_directory')
             .or('facebook_url.not.is.null,reddit_url.not.is.null,instagram_url.not.is.null,youtube_url.not.is.null')
             .order('username', { ascending: true });
 
@@ -605,7 +605,7 @@ router.get('/social-links', async (req, res) => {
         }
 
         const members = (data || [])
-            .filter(p => p.username)
+            .filter(p => p.username && !p.hide_from_directory)
             .map(p => ({
                 id: p.id,
                 username: p.username,

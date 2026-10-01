@@ -21,10 +21,10 @@ router.get('/users', requireAdmin, async (req, res) => {
         const authUsers = data.users || [];
         const { data: profiles } = await supabase
             .from('profiles')
-            .select('id, role')
+            .select('id, role, hide_from_directory')
             .in('id', authUsers.map(u => u.id));
-        const roleById = {};
-        (profiles || []).forEach(p => { roleById[p.id] = p.role || 'member'; });
+        const profileById = {};
+        (profiles || []).forEach(p => { profileById[p.id] = p; });
 
         const users = authUsers.map(u => ({
             id: u.id,
@@ -33,7 +33,8 @@ router.get('/users', requireAdmin, async (req, res) => {
             email_confirmed_at: u.email_confirmed_at,
             last_sign_in_at: u.last_sign_in_at,
             confirmed: !!u.email_confirmed_at,
-            role: roleById[u.id] || 'member',
+            role: profileById[u.id]?.role || 'member',
+            hideFromDirectory: profileById[u.id]?.hide_from_directory || false,
         }));
 
         res.json({ users, total: data.total ?? users.length });
@@ -226,6 +227,38 @@ router.put('/users/:userId/role', requireAdmin, async (req, res) => {
         res.json({ success: true, user_id: userId, role });
     } catch (err) {
         console.error('[admin/users/role] error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * PUT /api/admin/users/:userId/hide-from-directory
+ * Hide (or unhide) an account from the public member directory — for test
+ * accounts, without touching anything else about them.
+ * Body: { hidden: boolean }
+ */
+router.put('/users/:userId/hide-from-directory', requireAdmin, async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const { hidden } = req.body;
+
+        if (typeof hidden !== 'boolean') {
+            return res.status(400).json({ error: 'hidden must be a boolean' });
+        }
+
+        const { error } = await supabase
+            .from('profiles')
+            .update({ hide_from_directory: hidden })
+            .eq('id', userId);
+
+        if (error) {
+            console.error('[admin/users/hide-from-directory] update error:', error);
+            return res.status(500).json({ error: 'Failed to update' });
+        }
+
+        res.json({ success: true, user_id: userId, hidden });
+    } catch (err) {
+        console.error('[admin/users/hide-from-directory] error:', err);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
