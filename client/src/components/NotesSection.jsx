@@ -84,6 +84,12 @@ export default function NotesSection({ showId, thanksRows = [], onThanksChanged 
         setError(null);
     };
 
+    const handleEditClick = () => {
+        setNoteText(userNote?.note_text || '');
+        setIsEditing(true);
+        setError(null);
+    };
+
     if (loading) {
         return (
             <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 flex items-center gap-3">
@@ -102,54 +108,62 @@ export default function NotesSection({ showId, thanksRows = [], onThanksChanged 
                 <PInlineNotification heading="Error" description={error} state="error" dismissButton={false} />
             )}
 
-            {/* User's own note */}
-            {user && (
+            {/* Add-note trigger — only shown before the user has a note of their own */}
+            {user && !userNote && !isEditing && (
+                <button className={btnSecondary} style={{ color: 'var(--p-color-contrast-medium)' }} onClick={handleEditClick}>
+                    Add Your Note
+                </button>
+            )}
+
+            {/* New-note form — the user doesn't have an existing note to edit in place yet */}
+            {user && !userNote && isEditing && (
                 <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
-                    <PHeading size="sm" tag="h3">Your Note</PHeading>
-
-                    {!isEditing && !userNote && (
-                        <button className={btnSecondary} style={{ color: 'var(--p-color-contrast-medium)' }} onClick={() => setIsEditing(true)}>
-                            Add Your Note
+                    <textarea
+                        value={noteText}
+                        onChange={(e) => setNoteText(e.target.value)}
+                        placeholder="Share your memories from this show…"
+                        className={textareaClass}
+                        rows="4"
+                    />
+                    <div className="flex gap-2">
+                        <button className={btnPrimary} disabled={saving} onClick={handleSave}>
+                            {saving && <Spinner />}
+                            {saving ? 'Saving…' : 'Save Note'}
                         </button>
-                    )}
-
-                    {!isEditing && userNote && (
-                        <div className="space-y-3">
-                            <PText size="sm">{userNote.note_text}</PText>
-                            <div className="flex gap-2">
-                                <button className={btnSecondary} style={{ color: 'var(--p-color-contrast-medium)' }} onClick={() => setIsEditing(true)}>Edit</button>
-                                <button className={btnSecondary} style={{ color: 'var(--p-color-contrast-medium)' }} onClick={() => handleDelete(userNote.id)}>Delete</button>
-                            </div>
-                        </div>
-                    )}
-
-                    {isEditing && (
-                        <div className="space-y-3">
-                            <textarea
-                                value={noteText}
-                                onChange={(e) => setNoteText(e.target.value)}
-                                placeholder="Share your memories from this show…"
-                                className={textareaClass}
-                                rows="4"
-                            />
-                            <div className="flex gap-2">
-                                <button className={btnPrimary} disabled={saving} onClick={handleSave}>
-                                    {saving && <Spinner />}
-                                    {saving ? 'Saving…' : 'Save Note'}
-                                </button>
-                                <button className={btnSecondary} style={{ color: 'var(--p-color-contrast-medium)' }} disabled={saving} onClick={handleCancel}>Cancel</button>
-                            </div>
-                        </div>
-                    )}
+                        <button className={btnSecondary} style={{ color: 'var(--p-color-contrast-medium)' }} disabled={saving} onClick={handleCancel}>Cancel</button>
+                    </div>
                 </div>
             )}
 
-            {/* Community notes */}
+            {/* Community notes — includes the viewer's own note, with Edit/Delete inline */}
             {notes.length > 0 && (
                 <div className="space-y-3">
                     <PHeading size="sm" tag="h3">Community Notes ({notes.length})</PHeading>
                     {notes.map((note) => {
+                        const isMine = !!user && note.user_id === user.id;
                         const noteThanks = thanksRows.filter(t => t.contentType === 'note' && t.contentId === note.id);
+
+                        if (isMine && isEditing) {
+                            return (
+                                <div key={note.id} className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
+                                    <textarea
+                                        value={noteText}
+                                        onChange={(e) => setNoteText(e.target.value)}
+                                        placeholder="Share your memories from this show…"
+                                        className={textareaClass}
+                                        rows="4"
+                                    />
+                                    <div className="flex gap-2">
+                                        <button className={btnPrimary} disabled={saving} onClick={handleSave}>
+                                            {saving && <Spinner />}
+                                            {saving ? 'Saving…' : 'Save Note'}
+                                        </button>
+                                        <button className={btnSecondary} style={{ color: 'var(--p-color-contrast-medium)' }} disabled={saving} onClick={handleCancel}>Cancel</button>
+                                    </div>
+                                </div>
+                            );
+                        }
+
                         return (
                             <div key={note.id} className="rounded-xl border border-white/5 bg-white/5 p-4 space-y-2">
                                 <div className="flex items-center justify-between">
@@ -166,15 +180,22 @@ export default function NotesSection({ showId, thanksRows = [], onThanksChanged 
                                             count={noteThanks.length}
                                             thankedByMe={!!user && noteThanks.some(t => t.thankedBy === user.id)}
                                             thankedByNames={noteThanks.map(t => t.thankedByName)}
-                                            isOwnContent={!!user && note.user_id === user.id}
+                                            isOwnContent={isMine}
                                             onToggled={onThanksChanged}
                                         />
                                     </div>
-                                    {isAdmin && (
-                                        <PButtonPure size="x-small" icon="delete" onClick={() => handleDelete(note.id)}>
-                                            Delete
-                                        </PButtonPure>
-                                    )}
+                                    <div className="flex gap-2">
+                                        {isMine && (
+                                            <PButtonPure size="x-small" icon="edit" onClick={handleEditClick}>
+                                                Edit
+                                            </PButtonPure>
+                                        )}
+                                        {(isMine || isAdmin) && (
+                                            <PButtonPure size="x-small" icon="delete" onClick={() => handleDelete(note.id)}>
+                                                Delete
+                                            </PButtonPure>
+                                        )}
+                                    </div>
                                 </div>
                                 <PText size="sm">{note.note_text}</PText>
                             </div>
