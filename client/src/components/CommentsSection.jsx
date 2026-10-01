@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { PHeading, PText, PButtonPure, PInlineNotification, PDivider, PSpinner } from '@porsche-design-system/components-react';
 import { useAuth } from '../contexts/AuthContext';
-import { getShowNotes, getUserNote, saveNote, deleteNote } from '../services/api';
+import { getShowNotes, addNote, updateNote, deleteNote } from '../services/api';
 import ThanksButton from './ThanksButton';
 
 const textareaClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-transparent placeholder:text-gray-500 resize-none";
@@ -18,12 +18,33 @@ function Spinner() {
     );
 }
 
+function CommentForm({ value, onChange, onSave, onCancel, saving, saveLabel, savingLabel }) {
+    return (
+        <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
+            <textarea
+                value={value}
+                onChange={onChange}
+                placeholder="Share your memories from this show…"
+                className={textareaClass}
+                rows="4"
+            />
+            <div className="flex gap-2">
+                <button className={btnPrimary} disabled={saving} onClick={onSave}>
+                    {saving && <Spinner />}
+                    {saving ? savingLabel : saveLabel}
+                </button>
+                <button className={btnSecondary} style={{ color: 'var(--p-color-contrast-medium)' }} disabled={saving} onClick={onCancel}>Cancel</button>
+            </div>
+        </div>
+    );
+}
+
 export default function CommentsSection({ showId, thanksRows = [], onThanksChanged }) {
     const { user, isAdmin } = useAuth();
     const [comments, setComments] = useState([]);
-    const [userComment, setUserComment] = useState(null);
+    const [showAddForm, setShowAddForm] = useState(false);
+    const [editingCommentId, setEditingCommentId] = useState(null);
     const [commentText, setCommentText] = useState('');
-    const [isEditing, setIsEditing] = useState(false);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState(null);
@@ -34,33 +55,66 @@ export default function CommentsSection({ showId, thanksRows = [], onThanksChang
             setError(null);
             const { notes: allComments } = await getShowNotes(showId);
             setComments(allComments || []);
-            if (user) {
-                const { note: comment } = await getUserNote(showId);
-                setUserComment(comment);
-                if (comment) setCommentText(comment.note_text);
-            }
         } catch (err) {
             console.error('Error loading comments:', err);
             setError('Failed to load comments');
         } finally {
             setLoading(false);
         }
-    }, [showId, user]);
+    }, [showId]);
 
     useEffect(() => { loadComments(); }, [loadComments]);
 
-    const handleSave = async () => {
+    const handleAddClick = () => {
+        setShowAddForm(true);
+        setEditingCommentId(null);
+        setCommentText('');
+        setError(null);
+    };
+
+    const handleEditClick = (comment) => {
+        setEditingCommentId(comment.id);
+        setShowAddForm(false);
+        setCommentText(comment.note_text);
+        setError(null);
+    };
+
+    const handleCancel = () => {
+        setShowAddForm(false);
+        setEditingCommentId(null);
+        setCommentText('');
+        setError(null);
+    };
+
+    const handleSaveNew = async () => {
         if (!commentText.trim()) { setError('Comment cannot be empty'); return; }
         try {
             setSaving(true);
             setError(null);
-            const { note: savedComment } = await saveNote(showId, commentText);
-            setUserComment(savedComment);
-            setIsEditing(false);
+            await addNote(showId, commentText);
+            setShowAddForm(false);
+            setCommentText('');
             await loadComments();
         } catch (err) {
-            console.error('Error saving comment:', err);
-            setError('Failed to save comment');
+            console.error('Error posting comment:', err);
+            setError('Failed to post comment');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleSaveEdit = async () => {
+        if (!commentText.trim()) { setError('Comment cannot be empty'); return; }
+        try {
+            setSaving(true);
+            setError(null);
+            await updateNote(editingCommentId, commentText);
+            setEditingCommentId(null);
+            setCommentText('');
+            await loadComments();
+        } catch (err) {
+            console.error('Error updating comment:', err);
+            setError('Failed to update comment');
         } finally {
             setSaving(false);
         }
@@ -70,24 +124,12 @@ export default function CommentsSection({ showId, thanksRows = [], onThanksChang
         if (!confirm('Are you sure you want to delete this comment?')) return;
         try {
             await deleteNote(commentId);
-            if (userComment?.id === commentId) { setUserComment(null); setCommentText(''); setIsEditing(false); }
+            if (editingCommentId === commentId) { setEditingCommentId(null); setCommentText(''); }
             await loadComments();
         } catch (err) {
             console.error('Error deleting comment:', err);
             setError('Failed to delete comment');
         }
-    };
-
-    const handleCancel = () => {
-        setIsEditing(false);
-        setCommentText(userComment?.note_text || '');
-        setError(null);
-    };
-
-    const handleEditClick = () => {
-        setCommentText(userComment?.note_text || '');
-        setIsEditing(true);
-        setError(null);
     };
 
     if (loading) {
@@ -108,34 +150,24 @@ export default function CommentsSection({ showId, thanksRows = [], onThanksChang
                 <PInlineNotification heading="Error" description={error} state="error" dismissButton={false} />
             )}
 
-            {/* Add-comment trigger — only shown before the user has a comment of their own */}
-            {user && !userComment && !isEditing && (
-                <button className={btnPrimary} onClick={handleEditClick}>
+            {user && !showAddForm && (
+                <button className={btnPrimary} onClick={handleAddClick}>
                     Add Comment
                 </button>
             )}
 
-            {/* New-comment form — the user doesn't have an existing comment to edit in place yet */}
-            {user && !userComment && isEditing && (
-                <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
-                    <textarea
-                        value={commentText}
-                        onChange={(e) => setCommentText(e.target.value)}
-                        placeholder="Share your memories from this show…"
-                        className={textareaClass}
-                        rows="4"
-                    />
-                    <div className="flex gap-2">
-                        <button className={btnPrimary} disabled={saving} onClick={handleSave}>
-                            {saving && <Spinner />}
-                            {saving ? 'Posting…' : 'Post Comment'}
-                        </button>
-                        <button className={btnSecondary} style={{ color: 'var(--p-color-contrast-medium)' }} disabled={saving} onClick={handleCancel}>Cancel</button>
-                    </div>
-                </div>
+            {user && showAddForm && (
+                <CommentForm
+                    value={commentText}
+                    onChange={(e) => setCommentText(e.target.value)}
+                    onSave={handleSaveNew}
+                    onCancel={handleCancel}
+                    saving={saving}
+                    saveLabel="Post Comment"
+                    savingLabel="Posting…"
+                />
             )}
 
-            {/* Comments — includes the viewer's own comment, with Edit/Delete inline */}
             {comments.length > 0 && (
                 <div className="space-y-3">
                     <PHeading size="sm" tag="h3">Comments ({comments.length})</PHeading>
@@ -143,24 +175,18 @@ export default function CommentsSection({ showId, thanksRows = [], onThanksChang
                         const isMine = !!user && comment.user_id === user.id;
                         const commentThanks = thanksRows.filter(t => t.contentType === 'note' && t.contentId === comment.id);
 
-                        if (isMine && isEditing) {
+                        if (editingCommentId === comment.id) {
                             return (
-                                <div key={comment.id} className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
-                                    <textarea
-                                        value={commentText}
-                                        onChange={(e) => setCommentText(e.target.value)}
-                                        placeholder="Share your memories from this show…"
-                                        className={textareaClass}
-                                        rows="4"
-                                    />
-                                    <div className="flex gap-2">
-                                        <button className={btnPrimary} disabled={saving} onClick={handleSave}>
-                                            {saving && <Spinner />}
-                                            {saving ? 'Posting…' : 'Post Comment'}
-                                        </button>
-                                        <button className={btnSecondary} style={{ color: 'var(--p-color-contrast-medium)' }} disabled={saving} onClick={handleCancel}>Cancel</button>
-                                    </div>
-                                </div>
+                                <CommentForm
+                                    key={comment.id}
+                                    value={commentText}
+                                    onChange={(e) => setCommentText(e.target.value)}
+                                    onSave={handleSaveEdit}
+                                    onCancel={handleCancel}
+                                    saving={saving}
+                                    saveLabel="Save"
+                                    savingLabel="Saving…"
+                                />
                             );
                         }
 
@@ -186,7 +212,7 @@ export default function CommentsSection({ showId, thanksRows = [], onThanksChang
                                     </div>
                                     <div className="flex gap-2">
                                         {isMine && (
-                                            <PButtonPure size="x-small" icon="edit" onClick={handleEditClick}>
+                                            <PButtonPure size="x-small" icon="edit" onClick={() => handleEditClick(comment)}>
                                                 Edit
                                             </PButtonPure>
                                         )}
@@ -207,7 +233,7 @@ export default function CommentsSection({ showId, thanksRows = [], onThanksChang
             {comments.length === 0 && !user && (
                 <PText color="contrast-medium" align="center">No comments yet. Sign in to add the first comment!</PText>
             )}
-            {comments.length === 0 && user && !userComment && !isEditing && (
+            {comments.length === 0 && user && !showAddForm && (
                 <PText color="contrast-medium" align="center">No comments yet. Be the first to add one!</PText>
             )}
         </div>

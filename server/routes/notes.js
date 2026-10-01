@@ -78,36 +78,8 @@ router.get('/show/:showId', async (req, res) => {
 });
 
 /**
- * GET /api/notes/user/:showId
- * Get the authenticated user's note for a specific show
- */
-router.get('/user/:showId', authenticate, async (req, res) => {
-    try {
-        const { showId } = req.params;
-        const userId = req.user.id;
-
-        const { data: note, error } = await supabaseAdmin
-            .from('user_notes')
-            .select('*')
-            .eq('show_id', showId)
-            .eq('user_id', userId)
-            .maybeSingle();
-
-        if (error) {
-            console.error('Error fetching user note:', error);
-            return res.status(500).json({ error: 'Failed to fetch note' });
-        }
-
-        res.json({ note });
-    } catch (error) {
-        console.error('Error in GET /api/notes/user/:showId:', error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
-});
-
-/**
  * POST /api/notes
- * Create or update a note for a show
+ * Add a new comment to a show. Users may post more than one.
  */
 router.post('/', authenticate, async (req, res) => {
     try {
@@ -118,40 +90,67 @@ router.post('/', authenticate, async (req, res) => {
             return res.status(400).json({ error: 'show_id and note_text are required' });
         }
 
-        // Check if note already exists
-        const { data: existingNote } = await supabaseAdmin
+        const { data, error } = await supabaseAdmin
             .from('user_notes')
-            .select('id')
-            .eq('show_id', show_id)
-            .eq('user_id', userId)
-            .maybeSingle();
+            .insert({ user_id: userId, show_id, note_text })
+            .select()
+            .single();
 
-        let result;
-        if (existingNote) {
-            // Update existing note
-            result = await supabaseAdmin
-                .from('user_notes')
-                .update({ note_text, updated_at: new Date().toISOString() })
-                .eq('id', existingNote.id)
-                .select()
-                .single();
-        } else {
-            // Create new note
-            result = await supabaseAdmin
-                .from('user_notes')
-                .insert({ user_id: userId, show_id, note_text })
-                .select()
-                .single();
-        }
-
-        if (result.error) {
-            console.error('Error saving note:', result.error);
+        if (error) {
+            console.error('Error saving note:', error);
             return res.status(500).json({ error: 'Failed to save note' });
         }
 
-        res.json({ note: result.data });
+        res.json({ note: data });
     } catch (error) {
         console.error('Error in POST /api/notes:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * PUT /api/notes/:noteId
+ * Edit one of your own comments. Unlike delete, this isn't admin-overridable —
+ * admins can remove someone else's comment, not rewrite it.
+ */
+router.put('/:noteId', authenticate, async (req, res) => {
+    try {
+        const { noteId } = req.params;
+        const { note_text } = req.body;
+        const userId = req.user.id;
+
+        if (!note_text || !note_text.trim()) {
+            return res.status(400).json({ error: 'note_text is required' });
+        }
+
+        const { data: note, error: fetchError } = await supabaseAdmin
+            .from('user_notes')
+            .select('user_id')
+            .eq('id', noteId)
+            .maybeSingle();
+
+        if (fetchError || !note) {
+            return res.status(404).json({ error: 'Note not found' });
+        }
+        if (note.user_id !== userId) {
+            return res.status(403).json({ error: 'Not authorized to edit this comment' });
+        }
+
+        const { data, error } = await supabaseAdmin
+            .from('user_notes')
+            .update({ note_text, updated_at: new Date().toISOString() })
+            .eq('id', noteId)
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error updating note:', error);
+            return res.status(500).json({ error: 'Failed to update note' });
+        }
+
+        res.json({ note: data });
+    } catch (error) {
+        console.error('Error in PUT /api/notes/:noteId:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });

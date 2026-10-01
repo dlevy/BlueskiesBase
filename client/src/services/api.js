@@ -1255,29 +1255,9 @@ export const getShowNotes = async (showId) => {
 };
 
 /**
- * Get user's note for a show
+ * Add a new comment to a show. Users may post more than one.
  */
-export const getUserNote = async (showId) => {
-    const token = await getAuthToken();
-    if (!token) {
-        return { note: null };
-    }
-
-    const response = await fetchWithAuth(`${API_BASE_URL}/api/notes/user/${showId}`, {
-        headers: {
-            'Authorization': `Bearer ${token}`,
-        },
-    });
-    if (!response.ok) {
-        throw new Error('Failed to fetch user note');
-    }
-    return response.json();
-};
-
-/**
- * Save or update a note
- */
-export const saveNote = async (showId, noteText) => {
+export const addNote = async (showId, noteText) => {
     const token = await getAuthToken();
     if (!token) {
         throw new Error('Not authenticated');
@@ -1293,6 +1273,29 @@ export const saveNote = async (showId, noteText) => {
     });
     if (!response.ok) {
         throw new Error('Failed to save note');
+    }
+    return response.json();
+};
+
+/**
+ * Edit one of your own comments
+ */
+export const updateNote = async (noteId, noteText) => {
+    const token = await getAuthToken();
+    if (!token) {
+        throw new Error('Not authenticated');
+    }
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/notes/${noteId}`, {
+        method: 'PUT',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ note_text: noteText }),
+    });
+    if (!response.ok) {
+        throw new Error('Failed to update note');
     }
     return response.json();
 };
