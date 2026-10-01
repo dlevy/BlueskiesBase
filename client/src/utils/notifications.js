@@ -5,6 +5,7 @@ export const CONTENT_LABEL = {
     poster: 'poster',
     note: 'comment',
     setlist_submission: 'setlist submission',
+    setlist: 'setlist',
 };
 
 export function timeAgo(dateString) {
@@ -22,6 +23,14 @@ export function timeAgo(dateString) {
 export function notificationText(n) {
     const actorName = n.actor?.display_name || n.actor?.username || 'Someone';
     const label = CONTENT_LABEL[n.content_type] || 'contribution';
+
+    if (n.type === 'mention') return `${actorName} mentioned you in a comment`;
+    if (n.type === 'submission') return `${actorName} submitted a setlist correction for review`;
+    if (n.type === 'show_update') {
+        return n.content_type === 'setlist'
+            ? `${actorName} updated the setlist for a show you attended`
+            : `${actorName} added a new ${label} to a show you attended`;
+    }
     return `${actorName} thanked you for your ${label}`;
 }
 

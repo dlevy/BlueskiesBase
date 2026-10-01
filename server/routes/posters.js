@@ -4,6 +4,7 @@ const multer = require('multer');
 const { supabase, supabaseAdmin } = require('../config/supabase');
 const { optimizeFullImage, generateThumbnail } = require('../utils/imageProcessing');
 const { requireEditorOrAdmin } = require('../middleware/requireRole');
+const { notifyShowAttendees, notifyPosterLinkedToShows } = require('../utils/notify');
 
 // Configure multer for memory storage
 const upload = multer({
@@ -361,6 +362,8 @@ router.post('/upload', authenticate, upload.single('poster'), async (req, res) =
             return res.status(500).json({ error: 'Failed to save poster record' });
         }
 
+        await notifyShowAttendees({ showId: show_id, actorId: userId, contentType: 'poster', contentId: poster.id });
+
         res.json({ poster });
     } catch (error) {
         console.error('Error in POST /api/posters/upload:', error);
@@ -483,6 +486,8 @@ router.post('/:posterId/link-range', requireEditorOrAdmin, async (req, res) => {
                 console.error('Error linking poster to range:', insertError);
                 return res.status(500).json({ error: 'Failed to link poster to shows' });
             }
+
+            await notifyPosterLinkedToShows({ showIds: toLink.map(s => s.id), actorId: req.user.id, posterId });
         }
 
         res.json({ linked: toLink, alreadyLinked, skipped });

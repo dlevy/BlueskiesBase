@@ -3,6 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const { supabase, supabaseAdmin } = require('../config/supabase');
 const { optimizeFullImage, generateThumbnail } = require('../utils/imageProcessing');
+const { notifyShowAttendees } = require('../utils/notify');
 
 // Configure multer for memory storage
 const upload = multer({
@@ -227,6 +228,8 @@ router.post('/upload', authenticate, upload.single('photo'), async (req, res) =>
             await supabaseAdmin.storage.from('show-photos').remove([fileName, thumbFileName]);
             return res.status(500).json({ error: 'Failed to save photo record' });
         }
+
+        await notifyShowAttendees({ showId: show_id, actorId: userId, contentType: 'photo', contentId: photo.id });
 
         res.json({ photo });
     } catch (error) {

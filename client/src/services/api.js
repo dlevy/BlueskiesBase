@@ -1042,6 +1042,24 @@ export const getMemberDirectory = async () => {
 };
 
 /**
+ * Lightweight username/display-name list for @mention autocomplete.
+ */
+export const getMentionableUsers = async () => {
+    const token = await getAuthToken();
+    if (!token) return { users: [] };
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/users/mentionable`, {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+        },
+    });
+    if (!response.ok) {
+        throw new Error('Failed to fetch mentionable users');
+    }
+    return response.json();
+};
+
+/**
  * Every member who has added at least one social link (Facebook/Reddit/
  * Instagram/YouTube) to their profile. Public, no auth required — used by the
  * "Member Links" section on /links.

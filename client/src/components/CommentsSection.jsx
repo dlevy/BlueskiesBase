@@ -1,9 +1,30 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, Fragment } from 'react';
 import { Link } from 'react-router-dom';
 import { PHeading, PText, PButtonPure, PInlineNotification, PDivider, PSpinner } from '@porsche-design-system/components-react';
 import { useAuth } from '../contexts/AuthContext';
-import { getShowNotes, addNote, updateNote, deleteNote } from '../services/api';
+import { getShowNotes, addNote, updateNote, deleteNote, getMentionableUsers } from '../services/api';
 import ThanksButton from './ThanksButton';
+import MentionTextarea from './MentionTextarea';
+
+// Splits comment text on @handles and links any that match a known username
+// (case-insensitively) to that member's profile; unmatched @tokens (or none
+// of the mentionable list loaded, e.g. for a logged-out visitor) render as
+// plain text.
+function renderWithMentions(text, usernameSet) {
+    if (!usernameSet || usernameSet.size === 0) return text;
+    const parts = text.split(/(@[a-zA-Z0-9_]+)/g);
+    return parts.map((part, i) => {
+        const m = part.match(/^@([a-zA-Z0-9_]+)$/);
+        if (m && usernameSet.has(m[1].toLowerCase())) {
+            return (
+                <Link key={i} to={`/profile/${m[1].toLowerCase()}`} className="hover:underline" style={{ color: 'var(--p-color-primary)' }}>
+                    {part}
+                </Link>
+            );
+        }
+        return <Fragment key={i}>{part}</Fragment>;
+    });
+}
 
 const textareaClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-transparent placeholder:text-gray-500 resize-none";
 const btnPrimary = "inline-flex items-center gap-1.5 h-7 px-3 rounded-lg text-xs font-medium border border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/18 transition-all disabled:opacity-50 disabled:cursor-not-allowed";
@@ -18,15 +39,16 @@ function Spinner() {
     );
 }
 
-function CommentForm({ value, onChange, onSave, onCancel, saving, saveLabel, savingLabel }) {
+function CommentForm({ value, onChange, onSave, onCancel, saving, saveLabel, savingLabel, members }) {
     return (
         <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
-            <textarea
+            <MentionTextarea
                 value={value}
                 onChange={onChange}
-                placeholder="Share your memories from this show…"
+                members={members}
+                placeholder="Share your memories from this show… (type @ to mention someone)"
+                rows={4}
                 className={textareaClass}
-                rows="4"
             />
             <div className="flex gap-2">
                 <button className={btnPrimary} disabled={saving} onClick={onSave}>
@@ -48,6 +70,18 @@ export default function CommentsSection({ showId, thanksRows = [], onThanksChang
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState(null);
+    const [members, setMembers] = useState([]);
+
+    useEffect(() => {
+        if (!user) return;
+        let cancelled = false;
+        getMentionableUsers()
+            .then(data => { if (!cancelled) setMembers(data.users || []); })
+            .catch(err => console.error('Error loading mentionable users:', err));
+        return () => { cancelled = true; };
+    }, [user]);
+
+    const usernameSet = useMemo(() => new Set(members.map(m => m.username.toLowerCase())), [members]);
 
     const loadComments = useCallback(async () => {
         try {
@@ -159,12 +193,13 @@ export default function CommentsSection({ showId, thanksRows = [], onThanksChang
             {user && showAddForm && (
                 <CommentForm
                     value={commentText}
-                    onChange={(e) => setCommentText(e.target.value)}
+                    onChange={setCommentText}
                     onSave={handleSaveNew}
                     onCancel={handleCancel}
                     saving={saving}
                     saveLabel="Post Comment"
                     savingLabel="Posting…"
+                    members={members}
                 />
             )}
 
@@ -180,12 +215,13 @@ export default function CommentsSection({ showId, thanksRows = [], onThanksChang
                                 <CommentForm
                                     key={comment.id}
                                     value={commentText}
-                                    onChange={(e) => setCommentText(e.target.value)}
+                                    onChange={setCommentText}
                                     onSave={handleSaveEdit}
                                     onCancel={handleCancel}
                                     saving={saving}
                                     saveLabel="Save"
                                     savingLabel="Saving…"
+                                    members={members}
                                 />
                             );
                         }
@@ -223,7 +259,7 @@ export default function CommentsSection({ showId, thanksRows = [], onThanksChang
                                         )}
                                     </div>
                                 </div>
-                                <PText size="sm">{comment.note_text}</PText>
+                                <PText size="sm">{renderWithMentions(comment.note_text, usernameSet)}</PText>
                             </div>
                         );
                     })}

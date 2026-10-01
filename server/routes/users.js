@@ -546,6 +546,45 @@ router.get('/directory', async (req, res) => {
 });
 
 /**
+ * GET /api/users/mentionable
+ * Lightweight username/display-name list for @mention autocomplete in
+ * comments. Any signed-in user (comments require being signed in anyway).
+ * Deliberately NOT /directory, which does an expensive per-request
+ * attendance-count aggregation unneeded here.
+ */
+router.get('/mentionable', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) {
+            return res.status(401).json({ error: 'No authorization header' });
+        }
+
+        const token = authHeader.replace('Bearer ', '');
+        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+        if (authError || !user) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('id, username, display_name')
+            .not('username', 'is', null)
+            .order('username', { ascending: true });
+
+        if (error) {
+            console.error('[GET /users/mentionable] Error:', error);
+            return res.status(500).json({ error: 'Failed to fetch users' });
+        }
+
+        const users = (data || []).map(p => ({ id: p.id, username: p.username, displayName: p.display_name || null }));
+        res.json({ users });
+    } catch (err) {
+        console.error('[GET /users/mentionable] Error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
  * GET /api/users/social-links
  * Public, no auth required — every member who has added at least one of
  * Facebook/Reddit/Instagram/YouTube to their profile. Powers the "Member

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { supabase, supabaseAdmin } = require('../config/supabase');
+const { notifySetlistUpdated, notifyStaffOfSubmission } = require('../utils/notify');
 
 /**
  * Middleware to verify authentication
@@ -195,6 +196,7 @@ router.post('/', authenticate, async (req, res) => {
             .maybeSingle();
 
         let submissionId;
+        const isNewSubmission = !existingSubmission;
         if (existingSubmission) {
             submissionId = existingSubmission.id;
             const { error: updateError } = await supabaseAdmin
@@ -259,6 +261,10 @@ router.post('/', authenticate, async (req, res) => {
             return res.status(500).json({ error: 'Saved, but failed to load the result' });
         }
         full.setlist_submission_songs = [...full.setlist_submission_songs].sort((a, b) => a.song_order - b.song_order);
+
+        if (isNewSubmission) {
+            await notifyStaffOfSubmission({ showId: show_id, actorId: userId, contentId: submissionId });
+        }
 
         res.json({ submission: full });
     } catch (error) {
@@ -382,6 +388,8 @@ router.post('/songs/:songRowId/merge', authenticate, checkAdmin, async (req, res
             // The song made it into the official setlist; failing to flag it is non-fatal
             // (worst case it can be merged again, creating a duplicate the admin can remove).
         }
+
+        await notifySetlistUpdated({ showId, actorId: req.user.id });
 
         res.json({ setlist_song: inserted });
     } catch (error) {

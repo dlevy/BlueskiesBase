@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { supabase, supabaseAdmin } = require('../config/supabase');
+const { notifyShowAttendees, notifyMentions } = require('../utils/notify');
 
 /**
  * Middleware to verify authentication
@@ -101,6 +102,9 @@ router.post('/', authenticate, async (req, res) => {
             return res.status(500).json({ error: 'Failed to save note' });
         }
 
+        await notifyShowAttendees({ showId: show_id, actorId: userId, contentType: 'note', contentId: data.id });
+        await notifyMentions({ noteText: note_text, showId: show_id, actorId: userId, commentId: data.id });
+
         res.json({ note: data });
     } catch (error) {
         console.error('Error in POST /api/notes:', error);
@@ -125,7 +129,7 @@ router.put('/:noteId', authenticate, async (req, res) => {
 
         const { data: note, error: fetchError } = await supabaseAdmin
             .from('user_notes')
-            .select('user_id')
+            .select('user_id, show_id')
             .eq('id', noteId)
             .maybeSingle();
 
@@ -147,6 +151,8 @@ router.put('/:noteId', authenticate, async (req, res) => {
             console.error('Error updating note:', error);
             return res.status(500).json({ error: 'Failed to update note' });
         }
+
+        await notifyMentions({ noteText: note_text, showId: note.show_id, actorId: userId, commentId: noteId });
 
         res.json({ note: data });
     } catch (error) {

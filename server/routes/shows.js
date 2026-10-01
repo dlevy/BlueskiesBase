@@ -3,6 +3,18 @@ const router = express.Router();
 const { supabase } = require('../config/supabase');
 const { computeDebutsForShows } = require('../utils/debuts');
 const { requireAdmin, requireEditorOrAdmin } = require('../middleware/requireRole');
+const { notifySetlistUpdated } = require('../utils/notify');
+
+// Sorted, song_order-independent signature for a set of setlist rows — used
+// to tell "a real correction" (song/set/encore/notes/performance_type
+// changed) apart from "just reordered" or "saved with no actual change",
+// neither of which should trigger a notification.
+function setlistSignature(rows) {
+    return rows
+        .map(r => `${r.song_id}|${r.set_number}|${!!r.is_encore}|${r.notes || ''}|${r.jams_into || ''}|${r.performance_type || 'full'}`)
+        .sort()
+        .join('\n');
+}
 
 /**
  * GET /api/shows
@@ -602,6 +614,14 @@ router.put('/:id/setlist', requireEditorOrAdmin, async (req, res) => {
         const { id } = req.params;
         const { setlist } = req.body;
 
+        // Fetched once up front so both branches below can tell a genuine
+        // content change apart from a no-op re-save or a pure reorder.
+        const { data: oldRows } = await supabase
+            .from('setlist_songs')
+            .select('song_id, set_number, is_encore, notes, jams_into, performance_type')
+            .eq('show_id', id);
+        const oldSignature = setlistSignature(oldRows || []);
+
         // If setlist is empty, delete all entries and return
         if (!setlist || setlist.length === 0) {
             const { error: deleteError } = await supabase
@@ -616,6 +636,10 @@ router.put('/:id/setlist', requireEditorOrAdmin, async (req, res) => {
                     details: deleteError.message,
                     code: deleteError.code
                 });
+            }
+
+            if (oldSignature !== '') {
+                await notifySetlistUpdated({ showId: id, actorId: req.user.id });
             }
 
             return res.json({ message: 'Setlist cleared successfully', setlist: [] });
@@ -766,6 +790,10 @@ router.put('/:id/setlist', requireEditorOrAdmin, async (req, res) => {
             });
         }
 
+        if (setlistSignature(setlistEntries) !== oldSignature) {
+            await notifySetlistUpdated({ showId: id, actorId: req.user.id });
+        }
+
         res.json({ message: 'Setlist updated successfully', setlist: newSetlist });
 
     } catch (error) {
@@ -902,6 +930,8 @@ router.post('/:id/setlist/song', requireEditorOrAdmin, async (req, res) => {
             });
         }
 
+        await notifySetlistUpdated({ showId: id, actorId: req.user.id });
+
         res.status(201).json(setlistSong);
 
     } catch (error) {
@@ -919,7 +949,7 @@ router.post('/:id/setlist/song', requireEditorOrAdmin, async (req, res) => {
  */
 router.delete('/:showId/setlist/:setlistId', requireEditorOrAdmin, async (req, res) => {
     try {
-        const { setlistId } = req.params;
+        const { showId, setlistId } = req.params;
 
         const { error } = await supabase
             .from('setlist_songs')
@@ -930,6 +960,8 @@ router.delete('/:showId/setlist/:setlistId', requireEditorOrAdmin, async (req, r
             console.error('Error removing song from setlist:', error);
             return res.status(500).json({ error: 'Failed to remove song from setlist' });
         }
+
+        await notifySetlistUpdated({ showId, actorId: req.user.id });
 
         res.json({ message: 'Song removed from setlist successfully' });
 
