@@ -54,7 +54,7 @@ async function resolveContentOwner(contentType, contentId) {
  * by content id. The client groups these into per-item counts and "did I
  * thank this" locally, the same lightweight pattern already used for the
  * Posters gallery's poster_show_links grouping.
- * Response: { thanks: [{ contentType, contentId, thankedBy }] }
+ * Response: { thanks: [{ contentType, contentId, thankedBy, thankedByName }] }
  */
 router.get('/show/:showId', async (req, res) => {
     try {
@@ -81,7 +81,7 @@ router.get('/show/:showId', async (req, res) => {
 
         const { data: rows, error } = await supabaseAdmin
             .from('thanks')
-            .select('content_type, content_id, thanked_by')
+            .select('content_type, content_id, thanked_by, profiles:thanked_by(username, display_name)')
             .in('content_id', allIds);
 
         if (error) {
@@ -93,7 +93,12 @@ router.get('/show/:showId', async (req, res) => {
         // against a theoretical UUID collision across the four content tables.
         const relevant = (rows || [])
             .filter(r => idsByType[r.content_type]?.has(r.content_id))
-            .map(r => ({ contentType: r.content_type, contentId: r.content_id, thankedBy: r.thanked_by }));
+            .map(r => ({
+                contentType: r.content_type,
+                contentId: r.content_id,
+                thankedBy: r.thanked_by,
+                thankedByName: r.profiles?.display_name || r.profiles?.username || 'Someone',
+            }));
 
         res.json({ thanks: relevant });
     } catch (error) {

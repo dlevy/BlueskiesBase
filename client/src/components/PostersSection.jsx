@@ -331,6 +331,7 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
                                 contentId={poster.id}
                                 count={posterThanks.length}
                                 thankedByMe={!!user && posterThanks.some(t => t.thankedBy === user.id)}
+                                thankedByNames={posterThanks.map(t => t.thankedByName)}
                                 isOwnContent={!!user && poster.user_id === user.id}
                                 onToggled={onThanksChanged}
                             />

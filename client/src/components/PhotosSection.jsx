@@ -175,6 +175,7 @@ export default function PhotosSection({ showId, thanksRows = [], onThanksChanged
                                     contentId={currentPhoto.id}
                                     count={currentPhotoThanks.length}
                                     thankedByMe={!!user && currentPhotoThanks.some(t => t.thankedBy === user.id)}
+                                    thankedByNames={currentPhotoThanks.map(t => t.thankedByName)}
                                     isOwnContent={!!user && currentPhoto.user_id === user.id}
                                     onToggled={onThanksChanged}
                                 />

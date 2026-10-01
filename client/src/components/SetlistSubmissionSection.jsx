@@ -313,6 +313,7 @@ export default function SetlistSubmissionSection({ showId, thanksRows = [], onTh
                                     contentId={submission.id}
                                     count={submissionThanks.length}
                                     thankedByMe={!!user && submissionThanks.some(t => t.thankedBy === user.id)}
+                                    thankedByNames={submissionThanks.map(t => t.thankedByName)}
                                     isOwnContent={!!user && submission.profiles?.id === user.id}
                                     onToggled={onThanksChanged}
                                 />

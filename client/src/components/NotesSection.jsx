@@ -165,6 +165,7 @@ export default function NotesSection({ showId, thanksRows = [], onThanksChanged 
                                             contentId={note.id}
                                             count={noteThanks.length}
                                             thankedByMe={!!user && noteThanks.some(t => t.thankedBy === user.id)}
+                                            thankedByNames={noteThanks.map(t => t.thankedByName)}
                                             isOwnContent={!!user && note.user_id === user.id}
                                             onToggled={onThanksChanged}
                                         />
