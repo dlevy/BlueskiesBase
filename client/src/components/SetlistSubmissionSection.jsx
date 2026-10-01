@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { PHeading, PText, PButtonPure, PInlineNotification, PDivider, PSpinner } from '@porsche-design-system/components-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -81,6 +81,9 @@ export default function SetlistSubmissionSection({ showId, thanksRows = [], onTh
     const [mergingRowId, setMergingRowId] = useState(null);
     const [mergeTargets, setMergeTargets] = useState({}); // songRowId -> selected set key
 
+    const [highlightedId, setHighlightedId] = useState(null);
+    const highlightTimeoutRef = useRef(null);
+
     const loadAll = useCallback(async () => {
         try {
             setLoading(true);
@@ -118,6 +121,24 @@ export default function SetlistSubmissionSection({ showId, thanksRows = [], onTh
     }, [showId, user]);
 
     useEffect(() => { loadAll(); }, [loadAll]);
+
+    // A "staff review" notification deep-links to #submission-<id> — scroll to
+    // it and briefly highlight it once the submissions it refers to are loaded.
+    useEffect(() => {
+        if (loading) return;
+        const match = window.location.hash.match(/^#submission-(.+)$/);
+        if (!match) return;
+        const targetId = match[1];
+        if (!submissions.some(s => s.id === targetId)) return;
+        const el = document.getElementById(`submission-${targetId}`);
+        if (!el) return;
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setHighlightedId(targetId);
+        clearTimeout(highlightTimeoutRef.current);
+        highlightTimeoutRef.current = setTimeout(() => setHighlightedId(null), 3000);
+    }, [loading, submissions]);
+
+    useEffect(() => () => clearTimeout(highlightTimeoutRef.current), []);
 
     const handleAddSong = (song) => {
         if (mySongs.some(s => s.song_id === song.id)) return; // no duplicates in one submission
@@ -301,8 +322,14 @@ export default function SetlistSubmissionSection({ showId, thanksRows = [], onTh
                     </PHeading>
                     {othersSubmissions.map((submission) => {
                         const submissionThanks = thanksRows.filter(t => t.contentType === 'setlist_submission' && t.contentId === submission.id);
+                        const isHighlighted = highlightedId === submission.id;
                         return (
-                        <div key={submission.id} className="rounded-xl border border-white/5 bg-white/5 p-4 space-y-2">
+                        <div
+                            key={submission.id}
+                            id={`submission-${submission.id}`}
+                            className="rounded-xl border border-white/5 bg-white/5 p-4 space-y-2 transition-shadow"
+                            style={isHighlighted ? { boxShadow: '0 0 0 2px var(--p-color-notification-warning)' } : undefined}
+                        >
                             <div className="flex items-center gap-2">
                                 <PText size="xs" weight="semi-bold">{submission.profiles?.username || 'Anonymous'}</PText>
                                 <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>

@@ -2,8 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getNotifications, markAllNotificationsRead, dismissNotification } from '../services/api';
-import { buildShowPath } from '../utils/showSlug';
-import { timeAgo, notificationText, notificationShowLabel } from '../utils/notifications';
+import { timeAgo, notificationText, notificationShowLabel, notificationLink } from '../utils/notifications';
 
 const POLL_INTERVAL_MS = 60000;
 
@@ -132,7 +131,7 @@ export default function NotificationBell() {
                             notifications.map(n => {
                                 const showLabel = notificationShowLabel(n);
                                 const content = (
-                                    <div className="px-4 py-3 hover:bg-white/5 transition-colors flex gap-2 items-start">
+                                    <div className="px-4 py-3 hover:bg-white/5 transition-colors flex gap-2 items-start group">
                                         {!n.read_at && (
                                             <span className="mt-1.5 w-1.5 h-1.5 rounded-full shrink-0" style={{ background: '#f59e0b' }} />
                                         )}
@@ -156,7 +155,7 @@ export default function NotificationBell() {
                                     </div>
                                 );
                                 return n.shows ? (
-                                    <Link key={n.id} to={buildShowPath(n.shows)} onClick={() => setOpen(false)} className="block">
+                                    <Link key={n.id} to={notificationLink(n)} onClick={() => setOpen(false)} className="block">
                                         {content}
                                     </Link>
                                 ) : (

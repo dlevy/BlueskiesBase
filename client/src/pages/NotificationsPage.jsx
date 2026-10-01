@@ -3,8 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { PHeading, PText, PButtonPure, PSpinner, PInlineNotification } from '@porsche-design-system/components-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getNotifications, dismissNotification, restoreNotification } from '../services/api';
-import { buildShowPath } from '../utils/showSlug';
-import { timeAgo, notificationText, notificationShowLabel } from '../utils/notifications';
+import { timeAgo, notificationText, notificationShowLabel, notificationLink } from '../utils/notifications';
 import SEO from '../components/SEO';
 
 const HISTORY_LIMIT = 100;
@@ -85,7 +84,7 @@ export default function NotificationsPage() {
                                     <PText size="sm">{notificationText(n)}</PText>
                                     {showLabel && (
                                         n.shows
-                                            ? <Link to={buildShowPath(n.shows)} className="hover:underline">
+                                            ? <Link to={notificationLink(n)} className="hover:underline">
                                                 <PText size="xs" style={{ color: 'var(--p-color-contrast-medium)' }}>{showLabel}</PText>
                                             </Link>
                                             : <PText size="xs" style={{ color: 'var(--p-color-contrast-medium)' }}>{showLabel}</PText>

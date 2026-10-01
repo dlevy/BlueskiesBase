@@ -1,3 +1,5 @@
+import { buildShowPath } from './showSlug';
+
 // Shared between NotificationBell (header dropdown) and NotificationsPage
 // (full history) so both render the same text for the same row.
 export const CONTENT_LABEL = {
@@ -36,5 +38,21 @@ export function notificationText(n) {
 
 export function notificationShowLabel(n) {
     if (!n.shows) return null;
-    return `${n.shows.artist_name} — ${n.shows.venues?.city || ''}${n.shows.venues?.state_country ? `, ${n.shows.venues.state_country}` : ''}`;
+    const venue = `${n.shows.venues?.city || ''}${n.shows.venues?.state_country ? `, ${n.shows.venues.state_country}` : ''}`;
+    // show_date is a plain DATE column (YYYY-MM-DD) — parse the parts directly
+    // rather than `new Date(dateString)`, which reads it as UTC midnight and
+    // can print the wrong day in a timezone west of UTC.
+    const [year, month, day] = n.shows.show_date.split('-');
+    const formattedDate = new Date(year, month - 1, day).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return `${formattedDate} — ${n.shows.artist_name}${venue ? `, ${venue}` : ''}`;
+}
+
+// The notification's destination: the show page, deep-linked to the
+// specific submission for a 'submission' notification (staff need to find
+// the actual thing to review, not just land on the top of the show page).
+export function notificationLink(n) {
+    if (!n.shows) return null;
+    const base = buildShowPath(n.shows);
+    if (n.type === 'submission') return `${base}#submission-${n.content_id}`;
+    return base;
 }
