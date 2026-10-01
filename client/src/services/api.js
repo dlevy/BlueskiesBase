@@ -1167,6 +1167,26 @@ export const getSetlistSubmissions = async (showId) => {
 };
 
 /**
+ * Admin/editor review queue: every setlist submission across every show.
+ */
+export const getAllSetlistSubmissions = async () => {
+    const token = await getAuthToken();
+    if (!token) {
+        throw new Error('Not authenticated');
+    }
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/setlist-submissions`, {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+        },
+    });
+    if (!response.ok) {
+        throw new Error('Failed to fetch setlist submissions');
+    }
+    return response.json();
+};
+
+/**
  * Get the current user's own setlist submission for a show
  */
 export const getUserSetlistSubmission = async (showId) => {

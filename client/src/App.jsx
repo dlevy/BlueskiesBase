@@ -35,6 +35,7 @@ import ToursList from './pages/admin/ToursList'
 import TourEditPage from './pages/admin/TourEditPage'
 import AdminUsers from './pages/admin/AdminUsers'
 import SiteSettingsPage from './pages/admin/SiteSettingsPage'
+import SetlistSubmissionsReview from './pages/admin/SetlistSubmissionsReview'
 import InstagramPostPage from './pages/admin/InstagramPostPage'
 import './App.css'
 
@@ -91,6 +92,7 @@ function App() {
             <Route path="venues" element={<VenuesList />} />
             <Route path="tours" element={<ToursList />} />
             <Route path="tours/:tourName" element={<TourEditPage />} />
+            <Route path="setlist-submissions" element={<SetlistSubmissionsReview />} />
             <Route path="users" element={<AdminUsers />} />
             <Route path="settings" element={<SiteSettingsPage />} />
           </Route>

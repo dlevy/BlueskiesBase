@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { supabase, supabaseAdmin } = require('../config/supabase');
 const { notifySetlistUpdated, notifyStaffOfSubmission } = require('../utils/notify');
+const { requireEditorOrAdmin } = require('../middleware/requireRole');
 
 /**
  * Middleware to verify authentication
@@ -23,24 +24,6 @@ const authenticate = async (req, res, next) => {
     next();
 };
 
-/**
- * Middleware to check if user is admin — must run after authenticate.
- */
-const checkAdmin = async (req, res, next) => {
-    const { data: profile, error } = await supabaseAdmin
-        .from('profiles')
-        .select('is_admin')
-        .eq('id', req.user.id)
-        .single();
-
-    if (error || !profile || !profile.is_admin) {
-        return res.status(403).json({ error: 'Admin access required' });
-    }
-
-    req.isAdmin = true;
-    next();
-};
-
 const SET_TO_NUMBER = { set1: 1, set2: 2, set3: 3, encore: 1 };
 const VALID_SETS = Object.keys(SET_TO_NUMBER);
 
@@ -50,9 +33,56 @@ const VALID_SETS = Object.keys(SET_TO_NUMBER);
 // A logged-in user's best recollection of a show's setlist, even partial.
 // Kept separate from the official setlist_songs table — visible immediately,
 // attributed to the submitter, but never silently merged into the canonical
-// setlist that feeds JSON-LD/tour-rarity/the sitemap. An admin pulls
-// individual songs into the official setlist via the /merge endpoint below.
+// setlist that feeds JSON-LD/tour-rarity/the sitemap. An editor or admin
+// pulls individual songs into the official setlist via the /merge endpoint
+// below.
 // ============================================
+
+/**
+ * GET /api/setlist-submissions
+ * Every community setlist submission across every show, newest first — the
+ * admin/editor review queue (so a submission doesn't only surface via its
+ * one-time "needs review" notification; past ones stay visible here too).
+ * Editor/admin only.
+ */
+router.get('/', requireEditorOrAdmin, async (req, res) => {
+    try {
+        const { data: submissions, error } = await supabaseAdmin
+            .from('setlist_submissions')
+            .select(`
+                id,
+                note,
+                created_at,
+                updated_at,
+                profiles:user_id ( id, username ),
+                shows ( id, show_date, artist_name, venues ( name, city, state_country ) ),
+                setlist_submission_songs (
+                    id,
+                    song_id,
+                    song_order,
+                    notes,
+                    merged_into_setlist,
+                    songs ( id, title, original_artist, is_original )
+                )
+            `)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('[GET /setlist-submissions] Error:', error);
+            return res.status(500).json({ error: 'Failed to fetch setlist submissions' });
+        }
+
+        const withSortedSongs = (submissions || []).map(sub => ({
+            ...sub,
+            setlist_submission_songs: [...(sub.setlist_submission_songs || [])].sort((a, b) => a.song_order - b.song_order),
+        }));
+
+        res.json({ submissions: withSortedSongs });
+    } catch (error) {
+        console.error('Error in GET /setlist-submissions:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
 
 /**
  * GET /api/setlist-submissions/show/:showId
@@ -319,11 +349,14 @@ router.delete('/:submissionId', authenticate, async (req, res) => {
 
 /**
  * POST /api/setlist-submissions/songs/:songRowId/merge
- * Admin only. Copies one submitted song into the official setlist_songs
- * table (appended to the end of the chosen set) and flags it merged.
+ * Editor or admin. Copies one submitted song into the official setlist_songs
+ * table (appended to the end of the chosen set) and flags it merged — the
+ * same permission level as directly editing the official setlist
+ * (POST /api/shows/:id/setlist/song), since accepting a correction is the
+ * same kind of edit.
  * Body: { target_set: 'set1' | 'set2' | 'set3' | 'encore' }
  */
-router.post('/songs/:songRowId/merge', authenticate, checkAdmin, async (req, res) => {
+router.post('/songs/:songRowId/merge', requireEditorOrAdmin, async (req, res) => {
     try {
         const { songRowId } = req.params;
         const { target_set } = req.body;

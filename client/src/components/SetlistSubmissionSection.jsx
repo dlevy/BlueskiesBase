@@ -61,11 +61,11 @@ const MergedBadge = () => (
  * A logged-in fan's best recollection of a show's setlist — even a couple of songs is
  * useful. Kept deliberately separate from the official Setlist card above: submissions
  * show up immediately, attributed by username, but only become part of the official
- * record when an admin pulls individual songs in (the "Add to official setlist" control
- * below, visible to admins only).
+ * record when an editor or admin pulls individual songs in (the "Add to official
+ * setlist" control below).
  */
 export default function SetlistSubmissionSection({ showId, thanksRows = [], onThanksChanged }) {
-    const { user, isAdmin } = useAuth();
+    const { user, isAdmin, isEditorOrAdmin } = useAuth();
 
     const [submissions, setSubmissions] = useState([]);
     const [allSongs, setAllSongs] = useState([]);
@@ -246,7 +246,7 @@ export default function SetlistSubmissionSection({ showId, thanksRows = [], onTh
                                         </span>
                                         {song.merged_into_setlist ? (
                                             <MergedBadge />
-                                        ) : isAdmin && (
+                                        ) : isEditorOrAdmin && (
                                             <MergeControl
                                                 merging={mergingRowId === song.id}
                                                 target={mergeTargets[song.id]}
@@ -353,7 +353,7 @@ export default function SetlistSubmissionSection({ showId, thanksRows = [], onTh
                                         </span>
                                         {row.merged_into_setlist ? (
                                             <MergedBadge />
-                                        ) : isAdmin && (
+                                        ) : isEditorOrAdmin && (
                                             <MergeControl
                                                 merging={mergingRowId === row.id}
                                                 target={mergeTargets[row.id]}
