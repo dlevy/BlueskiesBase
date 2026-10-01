@@ -146,7 +146,7 @@ export default function ShowsList() {
         filters.year && { name: 'year', label: 'Year', value: filters.year },
         filters.month && { name: 'month', label: 'Month', value: new Date(2000, filters.month - 1).toLocaleString('default', { month: 'long' }) },
         filters.song && { name: 'song', label: 'Song', value: filters.song },
-        filters.hasNotes && { name: 'hasNotes', label: 'Has Notes', value: 'Yes' },
+        filters.hasNotes && { name: 'hasNotes', label: 'Has Comments', value: 'Yes' },
         filters.hasPhotos && { name: 'hasPhotos', label: 'Has Photos', value: 'Yes' },
         filters.hasPoster && { name: 'hasPoster', label: 'Has Poster', value: 'Yes' },
     ].filter(Boolean);
@@ -343,7 +343,7 @@ export default function ShowsList() {
                             <label className="block text-xs font-semibold mb-2" style={{ color: 'var(--p-color-contrast-medium)' }}>FILTER BY CONTENT</label>
                             <div className="flex flex-wrap gap-4">
                                 {[
-                                    { name: 'hasNotes', label: 'Notes' },
+                                    { name: 'hasNotes', label: 'Comments' },
                                     { name: 'hasPhotos', label: 'Photos' },
                                     { name: 'hasPoster', label: 'Poster' },
                                 ].map(({ name, label }) => (

@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { PHeading, PText, PButtonPure, PInlineNotification, PDivider, PSpinner } from '@porsche-design-system/components-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -18,74 +18,74 @@ function Spinner() {
     );
 }
 
-export default function NotesSection({ showId, thanksRows = [], onThanksChanged }) {
+export default function CommentsSection({ showId, thanksRows = [], onThanksChanged }) {
     const { user, isAdmin } = useAuth();
-    const [notes, setNotes] = useState([]);
-    const [userNote, setUserNote] = useState(null);
-    const [noteText, setNoteText] = useState('');
+    const [comments, setComments] = useState([]);
+    const [userComment, setUserComment] = useState(null);
+    const [commentText, setCommentText] = useState('');
     const [isEditing, setIsEditing] = useState(false);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState(null);
 
-    const loadNotes = useCallback(async () => {
+    const loadComments = useCallback(async () => {
         try {
             setLoading(true);
             setError(null);
-            const { notes: allNotes } = await getShowNotes(showId);
-            setNotes(allNotes || []);
+            const { notes: allComments } = await getShowNotes(showId);
+            setComments(allComments || []);
             if (user) {
-                const { note } = await getUserNote(showId);
-                setUserNote(note);
-                if (note) setNoteText(note.note_text);
+                const { note: comment } = await getUserNote(showId);
+                setUserComment(comment);
+                if (comment) setCommentText(comment.note_text);
             }
         } catch (err) {
-            console.error('Error loading notes:', err);
-            setError('Failed to load notes');
+            console.error('Error loading comments:', err);
+            setError('Failed to load comments');
         } finally {
             setLoading(false);
         }
     }, [showId, user]);
 
-    useEffect(() => { loadNotes(); }, [loadNotes]);
+    useEffect(() => { loadComments(); }, [loadComments]);
 
     const handleSave = async () => {
-        if (!noteText.trim()) { setError('Note cannot be empty'); return; }
+        if (!commentText.trim()) { setError('Comment cannot be empty'); return; }
         try {
             setSaving(true);
             setError(null);
-            const { note } = await saveNote(showId, noteText);
-            setUserNote(note);
+            const { note: savedComment } = await saveNote(showId, commentText);
+            setUserComment(savedComment);
             setIsEditing(false);
-            await loadNotes();
+            await loadComments();
         } catch (err) {
-            console.error('Error saving note:', err);
-            setError('Failed to save note');
+            console.error('Error saving comment:', err);
+            setError('Failed to save comment');
         } finally {
             setSaving(false);
         }
     };
 
-    const handleDelete = async (noteId) => {
-        if (!confirm('Are you sure you want to delete this note?')) return;
+    const handleDelete = async (commentId) => {
+        if (!confirm('Are you sure you want to delete this comment?')) return;
         try {
-            await deleteNote(noteId);
-            if (userNote?.id === noteId) { setUserNote(null); setNoteText(''); setIsEditing(false); }
-            await loadNotes();
+            await deleteNote(commentId);
+            if (userComment?.id === commentId) { setUserComment(null); setCommentText(''); setIsEditing(false); }
+            await loadComments();
         } catch (err) {
-            console.error('Error deleting note:', err);
-            setError('Failed to delete note');
+            console.error('Error deleting comment:', err);
+            setError('Failed to delete comment');
         }
     };
 
     const handleCancel = () => {
         setIsEditing(false);
-        setNoteText(userNote?.note_text || '');
+        setCommentText(userComment?.note_text || '');
         setError(null);
     };
 
     const handleEditClick = () => {
-        setNoteText(userNote?.note_text || '');
+        setCommentText(userComment?.note_text || '');
         setIsEditing(true);
         setError(null);
     };
@@ -93,34 +93,34 @@ export default function NotesSection({ showId, thanksRows = [], onThanksChanged 
     if (loading) {
         return (
             <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 flex items-center gap-3">
-                <PSpinner size="small" aria={{ 'aria-label': 'Loading notes' }} />
-                <PText color="contrast-medium">Loading notes…</PText>
+                <PSpinner size="small" aria={{ 'aria-label': 'Loading comments' }} />
+                <PText color="contrast-medium">Loading comments…</PText>
             </div>
         );
     }
 
     return (
         <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 space-y-4">
-            <PHeading size="lg" tag="h2">Notes</PHeading>
+            <PHeading size="lg" tag="h2">Comments</PHeading>
             <PDivider />
 
             {error && (
                 <PInlineNotification heading="Error" description={error} state="error" dismissButton={false} />
             )}
 
-            {/* Add-note trigger — only shown before the user has a note of their own */}
-            {user && !userNote && !isEditing && (
-                <button className={btnSecondary} style={{ color: 'var(--p-color-contrast-medium)' }} onClick={handleEditClick}>
-                    Add Your Note
+            {/* Add-comment trigger — only shown before the user has a comment of their own */}
+            {user && !userComment && !isEditing && (
+                <button className={btnPrimary} onClick={handleEditClick}>
+                    Add Comment
                 </button>
             )}
 
-            {/* New-note form — the user doesn't have an existing note to edit in place yet */}
-            {user && !userNote && isEditing && (
+            {/* New-comment form — the user doesn't have an existing comment to edit in place yet */}
+            {user && !userComment && isEditing && (
                 <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
                     <textarea
-                        value={noteText}
-                        onChange={(e) => setNoteText(e.target.value)}
+                        value={commentText}
+                        onChange={(e) => setCommentText(e.target.value)}
                         placeholder="Share your memories from this show…"
                         className={textareaClass}
                         rows="4"
@@ -128,27 +128,27 @@ export default function NotesSection({ showId, thanksRows = [], onThanksChanged 
                     <div className="flex gap-2">
                         <button className={btnPrimary} disabled={saving} onClick={handleSave}>
                             {saving && <Spinner />}
-                            {saving ? 'Saving…' : 'Save Note'}
+                            {saving ? 'Posting…' : 'Post Comment'}
                         </button>
                         <button className={btnSecondary} style={{ color: 'var(--p-color-contrast-medium)' }} disabled={saving} onClick={handleCancel}>Cancel</button>
                     </div>
                 </div>
             )}
 
-            {/* Community notes — includes the viewer's own note, with Edit/Delete inline */}
-            {notes.length > 0 && (
+            {/* Comments — includes the viewer's own comment, with Edit/Delete inline */}
+            {comments.length > 0 && (
                 <div className="space-y-3">
-                    <PHeading size="sm" tag="h3">Community Notes ({notes.length})</PHeading>
-                    {notes.map((note) => {
-                        const isMine = !!user && note.user_id === user.id;
-                        const noteThanks = thanksRows.filter(t => t.contentType === 'note' && t.contentId === note.id);
+                    <PHeading size="sm" tag="h3">Comments ({comments.length})</PHeading>
+                    {comments.map((comment) => {
+                        const isMine = !!user && comment.user_id === user.id;
+                        const commentThanks = thanksRows.filter(t => t.contentType === 'note' && t.contentId === comment.id);
 
                         if (isMine && isEditing) {
                             return (
-                                <div key={note.id} className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
+                                <div key={comment.id} className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
                                     <textarea
-                                        value={noteText}
-                                        onChange={(e) => setNoteText(e.target.value)}
+                                        value={commentText}
+                                        onChange={(e) => setCommentText(e.target.value)}
                                         placeholder="Share your memories from this show…"
                                         className={textareaClass}
                                         rows="4"
@@ -156,7 +156,7 @@ export default function NotesSection({ showId, thanksRows = [], onThanksChanged 
                                     <div className="flex gap-2">
                                         <button className={btnPrimary} disabled={saving} onClick={handleSave}>
                                             {saving && <Spinner />}
-                                            {saving ? 'Saving…' : 'Save Note'}
+                                            {saving ? 'Posting…' : 'Post Comment'}
                                         </button>
                                         <button className={btnSecondary} style={{ color: 'var(--p-color-contrast-medium)' }} disabled={saving} onClick={handleCancel}>Cancel</button>
                                     </div>
@@ -165,21 +165,21 @@ export default function NotesSection({ showId, thanksRows = [], onThanksChanged 
                         }
 
                         return (
-                            <div key={note.id} className="rounded-xl border border-white/5 bg-white/5 p-4 space-y-2">
+                            <div key={comment.id} className="rounded-xl border border-white/5 bg-white/5 p-4 space-y-2">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
                                         <PText size="xs" weight="semi-bold">
-                                            {note.profiles?.username
-                                                ? <Link to={`/profile/${note.profiles.username}`} className="hover:underline">{note.profiles.display_name || note.profiles.username}</Link>
+                                            {comment.profiles?.username
+                                                ? <Link to={`/profile/${comment.profiles.username}`} className="hover:underline">{comment.profiles.display_name || comment.profiles.username}</Link>
                                                 : 'Anonymous'}
                                         </PText>
-                                        <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>{new Date(note.created_at).toLocaleDateString()}</PText>
+                                        <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>{new Date(comment.created_at).toLocaleDateString()}</PText>
                                         <ThanksButton
                                             contentType="note"
-                                            contentId={note.id}
-                                            count={noteThanks.length}
-                                            thankedByMe={!!user && noteThanks.some(t => t.thankedBy === user.id)}
-                                            thankedByNames={noteThanks.map(t => t.thankedByName)}
+                                            contentId={comment.id}
+                                            count={commentThanks.length}
+                                            thankedByMe={!!user && commentThanks.some(t => t.thankedBy === user.id)}
+                                            thankedByNames={commentThanks.map(t => t.thankedByName)}
                                             isOwnContent={isMine}
                                             onToggled={onThanksChanged}
                                         />
@@ -191,24 +191,24 @@ export default function NotesSection({ showId, thanksRows = [], onThanksChanged 
                                             </PButtonPure>
                                         )}
                                         {(isMine || isAdmin) && (
-                                            <PButtonPure size="x-small" icon="delete" onClick={() => handleDelete(note.id)}>
+                                            <PButtonPure size="x-small" icon="delete" onClick={() => handleDelete(comment.id)}>
                                                 Delete
                                             </PButtonPure>
                                         )}
                                     </div>
                                 </div>
-                                <PText size="sm">{note.note_text}</PText>
+                                <PText size="sm">{comment.note_text}</PText>
                             </div>
                         );
                     })}
                 </div>
             )}
 
-            {notes.length === 0 && !user && (
-                <PText color="contrast-medium" align="center">No notes yet. Sign in to add the first note!</PText>
+            {comments.length === 0 && !user && (
+                <PText color="contrast-medium" align="center">No comments yet. Sign in to add the first comment!</PText>
             )}
-            {notes.length === 0 && user && !userNote && !isEditing && (
-                <PText color="contrast-medium" align="center">No notes yet. Be the first to add one!</PText>
+            {comments.length === 0 && user && !userComment && !isEditing && (
+                <PText color="contrast-medium" align="center">No comments yet. Be the first to add one!</PText>
             )}
         </div>
     );

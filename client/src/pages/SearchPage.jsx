@@ -347,7 +347,7 @@ export default function SearchPage() {
         if (searchParams.month) filters.push({ name: 'month', label: 'Month', value: new Date(2000, searchParams.month - 1).toLocaleString('default', { month: 'long' }) });
         if (searchParams.song) filters.push({ name: 'song', label: 'Song', value: searchParams.song });
         if (searchParams.source) filters.push({ name: 'source', label: 'Source', value: searchParams.source });
-        if (searchParams.hasNotes) filters.push({ name: 'hasNotes', label: 'Has Notes', value: 'Yes' });
+        if (searchParams.hasNotes) filters.push({ name: 'hasNotes', label: 'Has Comments', value: 'Yes' });
         if (searchParams.hasPhotos) filters.push({ name: 'hasPhotos', label: 'Has Photos', value: 'Yes' });
         if (searchParams.hasPoster) filters.push({ name: 'hasPoster', label: 'Has Poster', value: 'Yes' });
         return filters;
@@ -507,7 +507,7 @@ export default function SearchPage() {
                                     <label className="block text-xs font-semibold mb-2" style={{ color: 'var(--p-color-contrast-medium)' }}>FILTER BY CONTENT</label>
                                     <div className="flex flex-wrap gap-4">
                                         {[
-                                            { name: 'hasNotes', label: 'Notes' },
+                                            { name: 'hasNotes', label: 'Comments' },
                                             { name: 'hasPhotos', label: 'Photos' },
                                             { name: 'hasPoster', label: 'Poster' },
                                         ].map(({ name, label }) => (
@@ -646,7 +646,7 @@ export default function SearchPage() {
                                                                 {openedFor && <PTag color="notification-warning-soft">Opening for {openedFor}</PTag>}
                                                                 {hasVideo && <ListTag label="Video" color={CONTENT_TAG_COLOR} />}
                                                                 {hasLinks && <ListTag label="Links" color={CONTENT_TAG_COLOR} />}
-                                                                {hasNotes && <ListTag label="Notes" color={CONTENT_TAG_COLOR} />}
+                                                                {hasNotes && <ListTag label="Comments" color={CONTENT_TAG_COLOR} />}
                                                                 {hasPhotos && <ListTag label="Photos" color={CONTENT_TAG_COLOR} />}
                                                                 {hasPoster && <ListTag label="Poster" color={CONTENT_TAG_COLOR} />}
                                                                 {songStats.covers > 0 && (

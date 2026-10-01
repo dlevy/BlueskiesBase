@@ -7,7 +7,7 @@ import { buildShowPath } from '../utils/showSlug';
 const CONTENT_LABEL = {
     photo: 'photo',
     poster: 'poster',
-    note: 'note',
+    note: 'comment',
     setlist_submission: 'setlist submission',
 };
 
