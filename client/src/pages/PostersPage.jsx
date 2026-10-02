@@ -71,16 +71,16 @@ function PosterTile({ poster, onImageClick }) {
             {/* Own row (not inside the Link) so the credit's own <a> isn't nested inside
                 the show-page link; fixed height so tiles stay aligned either way. */}
             <div className="px-3 pb-3 h-5">
-                {show.poster_artist_name ? (
+                {poster.poster_artist_name ? (
                     <p className="text-xs font-mono truncate text-left" style={{ color: 'var(--p-color-contrast-low)' }}>
                         Poster art by{' '}
-                        {show.poster_artist_url ? (
-                            <a href={show.poster_artist_url} target="_blank" rel="noopener noreferrer"
+                        {poster.poster_artist_url ? (
+                            <a href={poster.poster_artist_url} target="_blank" rel="noopener noreferrer"
                                 className="font-semibold text-amber-400 hover:underline">
-                                {show.poster_artist_name}
+                                {poster.poster_artist_name}
                             </a>
                         ) : (
-                            <span className="font-semibold" style={{ color: 'var(--p-color-contrast-medium)' }}>{show.poster_artist_name}</span>
+                            <span className="font-semibold" style={{ color: 'var(--p-color-contrast-medium)' }}>{poster.poster_artist_name}</span>
                         )}
                     </p>
                 ) : (

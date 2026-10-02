@@ -453,7 +453,7 @@ router.get('/:id', async (req, res) => {
  */
 router.post('/', requireEditorOrAdmin, async (req, res) => {
     try {
-        const { venue_id, show_date, artist_name, tour_name, notes, source_types, opened_for_id, links, poster_artist_name, poster_artist_url } = req.body;
+        const { venue_id, show_date, artist_name, tour_name, notes, source_types, opened_for_id, links } = req.body;
 
         const { data: show, error } = await supabase
             .from('shows')
@@ -465,8 +465,6 @@ router.post('/', requireEditorOrAdmin, async (req, res) => {
                 notes,
                 source_types,
                 opened_for_id: opened_for_id || null,
-                poster_artist_name: poster_artist_name || null,
-                poster_artist_url: poster_artist_url || null,
             }])
             .select()
             .single();
@@ -532,7 +530,7 @@ router.patch('/:id/tour', requireEditorOrAdmin, async (req, res) => {
 router.put('/:id', requireEditorOrAdmin, async (req, res) => {
     try {
         const { id } = req.params;
-        const { venue_id, show_date, artist_name, tour_name, notes, source_types, opened_for_id, links, poster_artist_name, poster_artist_url } = req.body;
+        const { venue_id, show_date, artist_name, tour_name, notes, source_types, opened_for_id, links } = req.body;
 
         const { data: show, error } = await supabase
             .from('shows')
@@ -544,8 +542,6 @@ router.put('/:id', requireEditorOrAdmin, async (req, res) => {
                 notes,
                 source_types,
                 opened_for_id: opened_for_id || null,
-                poster_artist_name: poster_artist_name || null,
-                poster_artist_url: poster_artist_url || null,
             })
             .eq('id', id)
             .select()

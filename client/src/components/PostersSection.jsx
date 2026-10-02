@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { PHeading, PText, PButtonPure, PInlineNotification, PDivider } from '@porsche-design-system/components-react';
 import { useAuth } from '../contexts/AuthContext';
-import { getShowPoster, uploadPoster, deletePoster, getPosterShows, linkPosterToRange, unlinkPosterShow } from '../services/api';
+import { getShowPoster, uploadPoster, updatePosterDetails, deletePoster, getPosterShows, linkPosterToRange, unlinkPosterShow } from '../services/api';
 import ThanksButton from './ThanksButton';
 import Lightbox from 'yet-another-react-lightbox';
 import 'yet-another-react-lightbox/styles.css';
@@ -188,7 +188,14 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
     const [error, setError] = useState(null);
     const [selectedFile, setSelectedFile] = useState(null);
     const [caption, setCaption] = useState('');
+    const [uploadArtistName, setUploadArtistName] = useState('');
+    const [uploadArtistUrl, setUploadArtistUrl] = useState('');
     const [showUploadForm, setShowUploadForm] = useState(false);
+    const [editingCredit, setEditingCredit] = useState(false);
+    const [editArtistName, setEditArtistName] = useState('');
+    const [editArtistUrl, setEditArtistUrl] = useState('');
+    const [savingCredit, setSavingCredit] = useState(false);
+    const [creditError, setCreditError] = useState(null);
 
     // Replacing someone else's poster still requires full admin (matches the
     // server's upload route), but deleting one is also open to editors —
@@ -196,6 +203,34 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
     const canUpload = !additional && user && (!poster || poster.user_id === user.id || isAdmin);
     const canDelete = user && poster && (poster.user_id === user.id || isEditorOrAdmin);
     const posterThanks = poster ? thanksRows.filter(t => t.contentType === 'poster' && t.contentId === poster.id) : [];
+
+    const openUploadForm = () => {
+        setShowUploadForm(true);
+        setUploadArtistName(poster?.poster_artist_name || '');
+        setUploadArtistUrl(poster?.poster_artist_url || '');
+    };
+
+    const openCreditEditor = () => {
+        setEditArtistName(poster.poster_artist_name || '');
+        setEditArtistUrl(poster.poster_artist_url || '');
+        setCreditError(null);
+        setEditingCredit(true);
+    };
+
+    const handleSaveCredit = async () => {
+        try {
+            setSavingCredit(true);
+            setCreditError(null);
+            await updatePosterDetails(poster.id, { posterArtistName: editArtistName, posterArtistUrl: editArtistUrl });
+            setEditingCredit(false);
+            await onChanged();
+        } catch (err) {
+            console.error('Error updating poster credit:', err);
+            setCreditError(err.message || 'Failed to update credit');
+        } finally {
+            setSavingCredit(false);
+        }
+    };
 
     const handleFileSelect = (e) => {
         const file = e.target.files[0];
@@ -211,7 +246,7 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
         try {
             setUploading(true);
             setError(null);
-            await uploadPoster(showId, selectedFile, caption, isFoil);
+            await uploadPoster(showId, selectedFile, caption, isFoil, false, false, uploadArtistName, uploadArtistUrl);
             setSelectedFile(null);
             setCaption('');
             setShowUploadForm(false);
@@ -224,7 +259,7 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
                 );
                 if (proceed) {
                     try {
-                        await uploadPoster(showId, selectedFile, caption, isFoil, true);
+                        await uploadPoster(showId, selectedFile, caption, isFoil, true, false, uploadArtistName, uploadArtistUrl);
                         setSelectedFile(null);
                         setCaption('');
                         setShowUploadForm(false);
@@ -268,7 +303,7 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
                 <button
                     className={btnSecondary}
                     style={{ color: 'var(--p-color-contrast-medium)' }}
-                    onClick={() => setShowUploadForm(true)}
+                    onClick={openUploadForm}
                 >
                     {poster ? `Replace ${label}` : `Upload ${label}`}
                 </button>
@@ -294,6 +329,24 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
                         <input type="text" value={caption} onChange={(e) => setCaption(e.target.value)}
                             placeholder="Add a caption…" className={inputClass} />
                     </div>
+                    {isEditorOrAdmin && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                                <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                                    Poster Artist (optional)
+                                </label>
+                                <input type="text" value={uploadArtistName} onChange={(e) => setUploadArtistName(e.target.value)}
+                                    placeholder="e.g., Jane Doe" className={inputClass} />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                                    Poster Artist Link (optional)
+                                </label>
+                                <input type="url" value={uploadArtistUrl} onChange={(e) => setUploadArtistUrl(e.target.value)}
+                                    placeholder="https://example.com" className={inputClass} />
+                            </div>
+                        </div>
+                    )}
                     <div className="flex gap-2">
                         <button className={btnPrimary} disabled={uploading || !selectedFile} onClick={handleUpload}>
                             {uploading && <Spinner />}
@@ -303,7 +356,7 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
                             className={btnSecondary}
                             style={{ color: 'var(--p-color-contrast-medium)' }}
                             disabled={uploading}
-                            onClick={() => { setShowUploadForm(false); setSelectedFile(null); setCaption(''); setError(null); }}
+                            onClick={() => { setShowUploadForm(false); setSelectedFile(null); setCaption(''); setUploadArtistName(''); setUploadArtistUrl(''); setError(null); }}
                         >
                             Cancel
                         </button>
@@ -323,6 +376,19 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
 
                     {poster.caption && <PText size="sm" color="contrast-medium" align="center">{poster.caption}</PText>}
 
+                    {poster.poster_artist_name && (
+                        <PText size="xs" align="center" style={{ color: 'var(--p-color-contrast-low)' }}>
+                            Poster art by{' '}
+                            {poster.poster_artist_url ? (
+                                <a href={poster.poster_artist_url} target="_blank" rel="noopener noreferrer" className="font-semibold text-amber-400 hover:underline">
+                                    {poster.poster_artist_name}
+                                </a>
+                            ) : (
+                                <span className="font-semibold" style={{ color: 'var(--p-color-contrast-medium)' }}>{poster.poster_artist_name}</span>
+                            )}
+                        </PText>
+                    )}
+
                     <div className="flex items-center justify-between pt-3 border-t border-white/5">
                         <div className="space-y-1">
                             <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>
@@ -340,10 +406,43 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
                                 onToggled={onThanksChanged}
                             />
                         </div>
-                        {canDelete && (
-                            <PButtonPure size="x-small" icon="delete" onClick={handleDelete}>Delete</PButtonPure>
-                        )}
+                        <div className="flex items-center gap-2">
+                            {isEditorOrAdmin && !editingCredit && (
+                                <PButtonPure size="x-small" icon="edit" onClick={openCreditEditor}>Edit credit</PButtonPure>
+                            )}
+                            {canDelete && (
+                                <PButtonPure size="x-small" icon="delete" onClick={handleDelete}>Delete</PButtonPure>
+                            )}
+                        </div>
                     </div>
+
+                    {editingCredit && (
+                        <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2">
+                            {creditError && <PInlineNotification heading="Error" description={creditError} state="error" dismissButton={false} />}
+                            <div>
+                                <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                                    Poster Artist
+                                </label>
+                                <input type="text" value={editArtistName} onChange={(e) => setEditArtistName(e.target.value)}
+                                    placeholder="e.g., Jane Doe" className={inputClass} />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                                    Poster Artist Link
+                                </label>
+                                <input type="url" value={editArtistUrl} onChange={(e) => setEditArtistUrl(e.target.value)}
+                                    placeholder="https://example.com" className={inputClass} />
+                            </div>
+                            <div className="flex gap-2">
+                                <button className={btnPrimary} disabled={savingCredit} onClick={handleSaveCredit}>
+                                    {savingCredit ? 'Saving…' : 'Save'}
+                                </button>
+                                <button className={btnSecondary} style={{ color: 'var(--p-color-contrast-medium)' }} disabled={savingCredit} onClick={() => setEditingCredit(false)}>
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    )}
 
                     {isEditorOrAdmin && <PosterLinkManager poster={poster} showDate={showDate} />}
                 </div>
@@ -358,13 +457,15 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
 
 // Rare-case trigger for a show's 3rd+ poster — any number of these can exist
 // alongside the two primary (regular/foil) slots, unconstrained.
-function AddAdditionalPosterForm({ showId, onChanged }) {
+function AddAdditionalPosterForm({ showId, onChanged, isEditorOrAdmin }) {
     const [open, setOpen] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [error, setError] = useState(null);
     const [selectedFile, setSelectedFile] = useState(null);
     const [caption, setCaption] = useState('');
     const [isFoil, setIsFoil] = useState(false);
+    const [artistName, setArtistName] = useState('');
+    const [artistUrl, setArtistUrl] = useState('');
 
     const handleFileSelect = (e) => {
         const file = e.target.files[0];
@@ -380,6 +481,8 @@ function AddAdditionalPosterForm({ showId, onChanged }) {
         setSelectedFile(null);
         setCaption('');
         setIsFoil(false);
+        setArtistName('');
+        setArtistUrl('');
         setError(null);
     };
 
@@ -388,7 +491,7 @@ function AddAdditionalPosterForm({ showId, onChanged }) {
         try {
             setUploading(true);
             setError(null);
-            await uploadPoster(showId, selectedFile, caption, isFoil, false, true);
+            await uploadPoster(showId, selectedFile, caption, isFoil, false, true, artistName, artistUrl);
             reset();
             await onChanged();
         } catch (err) {
@@ -432,6 +535,24 @@ function AddAdditionalPosterForm({ showId, onChanged }) {
                 <input type="text" value={caption} onChange={(e) => setCaption(e.target.value)}
                     placeholder="Add a caption…" className={inputClass} />
             </div>
+            {isEditorOrAdmin && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                        <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                            Poster Artist (optional)
+                        </label>
+                        <input type="text" value={artistName} onChange={(e) => setArtistName(e.target.value)}
+                            placeholder="e.g., Jane Doe" className={inputClass} />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                            Poster Artist Link (optional)
+                        </label>
+                        <input type="url" value={artistUrl} onChange={(e) => setArtistUrl(e.target.value)}
+                            placeholder="https://example.com" className={inputClass} />
+                    </div>
+                </div>
+            )}
             <div className="flex gap-2">
                 <button className={btnPrimary} disabled={uploading || !selectedFile} onClick={handleUpload}>
                     {uploading && <Spinner />}
@@ -445,7 +566,7 @@ function AddAdditionalPosterForm({ showId, onChanged }) {
     );
 }
 
-export default function PostersSection({ showId, showDate, posterArtistName, posterArtistUrl, thanksRows = [], onThanksChanged }) {
+export default function PostersSection({ showId, showDate, thanksRows = [], onThanksChanged }) {
     const { user, isAdmin, isEditorOrAdmin } = useAuth();
     const [posters, setPosters] = useState([]);
     const [lightboxIndex, setLightboxIndex] = useState(-1);
@@ -472,18 +593,6 @@ export default function PostersSection({ showId, showDate, posterArtistName, pos
         <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 space-y-4">
             <div className="flex items-baseline justify-between gap-3 flex-wrap">
                 <PHeading size="lg" tag="h2">Show Posters</PHeading>
-                {posterArtistName && (
-                    <PText size="small" style={{ color: 'var(--p-color-contrast-medium)' }}>
-                        Poster art by{' '}
-                        {posterArtistUrl ? (
-                            <a href={posterArtistUrl} target="_blank" rel="noopener noreferrer" className="text-amber-400 hover:underline">
-                                {posterArtistName}
-                            </a>
-                        ) : (
-                            <span className="font-semibold" style={{ color: 'var(--p-color-primary)' }}>{posterArtistName}</span>
-                        )}
-                    </PText>
-                )}
             </div>
             <PDivider />
 
@@ -552,7 +661,7 @@ export default function PostersSection({ showId, showDate, posterArtistName, pos
 
             {user && (
                 <div className="pt-2">
-                    <AddAdditionalPosterForm showId={showId} onChanged={loadPosters} />
+                    <AddAdditionalPosterForm showId={showId} onChanged={loadPosters} isEditorOrAdmin={isEditorOrAdmin} />
                 </div>
             )}
 

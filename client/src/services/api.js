@@ -1522,7 +1522,7 @@ export const getShowPoster = async (showId) => {
  * `requiresConfirmation: true` and `sharedWithShowCount` so the caller can
  * confirm with the user and retry.
  */
-export const uploadPoster = async (showId, file, caption = '', isFoil = false, confirmSharedReplace = false, additional = false) => {
+export const uploadPoster = async (showId, file, caption = '', isFoil = false, confirmSharedReplace = false, additional = false, posterArtistName = '', posterArtistUrl = '') => {
     const token = await getAuthToken();
     if (!token) {
         throw new Error('Not authenticated');
@@ -1540,6 +1540,12 @@ export const uploadPoster = async (showId, file, caption = '', isFoil = false, c
     }
     if (additional) {
         formData.append('additional', 'true');
+    }
+    if (posterArtistName) {
+        formData.append('poster_artist_name', posterArtistName);
+    }
+    if (posterArtistUrl) {
+        formData.append('poster_artist_url', posterArtistUrl);
     }
 
     const response = await fetchWithAuth(`${API_BASE_URL}/api/posters/upload`, {
@@ -1562,13 +1568,19 @@ export const uploadPoster = async (showId, file, caption = '', isFoil = false, c
 };
 
 /**
- * Update poster caption
+ * Update a poster's caption and/or artist credit (posterArtistName/posterArtistUrl
+ * are editor/admin-only server-side — see PUT /api/posters/:posterId).
  */
-export const updatePosterCaption = async (posterId, caption) => {
+export const updatePosterDetails = async (posterId, { caption, posterArtistName, posterArtistUrl } = {}) => {
     const token = await getAuthToken();
     if (!token) {
         throw new Error('Not authenticated');
     }
+
+    const body = {};
+    if (caption !== undefined) body.caption = caption;
+    if (posterArtistName !== undefined) body.posterArtistName = posterArtistName;
+    if (posterArtistUrl !== undefined) body.posterArtistUrl = posterArtistUrl;
 
     const response = await fetchWithAuth(`${API_BASE_URL}/api/posters/${posterId}`, {
         method: 'PUT',
@@ -1576,10 +1588,10 @@ export const updatePosterCaption = async (posterId, caption) => {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({ caption }),
+        body: JSON.stringify(body),
     });
     if (!response.ok) {
-        throw new Error('Failed to update poster caption');
+        throw new Error('Failed to update poster');
     }
     return response.json();
 };

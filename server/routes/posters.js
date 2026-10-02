@@ -73,6 +73,8 @@ router.get('/', async (req, res) => {
                     thumbnail_url,
                     caption,
                     is_foil,
+                    poster_artist_name,
+                    poster_artist_url,
                     created_at
                 ),
                 shows (
@@ -80,8 +82,6 @@ router.get('/', async (req, res) => {
                     show_date,
                     artist_name,
                     tour_name,
-                    poster_artist_name,
-                    poster_artist_url,
                     venues ( name, city, state_country )
                 )
             `);
@@ -199,6 +199,23 @@ router.post('/upload', authenticate, upload.single('poster'), async (req, res) =
             return res.status(400).json({ error: 'No poster file provided' });
         }
 
+        // Artist credit stays editor/admin-only to set, same as it was when it
+        // lived on the admin Show form — a plain member can still upload a
+        // poster, just not attach/alter its credit. For a non-editor, the
+        // field is left out of the insert/update entirely (rather than
+        // written as null) so replacing an image never wipes out credit an
+        // editor already set; the client never sends these fields for a
+        // non-editor anyway, so this is just the server-side backstop.
+        const { data: requesterProfile } = await supabaseAdmin
+            .from('profiles')
+            .select('role')
+            .eq('id', userId)
+            .single();
+        const isEditorOrAdmin = requesterProfile?.role === 'admin' || requesterProfile?.role === 'editor';
+        const artistCreditFields = isEditorOrAdmin
+            ? { poster_artist_name: req.body.poster_artist_name || null, poster_artist_url: req.body.poster_artist_url || null }
+            : {};
+
         // Check if a PRIMARY poster of this same variant already exists for
         // this show — the regular and foil editions are replaced
         // independently. An additional-poster upload skips this lookup
@@ -314,7 +331,8 @@ router.post('/upload', authenticate, upload.single('poster'), async (req, res) =
                     poster_url: publicUrl,
                     thumbnail_url: thumbnailUrl,
                     caption: caption || null,
-                    updated_at: new Date().toISOString()
+                    updated_at: new Date().toISOString(),
+                    ...artistCreditFields
                 })
                 .eq('id', existingPoster.id)
                 .select(`
@@ -346,7 +364,8 @@ router.post('/upload', authenticate, upload.single('poster'), async (req, res) =
                 thumbnail_url: thumbnailUrl,
                 caption: caption || null,
                 is_foil: isFoil,
-                is_primary: isPrimary
+                is_primary: isPrimary,
+                ...artistCreditFields
             })
             .select(`
                 *,
@@ -1035,22 +1054,25 @@ router.delete('/wants/:id', authenticate, async (req, res) => {
 
 /**
  * PUT /api/posters/:posterId
- * Update poster caption
+ * Update poster caption (owner or admin) and/or artist credit (editor/admin
+ * only — see POST /upload for why credit stays at that higher bar). Lets an
+ * editor fix/add credit without re-uploading the image.
  */
 router.put('/:posterId', authenticate, async (req, res) => {
     try {
         const { posterId } = req.params;
-        const { caption } = req.body;
+        const { caption, posterArtistName, posterArtistUrl } = req.body;
         const userId = req.user.id;
 
-        // Check if user is admin
+        // Check if user is admin/editor
         const { data: profile } = await supabaseAdmin
             .from('profiles')
-            .select('is_admin')
+            .select('is_admin, role')
             .eq('id', userId)
             .single();
 
         const isAdmin = profile?.is_admin || false;
+        const isEditorOrAdmin = profile?.role === 'admin' || profile?.role === 'editor';
 
         // Get the poster to check ownership
         const { data: poster } = await supabaseAdmin
@@ -1068,9 +1090,15 @@ router.put('/:posterId', authenticate, async (req, res) => {
             return res.status(403).json({ error: 'Not authorized to update this poster' });
         }
 
+        const update = { caption };
+        if (isEditorOrAdmin) {
+            if (posterArtistName !== undefined) update.poster_artist_name = posterArtistName || null;
+            if (posterArtistUrl !== undefined) update.poster_artist_url = posterArtistUrl || null;
+        }
+
         const { data: updatedPoster, error } = await supabaseAdmin
             .from('user_posters')
-            .update({ caption })
+            .update(update)
             .eq('id', posterId)
             .select(`
                 *,
