@@ -178,8 +178,12 @@ function Spinner() {
 }
 
 // One variant slot (regular or foil) — its own upload form, display, and delete,
-// independent of the other variant.
-function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, isEditorOrAdmin, onImageClick, onChanged, thanksRows = [], onThanksChanged }) {
+// independent of the other variant. Additional (non-primary) posters reuse this
+// for display/delete only — replacing a specific additional poster isn't a
+// supported concept (every additional upload is always a fresh one), so the
+// upload/replace affordance is disabled for those and adding more happens via
+// the separate "+ Add Additional Poster" form instead.
+function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, isEditorOrAdmin, onImageClick, onChanged, thanksRows = [], onThanksChanged, additional = false }) {
     const [uploading, setUploading] = useState(false);
     const [error, setError] = useState(null);
     const [selectedFile, setSelectedFile] = useState(null);
@@ -189,7 +193,7 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
     // Replacing someone else's poster still requires full admin (matches the
     // server's upload route), but deleting one is also open to editors —
     // both help moderate a show's media alongside admins.
-    const canUpload = user && (!poster || poster.user_id === user.id || isAdmin);
+    const canUpload = !additional && user && (!poster || poster.user_id === user.id || isAdmin);
     const canDelete = user && poster && (poster.user_id === user.id || isEditorOrAdmin);
     const posterThanks = poster ? thanksRows.filter(t => t.contentType === 'poster' && t.contentId === poster.id) : [];
 
@@ -352,6 +356,95 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
     );
 }
 
+// Rare-case trigger for a show's 3rd+ poster — any number of these can exist
+// alongside the two primary (regular/foil) slots, unconstrained.
+function AddAdditionalPosterForm({ showId, onChanged }) {
+    const [open, setOpen] = useState(false);
+    const [uploading, setUploading] = useState(false);
+    const [error, setError] = useState(null);
+    const [selectedFile, setSelectedFile] = useState(null);
+    const [caption, setCaption] = useState('');
+    const [isFoil, setIsFoil] = useState(false);
+
+    const handleFileSelect = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        if (file.size > 5 * 1024 * 1024) { setError('File size must be less than 5MB'); return; }
+        if (!file.type.startsWith('image/')) { setError('Only image files are allowed'); return; }
+        setSelectedFile(file);
+        setError(null);
+    };
+
+    const reset = () => {
+        setOpen(false);
+        setSelectedFile(null);
+        setCaption('');
+        setIsFoil(false);
+        setError(null);
+    };
+
+    const handleUpload = async () => {
+        if (!selectedFile) { setError('Please select a poster image'); return; }
+        try {
+            setUploading(true);
+            setError(null);
+            await uploadPoster(showId, selectedFile, caption, isFoil, false, true);
+            reset();
+            await onChanged();
+        } catch (err) {
+            console.error('Error uploading additional poster:', err);
+            setError(err.message || 'Failed to upload poster');
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    if (!open) {
+        return (
+            <button className={btnSecondary} style={{ color: 'var(--p-color-contrast-medium)' }} onClick={() => setOpen(true)}>
+                + Add Additional Poster
+            </button>
+        );
+    }
+
+    return (
+        <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
+            <PHeading size="sm" tag="h3">Add Additional Poster</PHeading>
+            {error && <PInlineNotification heading="Error" description={error} state="error" dismissButton={false} />}
+            <div>
+                <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                    Poster Image (max 5MB)
+                </label>
+                <input type="file" accept="image/*" onChange={handleFileSelect}
+                    className="w-full text-sm file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-white/10 file:text-white hover:file:bg-white/20 file:cursor-pointer" />
+                {selectedFile && (
+                    <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }} className="mt-1">{selectedFile.name}</PText>
+                )}
+            </div>
+            <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                <input type="checkbox" checked={isFoil} onChange={(e) => setIsFoil(e.target.checked)} />
+                This is a foil variant
+            </label>
+            <div>
+                <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                    Caption (optional)
+                </label>
+                <input type="text" value={caption} onChange={(e) => setCaption(e.target.value)}
+                    placeholder="Add a caption…" className={inputClass} />
+            </div>
+            <div className="flex gap-2">
+                <button className={btnPrimary} disabled={uploading || !selectedFile} onClick={handleUpload}>
+                    {uploading && <Spinner />}
+                    {uploading ? 'Uploading…' : 'Upload'}
+                </button>
+                <button className={btnSecondary} style={{ color: 'var(--p-color-contrast-medium)' }} disabled={uploading} onClick={reset}>
+                    Cancel
+                </button>
+            </div>
+        </div>
+    );
+}
+
 export default function PostersSection({ showId, showDate, posterArtistName, posterArtistUrl, thanksRows = [], onThanksChanged }) {
     const { user, isAdmin, isEditorOrAdmin } = useAuth();
     const [posters, setPosters] = useState([]);
@@ -370,8 +463,9 @@ export default function PostersSection({ showId, showDate, posterArtistName, pos
 
     useEffect(() => { loadPosters(); }, [loadPosters]);
 
-    const regularPoster = posters.find(p => !p.is_foil) || null;
-    const foilPoster = posters.find(p => p.is_foil) || null;
+    const regularPoster = posters.find(p => !p.is_foil && p.is_primary) || null;
+    const foilPoster = posters.find(p => p.is_foil && p.is_primary) || null;
+    const additionalPosters = posters.filter(p => !p.is_primary);
     const slides = posters.map(p => ({ src: p.poster_url, alt: p.caption || 'Show poster', title: p.caption }));
 
     return (
@@ -427,6 +521,40 @@ export default function PostersSection({ showId, showDate, posterArtistName, pos
                     onThanksChanged={onThanksChanged}
                 />
             </div>
+
+            {additionalPosters.length > 0 && (
+                <div className="space-y-4 pt-2 border-t border-white/5">
+                    <PText size="xs" weight="semi-bold" className="uppercase tracking-wide" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                        Additional Posters
+                    </PText>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {additionalPosters.map((poster) => (
+                            <PosterSlot
+                                key={poster.id}
+                                label={poster.is_foil ? 'Additional Poster (Foil)' : 'Additional Poster'}
+                                poster={poster}
+                                isFoil={poster.is_foil}
+                                additional
+                                showId={showId}
+                                showDate={showDate}
+                                user={user}
+                                isAdmin={isAdmin}
+                                isEditorOrAdmin={isEditorOrAdmin}
+                                onImageClick={() => setLightboxIndex(posters.indexOf(poster))}
+                                onChanged={loadPosters}
+                                thanksRows={thanksRows}
+                                onThanksChanged={onThanksChanged}
+                            />
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {user && (
+                <div className="pt-2">
+                    <AddAdditionalPosterForm showId={showId} onChanged={loadPosters} />
+                </div>
+            )}
 
             <Lightbox open={lightboxIndex >= 0} close={() => setLightboxIndex(-1)} slides={slides} index={Math.max(lightboxIndex, 0)} />
         </div>

@@ -173,15 +173,21 @@ router.get('/show/:showId', async (req, res) => {
 
 /**
  * POST /api/posters/upload
- * Upload a poster for a show (replaces the existing poster of the same variant,
- * if any). Body/form field is_foil ('true'/'false', default false) picks which
- * of the show's two possible variants this upload is for — a show can have one
- * regular and one foil poster, uploaded/replaced independently.
+ * Upload a poster for a show. Body/form field is_foil ('true'/'false', default
+ * false) picks which of the show's two primary variants this upload is for —
+ * a show has one primary regular and one primary foil poster, uploaded/
+ * replaced independently. Body field `additional` ('true'/'false', default
+ * false) instead ALWAYS creates a brand-new poster rather than replacing a
+ * primary slot — for the rare case of a show having more than 2 posters
+ * (e.g. a special afterparty printing). Additional posters are still either
+ * foil or not, just unconstrained in count.
  */
 router.post('/upload', authenticate, upload.single('poster'), async (req, res) => {
     try {
         const { show_id, caption } = req.body;
         const isFoil = req.body.is_foil === 'true' || req.body.is_foil === true;
+        const isAdditional = req.body.additional === 'true' || req.body.additional === true;
+        const isPrimary = !isAdditional;
         const userId = req.user.id;
         const file = req.file;
 
@@ -193,18 +199,25 @@ router.post('/upload', authenticate, upload.single('poster'), async (req, res) =
             return res.status(400).json({ error: 'No poster file provided' });
         }
 
-        // Check if a poster of this same variant already exists for this show —
-        // the regular and foil editions are replaced independently. Resolved
-        // through poster_show_links rather than user_posters.show_id directly,
-        // so this also finds a shared tour-leg poster (see POST
+        // Check if a PRIMARY poster of this same variant already exists for
+        // this show — the regular and foil editions are replaced
+        // independently. An additional-poster upload skips this lookup
+        // entirely (existingPoster stays null), since it always creates a
+        // new poster rather than replacing anything. Resolved through
+        // poster_show_links rather than user_posters.show_id directly, so
+        // this also finds a shared tour-leg poster (see POST
         // /:posterId/link-range) covering this show but anchored elsewhere.
-        const { data: existingLink } = await supabaseAdmin
-            .from('poster_show_links')
-            .select('user_posters ( id, poster_url, thumbnail_url, user_id )')
-            .eq('show_id', show_id)
-            .eq('is_foil', isFoil)
-            .maybeSingle();
-        const existingPoster = existingLink?.user_posters || null;
+        let existingPoster = null;
+        if (isPrimary) {
+            const { data: existingLink } = await supabaseAdmin
+                .from('poster_show_links')
+                .select('user_posters ( id, poster_url, thumbnail_url, user_id )')
+                .eq('show_id', show_id)
+                .eq('is_foil', isFoil)
+                .eq('is_primary', true)
+                .maybeSingle();
+            existingPoster = existingLink?.user_posters || null;
+        }
 
         // Replacing a poster that's shared across multiple shows would
         // silently change the image everywhere it's linked, not just here —
@@ -332,7 +345,8 @@ router.post('/upload', authenticate, upload.single('poster'), async (req, res) =
                 poster_url: publicUrl,
                 thumbnail_url: thumbnailUrl,
                 caption: caption || null,
-                is_foil: isFoil
+                is_foil: isFoil,
+                is_primary: isPrimary
             })
             .select(`
                 *,
@@ -353,9 +367,13 @@ router.post('/upload', authenticate, upload.single('poster'), async (req, res) =
 
         // Anchor the new poster to this show — every poster needs at least
         // one link row (see GET /show/:showId, GET / and POST /:posterId/link-range).
+        // If this fails on the partial unique index (a concurrent request
+        // won the race for this exact primary slot), the cleanup below
+        // deletes the just-created user_posters row and storage files —
+        // same as any other link-insert failure.
         const { error: linkError } = await supabaseAdmin
             .from('poster_show_links')
-            .insert({ poster_id: poster.id, show_id, is_foil: isFoil });
+            .insert({ poster_id: poster.id, show_id, is_foil: isFoil, is_primary: isPrimary });
         if (linkError) {
             console.error('Error linking new poster to its show:', linkError);
             await supabaseAdmin.from('user_posters').delete().eq('id', poster.id);
@@ -409,11 +427,13 @@ router.get('/:posterId/shows', requireEditorOrAdmin, async (req, res) => {
  * POST /api/posters/:posterId/link-range
  * Link this poster to every show by the same artist within [startDate,
  * endDate] (inclusive) that doesn't already have a *different* poster of the
- * same variant — e.g. one poster used for a whole tour leg. Shows already
- * linked to a different poster of this variant are reported as skipped, not
- * overwritten, so the admin can resolve any conflict manually. Safe to
- * re-run: shows already linked to *this* poster are reported separately and
- * left alone.
+ * same variant — e.g. one poster used for a whole tour leg. "Same variant"
+ * means matching both is_foil AND is_primary, so a primary poster's range
+ * never conflicts with an unrelated additional poster at the same show, and
+ * vice versa. Shows already linked to a different poster of this variant are
+ * reported as skipped, not overwritten, so the admin can resolve any
+ * conflict manually. Safe to re-run: shows already linked to *this* poster
+ * are reported separately and left alone.
  * Body: { startDate, endDate } (YYYY-MM-DD, inclusive). Editor/admin only.
  */
 router.post('/:posterId/link-range', requireEditorOrAdmin, async (req, res) => {
@@ -430,7 +450,7 @@ router.post('/:posterId/link-range', requireEditorOrAdmin, async (req, res) => {
 
         const { data: poster, error: posterError } = await supabaseAdmin
             .from('user_posters')
-            .select('id, is_foil, shows ( artist_name )')
+            .select('id, is_foil, is_primary, shows ( artist_name )')
             .eq('id', posterId)
             .single();
         if (posterError || !poster) {
@@ -459,6 +479,7 @@ router.post('/:posterId/link-range', requireEditorOrAdmin, async (req, res) => {
             .from('poster_show_links')
             .select('show_id, poster_id')
             .eq('is_foil', poster.is_foil)
+            .eq('is_primary', poster.is_primary)
             .in('show_id', showIds);
 
         if (linksError) {
@@ -481,7 +502,7 @@ router.post('/:posterId/link-range', requireEditorOrAdmin, async (req, res) => {
         if (toLink.length > 0) {
             const { error: insertError } = await supabaseAdmin
                 .from('poster_show_links')
-                .insert(toLink.map(show => ({ poster_id: poster.id, show_id: show.id, is_foil: poster.is_foil })));
+                .insert(toLink.map(show => ({ poster_id: poster.id, show_id: show.id, is_foil: poster.is_foil, is_primary: poster.is_primary })));
 
             if (insertError) {
                 console.error('Error linking poster to range:', insertError);
@@ -561,6 +582,7 @@ router.get('/collection', authenticate, async (req, res) => {
                 created_at,
                 for_trade,
                 trade_comment,
+                edition_type,
                 user_posters (
                     id,
                     poster_url,
@@ -660,13 +682,18 @@ router.delete('/collection/:id', authenticate, async (req, res) => {
 /**
  * PUT /api/posters/collection/:id
  * List (or un-list) an owned poster as available for sale/trade, with an
- * optional comment. Owner only.
- * Body: { forTrade?: boolean, tradeComment?: string|null }
+ * optional comment, and/or mark it an original print vs an AP (Artist's
+ * Proof). Owner only.
+ * Body: { forTrade?: boolean, tradeComment?: string|null, editionType?: 'original'|'ap' }
  */
 router.put('/collection/:id', authenticate, async (req, res) => {
     try {
         const { id } = req.params;
-        const { forTrade, tradeComment } = req.body;
+        const { forTrade, tradeComment, editionType } = req.body;
+
+        if (editionType !== undefined && !['original', 'ap'].includes(editionType)) {
+            return res.status(400).json({ error: "editionType must be 'original' or 'ap'" });
+        }
 
         const { data: row, error: fetchError } = await supabaseAdmin
             .from('user_poster_collection')
@@ -683,12 +710,13 @@ router.put('/collection/:id', authenticate, async (req, res) => {
         const update = {};
         if (typeof forTrade === 'boolean') update.for_trade = forTrade;
         if (tradeComment !== undefined) update.trade_comment = tradeComment ? String(tradeComment).trim() || null : null;
+        if (editionType !== undefined) update.edition_type = editionType;
 
         const { data, error } = await supabaseAdmin
             .from('user_poster_collection')
             .update(update)
             .eq('id', id)
-            .select('id, for_trade, trade_comment')
+            .select('id, for_trade, trade_comment, edition_type')
             .single();
         if (error) {
             console.error('Error updating collection trade status:', error);

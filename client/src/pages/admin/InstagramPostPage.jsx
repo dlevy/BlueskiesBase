@@ -79,8 +79,8 @@ export default function InstagramPostPage() {
 
     // Derived early (not after the loading/error guards below) so the hook
     // that depends on it stays unconditional, same as every other effect here.
-    const regularPoster = posters.find(p => !p.is_foil) || null;
-    const foilPoster = posters.find(p => p.is_foil) || null;
+    const regularPoster = posters.find(p => !p.is_foil && p.is_primary) || null;
+    const foilPoster = posters.find(p => p.is_foil && p.is_primary) || null;
     const activePoster = (posterVariant === 'foil' && foilPoster) ? foilPoster : (regularPoster || foilPoster);
     const posterUrl = activePoster?.poster_url || null;
     const rawBackgroundImageUrl = backgroundMode === 'poster' ? posterUrl : backgroundMode === 'photo' ? selectedPhotoUrl : null;

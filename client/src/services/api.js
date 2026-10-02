@@ -1522,7 +1522,7 @@ export const getShowPoster = async (showId) => {
  * `requiresConfirmation: true` and `sharedWithShowCount` so the caller can
  * confirm with the user and retry.
  */
-export const uploadPoster = async (showId, file, caption = '', isFoil = false, confirmSharedReplace = false) => {
+export const uploadPoster = async (showId, file, caption = '', isFoil = false, confirmSharedReplace = false, additional = false) => {
     const token = await getAuthToken();
     if (!token) {
         throw new Error('Not authenticated');
@@ -1537,6 +1537,9 @@ export const uploadPoster = async (showId, file, caption = '', isFoil = false, c
     }
     if (confirmSharedReplace) {
         formData.append('confirm_shared_replace', 'true');
+    }
+    if (additional) {
+        formData.append('additional', 'true');
     }
 
     const response = await fetchWithAuth(`${API_BASE_URL}/api/posters/upload`, {
@@ -1716,13 +1719,14 @@ export const removeFromPosterCollection = async (entryId) => {
 /**
  * List (or un-list) an owned poster as available for sale/trade. Owner only.
  */
-export const updateCollectionTradeStatus = async (collectionId, { forTrade, tradeComment } = {}) => {
+export const updateCollectionTradeStatus = async (collectionId, { forTrade, tradeComment, editionType } = {}) => {
     const token = await getAuthToken();
     if (!token) throw new Error('Not authenticated');
 
     const body = {};
     if (forTrade !== undefined) body.forTrade = forTrade;
     if (tradeComment !== undefined) body.tradeComment = tradeComment;
+    if (editionType !== undefined) body.editionType = editionType;
 
     const response = await fetchWithAuth(`${API_BASE_URL}/api/posters/collection/${collectionId}`, {
         method: 'PUT',

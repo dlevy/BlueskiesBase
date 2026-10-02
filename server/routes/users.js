@@ -710,6 +710,7 @@ router.get('/profile/:username', async (req, res) => {
                 id,
                 for_trade,
                 trade_comment,
+                edition_type,
                 user_posters (
                     id,
                     poster_url,
@@ -728,6 +729,7 @@ router.get('/profile/:username', async (req, res) => {
                 show: row.user_posters.shows,
                 forTrade: row.for_trade,
                 tradeComment: row.trade_comment,
+                editionType: row.edition_type,
             }))
             .sort((a, b) => b.show.show_date.localeCompare(a.show.show_date));
 

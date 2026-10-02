@@ -56,17 +56,18 @@ function PosterCollectionCard({ entry, isOwnProfile }) {
     const [editing, setEditing] = useState(false);
     const [forTrade, setForTrade] = useState(entry.forTrade);
     const [tradeComment, setTradeComment] = useState(entry.tradeComment || '');
+    const [editionType, setEditionType] = useState(entry.editionType || 'original');
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState(null);
-    const [committed, setCommitted] = useState({ forTrade: entry.forTrade, tradeComment: entry.tradeComment });
+    const [committed, setCommitted] = useState({ forTrade: entry.forTrade, tradeComment: entry.tradeComment, editionType: entry.editionType || 'original' });
 
     const handleSave = async () => {
         setSaving(true);
         setError(null);
         try {
             const trimmed = tradeComment.trim() || null;
-            await updateCollectionTradeStatus(entry.id, { forTrade, tradeComment: trimmed });
-            setCommitted({ forTrade, tradeComment: trimmed });
+            await updateCollectionTradeStatus(entry.id, { forTrade, tradeComment: trimmed, editionType });
+            setCommitted({ forTrade, tradeComment: trimmed, editionType });
             setEditing(false);
         } catch (err) {
             setError(err.message || 'Failed to update');
@@ -79,6 +80,7 @@ function PosterCollectionCard({ entry, isOwnProfile }) {
         setEditing(false);
         setForTrade(committed.forTrade);
         setTradeComment(committed.tradeComment || '');
+        setEditionType(committed.editionType || 'original');
         setError(null);
     };
 
@@ -93,6 +95,14 @@ function PosterCollectionCard({ entry, isOwnProfile }) {
                             style={{ background: 'rgba(192,132,252,0.85)', color: '#1a0b2e' }}
                         >
                             Foil
+                        </span>
+                    )}
+                    {(isOwnProfile ? committed.editionType : entry.editionType) === 'ap' && (
+                        <span
+                            className="absolute top-1.5 left-1.5 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded"
+                            style={{ background: 'rgba(59,130,246,0.85)', color: '#0a1a2e' }}
+                        >
+                            AP
                         </span>
                     )}
                 </div>
@@ -136,6 +146,17 @@ function PosterCollectionCard({ entry, isOwnProfile }) {
 
                 {isOwnProfile && editing && (
                     <div className="space-y-1.5">
+                        <label className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                            Edition:
+                            <select
+                                value={editionType}
+                                onChange={e => setEditionType(e.target.value)}
+                                className="rounded border border-white/10 bg-white/5 py-0.5 px-1 text-xs"
+                            >
+                                <option value="original">Original</option>
+                                <option value="ap">AP (Artist's Proof)</option>
+                            </select>
+                        </label>
                         <label className="flex items-center gap-1.5 text-xs cursor-pointer" style={{ color: 'var(--p-color-contrast-medium)' }}>
                             <input type="checkbox" checked={forTrade} onChange={e => setForTrade(e.target.checked)} className="w-3.5 h-3.5" />
                             Available for trade/sale
