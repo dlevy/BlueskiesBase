@@ -17,17 +17,18 @@ function formatDate(dateStr) {
 }
 
 // Most posters are portrait and fill the aspect-[2/3] tile edge-to-edge with
-// object-cover. A landscape scan would get heavily cropped that way, so once
-// we know (from the loaded image's own dimensions) that it's wider than
-// tall, switch to object-contain to show the whole poster — which leaves
-// empty space above/below, so a thin border frames that space rather than
-// leaving it looking like a layout mistake.
-function useLandscapeDetection() {
-    const [isLandscape, setIsLandscape] = useState(false);
+// object-cover. A poster that isn't narrower than the tile itself — landscape
+// or square — gets cropped on the sides that way, so once we know (from the
+// loaded image's own dimensions) that it's at least as wide as it is tall,
+// switch to object-contain to show the whole poster — which leaves empty
+// space above/below, so a thin border frames that space rather than leaving
+// it looking like a layout mistake.
+function useUncroppedImageDetection() {
+    const [needsContain, setNeedsContain] = useState(false);
     const handleImageLoad = (e) => {
-        if (e.target.naturalWidth > e.target.naturalHeight) setIsLandscape(true);
+        if (e.target.naturalWidth >= e.target.naturalHeight) setNeedsContain(true);
     };
-    return [isLandscape, handleImageLoad];
+    return [needsContain, handleImageLoad];
 }
 
 function PosterTile({ poster, onImageClick }) {
@@ -35,21 +36,21 @@ function PosterTile({ poster, onImageClick }) {
     const showCount = poster.showCount || 1;
     const isTourPoster = showCount > 1;
     const lastShow = isTourPoster ? poster.linkedShows[poster.linkedShows.length - 1] : null;
-    const [isLandscape, handleImageLoad] = useLandscapeDetection();
+    const [needsContain, handleImageLoad] = useUncroppedImageDetection();
 
     return (
         <div className="group rounded-xl overflow-hidden border border-white/10 bg-white/[0.03] hover:border-amber-500/30 hover:-translate-y-1 hover:shadow-lg hover:shadow-black/30 transition-all duration-150">
             <button
                 type="button"
                 onClick={onImageClick}
-                className={`relative block w-full aspect-[2/3] overflow-hidden bg-white/5 cursor-pointer ${isLandscape ? 'border border-white/15' : ''}`}
+                className={`relative block w-full aspect-[2/3] overflow-hidden bg-white/5 cursor-pointer ${needsContain ? 'border border-white/15' : ''}`}
             >
                 <img
                     src={poster.thumbnail_url || poster.poster_url}
                     alt={poster.caption || `${show.artist_name} poster — ${show.venues?.name || show.venues?.city || ''}`}
                     loading="lazy"
                     onLoad={handleImageLoad}
-                    className={`w-full h-full ${isLandscape ? 'object-contain' : 'object-cover'} group-hover:scale-105 transition-transform duration-300`}
+                    className={`w-full h-full ${needsContain ? 'object-contain' : 'object-cover'} group-hover:scale-105 transition-transform duration-300`}
                 />
                 {poster.is_foil && (
                     <span
@@ -110,17 +111,17 @@ function PosterTile({ poster, onImageClick }) {
 function ForTradeTile({ listing }) {
     const show = listing.show;
     const owner = listing.owner;
-    const [isLandscape, handleImageLoad] = useLandscapeDetection();
+    const [needsContain, handleImageLoad] = useUncroppedImageDetection();
 
     return (
         <div className="rounded-xl overflow-hidden border border-white/10 bg-white/[0.03] hover:border-amber-500/30 transition-all duration-150">
-            <Link to={buildShowPath(show)} className={`relative block w-full aspect-[2/3] overflow-hidden bg-white/5 ${isLandscape ? 'border border-white/15' : ''}`}>
+            <Link to={buildShowPath(show)} className={`relative block w-full aspect-[2/3] overflow-hidden bg-white/5 ${needsContain ? 'border border-white/15' : ''}`}>
                 <img
                     src={listing.thumbnailUrl || listing.posterUrl}
                     alt={`${show.artist_name} poster`}
                     loading="lazy"
                     onLoad={handleImageLoad}
-                    className={`w-full h-full ${isLandscape ? 'object-contain' : 'object-cover'}`}
+                    className={`w-full h-full ${needsContain ? 'object-contain' : 'object-cover'}`}
                 />
                 {listing.hasFoil && (
                     <span
