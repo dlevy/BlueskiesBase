@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { PSpinner, PText, PHeading } from '@porsche-design-system/components-react';
+import { PSpinner, PText, PHeading, PInlineNotification } from '@porsche-design-system/components-react';
 import { getBandMembers } from '../services/api';
 import MainNavTabs from '../components/MainNavTabs';
 import SEO from '../components/SEO';
@@ -138,6 +138,15 @@ export default function BandPage() {
                 <PText size="small" color="contrast-medium">
                     The lineup, and the gear each member uses on stage.
                 </PText>
+            </div>
+
+            <div className="mb-6">
+                <PInlineNotification
+                    heading="Under construction"
+                    description="This section of the archive is still being built out. If you're a gear geek who'd like to help curate and expand it, we'd love your help!"
+                    state="warning"
+                    dismissButton={false}
+                />
             </div>
 
             {loading && (
