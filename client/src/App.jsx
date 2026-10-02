@@ -257,23 +257,32 @@ function PublicLayout() {
             </div>
           </div>
           {footerLinks.length > 0 && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-1 justify-center justify-items-center">
-              {footerLinks.map((item, index) => (
-                <span key={index} className="text-xs text-center" style={{ color: 'var(--p-color-contrast-low)' }}>
-                  {item.url ? (
-                    <a
-                      href={item.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="hover:opacity-80 transition-opacity underline underline-offset-2"
-                      style={{ color: 'var(--p-color-contrast-medium)' }}
-                    >
-                      {item.text}
-                    </a>
-                  ) : (
-                    item.text
-                  )}
-                </span>
+            <div className="flex flex-col items-center gap-y-1">
+              {[footerLinks.slice(0, 4), footerLinks.slice(4, 8)].filter(row => row.length > 0).map((row, rowIndex) => (
+                <div key={rowIndex} className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
+                  {row.map((item, i) => (
+                    <span key={i} className="flex items-center gap-x-3">
+                      <span className="text-xs text-center" style={{ color: 'var(--p-color-contrast-low)' }}>
+                        {item.url ? (
+                          <a
+                            href={item.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hover:opacity-80 transition-opacity underline underline-offset-2"
+                            style={{ color: 'var(--p-color-contrast-medium)' }}
+                          >
+                            {item.text}
+                          </a>
+                        ) : (
+                          item.text
+                        )}
+                      </span>
+                      {i < row.length - 1 && (
+                        <span className="text-xs" style={{ color: 'rgba(255,255,255,0.15)' }}>|</span>
+                      )}
+                    </span>
+                  ))}
+                </div>
               ))}
             </div>
           )}

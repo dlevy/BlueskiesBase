@@ -16,6 +16,10 @@ export default function SiteSettingsPage() {
     const [newItemText, setNewItemText] = useState('');
     const [newItemUrl, setNewItemUrl] = useState('');
     const [linkFormError, setLinkFormError] = useState('');
+    const [editingIndex, setEditingIndex] = useState(null);
+    const [editText, setEditText] = useState('');
+    const [editUrl, setEditUrl] = useState('');
+    const [editError, setEditError] = useState('');
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState(null);
@@ -51,6 +55,31 @@ export default function SiteSettingsPage() {
 
     const removeFooterLink = (index) => {
         setFooterLinks(prev => prev.filter((_, i) => i !== index));
+        if (editingIndex === index) setEditingIndex(null);
+    };
+
+    const startEditFooterLink = (index) => {
+        setEditingIndex(index);
+        setEditText(footerLinks[index].text);
+        setEditUrl(footerLinks[index].url || '');
+        setEditError('');
+    };
+
+    const cancelEditFooterLink = () => {
+        setEditingIndex(null);
+        setEditError('');
+    };
+
+    const saveEditFooterLink = () => {
+        const text = editText.trim();
+        if (!text) { setEditError('Text is required'); return; }
+        const url = editUrl.trim();
+        if (url) {
+            try { new URL(url); } catch { setEditError('Please enter a valid URL'); return; }
+        }
+        setFooterLinks(prev => prev.map((item, i) => i === editingIndex ? { text, url: url || null } : item));
+        setEditingIndex(null);
+        setEditError('');
     };
 
     if (!isAdmin) {
@@ -129,22 +158,50 @@ export default function SiteSettingsPage() {
                     {footerLinks.length > 0 && (
                         <div className="space-y-2">
                             {footerLinks.map((item, index) => (
-                                <div key={index} className="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/5 py-2 px-3">
-                                    <div className="text-sm truncate">
-                                        <span>{item.text}</span>
-                                        {item.url && (
-                                            <span className="ml-2 text-xs truncate" style={{ color: 'var(--p-color-contrast-low)' }}>{item.url}</span>
+                                editingIndex === index ? (
+                                    <div key={index} className="rounded-lg border border-white/10 bg-white/5 p-3 space-y-2">
+                                        <div className="flex flex-wrap items-end gap-2">
+                                            <input type="text" value={editText} onChange={e => setEditText(e.target.value)}
+                                                placeholder="Text" maxLength={150} className={inputClass} style={{ maxWidth: '240px' }} />
+                                            <input type="url" value={editUrl} onChange={e => setEditUrl(e.target.value)}
+                                                placeholder="https://… (optional)" maxLength={300} className={inputClass} style={{ maxWidth: '240px' }} />
+                                        </div>
+                                        {editError && (
+                                            <PText size="x-small" style={{ color: 'var(--p-color-error)' }}>{editError}</PText>
                                         )}
+                                        <div className="flex gap-2">
+                                            <PButton type="button" onClick={saveEditFooterLink}>Save Item</PButton>
+                                            <PButton type="button" variant="secondary" onClick={cancelEditFooterLink}>Cancel</PButton>
+                                        </div>
                                     </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => removeFooterLink(index)}
-                                        className="shrink-0 text-xs hover:opacity-80 transition-opacity"
-                                        style={{ color: 'var(--p-color-error)' }}
-                                    >
-                                        Remove
-                                    </button>
-                                </div>
+                                ) : (
+                                    <div key={index} className="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/5 py-2 px-3">
+                                        <div className="text-sm truncate">
+                                            <span>{item.text}</span>
+                                            {item.url && (
+                                                <span className="ml-2 text-xs truncate" style={{ color: 'var(--p-color-contrast-low)' }}>{item.url}</span>
+                                            )}
+                                        </div>
+                                        <div className="flex items-center gap-3 shrink-0">
+                                            <button
+                                                type="button"
+                                                onClick={() => startEditFooterLink(index)}
+                                                className="text-xs hover:opacity-80 transition-opacity"
+                                                style={{ color: 'var(--p-color-info)' }}
+                                            >
+                                                Edit
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => removeFooterLink(index)}
+                                                className="text-xs hover:opacity-80 transition-opacity"
+                                                style={{ color: 'var(--p-color-error)' }}
+                                            >
+                                                Remove
+                                            </button>
+                                        </div>
+                                    </div>
+                                )
                             ))}
                         </div>
                     )}
