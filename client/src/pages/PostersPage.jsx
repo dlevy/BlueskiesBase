@@ -184,9 +184,6 @@ export default function PostersPage() {
                 <h1 className="font-display font-bold text-2xl" style={{ color: 'var(--p-color-primary)' }}>
                     Posters
                 </h1>
-                <p className="text-sm mt-1" style={{ color: 'var(--p-color-contrast-medium)' }}>
-                    {posters.length > 0 ? `${posters.length} show poster${posters.length !== 1 ? 's' : ''}, newest first` : 'Show posters from the archive'}
-                </p>
             </div>
 
             {forTradeListings.length > 0 && (
@@ -229,6 +226,15 @@ export default function PostersPage() {
                     )}
                 </div>
             )}
+
+            <div className="mb-4 pt-2 border-t border-white/[0.07]">
+                <h2 className="font-display font-bold text-lg" style={{ color: 'var(--p-color-primary)' }}>
+                    Poster Archive
+                </h2>
+                <p className="text-sm mt-1" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                    {posters.length > 0 ? `${posters.length} show poster${posters.length !== 1 ? 's' : ''}, newest first` : 'Show posters from the archive'}
+                </p>
+            </div>
 
             {loading && (
                 <div className="flex justify-center py-16">
