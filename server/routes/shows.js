@@ -194,6 +194,7 @@ router.get('/:id/tour-rarity', async (req, res) => {
                 .select('song_id, show_id')
                 .in('show_id', tourShowIds)
                 .not('song_id', 'is', null)
+                .neq('performance_type', 'dj')
                 .order('id')
                 .range(rangeStart, rangeStart + 999);
 

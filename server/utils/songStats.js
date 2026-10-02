@@ -18,6 +18,8 @@ const cache = new Map(); // rarestLimit -> { data, expiresAt }
  * ranked, not percentage-based, since a percentage of all-time shows played would
  * unfairly flag recently-debuted songs as "rare" just for not having existed during
  * earlier tours (same issue already fixed for the per-tour Rare badge).
+ * Excludes performance_type='dj' rows (an afterparty DJ spin, not an actual live
+ * performance) — those shouldn't inflate a song's play count or rarity ranking.
  */
 async function computeGlobalSongStats(rarestLimit = 10) {
     const cached = cache.get(rarestLimit);
@@ -43,6 +45,7 @@ async function computeGlobalSongStats(rarestLimit = 10) {
                     album_id
                 )
             `)
+            .neq('performance_type', 'dj')
             .order('id')
             .range(from, from + batchSize - 1);
 

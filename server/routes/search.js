@@ -231,6 +231,7 @@ router.get('/shows', async (req, res) => {
                     .from('setlist_songs')
                     .select('show_id', { count: 'exact' })
                     .eq('song_id', songData.id)
+                    .neq('performance_type', 'dj')
                     .order('id')
                     .range(rangeStart, rangeEnd);
 
