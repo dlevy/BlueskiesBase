@@ -681,7 +681,7 @@ router.put('/:id/setlist', requireEditorOrAdmin, async (req, res) => {
 
             // Validate performance_type if provided
             const performanceType = item.performance_type || 'full';
-            const validPerformanceTypes = ['full', 'tease', 'partial'];
+            const validPerformanceTypes = ['full', 'tease', 'partial', 'dj'];
             if (!validPerformanceTypes.includes(performanceType)) {
                 throw new Error(`Entry ${index + 1}: performance_type must be one of: ${validPerformanceTypes.join(', ')}`);
             }
@@ -849,10 +849,10 @@ router.post('/:id/setlist/song', requireEditorOrAdmin, async (req, res) => {
 
         // Validate performance_type if provided
         const performanceTypeValue = performance_type || 'full';
-        const validPerformanceTypes = ['full', 'tease', 'partial'];
+        const validPerformanceTypes = ['full', 'tease', 'partial', 'dj'];
         if (!validPerformanceTypes.includes(performanceTypeValue)) {
             return res.status(400).json({
-                error: 'performance_type must be one of: full, tease, partial',
+                error: 'performance_type must be one of: full, tease, partial, dj',
                 provided: performanceTypeValue
             });
         }

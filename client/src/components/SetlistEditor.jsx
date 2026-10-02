@@ -362,6 +362,7 @@ function SetlistSongItem({ song, index, isFirst, isLast, onRemove, onMove, onUpd
                                 <option value="full">Full Performance</option>
                                 <option value="tease">Tease</option>
                                 <option value="partial">Partial</option>
+                                <option value="dj">DJ'd (not performed live)</option>
                             </select>
                         </div>
 

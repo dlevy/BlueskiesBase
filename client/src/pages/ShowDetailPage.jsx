@@ -187,6 +187,14 @@ function SongRow({ song, position, tourRarity, liveDebutSongIds, tourDebutSongId
                             partial
                         </span>
                     )}
+                    {song.performance_type === 'dj' && (
+                        <span
+                            className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-300"
+                            title="DJ'd — played as a recording, not performed live"
+                        >
+                            DJ'd
+                        </span>
+                    )}
                     {song.is_original === false && (
                         <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-300">
                             cover
