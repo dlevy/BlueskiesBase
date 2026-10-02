@@ -2047,14 +2047,14 @@ export const createBandMember = async ({ name, bio, roles }) => {
     return response.json();
 };
 
-export const updateBandMember = async (id, { name, bio, roles }) => {
+export const updateBandMember = async (id, { name, bio, roles, sort_order } = {}) => {
     const token = await getAuthToken();
     if (!token) throw new Error('Not authenticated');
 
     const response = await fetchWithAuth(`${API_BASE_URL}/api/band-members/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ name, bio, roles }),
+        body: JSON.stringify({ name, bio, roles, sort_order }),
     });
     if (!response.ok) {
         const error = await response.json().catch(() => ({}));

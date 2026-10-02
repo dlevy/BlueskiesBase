@@ -1,28 +1,30 @@
 import { useState, useEffect } from 'react';
 import { PHeading, PText, PButton, PButtonPure, PInlineNotification, PSpinner } from '@porsche-design-system/components-react';
-import { getBandMembers } from '../../services/api';
+import { getBandMembers, updateBandMember } from '../../services/api';
 import BandMemberForm from './BandMemberForm';
 
 export default function BandMembersList() {
     const [members, setMembers] = useState([]);
-    const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [showForm, setShowForm] = useState(false);
     const [editingMember, setEditingMember] = useState(null);
+    const [reordering, setReordering] = useState(false);
+    // Only the very first load shows the full-page spinner — a reorder
+    // refetch shouldn't flash the whole list away.
+    const [initialLoading, setInitialLoading] = useState(true);
 
     useEffect(() => { fetchMembers(); }, []);
 
     const fetchMembers = async () => {
         try {
-            setLoading(true);
             const data = await getBandMembers();
-            setMembers(data.members || []);
+            setMembers((data.members || []).sort((a, b) => a.sort_order - b.sort_order));
             setError(null);
         } catch (err) {
             console.error('Error fetching band members:', err);
             setError('Failed to load band members');
         } finally {
-            setLoading(false);
+            setInitialLoading(false);
         }
     };
 
@@ -30,8 +32,30 @@ export default function BandMembersList() {
     const handleNew = () => { setEditingMember(null); setShowForm(true); };
     const handleFormClose = () => { setShowForm(false); setEditingMember(null); fetchMembers(); };
 
-    if (loading) return <div className="flex justify-center items-center py-12"><PSpinner size="medium" /></div>;
-    if (error) return <PInlineNotification heading="Error" description={error} state="error" dismissButton={false} />;
+    const move = async (member, direction) => {
+        const index = members.findIndex(m => m.id === member.id);
+        const swapIndex = index + direction;
+        if (swapIndex < 0 || swapIndex >= members.length) return;
+        const neighbor = members[swapIndex];
+
+        setReordering(true);
+        setError(null);
+        try {
+            await Promise.all([
+                updateBandMember(member.id, { sort_order: neighbor.sort_order }),
+                updateBandMember(neighbor.id, { sort_order: member.sort_order }),
+            ]);
+            await fetchMembers();
+        } catch (err) {
+            console.error('Error reordering band members:', err);
+            setError(err.message || 'Failed to reorder band members');
+        } finally {
+            setReordering(false);
+        }
+    };
+
+    if (initialLoading) return <div className="flex justify-center items-center py-12"><PSpinner size="medium" /></div>;
+    if (error && members.length === 0) return <PInlineNotification heading="Error" description={error} state="error" dismissButton={false} />;
     if (showForm) return <BandMemberForm member={editingMember} onClose={handleFormClose} />;
 
     const isCurrent = (member) => (member.band_member_tenures || []).some(t => !t.end_date);
@@ -48,6 +72,10 @@ export default function BandMembersList() {
                 <PButton onClick={handleNew}>+ Add Band Member</PButton>
             </div>
 
+            {error && (
+                <PInlineNotification heading="Error" description={error} state="error" dismissButton={false} />
+            )}
+
             <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-4">
                 <div className="text-3xl font-bold" style={{ color: 'var(--p-color-info)' }}>{members.length}</div>
                 <PText size="small" color="contrast-medium">Total Band Members</PText>
@@ -58,9 +86,9 @@ export default function BandMembersList() {
                     <table className="w-full">
                         <thead className="border-b border-white/10" style={{ background: 'var(--p-color-canvas)' }}>
                             <tr>
-                                {['Name', 'Roles', 'Status', 'Gear', 'Actions'].map((h, i) => (
+                                {['Order', 'Name', 'Roles', 'Status', 'Gear', 'Actions'].map((h, i) => (
                                     <th key={h}
-                                        className={`px-4 py-3 text-xs font-medium uppercase tracking-wider ${i === 4 ? 'text-right' : 'text-left'}`}
+                                        className={`px-4 py-3 text-xs font-medium uppercase tracking-wider ${i === 5 ? 'text-right' : 'text-left'}`}
                                         style={{ color: 'var(--p-color-contrast-medium)' }}>
                                         {h}
                                     </th>
@@ -70,13 +98,21 @@ export default function BandMembersList() {
                         <tbody className="divide-y divide-white/5">
                             {members.length === 0 ? (
                                 <tr>
-                                    <td colSpan="5" className="px-4 py-8 text-center">
+                                    <td colSpan="6" className="px-4 py-8 text-center">
                                         <PText color="contrast-medium">No band members found. Click "Add Band Member" to create one.</PText>
                                     </td>
                                 </tr>
                             ) : (
-                                members.map((member) => (
+                                members.map((member, index) => (
                                     <tr key={member.id} className="hover:bg-white/5 transition-colors">
+                                        <td className="px-4 py-3">
+                                            <div className="flex items-center gap-1">
+                                                <button type="button" disabled={reordering || index === 0} onClick={() => move(member, -1)}
+                                                    className="text-xs px-1.5 disabled:opacity-30" style={{ color: 'var(--p-color-contrast-medium)' }}>↑</button>
+                                                <button type="button" disabled={reordering || index === members.length - 1} onClick={() => move(member, 1)}
+                                                    className="text-xs px-1.5 disabled:opacity-30" style={{ color: 'var(--p-color-contrast-medium)' }}>↓</button>
+                                            </div>
+                                        </td>
                                         <td className="px-4 py-3">
                                             <div className="flex items-center gap-3">
                                                 {member.photo_url ? (

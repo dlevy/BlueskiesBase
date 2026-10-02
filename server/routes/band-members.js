@@ -50,11 +50,11 @@ router.get('/', async (req, res) => {
         const { data: members, error } = await supabaseAdmin
             .from('band_members')
             .select(`
-                id, name, photo_url, bio, roles, created_at,
+                id, name, photo_url, bio, roles, sort_order, created_at,
                 band_member_tenures ( id, start_date, end_date ),
                 gear_items ( id, category, make, model, year, notes, photo_url, start_date, end_date )
             `)
-            .order('name');
+            .order('sort_order');
 
         if (error) {
             console.error('[GET /band-members] Error:', error);
@@ -77,7 +77,7 @@ router.get('/:id', async (req, res) => {
         const { data: member, error } = await supabaseAdmin
             .from('band_members')
             .select(`
-                id, name, photo_url, bio, roles, created_at,
+                id, name, photo_url, bio, roles, sort_order, created_at,
                 band_member_tenures ( id, start_date, end_date ),
                 gear_items ( id, category, make, model, year, notes, photo_url, start_date, end_date )
             `)
@@ -109,9 +109,18 @@ router.post('/', requireEditorOrAdmin, async (req, res) => {
             return res.status(400).json({ error: 'Name is required' });
         }
 
+        // New members go to the end of the roster, same "max + 1" convention
+        // link_categories.sort_order already uses (server/routes/links.js).
+        const { data: last } = await supabaseAdmin
+            .from('band_members')
+            .select('sort_order')
+            .order('sort_order', { ascending: false })
+            .limit(1);
+        const nextSortOrder = (last?.[0]?.sort_order || 0) + 1;
+
         const { data: member, error } = await supabaseAdmin
             .from('band_members')
-            .insert({ name: name.trim(), bio: bio || null, roles: Array.isArray(roles) ? roles : [] })
+            .insert({ name: name.trim(), bio: bio || null, roles: Array.isArray(roles) ? roles : [], sort_order: nextSortOrder })
             .select()
             .single();
 
@@ -129,18 +138,30 @@ router.post('/', requireEditorOrAdmin, async (req, res) => {
 
 /**
  * PUT /api/band-members/:id
- * Editor or admin. Update name/bio/roles.
+ * Editor or admin. Partial update — only touches fields actually present in
+ * the body (so a reorder call sending just { sort_order } doesn't wipe
+ * bio/roles), matching the convention in server/routes/links.js and settings.js.
  */
 router.put('/:id', requireEditorOrAdmin, async (req, res) => {
     try {
-        const { name, bio, roles } = req.body;
-        if (!name || !name.trim()) {
-            return res.status(400).json({ error: 'Name is required' });
+        const { name, bio, roles, sort_order } = req.body;
+        const updates = {};
+
+        if (name !== undefined) {
+            if (!name.trim()) return res.status(400).json({ error: 'Name is required' });
+            updates.name = name.trim();
+        }
+        if (bio !== undefined) updates.bio = bio || null;
+        if (roles !== undefined) updates.roles = Array.isArray(roles) ? roles : [];
+        if (sort_order !== undefined) updates.sort_order = sort_order;
+
+        if (Object.keys(updates).length === 0) {
+            return res.status(400).json({ error: 'No fields to update' });
         }
 
         const { data: member, error } = await supabaseAdmin
             .from('band_members')
-            .update({ name: name.trim(), bio: bio || null, roles: Array.isArray(roles) ? roles : [] })
+            .update(updates)
             .eq('id', req.params.id)
             .select()
             .single();
