@@ -1277,6 +1277,32 @@ export const mergeSetlistSubmissionSong = async (songRowId, targetSet) => {
     return response.json();
 };
 
+/**
+ * Accept every not-yet-merged song in a submission at once.
+ * targets: { [songRowId]: 'set1' | 'set2' | 'set3' | 'encore' } — same shape
+ * as the per-song merge dropdowns; a row with no entry defaults to 'set1'.
+ */
+export const mergeAllSetlistSubmissionSongs = async (submissionId, targets = {}) => {
+    const token = await getAuthToken();
+    if (!token) {
+        throw new Error('Not authenticated');
+    }
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/setlist-submissions/${submissionId}/merge-all`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ targets }),
+    });
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to accept all songs into the official setlist');
+    }
+    return response.json();
+};
+
 // ============================================
 // NOTES API
 // ============================================

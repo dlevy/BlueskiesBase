@@ -4,7 +4,7 @@ import { PHeading, PText, PButtonPure, PInlineNotification, PDivider, PSpinner }
 import { useAuth } from '../contexts/AuthContext';
 import {
     getSetlistSubmissions, getUserSetlistSubmission, saveSetlistSubmission,
-    deleteSetlistSubmission, mergeSetlistSubmissionSong, getSongs
+    deleteSetlistSubmission, mergeSetlistSubmissionSong, mergeAllSetlistSubmissionSongs, getSongs
 } from '../services/api';
 import QuickAddSong from './QuickAddSong';
 import ThanksButton from './ThanksButton';
@@ -80,6 +80,7 @@ export default function SetlistSubmissionSection({ showId, thanksRows = [], onTh
 
     const [mergingRowId, setMergingRowId] = useState(null);
     const [mergeTargets, setMergeTargets] = useState({}); // songRowId -> selected set key
+    const [mergingAllId, setMergingAllId] = useState(null);
 
     const [highlightedId, setHighlightedId] = useState(null);
     const highlightTimeoutRef = useRef(null);
@@ -194,6 +195,26 @@ export default function SetlistSubmissionSection({ showId, thanksRows = [], onTh
             setError(err.message || 'Failed to add song to the official setlist');
         } finally {
             setMergingRowId(null);
+        }
+    };
+
+    const handleMergeAll = async (submission) => {
+        const pendingSongs = submission.setlist_submission_songs.filter(row => !row.merged_into_setlist);
+        if (!confirm(
+            `Accept all ${pendingSongs.length} remaining song${pendingSongs.length === 1 ? '' : 's'} into the official setlist? ` +
+            'Each uses its currently selected set (defaulting to Set 1) — you can still remove one afterward from the show\'s setlist editor if something\'s wrong.'
+        )) return;
+        try {
+            setMergingAllId(submission.id);
+            const targets = {};
+            for (const row of pendingSongs) targets[row.id] = mergeTargets[row.id] || 'set1';
+            await mergeAllSetlistSubmissionSongs(submission.id, targets);
+            await loadAll();
+        } catch (err) {
+            console.error('Error accepting all songs into the official setlist:', err);
+            setError(err.message || 'Failed to accept all songs into the official setlist');
+        } finally {
+            setMergingAllId(null);
         }
     };
 
@@ -323,6 +344,7 @@ export default function SetlistSubmissionSection({ showId, thanksRows = [], onTh
                     {othersSubmissions.map((submission) => {
                         const submissionThanks = thanksRows.filter(t => t.contentType === 'setlist_submission' && t.contentId === submission.id);
                         const isHighlighted = highlightedId === submission.id;
+                        const pendingSongsCount = submission.setlist_submission_songs.filter(row => !row.merged_into_setlist).length;
                         return (
                         <div
                             key={submission.id}
@@ -330,20 +352,33 @@ export default function SetlistSubmissionSection({ showId, thanksRows = [], onTh
                             className="rounded-xl border border-white/5 bg-white/5 p-4 space-y-2 transition-shadow"
                             style={isHighlighted ? { boxShadow: '0 0 0 2px var(--p-color-notification-warning)' } : undefined}
                         >
-                            <div className="flex items-center gap-2">
-                                <PText size="xs" weight="semi-bold">{submission.profiles?.username || 'Anonymous'}</PText>
-                                <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>
-                                    {new Date(submission.created_at).toLocaleDateString()}
-                                </PText>
-                                <ThanksButton
-                                    contentType="setlist_submission"
-                                    contentId={submission.id}
-                                    count={submissionThanks.length}
-                                    thankedByMe={!!user && submissionThanks.some(t => t.thankedBy === user.id)}
-                                    thankedByNames={submissionThanks.map(t => t.thankedByName)}
-                                    isOwnContent={!!user && submission.profiles?.id === user.id}
-                                    onToggled={onThanksChanged}
-                                />
+                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                                <div className="flex items-center gap-2">
+                                    <PText size="xs" weight="semi-bold">{submission.profiles?.username || 'Anonymous'}</PText>
+                                    <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>
+                                        {new Date(submission.created_at).toLocaleDateString()}
+                                    </PText>
+                                    <ThanksButton
+                                        contentType="setlist_submission"
+                                        contentId={submission.id}
+                                        count={submissionThanks.length}
+                                        thankedByMe={!!user && submissionThanks.some(t => t.thankedBy === user.id)}
+                                        thankedByNames={submissionThanks.map(t => t.thankedByName)}
+                                        isOwnContent={!!user && submission.profiles?.id === user.id}
+                                        onToggled={onThanksChanged}
+                                    />
+                                </div>
+                                {isEditorOrAdmin && pendingSongsCount > 0 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => handleMergeAll(submission)}
+                                        disabled={mergingAllId === submission.id}
+                                        className={btnSecondary}
+                                        style={{ color: 'var(--p-color-success)' }}
+                                    >
+                                        {mergingAllId === submission.id ? 'Accepting…' : `Accept All (${pendingSongsCount})`}
+                                    </button>
+                                )}
                             </div>
                             <ol className="space-y-1">
                                 {submission.setlist_submission_songs.map((row) => (

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { PHeading, PText, PButtonPure, PInlineNotification, PSpinner } from '@porsche-design-system/components-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { getAllSetlistSubmissions, mergeSetlistSubmissionSong, deleteSetlistSubmission } from '../../services/api';
+import { getAllSetlistSubmissions, mergeSetlistSubmissionSong, mergeAllSetlistSubmissionSongs, deleteSetlistSubmission } from '../../services/api';
 import { buildShowPath } from '../../utils/showSlug';
 
 const SET_LABELS = { set1: 'Set 1', set2: 'Set 2', set3: 'Set 3', encore: 'Encore' };
@@ -62,6 +62,7 @@ export default function SetlistSubmissionsReview() {
     const [hideMerged, setHideMerged] = useState(true);
     const [mergingRowId, setMergingRowId] = useState(null);
     const [mergeTargets, setMergeTargets] = useState({});
+    const [mergingAllId, setMergingAllId] = useState(null);
 
     const load = useCallback(async () => {
         try {
@@ -93,6 +94,26 @@ export default function SetlistSubmissionsReview() {
         }
     };
 
+    const handleMergeAll = async (submission) => {
+        const pendingSongs = submission.setlist_submission_songs.filter(row => !row.merged_into_setlist);
+        if (!confirm(
+            `Accept all ${pendingSongs.length} remaining song${pendingSongs.length === 1 ? '' : 's'} into the official setlist? ` +
+            'Each uses its currently selected set (defaulting to Set 1) — you can still remove one afterward from the show\'s setlist editor if something\'s wrong.'
+        )) return;
+        try {
+            setMergingAllId(submission.id);
+            const targets = {};
+            for (const row of pendingSongs) targets[row.id] = mergeTargets[row.id] || 'set1';
+            await mergeAllSetlistSubmissionSongs(submission.id, targets);
+            await load();
+        } catch (err) {
+            console.error('Error accepting all songs into the official setlist:', err);
+            setError(err.message || 'Failed to accept all songs into the official setlist');
+        } finally {
+            setMergingAllId(null);
+        }
+    };
+
     const handleDelete = async (submissionId) => {
         if (!confirm('Delete this submission?')) return;
         try {
@@ -107,6 +128,7 @@ export default function SetlistSubmissionsReview() {
     const withStatus = useMemo(() => submissions.map(s => ({
         ...s,
         allMerged: s.setlist_submission_songs.length > 0 && s.setlist_submission_songs.every(row => row.merged_into_setlist),
+        pendingSongsCount: s.setlist_submission_songs.filter(row => !row.merged_into_setlist).length,
     })), [submissions]);
 
     const pendingCount = withStatus.filter(s => !s.allMerged).length;
@@ -168,9 +190,20 @@ export default function SetlistSubmissionsReview() {
                                         </PText>
                                     )}
                                 </div>
-                                <div className="text-right shrink-0">
+                                <div className="text-right shrink-0 space-y-1.5">
                                     <PText size="xs" weight="semi-bold">{submission.profiles?.username || 'Anonymous'}</PText>
                                     <PText size="xs" color="contrast-medium">{new Date(submission.created_at).toLocaleDateString()}</PText>
+                                    {submission.pendingSongsCount > 0 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => handleMergeAll(submission)}
+                                            disabled={mergingAllId === submission.id}
+                                            className={btnSecondary}
+                                            style={{ color: 'var(--p-color-success)' }}
+                                        >
+                                            {mergingAllId === submission.id ? 'Accepting…' : `Accept All (${submission.pendingSongsCount})`}
+                                        </button>
+                                    )}
                                 </div>
                             </div>
 

@@ -431,4 +431,111 @@ router.post('/songs/:songRowId/merge', requireEditorOrAdmin, async (req, res) =>
     }
 });
 
+/**
+ * POST /api/setlist-submissions/:submissionId/merge-all
+ * Editor or admin. Same action as /songs/:songRowId/merge, applied to every
+ * not-yet-merged song in one submission at once — accepting a correction
+ * song-by-song is tedious when the whole list is right, and the admin can
+ * still remove an individual song from the official setlist afterward if one
+ * of them was wrong (POST/DELETE /api/shows/:id/setlist/song).
+ * Body: { targets?: { [songRowId]: 'set1' | 'set2' | 'set3' | 'encore' } } —
+ * same per-row target-set map the client's merge dropdowns already produce;
+ * a row with no entry defaults to 'set1', matching the single-merge default.
+ */
+router.post('/:submissionId/merge-all', requireEditorOrAdmin, async (req, res) => {
+    try {
+        const { submissionId } = req.params;
+        const targets = req.body.targets || {};
+
+        const { data: submission, error: subError } = await supabaseAdmin
+            .from('setlist_submissions')
+            .select('id, show_id, setlist_submission_songs ( id, song_id, notes, merged_into_setlist, song_order )')
+            .eq('id', submissionId)
+            .single();
+        if (subError || !submission) {
+            return res.status(404).json({ error: 'Submission not found' });
+        }
+
+        const pending = (submission.setlist_submission_songs || [])
+            .filter(row => !row.merged_into_setlist)
+            .sort((a, b) => a.song_order - b.song_order);
+        if (pending.length === 0) {
+            return res.status(400).json({ error: 'Nothing to accept — every song in this submission is already in the official setlist' });
+        }
+
+        for (const row of pending) {
+            const target = targets[row.id] || 'set1';
+            if (!VALID_SETS.includes(target)) {
+                return res.status(400).json({ error: `Invalid target_set for song row ${row.id}` });
+            }
+        }
+
+        const showId = submission.show_id;
+
+        // One max-order lookup per distinct bucket actually used (not per song),
+        // then increment locally while building the insert rows below — same
+        // "append to the end of the set" rule as the single-song merge, just
+        // batched so N songs into the same set land in order after each other.
+        const bucketsNeeded = [...new Set(pending.map(row => targets[row.id] || 'set1'))];
+        const nextOrderByBucket = {};
+        for (const bucketKey of bucketsNeeded) {
+            const setNumber = SET_TO_NUMBER[bucketKey];
+            const isEncore = bucketKey === 'encore';
+            const { data: existingInSet } = await supabaseAdmin
+                .from('setlist_songs')
+                .select('song_order')
+                .eq('show_id', showId)
+                .eq('set_number', setNumber)
+                .eq('is_encore', isEncore)
+                .order('song_order', { ascending: false })
+                .limit(1);
+            nextOrderByBucket[bucketKey] = (existingInSet?.[0]?.song_order || 0) + 1;
+        }
+
+        const insertRows = pending.map(row => {
+            const bucketKey = targets[row.id] || 'set1';
+            const setNumber = SET_TO_NUMBER[bucketKey];
+            const isEncore = bucketKey === 'encore';
+            const songOrder = nextOrderByBucket[bucketKey]++;
+            return {
+                show_id: showId,
+                song_id: row.song_id,
+                set_number: setNumber,
+                song_order: songOrder,
+                is_encore: isEncore,
+                notes: row.notes,
+                performance_type: 'full',
+            };
+        });
+
+        const { data: inserted, error: insertError } = await supabaseAdmin
+            .from('setlist_songs')
+            .insert(insertRows)
+            .select(`
+                id, song_id, set_number, song_order, is_encore, notes, jams_into, performance_type,
+                songs!setlist_songs_song_id_fkey ( id, title, original_artist, is_original, written_by )
+            `);
+        if (insertError) {
+            console.error('[POST /setlist-submissions/:submissionId/merge-all] Error inserting into setlist_songs:', insertError);
+            return res.status(500).json({ error: 'Failed to add songs to the official setlist' });
+        }
+
+        const { error: flagError } = await supabaseAdmin
+            .from('setlist_submission_songs')
+            .update({ merged_into_setlist: true })
+            .in('id', pending.map(row => row.id));
+        if (flagError) {
+            console.error('[POST /setlist-submissions/:submissionId/merge-all] Error flagging merged:', flagError);
+            // Non-fatal, same reasoning as the single-song merge route.
+        }
+
+        await notifySetlistUpdated({ showId, actorId: req.user.id });
+
+        res.json({ setlist_songs: inserted, mergedCount: inserted.length });
+    } catch (error) {
+        console.error('Error in POST /setlist-submissions/:submissionId/merge-all:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 module.exports = router;
