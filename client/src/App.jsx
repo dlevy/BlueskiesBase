@@ -9,6 +9,7 @@ import HomePage from './pages/HomePage'
 import ShowDetailPage from './pages/ShowDetailPage'
 import StatsPage from './pages/StatsPage'
 import PostersPage from './pages/PostersPage'
+import BandPage from './pages/BandPage'
 import PhotosPage from './pages/PhotosPage'
 import LinksPage from './pages/LinksPage'
 import MembersPage from './pages/MembersPage'
@@ -32,6 +33,7 @@ import SongsList from './pages/admin/SongsList'
 import AlbumsList from './pages/admin/AlbumsList'
 import LinksList from './pages/admin/LinksList'
 import VenuesList from './pages/admin/VenuesList'
+import BandMembersList from './pages/admin/BandMembersList'
 import ToursList from './pages/admin/ToursList'
 import TourEditPage from './pages/admin/TourEditPage'
 import AdminUsers from './pages/admin/AdminUsers'
@@ -52,6 +54,7 @@ function App() {
             <Route path="show/:artist/:date/:locationSlug" element={<ShowDetailPage />} />
             <Route path="stats" element={<StatsPage />} />
             <Route path="posters" element={<PostersPage />} />
+            <Route path="band" element={<BandPage />} />
             <Route path="photos" element={<PhotosPage />} />
             <Route path="links" element={<LinksPage />} />
             <Route path="members" element={<MembersPage />} />
@@ -92,6 +95,7 @@ function App() {
             <Route path="albums" element={<AlbumsList />} />
             <Route path="links" element={<LinksList />} />
             <Route path="venues" element={<VenuesList />} />
+            <Route path="band-members" element={<BandMembersList />} />
             <Route path="tours" element={<ToursList />} />
             <Route path="tours/:tourName" element={<TourEditPage />} />
             <Route path="setlist-submissions" element={<SetlistSubmissionsReview />} />

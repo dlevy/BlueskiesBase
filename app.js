@@ -47,6 +47,7 @@ app.use('/api/links', require('./server/routes/links'));
 app.use('/api/settings', require('./server/routes/settings'));
 app.use('/api/thanks', require('./server/routes/thanks'));
 app.use('/api/notifications', require('./server/routes/notifications'));
+app.use('/api/band-members', require('./server/routes/band-members'));
 
 // Error handling middleware
 app.use((err, req, res, next) => {

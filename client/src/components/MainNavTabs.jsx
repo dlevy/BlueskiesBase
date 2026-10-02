@@ -12,9 +12,10 @@ const TABS = [
     { id: 'photos', label: 'Photos', to: '/photos' },
     { id: 'links', label: 'Links', to: '/links' },
     { id: 'members', label: 'Members', to: '/members' },
+    { id: 'band', label: 'Band', to: '/band' },
 ];
 
-const ROUTE_TAB = { '/posters': 'posters', '/photos': 'photos', '/links': 'links', '/members': 'members' };
+const ROUTE_TAB = { '/posters': 'posters', '/photos': 'photos', '/links': 'links', '/members': 'members', '/band': 'band' };
 
 export default function MainNavTabs() {
     const location = useLocation();

@@ -2015,3 +2015,168 @@ export const markAllNotificationsRead = async () => {
     return response.json();
 };
 
+// ============================================
+// BAND MEMBERS & GEAR
+// ============================================
+
+export const getBandMembers = async () => {
+    const response = await fetch(`${API_BASE_URL}/api/band-members`);
+    if (!response.ok) throw new Error('Failed to fetch band members');
+    return response.json();
+};
+
+export const getBandMember = async (id) => {
+    const response = await fetch(`${API_BASE_URL}/api/band-members/${id}`);
+    if (!response.ok) throw new Error('Failed to fetch band member');
+    return response.json();
+};
+
+export const createBandMember = async ({ name, bio, roles }) => {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/band-members`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ name, bio, roles }),
+    });
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to create band member');
+    }
+    return response.json();
+};
+
+export const updateBandMember = async (id, { name, bio, roles }) => {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/band-members/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ name, bio, roles }),
+    });
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to update band member');
+    }
+    return response.json();
+};
+
+export const deleteBandMember = async (id) => {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/band-members/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to delete band member');
+    }
+    return response.json();
+};
+
+export const uploadBandMemberPhoto = async (id, file) => {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+
+    const formData = new FormData();
+    formData.append('photo', file);
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/band-members/${id}/photo`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData,
+    });
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to upload photo');
+    }
+    return response.json();
+};
+
+/**
+ * Replace all of a member's tenure rows in one call.
+ * tenures: [{ start_date, end_date }, ...] — end_date null/omitted = currently active.
+ */
+export const replaceBandMemberTenures = async (id, tenures) => {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/band-members/${id}/tenures`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ tenures }),
+    });
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to save tenures');
+    }
+    return response.json();
+};
+
+/**
+ * gear: { category, make?, model?, year?, notes?, start_date?, end_date?, photoFile? }
+ */
+const gearFormData = ({ category, make, model, year, notes, start_date, end_date, photoFile }) => {
+    const formData = new FormData();
+    formData.append('category', category);
+    if (make) formData.append('make', make);
+    if (model) formData.append('model', model);
+    if (year) formData.append('year', year);
+    if (notes) formData.append('notes', notes);
+    if (start_date) formData.append('start_date', start_date);
+    if (end_date) formData.append('end_date', end_date);
+    if (photoFile) formData.append('photo', photoFile);
+    return formData;
+};
+
+export const createGearItem = async (bandMemberId, gear) => {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/band-members/${bandMemberId}/gear`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: gearFormData(gear),
+    });
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to create gear item');
+    }
+    return response.json();
+};
+
+export const updateGearItem = async (gearId, gear) => {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/band-members/gear/${gearId}`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: gearFormData(gear),
+    });
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to update gear item');
+    }
+    return response.json();
+};
+
+export const deleteGearItem = async (gearId) => {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/band-members/gear/${gearId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to delete gear item');
+    }
+    return response.json();
+};
+
