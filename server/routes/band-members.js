@@ -51,7 +51,7 @@ router.get('/', async (req, res) => {
             .from('band_members')
             .select(`
                 id, name, photo_url, bio, roles, sort_order, created_at,
-                band_member_tenures ( id, start_date, end_date ),
+                band_member_tenures ( id, start_year, end_year ),
                 gear_items ( id, category, make, model, year, notes, photo_url, start_date, end_date )
             `)
             .order('sort_order');
@@ -78,7 +78,7 @@ router.get('/:id', async (req, res) => {
             .from('band_members')
             .select(`
                 id, name, photo_url, bio, roles, sort_order, created_at,
-                band_member_tenures ( id, start_date, end_date ),
+                band_member_tenures ( id, start_year, end_year ),
                 gear_items ( id, category, make, model, year, notes, photo_url, start_date, end_date )
             `)
             .eq('id', req.params.id)
@@ -257,9 +257,9 @@ router.post('/:id/photo', requireEditorOrAdmin, uploadPhoto.single('photo'), asy
 /**
  * PUT /api/band-members/:id/tenures
  * Editor or admin. Delete-all/insert-all replace for this member's tenure
- * rows — same shape as PUT /api/shows/:id/setlist. Plain date pairs, no
+ * rows — same shape as PUT /api/shows/:id/setlist. Plain year pairs, no
  * files, so a bulk replace is safe (unlike gear, which carries photos).
- * Body: { tenures: [{ start_date, end_date? }, ...] }
+ * Body: { tenures: [{ start_year, end_year? }, ...] }
  */
 router.put('/:id/tenures', requireEditorOrAdmin, async (req, res) => {
     try {
@@ -270,11 +270,11 @@ router.put('/:id/tenures', requireEditorOrAdmin, async (req, res) => {
             return res.status(400).json({ error: 'tenures must be an array' });
         }
         for (const [index, t] of tenures.entries()) {
-            if (!t.start_date) {
-                return res.status(400).json({ error: `Tenure ${index + 1}: start_date is required` });
+            if (!t.start_year) {
+                return res.status(400).json({ error: `Tenure ${index + 1}: start year is required` });
             }
-            if (t.end_date && t.end_date < t.start_date) {
-                return res.status(400).json({ error: `Tenure ${index + 1}: end date can't be before start date` });
+            if (t.end_year && t.end_year < t.start_year) {
+                return res.status(400).json({ error: `Tenure ${index + 1}: end year can't be before start year` });
             }
         }
 
@@ -288,7 +288,7 @@ router.put('/:id/tenures', requireEditorOrAdmin, async (req, res) => {
             return res.json({ tenures: [] });
         }
 
-        const rows = tenures.map(t => ({ band_member_id: id, start_date: t.start_date, end_date: t.end_date || null }));
+        const rows = tenures.map(t => ({ band_member_id: id, start_year: parseInt(t.start_year, 10), end_year: t.end_year ? parseInt(t.end_year, 10) : null }));
         const { data: inserted, error: insertError } = await supabaseAdmin
             .from('band_member_tenures')
             .insert(rows)
@@ -298,7 +298,7 @@ router.put('/:id/tenures', requireEditorOrAdmin, async (req, res) => {
             // Most likely the "one current tenure" partial unique index —
             // surface it as a clean 400 rather than a raw 500.
             if (insertError.code === '23505') {
-                return res.status(400).json({ error: 'Only one tenure period can be currently active (end date left blank) at a time' });
+                return res.status(400).json({ error: 'Only one tenure period can be currently active (end year left blank) at a time' });
             }
             console.error('[PUT /band-members/:id/tenures] Error inserting tenures:', insertError);
             return res.status(500).json({ error: 'Failed to save tenures' });

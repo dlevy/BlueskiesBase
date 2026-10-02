@@ -46,7 +46,7 @@ export default function BandMemberForm({ member, onClose }) {
 
     useEffect(() => {
         setTenureRows((savedMember?.band_member_tenures || []).map(t => ({
-            start_date: t.start_date, end_date: t.end_date || '', isCurrent: !t.end_date,
+            start_year: t.start_year, end_year: t.end_year || '', isCurrent: !t.end_year,
         })));
     }, [savedMember?.id]);
 
@@ -119,7 +119,7 @@ export default function BandMemberForm({ member, onClose }) {
         }
     };
 
-    const addTenureRow = () => setTenureRows(prev => [...prev, { start_date: '', end_date: '', isCurrent: false }]);
+    const addTenureRow = () => setTenureRows(prev => [...prev, { start_year: '', end_year: '', isCurrent: false }]);
     const removeTenureRow = (index) => setTenureRows(prev => prev.filter((_, i) => i !== index));
     const updateTenureRow = (index, field, value) => setTenureRows(prev => prev.map((row, i) => i === index ? { ...row, [field]: value } : row));
 
@@ -128,9 +128,9 @@ export default function BandMemberForm({ member, onClose }) {
         setError(null);
         try {
             for (const row of tenureRows) {
-                if (!row.start_date) throw new Error('Every tenure period needs a start date');
+                if (!row.start_year) throw new Error('Every tenure period needs a start year');
             }
-            const tenures = tenureRows.map(row => ({ start_date: row.start_date, end_date: row.isCurrent ? null : (row.end_date || null) }));
+            const tenures = tenureRows.map(row => ({ start_year: row.start_year, end_year: row.isCurrent ? null : (row.end_year || null) }));
             await replaceBandMemberTenures(savedMember.id, tenures);
             await refreshMember();
         } catch (err) {
@@ -282,7 +282,7 @@ export default function BandMemberForm({ member, onClose }) {
                     <div>
                         <PHeading size="lg" tag="h2">Tenure Periods</PHeading>
                         <PText size="small" color="contrast-medium">
-                            When this member was (or has been) in the band. Leave the end date blank for the period they're currently in.
+                            When this member was (or has been) in the band. Leave the end year blank for the period they're currently in.
                         </PText>
                     </div>
 
@@ -290,15 +290,15 @@ export default function BandMemberForm({ member, onClose }) {
                         {tenureRows.map((row, index) => (
                             <div key={index} className="flex flex-wrap items-end gap-2 rounded-lg border border-white/10 bg-white/5 p-3">
                                 <div>
-                                    <label className="block text-[10px] mb-1" style={{ color: 'var(--p-color-contrast-low)' }}>Start</label>
-                                    <input type="date" value={row.start_date} onChange={e => updateTenureRow(index, 'start_date', e.target.value)}
-                                        className="rounded-lg border border-white/10 bg-white/5 py-1.5 px-2 text-xs" />
+                                    <label className="block text-[10px] mb-1" style={{ color: 'var(--p-color-contrast-low)' }}>Start Year</label>
+                                    <input type="number" value={row.start_year} onChange={e => updateTenureRow(index, 'start_year', e.target.value)}
+                                        placeholder="e.g., 2013" className="w-24 rounded-lg border border-white/10 bg-white/5 py-1.5 px-2 text-xs" />
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] mb-1" style={{ color: 'var(--p-color-contrast-low)' }}>End</label>
-                                    <input type="date" value={row.end_date} disabled={row.isCurrent}
-                                        onChange={e => updateTenureRow(index, 'end_date', e.target.value)}
-                                        className="rounded-lg border border-white/10 bg-white/5 py-1.5 px-2 text-xs disabled:opacity-40" />
+                                    <label className="block text-[10px] mb-1" style={{ color: 'var(--p-color-contrast-low)' }}>End Year</label>
+                                    <input type="number" value={row.end_year} disabled={row.isCurrent}
+                                        onChange={e => updateTenureRow(index, 'end_year', e.target.value)}
+                                        placeholder="e.g., 2016" className="w-24 rounded-lg border border-white/10 bg-white/5 py-1.5 px-2 text-xs disabled:opacity-40" />
                                 </div>
                                 <label className="flex items-center gap-1.5 text-xs pb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>
                                     <input type="checkbox" checked={row.isCurrent} onChange={e => updateTenureRow(index, 'isCurrent', e.target.checked)} />

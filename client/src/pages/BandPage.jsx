@@ -17,8 +17,8 @@ function formatDate(dateStr) {
 function formatTenures(tenures) {
     if (!tenures || tenures.length === 0) return null;
     return [...tenures]
-        .sort((a, b) => a.start_date.localeCompare(b.start_date))
-        .map(t => `${formatDate(t.start_date)}–${t.end_date ? formatDate(t.end_date) : 'Present'}`)
+        .sort((a, b) => a.start_year - b.start_year)
+        .map(t => `${t.start_year}–${t.end_year || 'Present'}`)
         .join(', ');
 }
 
@@ -118,7 +118,7 @@ export default function BandPage() {
         return () => { cancelled = true; };
     }, []);
 
-    const isCurrent = (member) => (member.band_member_tenures || []).some(t => !t.end_date);
+    const isCurrent = (member) => (member.band_member_tenures || []).some(t => !t.end_year);
     const current = members.filter(isCurrent);
     const past = members.filter(m => !isCurrent(m));
 

@@ -58,7 +58,7 @@ export default function BandMembersList() {
     if (error && members.length === 0) return <PInlineNotification heading="Error" description={error} state="error" dismissButton={false} />;
     if (showForm) return <BandMemberForm member={editingMember} onClose={handleFormClose} />;
 
-    const isCurrent = (member) => (member.band_member_tenures || []).some(t => !t.end_date);
+    const isCurrent = (member) => (member.band_member_tenures || []).some(t => !t.end_year);
 
     return (
         <div className="space-y-6">
