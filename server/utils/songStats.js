@@ -7,17 +7,20 @@ const { supabase } = require('../config/supabase');
 // (persists for the lifetime of a warm server/serverless instance) means only the
 // first caller in a given window pays the cost.
 const CACHE_TTL_MS = 5 * 60 * 1000;
-const cache = new Map(); // rarestLimit -> { data, expiresAt }
+const cache = new Map(); // limit -> { data, expiresAt }
 
 /**
  * All-time per-song play counts (distinct shows, not raw setlist rows), split into
  * covers/originals, each sorted most- to least-played. Shared by the public global
  * song stats endpoint and the personal stats endpoint (for "rare songs you've seen"),
  * so both agree on exactly the same all-time rarity ranking.
- * `rarestLimit` controls how many of the least-played songs are returned per bucket —
- * ranked, not percentage-based, since a percentage of all-time shows played would
- * unfairly flag recently-debuted songs as "rare" just for not having existed during
- * earlier tours (same issue already fixed for the per-tour Rare badge).
+ * `limit` controls how many songs are returned per bucket, at both the most- and
+ * least-played ends — ranked, not percentage-based, since a percentage of all-time
+ * shows played would unfairly flag recently-debuted songs as "rare" just for not
+ * having existed during earlier tours (same issue already fixed for the per-tour
+ * Rare badge). The public Stats tab requests enough per bucket to paginate beyond
+ * the first page; attendance.js's personal-stats caller only reads `.rarest`, so
+ * its own `top5` size is irrelevant to it.
  * Excludes performance_type='dj' rows (an afterparty DJ spin, not an actual live
  * performance) — those shouldn't inflate a song's play count or rarity ranking.
  *
@@ -29,8 +32,8 @@ const cache = new Map(); // rarestLimit -> { data, expiresAt }
  * A filtered call is never cached (filter combinations are unbounded; this is
  * an on-demand interaction, not a page-load path).
  */
-async function computeGlobalSongStats(rarestLimit = 10, filter = null) {
-    const cached = !filter && cache.get(rarestLimit);
+async function computeGlobalSongStats(limit = 10, filter = null) {
+    const cached = !filter && cache.get(limit);
     if (cached && cached.expiresAt > Date.now()) return cached.data;
 
     let showsQuery = supabase.from('shows').select('id, show_date').order('id');
@@ -132,18 +135,18 @@ async function computeGlobalSongStats(rarestLimit = 10, filter = null) {
     const result = {
         covers: {
             total: covers.length,
-            top5: covers.slice(0, 5),
-            rarest: covers.slice(-rarestLimit).reverse(),
+            top5: covers.slice(0, limit),
+            rarest: covers.slice(-limit).reverse(),
         },
         originals: {
             total: originals.length,
-            top5: originals.slice(0, 5),
-            rarest: originals.slice(-rarestLimit).reverse(),
+            top5: originals.slice(0, limit),
+            rarest: originals.slice(-limit).reverse(),
         },
     };
 
     if (!filter) {
-        cache.set(rarestLimit, { data: result, expiresAt: Date.now() + CACHE_TTL_MS });
+        cache.set(limit, { data: result, expiresAt: Date.now() + CACHE_TTL_MS });
     }
     return result;
 }

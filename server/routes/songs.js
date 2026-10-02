@@ -100,7 +100,9 @@ router.get('/stats/global', async (req, res) => {
         const filter = tour ? { tourName: tour } : (startDate || endDate) ? { startDate, endDate } : null;
 
         console.log('[Song Stats] Fetching global song statistics...', filter || '(unfiltered)');
-        const stats = await computeGlobalSongStats(10, filter);
+        // 25 per bucket (not just 5/10) so the Stats tab's Most Played/Rarest
+        // boxes have enough rows to paginate beyond the first page.
+        const stats = await computeGlobalSongStats(25, filter);
         console.log(`[Song Stats] ✅ Stats calculated: ${stats.covers.total} covers, ${stats.originals.total} originals`);
         res.json(stats);
     } catch (error) {

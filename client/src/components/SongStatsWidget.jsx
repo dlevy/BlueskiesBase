@@ -127,6 +127,17 @@ export default function SongStatsWidget() {
     const toggleOriginals = () => setOriginalsChecked(prev => (prev && !coversChecked) ? prev : !prev);
     const toggleCovers = () => setCoversChecked(prev => (prev && !originalsChecked) ? prev : !prev);
 
+    const PAGE_SIZE = 5;
+    const [mostPlayedPage, setMostPlayedPage] = useState(0);
+    const [rarestPage, setRarestPage] = useState(0);
+    // The merged list's membership/order changes whenever the filter or the
+    // checkboxes change — reset back to page 1 so a stale page index doesn't
+    // land past the end of a now-shorter list.
+    useEffect(() => {
+        setMostPlayedPage(0);
+        setRarestPage(0);
+    }, [stats, originalsChecked, coversChecked]);
+
     useEffect(() => {
         const fetchShowStats = async () => {
             try {
@@ -274,23 +285,29 @@ export default function SongStatsWidget() {
         );
     }
 
-    // The true top/bottom 5 across both categories can never need more than 5
-    // items from a single category (only 5 slots total), so each category's
-    // own top5/rarest (already fetched) is always enough data to compute the
-    // correct merged, checkbox-filtered result — no extra round trip needed.
+    // Each category's own top5/rarest (now sized well beyond 5 server-side —
+    // see computeGlobalSongStats's `limit` param) is merged, checkbox-filtered,
+    // and re-sorted here, giving enough rows for pagination beyond page 1.
     const mergedTop = [
         ...(originalsChecked ? stats.originals.top5 : []),
         ...(coversChecked ? stats.covers.top5 : []),
-    ].sort((a, b) => b.playCount - a.playCount).slice(0, 5);
+    ].sort((a, b) => b.playCount - a.playCount);
     const mergedRarest = [
         ...(originalsChecked ? stats.originals.rarest : []),
         ...(coversChecked ? stats.covers.rarest : []),
-    ].sort((a, b) => a.playCount - b.playCount).slice(0, 5);
+    ].sort((a, b) => a.playCount - b.playCount);
     const filteredUniqueTotal =
         (originalsChecked ? stats.originals.total : 0) + (coversChecked ? stats.covers.total : 0);
+    // Rarest songs' bars must read as short relative to how much a popular
+    // song gets played, not relative to each other (every rare song's play
+    // count is close to every other rare song's, so scaling a bar to its own
+    // list's max made every bar look nearly full) — anchor both boxes' bars
+    // to the same overall "most played" ceiling.
+    const overallMaxPlays = mergedTop[0]?.playCount || 1;
 
-    const RankedSongBox = ({ title, subtitle, songs, accentColor }) => {
-        const maxPlays = songs.length > 0 ? Math.max(...songs.map(s => s.playCount)) : 1;
+    const RankedSongBox = ({ title, subtitle, songs, accentColor, page, onPageChange }) => {
+        const totalPages = Math.max(1, Math.ceil(songs.length / PAGE_SIZE));
+        const pageSongs = songs.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
         return (
         <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 space-y-6">
             <div>
@@ -299,16 +316,16 @@ export default function SongStatsWidget() {
                 <div className="mt-3"><PDivider /></div>
             </div>
 
-            {songs.length === 0 ? (
+            {pageSongs.length === 0 ? (
                 <PText color="contrast-medium">No songs match the current filters.</PText>
             ) : (
                 <ul className="space-y-4">
-                    {songs.map((song, index) => {
-                        const pct = (song.playCount / maxPlays) * 100;
+                    {pageSongs.map((song, index) => {
+                        const pct = (song.playCount / overallMaxPlays) * 100;
                         return (
                             <li key={song.id} className="flex items-start gap-3">
                                 <span className="font-bold text-sm mt-0.5 shrink-0 w-6" style={{ color: accentColor }}>
-                                    #{index + 1}
+                                    #{page * PAGE_SIZE + index + 1}
                                 </span>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-baseline gap-2 mb-1 flex-wrap">
@@ -337,6 +354,20 @@ export default function SongStatsWidget() {
                         );
                     })}
                 </ul>
+            )}
+
+            {totalPages > 1 && (
+                <div className="flex items-center justify-center gap-3 pt-1">
+                    <button type="button" disabled={page === 0} onClick={() => onPageChange(page - 1)}
+                        className="text-xs px-2 py-1 rounded disabled:opacity-30" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                        ← Prev
+                    </button>
+                    <PText size="xs" color="contrast-medium">Page {page + 1} of {totalPages}</PText>
+                    <button type="button" disabled={page >= totalPages - 1} onClick={() => onPageChange(page + 1)}
+                        className="text-xs px-2 py-1 rounded disabled:opacity-30" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                        Next →
+                    </button>
+                </div>
             )}
         </div>
         );
@@ -484,12 +515,16 @@ export default function SongStatsWidget() {
                         subtitle={`${filteredUniqueTotal.toLocaleString()} unique songs played live`}
                         songs={mergedTop}
                         accentColor="#f59e0b"
+                        page={mostPlayedPage}
+                        onPageChange={setMostPlayedPage}
                     />
                     <RankedSongBox
                         title="Rarest Songs"
                         subtitle="Least-played, by distinct shows"
                         songs={mergedRarest}
                         accentColor="#c084fc"
+                        page={rarestPage}
+                        onPageChange={setRarestPage}
                     />
                 </div>
             </div>
