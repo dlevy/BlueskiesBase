@@ -6,10 +6,16 @@ import { useAuth } from '../../contexts/AuthContext';
 const inputClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--p-color-info)] focus:border-transparent placeholder:text-gray-500";
 const labelClass = "block text-xs font-medium mb-1.5";
 
+const MAX_FOOTER_LINKS = 8;
+
 export default function SiteSettingsPage() {
     const { isAdmin } = useAuth();
     const [headerTitle, setHeaderTitle] = useState('');
     const [headerSubtitle, setHeaderSubtitle] = useState('');
+    const [footerLinks, setFooterLinks] = useState([]);
+    const [newItemText, setNewItemText] = useState('');
+    const [newItemUrl, setNewItemUrl] = useState('');
+    const [linkFormError, setLinkFormError] = useState('');
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState(null);
@@ -21,6 +27,7 @@ export default function SiteSettingsPage() {
             .then(data => {
                 setHeaderTitle(data.headerTitle || '');
                 setHeaderSubtitle(data.headerSubtitle || '');
+                setFooterLinks(data.footerLinks || []);
             })
             .catch(err => {
                 console.error('Error loading site settings:', err);
@@ -28,6 +35,23 @@ export default function SiteSettingsPage() {
             })
             .finally(() => setLoading(false));
     }, [isAdmin]);
+
+    const handleAddFooterLink = () => {
+        const text = newItemText.trim();
+        if (!text) { setLinkFormError('Text is required'); return; }
+        const url = newItemUrl.trim();
+        if (url) {
+            try { new URL(url); } catch { setLinkFormError('Please enter a valid URL'); return; }
+        }
+        setLinkFormError('');
+        setFooterLinks(prev => [...prev, { text, url: url || null }]);
+        setNewItemText('');
+        setNewItemUrl('');
+    };
+
+    const removeFooterLink = (index) => {
+        setFooterLinks(prev => prev.filter((_, i) => i !== index));
+    };
 
     if (!isAdmin) {
         return (
@@ -45,7 +69,7 @@ export default function SiteSettingsPage() {
         setError(null);
         setSuccess(false);
         try {
-            await updateSiteSettings({ headerTitle, headerSubtitle });
+            await updateSiteSettings({ headerTitle, headerSubtitle, footerLinks });
             setSuccess(true);
         } catch (err) {
             console.error('Error saving site settings:', err);
@@ -60,7 +84,7 @@ export default function SiteSettingsPage() {
             <div>
                 <PHeading size="2xl" tag="h1">Site Settings</PHeading>
                 <PText size="small" color="contrast-medium">
-                    Edit the text shown in the header on every page
+                    Edit the header text and footer links shown on every page
                 </PText>
             </div>
 
@@ -68,7 +92,7 @@ export default function SiteSettingsPage() {
                 <PInlineNotification heading="Error" description={error} state="error" dismissButton={false} />
             )}
             {success && (
-                <PInlineNotification heading="Saved" description="The header has been updated." state="success" dismissButton={false} />
+                <PInlineNotification heading="Saved" description="The header and footer have been updated." state="success" dismissButton={false} />
             )}
 
             <form onSubmit={handleSubmit} className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 space-y-6 max-w-2xl">
@@ -90,6 +114,58 @@ export default function SiteSettingsPage() {
                     <PText size="x-small" color="contrast-medium">
                         The smaller line underneath — desktop only, hidden if left blank. Optional.
                     </PText>
+                </div>
+
+                <div className="pt-6 border-t border-white/10 space-y-3">
+                    <div>
+                        <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>
+                            Footer Links
+                        </label>
+                        <PText size="x-small" color="contrast-medium">
+                            Up to {MAX_FOOTER_LINKS} items shown in the site footer, 4 per row. Each has text and an optional link.
+                        </PText>
+                    </div>
+
+                    {footerLinks.length > 0 && (
+                        <div className="space-y-2">
+                            {footerLinks.map((item, index) => (
+                                <div key={index} className="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/5 py-2 px-3">
+                                    <div className="text-sm truncate">
+                                        <span>{item.text}</span>
+                                        {item.url && (
+                                            <span className="ml-2 text-xs truncate" style={{ color: 'var(--p-color-contrast-low)' }}>{item.url}</span>
+                                        )}
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => removeFooterLink(index)}
+                                        className="shrink-0 text-xs hover:opacity-80 transition-opacity"
+                                        style={{ color: 'var(--p-color-error)' }}
+                                    >
+                                        Remove
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {linkFormError && (
+                        <PText size="x-small" style={{ color: 'var(--p-color-error)' }}>{linkFormError}</PText>
+                    )}
+
+                    {footerLinks.length < MAX_FOOTER_LINKS ? (
+                        <div className="flex flex-wrap items-end gap-2">
+                            <input type="text" value={newItemText} onChange={e => setNewItemText(e.target.value)}
+                                placeholder="Text" maxLength={150} className={inputClass} style={{ maxWidth: '240px' }} />
+                            <input type="url" value={newItemUrl} onChange={e => setNewItemUrl(e.target.value)}
+                                placeholder="https://… (optional)" maxLength={300} className={inputClass} style={{ maxWidth: '240px' }} />
+                            <PButton type="button" variant="secondary" onClick={handleAddFooterLink}>Add</PButton>
+                        </div>
+                    ) : (
+                        <PText size="x-small" color="contrast-medium">
+                            {MAX_FOOTER_LINKS}/{MAX_FOOTER_LINKS} — remove one to add another.
+                        </PText>
+                    )}
                 </div>
 
                 <div className="pt-2 border-t border-white/10">

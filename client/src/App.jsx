@@ -107,6 +107,11 @@ function App() {
 
 const DEFAULT_HEADER_TITLE = 'Skysets.org - JBS / Sturgill Simpson Media Archive';
 const DEFAULT_HEADER_SUBTITLE = 'Johnny Blue Skies & The Dark Clouds Concert Setlist Archive';
+const DEFAULT_FOOTER_LINKS = [
+  { text: 'Created and maintained by Daniel Levy', url: null },
+  { text: 'Initial setlist import thanks to Setlist.fm', url: 'https://www.setlist.fm' },
+  { text: 'Inspired by crowesbase.com', url: 'https://www.crowesbase.com' },
+];
 
 function PublicLayout() {
   const { user, profile, isEditorOrAdmin, signOut, getToken } = useAuth();
@@ -117,6 +122,7 @@ function PublicLayout() {
   // this just gets overwritten once the fetch resolves, if it differs.
   const [headerTitle, setHeaderTitle] = useState(DEFAULT_HEADER_TITLE);
   const [headerSubtitle, setHeaderSubtitle] = useState(DEFAULT_HEADER_SUBTITLE);
+  const [footerLinks, setFooterLinks] = useState(DEFAULT_FOOTER_LINKS);
 
   useEffect(() => {
     if (getToken) {
@@ -129,6 +135,7 @@ function PublicLayout() {
       .then(data => {
         if (data.headerTitle) setHeaderTitle(data.headerTitle);
         if (data.headerSubtitle !== undefined) setHeaderSubtitle(data.headerSubtitle);
+        if (data.footerLinks) setFooterLinks(data.footerLinks);
       })
       .catch(err => console.error('[PublicLayout] Error loading site settings:', err));
   }, []);
@@ -249,37 +256,27 @@ function PublicLayout() {
               )}
             </div>
           </div>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-x-5 gap-y-1 text-center">
-            <span className="text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>
-              Created and maintained by Daniel Levy
-            </span>
-            <span className="hidden sm:inline text-xs" style={{ color: 'rgba(255,255,255,0.15)' }}>·</span>
-            <span className="text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>
-              Initial setlist import thanks to{' '}
-              <a
-                href="https://www.setlist.fm"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hover:opacity-80 transition-opacity underline underline-offset-2"
-                style={{ color: 'var(--p-color-contrast-medium)' }}
-              >
-                Setlist.fm
-              </a>
-            </span>
-            <span className="hidden sm:inline text-xs" style={{ color: 'rgba(255,255,255,0.15)' }}>·</span>
-            <span className="text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>
-              Inspired by{' '}
-              <a
-                href="https://www.crowesbase.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hover:opacity-80 transition-opacity underline underline-offset-2"
-                style={{ color: 'var(--p-color-contrast-medium)' }}
-              >
-                crowesbase.com
-              </a>
-            </span>
-          </div>
+          {footerLinks.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-1 justify-center justify-items-center">
+              {footerLinks.map((item, index) => (
+                <span key={index} className="text-xs text-center" style={{ color: 'var(--p-color-contrast-low)' }}>
+                  {item.url ? (
+                    <a
+                      href={item.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:opacity-80 transition-opacity underline underline-offset-2"
+                      style={{ color: 'var(--p-color-contrast-medium)' }}
+                    >
+                      {item.text}
+                    </a>
+                  ) : (
+                    item.text
+                  )}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </footer>
     </div>
