@@ -644,12 +644,19 @@ export default function ShowDetailPage() {
                 </div>
 
                 {allSongsFlat.length > 0 ? (
-                    <SetList
-                        songs={allSongsFlat}
-                        tourRarity={tourRarity}
-                        liveDebutSongIds={liveDebutSongIds}
-                        tourDebutSongIds={tourDebutSongIds}
-                    />
+                    <>
+                        <SetList
+                            songs={allSongsFlat}
+                            tourRarity={tourRarity}
+                            liveDebutSongIds={liveDebutSongIds}
+                            tourDebutSongIds={tourDebutSongIds}
+                        />
+                        {allSongsFlat.some(s => s.performance_type === 'dj') && (
+                            <PText size="xs" className="mt-4 pt-4 border-t border-white/10 block" style={{ color: 'var(--p-color-contrast-low)' }}>
+                                DJ'd songs aren't counted as songs you've seen live, but attending this show still counts toward your total shows.
+                            </PText>
+                        )}
+                    </>
                 ) : (
                     <PText color="contrast-medium">
                         No official setlist yet.{' '}
