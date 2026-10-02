@@ -1022,9 +1022,7 @@ router.get('/check-attendance/:showId', async (req, res) => {
 
 /**
  * GET /api/users/community-stats
- * Get site-wide community stats (members, photos, posters contributed, and the
- * most active contributors overall — notes + photos + posters + setlist
- * submissions combined).
+ * Get site-wide community stats (members, photos, posters contributed).
  * Public — no authentication required
  */
 router.get('/community-stats', async (req, res) => {
@@ -1039,61 +1037,10 @@ router.get('/community-stats', async (req, res) => {
         if (photosResult.error) throw photosResult.error;
         if (postersResult.error) throw postersResult.error;
 
-        // Tally contributions per user across every contribution type, paginated per
-        // table since any of them can exceed PostgREST's 1000-row default as the
-        // community grows.
-        const contributionCounts = {};
-        const tallyUserIds = (rows) => {
-            rows.forEach(({ user_id }) => {
-                if (!user_id) return;
-                contributionCounts[user_id] = (contributionCounts[user_id] || 0) + 1;
-            });
-        };
-
-        for (const table of ['user_notes', 'user_photos', 'user_posters', 'setlist_submissions']) {
-            for (let rangeStart = 0; ;) {
-                const { data: page, error } = await supabase
-                    .from(table)
-                    .select('user_id')
-                    .not('user_id', 'is', null)
-                    .order('id')
-                    .range(rangeStart, rangeStart + 999);
-                if (error) throw error;
-                tallyUserIds(page || []);
-                if (!page || page.length < 1000) break;
-                rangeStart += 1000;
-            }
-        }
-
-        const topContributorIds = Object.entries(contributionCounts)
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 5)
-            .map(([userId]) => userId);
-
-        let topContributors = [];
-        if (topContributorIds.length > 0) {
-            const { data: profiles, error: profilesError } = await supabase
-                .from('profiles')
-                .select('id, username, display_name')
-                .in('id', topContributorIds);
-            if (profilesError) throw profilesError;
-
-            const profileById = {};
-            (profiles || []).forEach(p => { profileById[p.id] = p; });
-
-            topContributors = topContributorIds
-                .map(userId => {
-                    const p = profileById[userId];
-                    return p ? { username: p.username, displayName: p.display_name || null, count: contributionCounts[userId] } : null;
-                })
-                .filter(Boolean);
-        }
-
         res.json({
             members: membersResult.count || 0,
             photos: photosResult.count || 0,
             posters: postersResult.count || 0,
-            topContributors,
         });
     } catch (error) {
         console.error('[Community Stats] Error:', error);

@@ -1,5 +1,4 @@
 ﻿import { useState, useEffect, useCallback, useRef } from 'react';
-import { Link } from 'react-router-dom';
 import { PHeading, PText, PSpinner, PInlineNotification, PDivider } from '@porsche-design-system/components-react';
 import { getGlobalSongStats, getSongs, getCommunityStats } from '../services/api';
 import { supabase } from '../services/supabase';
@@ -520,27 +519,6 @@ export default function SongStatsWidget() {
                             </div>
                         ))}
                     </div>
-                </div>
-            )}
-
-            {/* Most Active Members — intentionally small and this far down the
-                page; it's a nice-to-know, not a headline stat. No contribution
-                count shown, just the ranking. */}
-            {communityStats?.topContributors?.length > 0 && (
-                <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4 space-y-2 max-w-sm mx-auto">
-                    <PText size="xs" style={{ color: 'var(--p-color-contrast-low)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                        Most Active Members
-                    </PText>
-                    <ul className="space-y-1">
-                        {communityStats.topContributors.map((c, i) => (
-                            <li key={c.username} className="flex items-center gap-2">
-                                <span className="font-bold text-xs w-4 shrink-0" style={{ color: '#f59e0b' }}>#{i + 1}</span>
-                                <Link to={`/profile/${c.username}`} className="min-w-0 hover:underline">
-                                    <PText size="xs" ellipsis>{c.displayName || c.username}</PText>
-                                </Link>
-                            </li>
-                        ))}
-                    </ul>
                 </div>
             )}
 
