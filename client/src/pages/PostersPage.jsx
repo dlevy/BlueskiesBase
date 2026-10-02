@@ -144,6 +144,7 @@ export default function PostersPage() {
     const [error, setError] = useState(null);
     const [lightboxIndex, setLightboxIndex] = useState(-1);
     const [forTradeListings, setForTradeListings] = useState([]);
+    const [forTradeExpanded, setForTradeExpanded] = useState(false);
 
     useEffect(() => {
         let cancelled = false;
@@ -189,18 +190,43 @@ export default function PostersPage() {
             </div>
 
             {forTradeListings.length > 0 && (
-                <div className="mb-8">
-                    <h2 className="font-display font-bold text-lg mb-1" style={{ color: 'var(--p-color-primary)' }}>
-                        Available for Sale/Trade
-                    </h2>
-                    <p className="text-sm mb-3" style={{ color: 'var(--p-color-contrast-medium)' }}>
-                        Posters members are offering up from their own collection.
-                    </p>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                        {forTradeListings.map(listing => (
-                            <ForTradeTile key={listing.id} listing={listing} />
-                        ))}
-                    </div>
+                <div className="mb-6 rounded-xl border border-white/10 bg-white/[0.03]">
+                    <button
+                        type="button"
+                        onClick={() => setForTradeExpanded(v => !v)}
+                        className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left"
+                    >
+                        <span className="flex items-center gap-2">
+                            <span className="font-display font-semibold text-sm" style={{ color: 'var(--p-color-primary)' }}>
+                                Available for Sale/Trade
+                            </span>
+                            <span
+                                className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                                style={{ background: 'rgba(245,158,11,0.12)', color: '#f59e0b' }}
+                            >
+                                {forTradeListings.length}
+                            </span>
+                        </span>
+                        <svg
+                            className={`w-4 h-4 shrink-0 transition-transform ${forTradeExpanded ? 'rotate-180' : ''}`}
+                            viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
+                            style={{ color: 'var(--p-color-contrast-medium)' }}
+                        >
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+                    {forTradeExpanded && (
+                        <div className="px-4 pb-4">
+                            <p className="text-xs mb-3" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                                Posters members are offering up from their own collection.
+                            </p>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                                {forTradeListings.map(listing => (
+                                    <ForTradeTile key={listing.id} listing={listing} />
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
 

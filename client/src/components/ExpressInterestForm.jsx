@@ -39,7 +39,7 @@ export default function ExpressInterestForm({ collectionId }) {
     if (!open) {
         return (
             <button type="button" onClick={() => setOpen(true)} className={btnPrimary}>
-                Interested
+                I'm Interested
             </button>
         );
     }

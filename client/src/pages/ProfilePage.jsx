@@ -5,6 +5,7 @@ import { getPublicProfile, updateCollectionTradeStatus } from '../services/api';
 import { buildShowPath } from '../utils/showSlug';
 import { useAuth } from '../contexts/AuthContext';
 import SEO from '../components/SEO';
+import MainNavTabs from '../components/MainNavTabs';
 import ShowMapShare from '../components/ShowMapShare';
 import Avatar from '../components/Avatar';
 import ExpressInterestForm from '../components/ExpressInterestForm';
@@ -206,23 +207,34 @@ export default function ProfilePage() {
     }, [username]);
 
     if (loading) {
-        return <div className="flex justify-center items-center py-16"><PSpinner size="medium" /></div>;
+        return (
+            <div className="px-4 py-4 md:py-6 max-w-4xl mx-auto">
+                <MainNavTabs />
+                <div className="flex justify-center items-center py-16"><PSpinner size="medium" /></div>
+            </div>
+        );
     }
 
     if (notFound) {
         return (
-            <div className="px-4 py-16 max-w-lg mx-auto text-center space-y-4">
-                <PHeading size="xl" tag="h1">Profile not found</PHeading>
-                <PText color="contrast-medium">There's no member with the username "{username}".</PText>
-                <Link to="/"><PButtonPure icon="arrow-left">Back to Home</PButtonPure></Link>
+            <div className="px-4 py-4 md:py-6 max-w-4xl mx-auto">
+                <MainNavTabs />
+                <div className="py-12 max-w-lg mx-auto text-center space-y-4">
+                    <PHeading size="xl" tag="h1">Profile not found</PHeading>
+                    <PText color="contrast-medium">There's no member with the username "{username}".</PText>
+                    <Link to="/"><PButtonPure icon="arrow-left">Back to Home</PButtonPure></Link>
+                </div>
             </div>
         );
     }
 
     if (error || !profile) {
         return (
-            <div className="px-4 py-8 max-w-2xl mx-auto">
-                <PInlineNotification heading="Error" description={error || 'Something went wrong'} state="error" dismissButton={false} />
+            <div className="px-4 py-4 md:py-6 max-w-4xl mx-auto">
+                <MainNavTabs />
+                <div className="max-w-2xl mx-auto">
+                    <PInlineNotification heading="Error" description={error || 'Something went wrong'} state="error" dismissButton={false} />
+                </div>
             </div>
         );
     }
@@ -234,8 +246,10 @@ export default function ProfilePage() {
     const isOwnProfile = Boolean(viewerProfile?.username) && viewerProfile.username === profile.username;
 
     return (
-        <div className="px-4 py-8 max-w-4xl mx-auto space-y-6">
+        <div className="px-4 py-4 md:py-6 max-w-4xl mx-auto space-y-6">
             <SEO title={displayLabel} description={`${displayLabel}'s concert profile on SkySets.org`} />
+
+            <MainNavTabs />
 
             {/* Identity card */}
             <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 md:p-8">

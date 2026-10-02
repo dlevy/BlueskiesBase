@@ -179,9 +179,9 @@ function PublicLayout() {
               <>
                 <NotificationBell />
                 <Link
-                  to="/profile/edit"
-                  title="Edit Profile"
-                  aria-label="Edit Profile"
+                  to={profile?.username ? `/profile/${profile.username}` : '/profile/edit'}
+                  title="My Profile"
+                  aria-label="My Profile"
                   className="flex items-center gap-2 hover:opacity-80 transition-opacity"
                 >
                   <Avatar url={profile?.avatar_url} name={profile?.display_name || profile?.username || user.email} size="sm" />
