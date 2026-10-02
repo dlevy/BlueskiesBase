@@ -380,35 +380,21 @@ export default function SongStatsWidget() {
             {showStats && (
                 <div className="space-y-4">
                     <PHeading size="md" tag="h2">By the Numbers</PHeading>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                        <FactCard
-                            label="Shows in Archive"
-                            value={showStats.totalShows.toLocaleString()}
-                            sub="total concerts documented"
-                        />
-                        {showStats.topMonth && (
-                            <FactCard
-                                label="Most Active Month"
-                                value={showStats.topMonth.name}
-                                sub={`${showStats.topMonth.count} shows`}
-                            />
-                        )}
-                        {showStats.uniqueCities > 0 && (
-                            <FactCard
-                                label="Cities Played"
-                                value={`${showStats.uniqueCities} cities`}
-                                sub={`across ${showStats.uniqueCountries} countr${showStats.uniqueCountries !== 1 ? 'ies' : 'y'}`}
-                            />
-                        )}
-                    </div>
 
-                    {/* Shows by Year — a compact sparkline, not a full chart; hover a bar
-                        for its year/count (same title-attribute pattern as before). */}
+                    {/* Shows by Year — a compact sparkline, not a full chart; the total
+                        show count lives here (as the left-side label's value) rather
+                        than as its own separate card. Hover a bar for its year/count
+                        (same title-attribute pattern as before). */}
                     {showStats.yearRows.length > 1 && (
                         <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-4 flex items-center gap-3">
-                            <PText size="xs" style={{ color: 'var(--p-color-contrast-low)', textTransform: 'uppercase', letterSpacing: '0.05em' }} className="shrink-0">
-                                Shows by Year
-                            </PText>
+                            <div className="shrink-0">
+                                <PText size="xs" style={{ color: 'var(--p-color-contrast-low)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                    Shows by Year
+                                </PText>
+                                <div className="text-sm font-semibold" style={{ color: 'var(--p-color-primary)' }}>
+                                    {showStats.totalShows.toLocaleString()} total
+                                </div>
+                            </div>
                             <div className="flex-1 flex items-end gap-0.5 h-8 overflow-hidden">
                                 {showStats.yearRows.map(({ year, count }) => (
                                     <div
@@ -428,6 +414,25 @@ export default function SongStatsWidget() {
                             </PText>
                         </div>
                     )}
+
+                    {/* Same total width as the Shows by Year box above — a 2-up grid,
+                        not the old 2/3/4-responsive grid, so the edges always line up. */}
+                    <div className="grid grid-cols-2 gap-3">
+                        {showStats.topMonth && (
+                            <FactCard
+                                label="Most Active Month"
+                                value={showStats.topMonth.name}
+                                sub={`${showStats.topMonth.count} shows`}
+                            />
+                        )}
+                        {showStats.uniqueCities > 0 && (
+                            <FactCard
+                                label="Cities Played"
+                                value={`${showStats.uniqueCities} cities`}
+                                sub={`across ${showStats.uniqueCountries} countr${showStats.uniqueCountries !== 1 ? 'ies' : 'y'}`}
+                            />
+                        )}
+                    </div>
                 </div>
             )}
 
