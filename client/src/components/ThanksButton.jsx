@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useAvatarNudge } from '../contexts/AvatarNudgeContext';
 import { addThanks, removeThanks } from '../services/api';
 
 function HeartIcon({ filled }) {
@@ -42,6 +43,7 @@ function NamesTooltip({ names }) {
  */
 export default function ThanksButton({ contentType, contentId, count, thankedByMe, thankedByNames = [], isOwnContent, onToggled }) {
     const { user } = useAuth();
+    const triggerAvatarNudge = useAvatarNudge();
     const [pending, setPending] = useState(false);
     const interactive = !!user && !isOwnContent;
 
@@ -53,6 +55,7 @@ export default function ThanksButton({ contentType, contentId, count, thankedByM
                 await removeThanks(contentType, contentId);
             } else {
                 await addThanks(contentType, contentId);
+                triggerAvatarNudge();
             }
             await onToggled?.();
         } catch (err) {

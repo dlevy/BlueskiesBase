@@ -17,6 +17,60 @@ function formatDate(dateString) {
     return new Date(year, month - 1, day).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
+const COMPLETENESS_ITEMS = [
+    { key: 'avatar', label: 'Profile photo' },
+    { key: 'displayName', label: 'Display name' },
+    { key: 'bio', label: 'Bio' },
+    { key: 'location', label: 'Location' },
+    { key: 'social', label: 'A social link' },
+    { key: 'favorite', label: 'A favorite show or venue' },
+];
+
+function getProfileCompleteness(formData, hasAvatar) {
+    const done = {
+        avatar: hasAvatar,
+        displayName: !!formData.displayName.trim(),
+        bio: !!formData.bio.trim(),
+        location: !!formData.location.trim(),
+        social: !!(formData.facebookUrl || formData.redditUrl || formData.instagramUrl || formData.youtubeUrl),
+        favorite: !!(formData.favoriteShowId || formData.favoriteVenueId),
+    };
+    const items = COMPLETENESS_ITEMS.map(item => ({ ...item, done: done[item.key] }));
+    const completedCount = items.filter(i => i.done).length;
+    return { items, completedCount, total: items.length, percent: Math.round((completedCount / items.length) * 100) };
+}
+
+// Live-updates as the user fills things in — motivating in a way a
+// one-time onboarding checklist isn't, and costs nothing extra since
+// formData/avatarPreview are already reactive state in this page.
+function ProfileCompletenessMeter({ formData, hasAvatar }) {
+    const { items, completedCount, total, percent } = getProfileCompleteness(formData, hasAvatar);
+
+    if (percent === 100) {
+        return (
+            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                <PText size="small" weight="semi-bold" style={{ color: '#4ade80' }}>✓ Your profile is complete!</PText>
+            </div>
+        );
+    }
+
+    const missing = items.filter(i => !i.done);
+
+    return (
+        <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-2">
+            <PText size="xs" weight="semi-bold" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                Profile {percent}% complete ({completedCount}/{total})
+            </PText>
+            <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
+                <div className="h-full rounded-full transition-all duration-300" style={{ width: `${percent}%`, background: '#f59e0b' }} />
+            </div>
+            <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>
+                Still missing: {missing.map(m => m.label).join(', ')}
+            </PText>
+        </div>
+    );
+}
+
 export default function EditProfilePage() {
     const { user, profile, getToken, refreshProfile } = useAuth();
     const navigate = useNavigate();
@@ -276,6 +330,8 @@ export default function EditProfilePage() {
             <PText size="small" color="contrast-medium">
                 Everything below is optional and hidden until you fill it in — your shows-attended count and other stats are already visible on your public profile regardless.
             </PText>
+
+            <ProfileCompletenessMeter formData={formData} hasAvatar={!!avatarPreview} />
 
             {error && <PInlineNotification heading="Error" description={error} state="error" dismissButton={false} />}
             {success && <PInlineNotification heading="Saved" description="Your profile has been updated." state="success" dismissButton={false} />}

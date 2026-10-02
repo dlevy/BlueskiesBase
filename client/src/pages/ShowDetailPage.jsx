@@ -8,6 +8,7 @@ import { getShowBySlug, getTourRarity, getShowDebuts, getAdjacentShows, checkSho
 import { buildShowPath } from '../utils/showSlug';
 import { assignSetlistDisplayNumbers } from '../utils/setlist';
 import { useAuth } from '../contexts/AuthContext';
+import { useAvatarNudge } from '../contexts/AvatarNudgeContext';
 import CommentsSection from '../components/CommentsSection';
 import WhoWasThereSection from '../components/WhoWasThereSection';
 import PhotosSection from '../components/PhotosSection';
@@ -233,6 +234,7 @@ export default function ShowDetailPage() {
     const { artist, date, locationSlug } = useParams();
     const navigate = useNavigate();
     const { user, isEditorOrAdmin } = useAuth();
+    const triggerAvatarNudge = useAvatarNudge();
     const [show, setShow] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -370,6 +372,7 @@ export default function ShowDetailPage() {
             } else {
                 await markShowAttended(show.id);
                 setAttended(true);
+                triggerAvatarNudge();
             }
         } catch (err) {
             console.error('Error toggling attendance:', err);

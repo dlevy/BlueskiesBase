@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, Fragment } from 'react';
 import { Link } from 'react-router-dom';
 import { PHeading, PText, PButtonPure, PInlineNotification, PDivider, PSpinner } from '@porsche-design-system/components-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useAvatarNudge } from '../contexts/AvatarNudgeContext';
 import { getShowNotes, addNote, updateNote, deleteNote, getMentionableUsers } from '../services/api';
 import ThanksButton from './ThanksButton';
 import MentionTextarea from './MentionTextarea';
@@ -63,6 +64,7 @@ function CommentForm({ value, onChange, onSave, onCancel, saving, saveLabel, sav
 
 export default function CommentsSection({ showId, thanksRows = [], onThanksChanged }) {
     const { user, isAdmin } = useAuth();
+    const triggerAvatarNudge = useAvatarNudge();
     const [comments, setComments] = useState([]);
     const [showAddForm, setShowAddForm] = useState(false);
     const [editingCommentId, setEditingCommentId] = useState(null);
@@ -126,6 +128,7 @@ export default function CommentsSection({ showId, thanksRows = [], onThanksChang
             setSaving(true);
             setError(null);
             await addNote(showId, commentText);
+            triggerAvatarNudge();
             setShowAddForm(false);
             setCommentText('');
             await loadComments();

@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Link, Outlet, useNavigate } fro
 import { useState, useEffect } from 'react'
 import { PButtonPure } from '@porsche-design-system/components-react'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { AvatarNudgeProvider } from './contexts/AvatarNudgeContext'
 import { setTokenGetter, getSiteSettings } from './services/api'
 import ProtectedRoute from './components/ProtectedRoute'
 import HomePage from './pages/HomePage'
@@ -43,6 +44,7 @@ function App() {
   return (
     <AuthProvider>
       <Router>
+        <AvatarNudgeProvider>
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<PublicLayout />}>
@@ -97,6 +99,7 @@ function App() {
             <Route path="settings" element={<SiteSettingsPage />} />
           </Route>
         </Routes>
+        </AvatarNudgeProvider>
       </Router>
     </AuthProvider>
   )
