@@ -1,12 +1,12 @@
-﻿import { useState, useEffect } from 'react';
+﻿import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { PHeading, PText, PSpinner, PInlineNotification, PDivider } from '@porsche-design-system/components-react';
 import { getGlobalSongStats, getSongs, getCommunityStats } from '../services/api';
 import { supabase } from '../services/supabase';
 import { useCountUp } from '../hooks/useCountUp';
+import { fetchTourList } from '../utils/tourSongCounts';
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-const DAYS   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 
 const US_STATE_CODES = new Set([
     'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA',
@@ -70,20 +70,65 @@ export default function SongStatsWidget() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    useEffect(() => {
-        const fetchStats = async () => {
-            try {
-                setLoading(true);
-                const statsData = await getGlobalSongStats();
-                setStats(statsData);
-            } catch (err) {
-                console.error('Error fetching song stats:', err);
-                setError(err.message);
-            } finally {
-                setLoading(false);
-            }
-        };
+    // Song Stats filter — only this section's data (not By the Numbers, not
+    // Community) responds to it. "range" stages start/end in local inputs
+    // behind an Apply button so typing a date doesn't refetch on every
+    // keystroke; "tour" refetches immediately on selection, a single discrete choice.
+    const [filterMode, setFilterMode] = useState('all');
+    const [rangeStart, setRangeStart] = useState('');
+    const [rangeEnd, setRangeEnd] = useState('');
+    const [tourList, setTourList] = useState([]);
+    const [selectedTour, setSelectedTour] = useState('');
+    const [songStatsLoading, setSongStatsLoading] = useState(false);
+    const [songStatsError, setSongStatsError] = useState(null);
+    const [originalsChecked, setOriginalsChecked] = useState(true);
+    const [coversChecked, setCoversChecked] = useState(true);
 
+    // Only the very first load (before any successful fetch) blanks the whole
+    // widget on failure — a later filter-change failure just shows inline
+    // songStatsError near the filter controls, keeping the last-good stats visible.
+    const loadedOnceRef = useRef(false);
+    const loadSongStats = useCallback(async (filterParams = {}) => {
+        try {
+            setSongStatsLoading(true);
+            setSongStatsError(null);
+            const statsData = await getGlobalSongStats(filterParams);
+            setStats(statsData);
+            loadedOnceRef.current = true;
+        } catch (err) {
+            console.error('Error fetching song stats:', err);
+            setSongStatsError(err.message);
+            if (!loadedOnceRef.current) setError(err.message);
+        } finally {
+            setSongStatsLoading(false);
+            setLoading(false);
+        }
+    }, []);
+
+    const handleFilterModeChange = (mode) => {
+        setFilterMode(mode);
+        if (mode === 'all') loadSongStats();
+        else if (mode === 'tour' && selectedTour) loadSongStats({ tour: selectedTour });
+        // 'range': wait for Apply — nothing to refetch yet.
+    };
+
+    const handleTourChange = (e) => {
+        const tour = e.target.value;
+        setSelectedTour(tour);
+        if (tour) loadSongStats({ tour });
+    };
+
+    const handleApplyRange = () => {
+        if (!rangeStart && !rangeEnd) return;
+        loadSongStats({ startDate: rangeStart || undefined, endDate: rangeEnd || undefined });
+    };
+
+    // Can't uncheck the only box still on — would leave both boxes empty with
+    // no way back to "all" except toggling the other one back on first.
+    const toggleOriginals = () => setOriginalsChecked(prev => (prev && !coversChecked) ? prev : !prev);
+    const toggleCovers = () => setCoversChecked(prev => (prev && !originalsChecked) ? prev : !prev);
+
+    useEffect(() => {
         const fetchShowStats = async () => {
             try {
                 // Paginated — the archive is past 680 shows and growing every tour, and
@@ -103,7 +148,6 @@ export default function SongStatsWidget() {
                 }
 
                 const monthCounts = {};
-                const dowCounts   = {};
                 const yearCounts  = {};
                 const cities      = new Set();
                 const countries   = new Set();
@@ -112,10 +156,8 @@ export default function SongStatsWidget() {
                     const [y, m, d] = show.show_date.split('-');
                     const date  = new Date(Number(y), Number(m) - 1, Number(d));
                     const month = MONTHS[date.getMonth()];
-                    const dow   = DAYS[date.getDay()];
 
                     monthCounts[month] = (monthCounts[month] || 0) + 1;
-                    dowCounts[dow]     = (dowCounts[dow]     || 0) + 1;
                     yearCounts[y]      = (yearCounts[y]      || 0) + 1;
 
                     if (show.venues?.city) cities.add(show.venues.city);
@@ -124,7 +166,6 @@ export default function SongStatsWidget() {
                 }
 
                 const topMonth = Object.entries(monthCounts).sort((a, b) => b[1] - a[1])[0];
-                const topDow   = Object.entries(dowCounts).sort((a, b)   => b[1] - a[1])[0];
                 const yearRows = Object.entries(yearCounts)
                     .sort(([a], [b]) => a.localeCompare(b))
                     .map(([year, count]) => ({ year, count }));
@@ -132,7 +173,6 @@ export default function SongStatsWidget() {
                 setShowStats({
                     totalShows:      data.length,
                     topMonth:        topMonth ? { name: topMonth[0], count: topMonth[1] } : null,
-                    topDow:          topDow   ? { name: topDow[0],   count: topDow[1]   } : null,
                     uniqueCities:    cities.size,
                     uniqueCountries: countries.size,
                     yearRows,
@@ -197,11 +237,21 @@ export default function SongStatsWidget() {
             }
         };
 
-        fetchStats();
+        const fetchTours = async () => {
+            try {
+                setTourList(await fetchTourList({ minShows: 0 }));
+            } catch (err) {
+                console.error('Error fetching tour list:', err);
+                // Tour filter just won't have options — Date Range/All Time still work
+            }
+        };
+
+        loadSongStats();
         fetchShowStats();
         fetchHolyGrails();
         fetchCommunityStats();
-    }, []);
+        fetchTours();
+    }, [loadSongStats]);
 
     const formatDate = (dateString) => {
         const date = new Date(dateString);
@@ -225,34 +275,36 @@ export default function SongStatsWidget() {
         );
     }
 
-    const maxOriginalsPlays = stats.originals.top5.length > 0 ? stats.originals.top5[0].playCount : 1;
-    const maxCoversPlays = stats.covers.top5.length > 0 ? stats.covers.top5[0].playCount : 1;
-    const totalPlays = (songs) => songs.reduce((sum, s) => sum + s.playCount, 0);
+    // The true top/bottom 5 across both categories can never need more than 5
+    // items from a single category (only 5 slots total), so each category's
+    // own top5/rarest (already fetched) is always enough data to compute the
+    // correct merged, checkbox-filtered result — no extra round trip needed.
+    const mergedTop = [
+        ...(originalsChecked ? stats.originals.top5 : []),
+        ...(coversChecked ? stats.covers.top5 : []),
+    ].sort((a, b) => b.playCount - a.playCount).slice(0, 5);
+    const mergedRarest = [
+        ...(originalsChecked ? stats.originals.rarest : []),
+        ...(coversChecked ? stats.covers.rarest : []),
+    ].sort((a, b) => a.playCount - b.playCount).slice(0, 5);
+    const filteredUniqueTotal =
+        (originalsChecked ? stats.originals.total : 0) + (coversChecked ? stats.covers.total : 0);
 
-    const SongColumn = ({ title, data, accentColor, maxPlays }) => {
-        const animatedTotal = useCountUp(data.total);
-        const uniqueLabel = title === 'Originals' ? 'Unique Songs Played Live' : 'Unique Covers Played Live';
+    const RankedSongBox = ({ title, subtitle, songs, accentColor }) => {
+        const maxPlays = songs.length > 0 ? Math.max(...songs.map(s => s.playCount)) : 1;
         return (
         <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 space-y-6">
             <div>
                 <PHeading size="lg" tag="h3">{title}</PHeading>
+                {subtitle && <PText size="xs" color="contrast-medium">{subtitle}</PText>}
                 <div className="mt-3"><PDivider /></div>
             </div>
 
-            {/* Summary */}
-            <div className="rounded-xl border border-white/5 bg-white/5 p-5 text-center">
-                <div className="font-display font-bold text-5xl leading-none mb-1 text-amber-400">{animatedTotal}</div>
-                <PText size="sm" color="contrast-medium" align="center">{uniqueLabel}</PText>
-                <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }} align="center">{totalPlays(data.top5)} total plays (top 5)</PText>
-            </div>
-
-            {/* Top 5 */}
-            <div>
-                <PText size="xs" color="contrast-medium" className="uppercase tracking-wide font-semibold mb-4">
-                    Top 5 Most Played
-                </PText>
+            {songs.length === 0 ? (
+                <PText color="contrast-medium">No songs match the current filters.</PText>
+            ) : (
                 <ul className="space-y-4">
-                    {data.top5.map((song, index) => {
+                    {songs.map((song, index) => {
                         const pct = (song.playCount / maxPlays) * 100;
                         return (
                             <li key={song.id} className="flex items-start gap-3">
@@ -260,11 +312,14 @@ export default function SongStatsWidget() {
                                     #{index + 1}
                                 </span>
                                 <div className="flex-1 min-w-0">
-                                    <div className="flex items-baseline gap-2 mb-1">
+                                    <div className="flex items-baseline gap-2 mb-1 flex-wrap">
                                         <PText weight="semi-bold" ellipsis>{song.title}</PText>
                                         <PText size="xs" color="contrast-medium" className="whitespace-nowrap shrink-0">
                                             {song.playCount === 1 ? '1 play' : `${song.playCount} plays`}
                                         </PText>
+                                        {!song.is_original && (
+                                            <span className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-300 whitespace-nowrap shrink-0">Cover</span>
+                                        )}
                                     </div>
                                     <div className="h-1 rounded-full overflow-hidden mb-1" style={{ background: 'var(--p-color-contrast-lower)' }}>
                                         <div
@@ -272,7 +327,7 @@ export default function SongStatsWidget() {
                                             style={{ width: `${pct}%`, background: accentColor }}
                                         />
                                     </div>
-                                    {song.original_artist && (
+                                    {!song.is_original && song.original_artist && (
                                         <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>{song.original_artist}</PText>
                                     )}
                                     {song.lastPlayed && (
@@ -283,7 +338,7 @@ export default function SongStatsWidget() {
                         );
                     })}
                 </ul>
-            </div>
+            )}
         </div>
         );
     };
@@ -308,13 +363,6 @@ export default function SongStatsWidget() {
                                 sub={`${showStats.topMonth.count} shows`}
                             />
                         )}
-                        {showStats.topDow && (
-                            <FactCard
-                                label="Favorite Day"
-                                value={`${showStats.topDow.name}s`}
-                                sub={`${showStats.topDow.count} shows on a ${showStats.topDow.name}`}
-                            />
-                        )}
                         {showStats.uniqueCities > 0 && (
                             <FactCard
                                 label="Cities Played"
@@ -324,37 +372,30 @@ export default function SongStatsWidget() {
                         )}
                     </div>
 
-                    {/* Shows by Year column chart */}
+                    {/* Shows by Year — a compact sparkline, not a full chart; hover a bar
+                        for its year/count (same title-attribute pattern as before). */}
                     {showStats.yearRows.length > 1 && (
-                        <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-5 space-y-3">
-                            <PText size="xs" style={{ color: 'var(--p-color-contrast-low)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Shows by Year</PText>
-                            <div className="overflow-x-auto">
-                                <div className="flex items-end gap-1.5 h-28 min-w-max px-1">
-                                    {showStats.yearRows.map(({ year, count }) => (
+                        <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-4 flex items-center gap-3">
+                            <PText size="xs" style={{ color: 'var(--p-color-contrast-low)', textTransform: 'uppercase', letterSpacing: '0.05em' }} className="shrink-0">
+                                Shows by Year
+                            </PText>
+                            <div className="flex-1 flex items-end gap-0.5 h-8 overflow-hidden">
+                                {showStats.yearRows.map(({ year, count }) => (
+                                    <div
+                                        key={year}
+                                        className="flex-1 h-full flex flex-col justify-end"
+                                        title={`${year}: ${count} show${count !== 1 ? 's' : ''}`}
+                                    >
                                         <div
-                                            key={year}
-                                            className="flex flex-col justify-end h-full w-7 shrink-0"
-                                            title={`${year}: ${count} show${count !== 1 ? 's' : ''}`}
-                                        >
-                                            <div
-                                                className="w-full rounded-t bg-amber-400/80 transition-all duration-700"
-                                                style={{ height: `${Math.max((count / showStats.maxYearCount) * 100, 4)}%` }}
-                                            />
-                                        </div>
-                                    ))}
-                                </div>
-                                <div className="flex gap-1.5 min-w-max px-1 mt-1">
-                                    {showStats.yearRows.map(({ year }) => (
-                                        <span
-                                            key={year}
-                                            className="text-[10px] w-7 shrink-0 text-center"
-                                            style={{ color: 'var(--p-color-contrast-low)' }}
-                                        >
-                                            {`’${year.slice(2)}`}
-                                        </span>
-                                    ))}
-                                </div>
+                                            className="w-full rounded-t bg-amber-400/80"
+                                            style={{ height: `${Math.max((count / showStats.maxYearCount) * 100, 8)}%` }}
+                                        />
+                                    </div>
+                                ))}
                             </div>
+                            <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }} className="shrink-0 whitespace-nowrap">
+                                {showStats.yearRows[0].year}–{showStats.yearRows[showStats.yearRows.length - 1].year}
+                            </PText>
                         </div>
                     )}
                 </div>
@@ -370,43 +411,88 @@ export default function SongStatsWidget() {
                         <CommunityStatCard value={communityStats.posters} label="Posters Contributed" />
                     </div>
 
-                    {communityStats.topContributors?.length > 0 && (
-                        <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-5 space-y-3">
-                            <PText size="xs" style={{ color: 'var(--p-color-contrast-low)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                Most Active Members
-                            </PText>
-                            <ul className="space-y-2">
-                                {communityStats.topContributors.map((c, i) => (
-                                    <li key={c.username} className="flex items-center gap-3">
-                                        <span className="font-bold text-sm w-5 shrink-0" style={{ color: '#f59e0b' }}>#{i + 1}</span>
-                                        <Link to={`/profile/${c.username}`} className="flex-1 min-w-0 hover:underline">
-                                            <PText weight="semi-bold" ellipsis>{c.displayName || c.username}</PText>
-                                        </Link>
-                                        <PText size="xs" color="contrast-medium" className="shrink-0">
-                                            {c.count} contribution{c.count !== 1 ? 's' : ''}
-                                        </PText>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    )}
                 </div>
             )}
 
-            <PHeading size="xs" tag="h2">Song Stats</PHeading>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <SongColumn
-                    title="Originals"
-                    data={stats.originals}
-                    accentColor="#f59e0b"
-                    maxPlays={maxOriginalsPlays}
-                />
-                <SongColumn
-                    title="Covers"
-                    data={stats.covers}
-                    accentColor="#c084fc"
-                    maxPlays={maxCoversPlays}
-                />
+            {/* Song Stats */}
+            <div className="space-y-4">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <PHeading size="md" tag="h2">Song Stats</PHeading>
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex rounded-lg border border-white/10 overflow-hidden text-xs">
+                            {[['all', 'All Time'], ['range', 'Date Range'], ['tour', 'Tour']].map(([mode, label]) => (
+                                <button
+                                    key={mode}
+                                    type="button"
+                                    onClick={() => handleFilterModeChange(mode)}
+                                    className={`px-3 py-1.5 transition-colors ${filterMode === mode ? 'bg-amber-500/20 text-amber-300' : 'hover:bg-white/5'}`}
+                                    style={{ color: filterMode === mode ? undefined : 'var(--p-color-contrast-medium)' }}
+                                >
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
+
+                        {filterMode === 'range' && (
+                            <div className="flex items-center gap-2">
+                                <input type="date" value={rangeStart} onChange={e => setRangeStart(e.target.value)}
+                                    className="rounded-lg border border-white/10 bg-white/5 py-1.5 px-2 text-xs" />
+                                <span className="text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>to</span>
+                                <input type="date" value={rangeEnd} onChange={e => setRangeEnd(e.target.value)}
+                                    className="rounded-lg border border-white/10 bg-white/5 py-1.5 px-2 text-xs" />
+                                <button type="button" onClick={handleApplyRange} disabled={!rangeStart && !rangeEnd}
+                                    className="text-xs px-3 py-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/18 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                                    Apply
+                                </button>
+                            </div>
+                        )}
+
+                        {filterMode === 'tour' && (
+                            <select
+                                value={selectedTour}
+                                onChange={handleTourChange}
+                                className="rounded-lg border border-white/10 py-1.5 px-2 text-xs"
+                                style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}
+                            >
+                                <option value="">Select a tour…</option>
+                                {tourList.map(t => (
+                                    <option key={t.tourName} value={t.tourName}>{t.tourName}</option>
+                                ))}
+                            </select>
+                        )}
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-4">
+                    <label className="flex items-center gap-1.5 text-xs cursor-pointer" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                        <input type="checkbox" checked={originalsChecked} onChange={toggleOriginals} />
+                        Originals
+                    </label>
+                    <label className="flex items-center gap-1.5 text-xs cursor-pointer" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                        <input type="checkbox" checked={coversChecked} onChange={toggleCovers} />
+                        Covers
+                    </label>
+                    {songStatsLoading && <PSpinner size="small" aria={{ 'aria-label': 'Updating song stats' }} />}
+                </div>
+
+                {songStatsError && (
+                    <PInlineNotification heading="Error" description={songStatsError} state="error" dismissButton={false} />
+                )}
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <RankedSongBox
+                        title="Most Played"
+                        subtitle={`${filteredUniqueTotal.toLocaleString()} unique songs played live`}
+                        songs={mergedTop}
+                        accentColor="#f59e0b"
+                    />
+                    <RankedSongBox
+                        title="Rarest Songs"
+                        subtitle="Least-played, by distinct shows"
+                        songs={mergedRarest}
+                        accentColor="#c084fc"
+                    />
+                </div>
             </div>
 
             {/* Holy Grails */}
@@ -434,6 +520,27 @@ export default function SongStatsWidget() {
                             </div>
                         ))}
                     </div>
+                </div>
+            )}
+
+            {/* Most Active Members — intentionally small and this far down the
+                page; it's a nice-to-know, not a headline stat. No contribution
+                count shown, just the ranking. */}
+            {communityStats?.topContributors?.length > 0 && (
+                <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4 space-y-2 max-w-sm mx-auto">
+                    <PText size="xs" style={{ color: 'var(--p-color-contrast-low)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Most Active Members
+                    </PText>
+                    <ul className="space-y-1">
+                        {communityStats.topContributors.map((c, i) => (
+                            <li key={c.username} className="flex items-center gap-2">
+                                <span className="font-bold text-xs w-4 shrink-0" style={{ color: '#f59e0b' }}>#{i + 1}</span>
+                                <Link to={`/profile/${c.username}`} className="min-w-0 hover:underline">
+                                    <PText size="xs" ellipsis>{c.displayName || c.username}</PText>
+                                </Link>
+                            </li>
+                        ))}
+                    </ul>
                 </div>
             )}
 

@@ -20,10 +20,37 @@ const cache = new Map(); // rarestLimit -> { data, expiresAt }
  * earlier tours (same issue already fixed for the per-tour Rare badge).
  * Excludes performance_type='dj' rows (an afterparty DJ spin, not an actual live
  * performance) — those shouldn't inflate a song's play count or rarity ranking.
+ *
+ * `filter` narrows the computation to a subset of shows — either
+ * `{ startDate, endDate }` or `{ tourName }` — for the Stats tab's Song Stats
+ * filter. Left `null` (the default, unfiltered all-time view), this is byte-
+ * for-byte the original behavior, including the cache — callers like
+ * attendance.js's computeRarityCounts rely on that staying exactly the same.
+ * A filtered call is never cached (filter combinations are unbounded; this is
+ * an on-demand interaction, not a page-load path).
  */
-async function computeGlobalSongStats(rarestLimit = 10) {
-    const cached = cache.get(rarestLimit);
+async function computeGlobalSongStats(rarestLimit = 10, filter = null) {
+    const cached = !filter && cache.get(rarestLimit);
     if (cached && cached.expiresAt > Date.now()) return cached.data;
+
+    let showsQuery = supabase.from('shows').select('id, show_date').order('id');
+    if (filter?.tourName) showsQuery = showsQuery.eq('tour_name', filter.tourName);
+    if (filter?.startDate) showsQuery = showsQuery.gte('show_date', filter.startDate);
+    if (filter?.endDate) showsQuery = showsQuery.lte('show_date', filter.endDate);
+
+    let shows = [];
+    for (let rangeStart = 0; ;) {
+        const { data: page, error: showsError } = await showsQuery.range(rangeStart, rangeStart + 999);
+
+        if (showsError) throw new Error('Failed to fetch show dates: ' + showsError.message);
+        shows = shows.concat(page || []);
+        if (!page || page.length < 1000) break;
+        rangeStart += 1000;
+    }
+
+    const showDates = {};
+    shows.forEach(show => { showDates[show.id] = show.show_date; });
+    const showIds = filter ? shows.map(s => s.id) : null;
 
     let allSetlistSongs = [];
     let from = 0;
@@ -31,7 +58,7 @@ async function computeGlobalSongStats(rarestLimit = 10) {
     let hasMore = true;
 
     while (hasMore) {
-        const { data: batch, error: batchError } = await supabase
+        let setlistQuery = supabase
             .from('setlist_songs')
             .select(`
                 show_id,
@@ -46,8 +73,10 @@ async function computeGlobalSongStats(rarestLimit = 10) {
                 )
             `)
             .neq('performance_type', 'dj')
-            .order('id')
-            .range(from, from + batchSize - 1);
+            .order('id');
+        if (showIds) setlistQuery = setlistQuery.in('show_id', showIds);
+
+        const { data: batch, error: batchError } = await setlistQuery.range(from, from + batchSize - 1);
 
         if (batchError) throw new Error('Failed to fetch setlist songs: ' + batchError.message);
 
@@ -59,23 +88,6 @@ async function computeGlobalSongStats(rarestLimit = 10) {
             hasMore = false;
         }
     }
-
-    let shows = [];
-    for (let rangeStart = 0; ;) {
-        const { data: page, error: showsError } = await supabase
-            .from('shows')
-            .select('id, show_date')
-            .order('id')
-            .range(rangeStart, rangeStart + 999);
-
-        if (showsError) throw new Error('Failed to fetch show dates: ' + showsError.message);
-        shows = shows.concat(page || []);
-        if (!page || page.length < 1000) break;
-        rangeStart += 1000;
-    }
-
-    const showDates = {};
-    shows.forEach(show => { showDates[show.id] = show.show_date; });
 
     const songPlayCounts = {};
     allSetlistSongs.forEach(ss => {
@@ -130,7 +142,9 @@ async function computeGlobalSongStats(rarestLimit = 10) {
         },
     };
 
-    cache.set(rarestLimit, { data: result, expiresAt: Date.now() + CACHE_TTL_MS });
+    if (!filter) {
+        cache.set(rarestLimit, { data: result, expiresAt: Date.now() + CACHE_TTL_MS });
+    }
     return result;
 }
 

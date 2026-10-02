@@ -155,8 +155,15 @@ export const getSongById = async (id) => {
 /**
  * Get global song statistics (covers and originals)
  */
-export const getGlobalSongStats = async () => {
-    const response = await fetch(`${API_BASE_URL}/api/songs/stats/global`);
+export const getGlobalSongStats = async ({ startDate, endDate, tour } = {}) => {
+    const params = new URLSearchParams();
+    if (tour) params.set('tour', tour);
+    else {
+        if (startDate) params.set('startDate', startDate);
+        if (endDate) params.set('endDate', endDate);
+    }
+    const query = params.toString();
+    const response = await fetch(`${API_BASE_URL}/api/songs/stats/global${query ? `?${query}` : ''}`);
     if (!response.ok) {
         throw new Error('Failed to fetch song statistics');
     }

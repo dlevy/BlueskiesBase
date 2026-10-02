@@ -90,12 +90,17 @@ router.get('/', async (req, res) => {
 
 /**
  * GET /api/songs/stats/global
- * Get global song statistics (covers and originals)
+ * Get global song statistics (covers and originals). Optionally narrowed to
+ * a date range (?startDate=&endDate=) or a tour (?tour=) for the Stats tab's
+ * Song Stats filter — mutually exclusive; tour wins if both are somehow sent.
  */
 router.get('/stats/global', async (req, res) => {
     try {
-        console.log('[Song Stats] Fetching global song statistics...');
-        const stats = await computeGlobalSongStats(10);
+        const { startDate, endDate, tour } = req.query;
+        const filter = tour ? { tourName: tour } : (startDate || endDate) ? { startDate, endDate } : null;
+
+        console.log('[Song Stats] Fetching global song statistics...', filter || '(unfiltered)');
+        const stats = await computeGlobalSongStats(10, filter);
         console.log(`[Song Stats] ✅ Stats calculated: ${stats.covers.total} covers, ${stats.originals.total} originals`);
         res.json(stats);
     } catch (error) {
