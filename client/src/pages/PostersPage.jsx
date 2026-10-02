@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { PSpinner, PText } from '@porsche-design-system/components-react';
-import { getAllPosters } from '../services/api';
+import { getAllPosters, getPostersForTrade } from '../services/api';
 import { buildShowPath } from '../utils/showSlug';
 import MainNavTabs from '../components/MainNavTabs';
 import SEO from '../components/SEO';
+import ExpressInterestForm from '../components/ExpressInterestForm';
 import Lightbox from 'yet-another-react-lightbox';
 import 'yet-another-react-lightbox/styles.css';
 
@@ -90,11 +91,59 @@ function PosterTile({ poster, onImageClick }) {
     );
 }
 
+function ForTradeTile({ listing }) {
+    const show = listing.show;
+    const owner = listing.owner;
+
+    return (
+        <div className="rounded-xl overflow-hidden border border-white/10 bg-white/[0.03] hover:border-amber-500/30 transition-all duration-150">
+            <Link to={buildShowPath(show)} className="relative block w-full aspect-[2/3] overflow-hidden bg-white/5">
+                <img
+                    src={listing.thumbnailUrl || listing.posterUrl}
+                    alt={`${show.artist_name} poster`}
+                    loading="lazy"
+                    className="w-full h-full object-cover"
+                />
+                {listing.hasFoil && (
+                    <span
+                        className="absolute top-1.5 right-1.5 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded"
+                        style={{ background: 'rgba(192,132,252,0.85)', color: '#1a0b2e' }}
+                    >
+                        Foil
+                    </span>
+                )}
+            </Link>
+            <div className="p-3 space-y-1.5">
+                <p className="text-xs font-mono uppercase tracking-wide" style={{ color: 'var(--p-color-contrast-low)' }}>
+                    {formatDate(show.show_date)}
+                </p>
+                <p className="text-sm font-semibold truncate" style={{ color: 'var(--p-color-primary)' }}>
+                    {show.artist_name}
+                </p>
+                <p className="text-xs">
+                    {owner?.username ? (
+                        <Link to={`/profile/${owner.username}`} className="hover:underline" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                            {owner.display_name || owner.username}
+                        </Link>
+                    ) : (
+                        <span style={{ color: 'var(--p-color-contrast-low)' }}>{owner?.display_name || 'Private'}</span>
+                    )}
+                </p>
+                {listing.tradeComment && (
+                    <p className="text-xs italic" style={{ color: 'var(--p-color-contrast-medium)' }}>{listing.tradeComment}</p>
+                )}
+                <ExpressInterestForm collectionId={listing.id} />
+            </div>
+        </div>
+    );
+}
+
 export default function PostersPage() {
     const [posters, setPosters] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [lightboxIndex, setLightboxIndex] = useState(-1);
+    const [forTradeListings, setForTradeListings] = useState([]);
 
     useEffect(() => {
         let cancelled = false;
@@ -111,6 +160,12 @@ export default function PostersPage() {
             .finally(() => {
                 if (!cancelled) setLoading(false);
             });
+
+        getPostersForTrade()
+            .then(data => {
+                if (!cancelled) setForTradeListings(data.listings || []);
+            })
+            .catch(err => console.error('[PostersPage] Error loading for-trade listings:', err));
 
         return () => { cancelled = true; };
     }, []);
@@ -132,6 +187,22 @@ export default function PostersPage() {
                     {posters.length > 0 ? `${posters.length} show poster${posters.length !== 1 ? 's' : ''}, newest first` : 'Show posters from the archive'}
                 </p>
             </div>
+
+            {forTradeListings.length > 0 && (
+                <div className="mb-8">
+                    <h2 className="font-display font-bold text-lg mb-1" style={{ color: 'var(--p-color-primary)' }}>
+                        Available for Sale/Trade
+                    </h2>
+                    <p className="text-sm mb-3" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                        Posters members are offering up from their own collection.
+                    </p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                        {forTradeListings.map(listing => (
+                            <ForTradeTile key={listing.id} listing={listing} />
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {loading && (
                 <div className="flex justify-center py-16">

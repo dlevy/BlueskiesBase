@@ -706,6 +706,8 @@ router.get('/profile/:username', async (req, res) => {
             .from('user_poster_collection')
             .select(`
                 id,
+                for_trade,
+                trade_comment,
                 user_posters (
                     id,
                     poster_url,
@@ -722,6 +724,8 @@ router.get('/profile/:username', async (req, res) => {
                 hasFoil: row.user_posters.is_foil,
                 posterUrl: row.user_posters.poster_url,
                 show: row.user_posters.shows,
+                forTrade: row.for_trade,
+                tradeComment: row.trade_comment,
             }))
             .sort((a, b) => b.show.show_date.localeCompare(a.show.show_date));
 

@@ -5,6 +5,7 @@ const { supabase, supabaseAdmin } = require('../config/supabase');
 const { optimizeFullImage, generateThumbnail } = require('../utils/imageProcessing');
 const { requireEditorOrAdmin } = require('../middleware/requireRole');
 const { notifyShowAttendees, notifyPosterLinkedToShows } = require('../utils/notify');
+const { redactProfile } = require('../utils/privacy');
 
 // Configure multer for memory storage
 const upload = multer({
@@ -558,6 +559,8 @@ router.get('/collection', authenticate, async (req, res) => {
             .select(`
                 id,
                 created_at,
+                for_trade,
+                trade_comment,
                 user_posters (
                     id,
                     poster_url,
@@ -650,6 +653,240 @@ router.delete('/collection/:id', authenticate, async (req, res) => {
         res.json({ message: 'Removed from collection' });
     } catch (error) {
         console.error('Error in DELETE /api/posters/collection/:id:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * PUT /api/posters/collection/:id
+ * List (or un-list) an owned poster as available for sale/trade, with an
+ * optional comment. Owner only.
+ * Body: { forTrade?: boolean, tradeComment?: string|null }
+ */
+router.put('/collection/:id', authenticate, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { forTrade, tradeComment } = req.body;
+
+        const { data: row, error: fetchError } = await supabaseAdmin
+            .from('user_poster_collection')
+            .select('user_id')
+            .eq('id', id)
+            .maybeSingle();
+        if (fetchError || !row) {
+            return res.status(404).json({ error: 'Collection entry not found' });
+        }
+        if (row.user_id !== req.user.id) {
+            return res.status(403).json({ error: 'Not authorized to edit this collection entry' });
+        }
+
+        const update = {};
+        if (typeof forTrade === 'boolean') update.for_trade = forTrade;
+        if (tradeComment !== undefined) update.trade_comment = tradeComment ? String(tradeComment).trim() || null : null;
+
+        const { data, error } = await supabaseAdmin
+            .from('user_poster_collection')
+            .update(update)
+            .eq('id', id)
+            .select('id, for_trade, trade_comment')
+            .single();
+        if (error) {
+            console.error('Error updating collection trade status:', error);
+            return res.status(500).json({ error: 'Failed to update' });
+        }
+
+        res.json(data);
+    } catch (error) {
+        console.error('Error in PUT /api/posters/collection/:id:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * GET /api/posters/for-trade
+ * Every poster currently listed for sale/trade, across all members — public.
+ * A hidden (hide_from_directory) owner's listing still appears, just with
+ * their identity redacted to "Private", same as the directory/notes/thanks.
+ */
+router.get('/for-trade', async (req, res) => {
+    try {
+        // user_poster_collection.user_id references auth.users, not
+        // public.profiles, so PostgREST can't auto-embed a profiles join here
+        // (unlike tables such as user_notes/user_photos, which reference
+        // profiles directly) — resolved as a second query instead.
+        const { data, error } = await supabaseAdmin
+            .from('user_poster_collection')
+            .select(`
+                id,
+                user_id,
+                trade_comment,
+                created_at,
+                user_posters (
+                    id,
+                    poster_url,
+                    thumbnail_url,
+                    is_foil,
+                    shows (
+                        id,
+                        show_date,
+                        artist_name,
+                        tour_name,
+                        venues ( name, city, state_country )
+                    )
+                )
+            `)
+            .eq('for_trade', true)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Error fetching for-trade posters:', error);
+            return res.status(500).json({ error: 'Failed to fetch for-trade posters' });
+        }
+
+        const filtered = (data || []).filter(row => row.user_posters?.shows);
+
+        const ownerIds = [...new Set(filtered.map(row => row.user_id))];
+        const { data: profiles } = await supabaseAdmin
+            .from('profiles')
+            .select('id, username, display_name, avatar_url, hide_from_directory')
+            .in('id', ownerIds.length > 0 ? ownerIds : ['00000000-0000-0000-0000-000000000000']);
+        const profileById = {};
+        (profiles || []).forEach(p => { profileById[p.id] = p; });
+
+        const listings = filtered.map(row => ({
+            id: row.id,
+            tradeComment: row.trade_comment,
+            posterUrl: row.user_posters.poster_url,
+            thumbnailUrl: row.user_posters.thumbnail_url,
+            hasFoil: row.user_posters.is_foil,
+            show: row.user_posters.shows,
+            owner: redactProfile(profileById[row.user_id]),
+        }));
+
+        res.json({ listings });
+    } catch (error) {
+        console.error('Error in GET /api/posters/for-trade:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * POST /api/posters/collection/:id/interest
+ * Express interest in (or reply about) a for-trade listing — delivered as a
+ * notification, not a real messaging system. Body: { message, replyToUserId? }.
+ *
+ * - Non-owner, no replyToUserId: the normal "Interested" case. Recipient is
+ *   the listing owner. Requires the listing to currently be for_trade,
+ *   UNLESS these two people already have prior correspondence on this exact
+ *   listing (so a seller toggling for_trade off mid-conversation doesn't cut
+ *   off a buyer they're already talking to).
+ * - Owner, with replyToUserId: a reply. Only allowed if replyToUserId has a
+ *   prior inbound message on this listing — the owner can't cold-open a
+ *   conversation with a stranger, only answer someone who already reached out.
+ * - Repeated "Interested" clicks before any reply bump the existing
+ *   notification instead of creating duplicates.
+ */
+router.post('/collection/:id/interest', authenticate, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { message, replyToUserId } = req.body;
+
+        if (!message || !String(message).trim()) {
+            return res.status(400).json({ error: 'message is required' });
+        }
+        const trimmedMessage = String(message).trim();
+
+        const { data: collection, error: fetchError } = await supabaseAdmin
+            .from('user_poster_collection')
+            .select('id, user_id, for_trade, user_posters ( show_id )')
+            .eq('id', id)
+            .maybeSingle();
+        if (fetchError || !collection) {
+            return res.status(404).json({ error: 'Collection entry not found' });
+        }
+
+        const ownerId = collection.user_id;
+        const isOwner = req.user.id === ownerId;
+
+        let recipientId;
+        if (isOwner) {
+            if (!replyToUserId) {
+                return res.status(400).json({ error: 'replyToUserId is required when replying as the listing owner' });
+            }
+            recipientId = replyToUserId;
+        } else {
+            recipientId = ownerId;
+        }
+
+        // Prior correspondence between these exact two people on this listing, either direction.
+        const { data: priorRows } = await supabaseAdmin
+            .from('notifications')
+            .select('id, user_id, actor_id, created_at')
+            .eq('type', 'poster_interest')
+            .eq('content_type', 'poster_collection')
+            .eq('content_id', id)
+            .in('user_id', [req.user.id, recipientId])
+            .in('actor_id', [req.user.id, recipientId]);
+        const hasPriorCorrespondence = (priorRows || []).length > 0;
+
+        if (!hasPriorCorrespondence) {
+            if (isOwner) {
+                return res.status(400).json({ error: "You can only reply to someone who has already contacted you about this listing" });
+            }
+            if (!collection.for_trade) {
+                return res.status(400).json({ error: "This poster isn't listed for sale/trade" });
+            }
+        } else if (isOwner && !(priorRows || []).some(r => r.user_id === ownerId && r.actor_id === replyToUserId)) {
+            // Owner must be replying to someone who actually messaged them, not
+            // someone the owner themselves already messaged with no reply yet.
+            return res.status(403).json({ error: 'Not authorized to message this user about this listing' });
+        }
+
+        // Dedup: only bump an existing message FROM this sender TO this
+        // recipient if it's still the most recent thing between them (i.e.
+        // the recipient hasn't replied since) — a repeat "Interested" click
+        // with nothing new in between, not a genuine new message in an
+        // ongoing back-and-forth.
+        const fromMe = (priorRows || [])
+            .filter(r => r.user_id === recipientId && r.actor_id === req.user.id)
+            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+        const fromThem = (priorRows || [])
+            .filter(r => r.user_id === req.user.id && r.actor_id === recipientId)
+            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+        const existing = fromMe && (!fromThem || new Date(fromMe.created_at) > new Date(fromThem.created_at)) ? fromMe : null;
+
+        const showId = collection.user_posters?.show_id || null;
+
+        if (existing) {
+            const { error: updateError } = await supabaseAdmin
+                .from('notifications')
+                .update({ message: trimmedMessage, created_at: new Date().toISOString(), read_at: null })
+                .eq('id', existing.id);
+            if (updateError) {
+                console.error('Error updating poster interest notification:', updateError);
+                return res.status(500).json({ error: 'Failed to send message' });
+            }
+        } else {
+            const { error: insertError } = await supabaseAdmin
+                .from('notifications')
+                .insert({
+                    user_id: recipientId,
+                    type: 'poster_interest',
+                    actor_id: req.user.id,
+                    content_type: 'poster_collection',
+                    content_id: id,
+                    show_id: showId,
+                    message: trimmedMessage,
+                });
+            if (insertError) {
+                console.error('Error inserting poster interest notification:', insertError);
+                return res.status(500).json({ error: 'Failed to send message' });
+            }
+        }
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error in POST /api/posters/collection/:id/interest:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });

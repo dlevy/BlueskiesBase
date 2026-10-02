@@ -28,6 +28,7 @@ export function notificationText(n) {
 
     if (n.type === 'mention') return `${actorName} mentioned you in a comment`;
     if (n.type === 'submission') return `${actorName} submitted a setlist correction for review`;
+    if (n.type === 'poster_interest') return `${actorName} sent you a message about your poster listing`;
     if (n.type === 'show_update') {
         return n.content_type === 'setlist'
             ? `${actorName} updated the setlist for a show you attended`
@@ -50,7 +51,12 @@ export function notificationShowLabel(n) {
 // The notification's destination: the show page, deep-linked to the
 // specific submission for a 'submission' notification (staff need to find
 // the actual thing to review, not just land on the top of the show page).
+// A 'poster_interest' notification instead links to the other party's
+// profile — the point is to go find and respond to them, not revisit a show.
 export function notificationLink(n) {
+    if (n.type === 'poster_interest') {
+        return n.actor?.username ? `/profile/${n.actor.username}` : null;
+    }
     if (!n.shows) return null;
     const base = buildShowPath(n.shows);
     if (n.type === 'submission') return `${base}#submission-${n.content_id}`;

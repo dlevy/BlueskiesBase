@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { getNotifications, dismissNotification, restoreNotification } from '../services/api';
 import { timeAgo, notificationText, notificationShowLabel, notificationLink } from '../utils/notifications';
 import SEO from '../components/SEO';
+import PosterInterestNotificationRow from '../components/PosterInterestNotificationRow';
 
 const HISTORY_LIMIT = 100;
 
@@ -69,8 +70,18 @@ export default function NotificationsPage() {
             ) : (
                 <div className="space-y-2">
                     {notifications.map(n => {
+                        if (n.type === 'poster_interest') {
+                            return (
+                                <PosterInterestNotificationRow
+                                    key={n.id}
+                                    notification={n}
+                                    onToggleDismissed={handleToggleDismissed}
+                                />
+                            );
+                        }
                         const showLabel = notificationShowLabel(n);
                         const isDismissed = !!n.dismissed_at;
+                        const link = notificationLink(n);
                         return (
                             <div
                                 key={n.id}
@@ -83,8 +94,8 @@ export default function NotificationsPage() {
                                 <div className="min-w-0 flex-1">
                                     <PText size="sm">{notificationText(n)}</PText>
                                     {showLabel && (
-                                        n.shows
-                                            ? <Link to={notificationLink(n)} className="hover:underline">
+                                        link
+                                            ? <Link to={link} className="hover:underline">
                                                 <PText size="xs" style={{ color: 'var(--p-color-contrast-medium)' }}>{showLabel}</PText>
                                             </Link>
                                             : <PText size="xs" style={{ color: 'var(--p-color-contrast-medium)' }}>{showLabel}</PText>

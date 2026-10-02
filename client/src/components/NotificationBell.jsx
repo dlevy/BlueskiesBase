@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getNotifications, markAllNotificationsRead, dismissNotification } from '../services/api';
 import { timeAgo, notificationText, notificationShowLabel, notificationLink } from '../utils/notifications';
+import PosterInterestNotificationRow from './PosterInterestNotificationRow';
 
 const POLL_INTERVAL_MS = 60000;
 
@@ -129,6 +130,16 @@ export default function NotificationBell() {
                             </p>
                         ) : (
                             notifications.map(n => {
+                                if (n.type === 'poster_interest') {
+                                    return (
+                                        <PosterInterestNotificationRow
+                                            key={n.id}
+                                            notification={n}
+                                            onToggleDismissed={(notif) => handleDismiss({ preventDefault() {}, stopPropagation() {} }, notif.id)}
+                                            compact
+                                        />
+                                    );
+                                }
                                 const showLabel = notificationShowLabel(n);
                                 const content = (
                                     <div className="px-4 py-3 hover:bg-white/5 transition-colors flex gap-2 items-start group">
@@ -154,8 +165,9 @@ export default function NotificationBell() {
                                         </button>
                                     </div>
                                 );
-                                return n.shows ? (
-                                    <Link key={n.id} to={notificationLink(n)} onClick={() => setOpen(false)} className="block">
+                                const link = notificationLink(n);
+                                return link ? (
+                                    <Link key={n.id} to={link} onClick={() => setOpen(false)} className="block">
                                         {content}
                                     </Link>
                                 ) : (

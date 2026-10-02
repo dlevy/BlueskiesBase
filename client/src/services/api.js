@@ -1714,6 +1714,61 @@ export const removeFromPosterCollection = async (entryId) => {
 };
 
 /**
+ * List (or un-list) an owned poster as available for sale/trade. Owner only.
+ */
+export const updateCollectionTradeStatus = async (collectionId, { forTrade, tradeComment } = {}) => {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+
+    const body = {};
+    if (forTrade !== undefined) body.forTrade = forTrade;
+    if (tradeComment !== undefined) body.tradeComment = tradeComment;
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/posters/collection/${collectionId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(body),
+    });
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to update');
+    }
+    return response.json();
+};
+
+/**
+ * Every poster currently listed for sale/trade, across all members. Public.
+ */
+export const getPostersForTrade = async () => {
+    const response = await fetch(`${API_BASE_URL}/api/posters/for-trade`);
+    if (!response.ok) throw new Error('Failed to fetch for-trade posters');
+    return response.json();
+};
+
+/**
+ * Express interest in (or reply about) a for-trade listing — delivered as a
+ * notification. Pass replyToUserId only when replying as the listing owner.
+ */
+export const sendPosterInterest = async (collectionId, message, replyToUserId = null) => {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+
+    const body = { message };
+    if (replyToUserId) body.replyToUserId = replyToUserId;
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/posters/collection/${collectionId}/interest`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(body),
+    });
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to send message');
+    }
+    return response.json();
+};
+
+/**
  * The logged-in user's own wanted-posters list (shows they're looking to
  * acquire a poster for, independent of anything they already own).
  */

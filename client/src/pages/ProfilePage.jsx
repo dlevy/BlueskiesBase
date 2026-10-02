@@ -1,13 +1,18 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { PHeading, PText, PSpinner, PInlineNotification, PButtonPure } from '@porsche-design-system/components-react';
-import { getPublicProfile } from '../services/api';
+import { getPublicProfile, updateCollectionTradeStatus } from '../services/api';
 import { buildShowPath } from '../utils/showSlug';
 import { useAuth } from '../contexts/AuthContext';
 import SEO from '../components/SEO';
 import ShowMapShare from '../components/ShowMapShare';
 import Avatar from '../components/Avatar';
+import ExpressInterestForm from '../components/ExpressInterestForm';
 import { getHighestBadge } from '../utils/badges';
+
+const textareaClass = "w-full rounded-lg border border-white/10 bg-white/5 py-1.5 px-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500/40 focus:border-transparent placeholder:text-gray-500 resize-none";
+const btnPrimary = "text-xs px-2.5 py-1 rounded-lg border border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/18 transition-all disabled:opacity-50 disabled:cursor-not-allowed";
+const btnSecondary = "text-xs px-2.5 py-1 rounded-lg border border-white/15 hover:border-white/25 hover:bg-white/5 transition-all disabled:opacity-50 disabled:cursor-not-allowed";
 
 // Site-role badges shown on a public profile — driven entirely by profiles.role,
 // so any future admin/editor gets the same treatment automatically. Both editors
@@ -34,6 +39,127 @@ function FactCard({ label, value, sub }) {
             <PText size="xs" style={{ color: 'var(--p-color-contrast-low)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</PText>
             <div className="text-sm font-semibold" style={{ color: 'var(--p-color-primary)' }}>{value}</div>
             {sub && <PText size="xs" color="contrast-medium">{sub}</PText>}
+        </div>
+    );
+}
+
+function formatPosterDate(dateString) {
+    const [year, month, day] = dateString.split('-');
+    return new Date(year, month - 1, day).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+// A poster collection entry's image+date stays a <Link> to the show (as
+// before); trade status/controls live in their own footer row below it so a
+// Save/Interested button never nests inside that anchor.
+function PosterCollectionCard({ entry, isOwnProfile }) {
+    const [editing, setEditing] = useState(false);
+    const [forTrade, setForTrade] = useState(entry.forTrade);
+    const [tradeComment, setTradeComment] = useState(entry.tradeComment || '');
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState(null);
+    const [committed, setCommitted] = useState({ forTrade: entry.forTrade, tradeComment: entry.tradeComment });
+
+    const handleSave = async () => {
+        setSaving(true);
+        setError(null);
+        try {
+            const trimmed = tradeComment.trim() || null;
+            await updateCollectionTradeStatus(entry.id, { forTrade, tradeComment: trimmed });
+            setCommitted({ forTrade, tradeComment: trimmed });
+            setEditing(false);
+        } catch (err) {
+            setError(err.message || 'Failed to update');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleCancel = () => {
+        setEditing(false);
+        setForTrade(committed.forTrade);
+        setTradeComment(committed.tradeComment || '');
+        setError(null);
+    };
+
+    return (
+        <div className="rounded-xl border border-white/5 bg-white/5 overflow-hidden hover:border-white/20 transition-all">
+            <Link to={buildShowPath(entry.show)} className="block">
+                <div className="relative aspect-[2/3] bg-black/20">
+                    <img src={entry.posterUrl} alt={entry.show.artist_name} className="w-full h-full object-cover" />
+                    {entry.hasFoil && (
+                        <span
+                            className="absolute top-1.5 right-1.5 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded"
+                            style={{ background: 'rgba(192,132,252,0.85)', color: '#1a0b2e' }}
+                        >
+                            Foil
+                        </span>
+                    )}
+                </div>
+                <div className="p-2 pb-1">
+                    <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }} ellipsis>
+                        {formatPosterDate(entry.show.show_date)}
+                    </PText>
+                </div>
+            </Link>
+
+            <div className="px-2 pb-2">
+                {!isOwnProfile && entry.forTrade && (
+                    <div className="space-y-1">
+                        {entry.tradeComment && (
+                            <PText size="xs" color="contrast-medium" className="italic">{entry.tradeComment}</PText>
+                        )}
+                        <ExpressInterestForm collectionId={entry.id} />
+                    </div>
+                )}
+
+                {isOwnProfile && !editing && (
+                    <div className="space-y-1">
+                        {committed.forTrade && (
+                            <>
+                                <span
+                                    className="inline-block text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded"
+                                    style={{ background: 'rgba(245,158,11,0.12)', color: '#f59e0b' }}
+                                >
+                                    For Trade
+                                </span>
+                                {committed.tradeComment && (
+                                    <PText size="xs" color="contrast-medium" className="italic">{committed.tradeComment}</PText>
+                                )}
+                            </>
+                        )}
+                        <button type="button" onClick={() => setEditing(true)} className="block text-xs hover:underline" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                            {committed.forTrade ? 'Edit listing' : 'List for trade'}
+                        </button>
+                    </div>
+                )}
+
+                {isOwnProfile && editing && (
+                    <div className="space-y-1.5">
+                        <label className="flex items-center gap-1.5 text-xs cursor-pointer" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                            <input type="checkbox" checked={forTrade} onChange={e => setForTrade(e.target.checked)} className="w-3.5 h-3.5" />
+                            Available for trade/sale
+                        </label>
+                        {forTrade && (
+                            <textarea
+                                value={tradeComment}
+                                onChange={e => setTradeComment(e.target.value)}
+                                placeholder="Price, condition, what you'd trade for…"
+                                rows={2}
+                                className={textareaClass}
+                            />
+                        )}
+                        {error && <p className="text-xs" style={{ color: 'var(--p-color-error)' }}>{error}</p>}
+                        <div className="flex gap-2">
+                            <button type="button" onClick={handleSave} disabled={saving} className={btnPrimary}>
+                                {saving ? 'Saving…' : 'Save'}
+                            </button>
+                            <button type="button" onClick={handleCancel} disabled={saving} className={btnSecondary} style={{ color: 'var(--p-color-contrast-medium)' }}>
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </div>
         </div>
     );
 }
@@ -282,28 +408,7 @@ export default function ProfilePage() {
                     <PHeading size="lg" tag="h2">Poster Collection</PHeading>
                     <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                         {profile.posterCollection.map(entry => (
-                            <Link
-                                key={entry.id}
-                                to={buildShowPath(entry.show)}
-                                className="block rounded-xl border border-white/5 bg-white/5 overflow-hidden hover:border-white/20 transition-all"
-                            >
-                                <div className="relative aspect-[2/3] bg-black/20">
-                                    <img src={entry.posterUrl} alt={entry.show.artist_name} className="w-full h-full object-cover" />
-                                    {entry.hasFoil && (
-                                        <span
-                                            className="absolute top-1.5 right-1.5 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded"
-                                            style={{ background: 'rgba(192,132,252,0.85)', color: '#1a0b2e' }}
-                                        >
-                                            Foil
-                                        </span>
-                                    )}
-                                </div>
-                                <div className="p-2">
-                                    <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }} ellipsis>
-                                        {formatDate(entry.show.show_date)}
-                                    </PText>
-                                </div>
-                            </Link>
+                            <PosterCollectionCard key={entry.id} entry={entry} isOwnProfile={isOwnProfile} />
                         ))}
                     </div>
                 </div>

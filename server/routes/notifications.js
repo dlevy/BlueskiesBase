@@ -49,6 +49,7 @@ router.get('/', authenticate, async (req, res) => {
                 type,
                 content_type,
                 content_id,
+                message,
                 read_at,
                 dismissed_at,
                 created_at,
