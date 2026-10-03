@@ -11,24 +11,20 @@ const cache = new Map(); // limit -> { data, expiresAt }
 
 /**
  * All-time per-song play counts (distinct shows, not raw setlist rows), split into
- * covers/originals, each sorted most- to least-played. Shared by the public global
- * song stats endpoint and the personal stats endpoint (for "rare songs you've seen"),
- * so both agree on exactly the same all-time rarity ranking.
+ * covers/originals, each sorted most- to least-played. Powers the public Stats tab.
  * `limit` controls how many songs are returned per bucket, at both the most- and
  * least-played ends — ranked, not percentage-based, since a percentage of all-time
  * shows played would unfairly flag recently-debuted songs as "rare" just for not
  * having existed during earlier tours (same issue already fixed for the per-tour
  * Rare badge). The public Stats tab requests enough per bucket to paginate beyond
- * the first page; attendance.js's personal-stats caller only reads `.rarest`, so
- * its own `top5` size is irrelevant to it.
+ * the first page.
  * Excludes performance_type='dj' rows (an afterparty DJ spin, not an actual live
  * performance) — those shouldn't inflate a song's play count or rarity ranking.
  *
  * `filter` narrows the computation to a subset of shows — either
  * `{ startDate, endDate }` or `{ tourName }` — for the Stats tab's Song Stats
  * filter. Left `null` (the default, unfiltered all-time view), this is byte-
- * for-byte the original behavior, including the cache — callers like
- * attendance.js's computeRarityCounts rely on that staying exactly the same.
+ * for-byte the original behavior, including the cache.
  * A filtered call is never cached (filter combinations are unbounded; this is
  * an on-demand interaction, not a page-load path).
  */

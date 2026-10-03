@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const { supabase, supabaseAdmin } = require('../config/supabase');
-const { computeSongsSeenForShows, computeDebutDetails, computeRarityCounts } = require('../utils/attendance');
+const { computeSongsSeenForShows, computeDebutDetails } = require('../utils/attendance');
 const { computeFunStats } = require('../utils/funStats');
 const { redactProfile } = require('../utils/privacy');
 
@@ -439,7 +439,6 @@ router.get('/stats', async (req, res) => {
             .filter(s => s?.show_date && s.show_date <= todayStr);
 
         const { liveDebuts } = await computeDebutDetails(pastShows, songsSeen);
-        const { rareSongsSeenCount, rarestSongSeen, rareSongsSeen } = await computeRarityCounts(songsSeen);
         const funStats = computeFunStats(pastShows, songsSeen);
 
         // Who else attended/is attending each of this user's own shows — batched into
@@ -501,9 +500,6 @@ router.get('/stats', async (req, res) => {
             totalSongsNotSeen: songsNotSeenWithShow.length,
             liveDebutsWitnessed: liveDebuts.length,
             liveDebuts,
-            rareSongsSeenCount,
-            rarestSongSeen,
-            rareSongsSeen,
             attendeesByShow,
             contributionCounts,
             funStats,

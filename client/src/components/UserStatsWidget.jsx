@@ -176,6 +176,9 @@ export default function UserStatsWidget() {
         <div className="space-y-4">
             <PHeading size="xs" tag="h2">My Stats</PHeading>
 
+            {/* Achievements */}
+            <AchievementsPanel showCount={pastShows.length} contributionCount={stats.contributionCounts?.total ?? 0} />
+
             {/* Summary */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <StatCard value={pastShows.length} label="Shows Attended" />
@@ -186,19 +189,12 @@ export default function UserStatsWidget() {
 
             {/* Fan Facts */}
             {funStats && (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <FactCard
                         label="First Live Show"
                         value={formatDate(funStats.firstShow.show_date)}
                         sub={firstShowYearsAgo > 0 ? `${firstShowYearsAgo} year${firstShowYearsAgo === 1 ? '' : 's'} ago` : 'This year'}
                     />
-                    {funStats.topSong && (
-                        <FactCard
-                            label="Favorite Song Live"
-                            value={funStats.topSong.title}
-                            sub={`seen ${funStats.topSong.playCount}x`}
-                        />
-                    )}
                     {funStats.topVenue && (
                         <FactCard
                             label="Most-Seen Venue"
@@ -208,9 +204,6 @@ export default function UserStatsWidget() {
                     )}
                 </div>
             )}
-
-            {/* Achievements */}
-            <AchievementsPanel showCount={pastShows.length} contributionCount={stats.contributionCounts?.total ?? 0} />
 
             {/* Show Map */}
             <ShowMapShare pastShows={pastShows} upcomingShows={upcomingShows} />
@@ -223,7 +216,6 @@ export default function UserStatsWidget() {
                         ['upcoming', `Upcoming (${upcomingShows.length})`],
                         ['originals', `Originals Seen (${originalsPct}%)`],
                         ['covers', `Covers Seen (${coversPct}%)`],
-                        ['rare', `Rare Songs Seen (${stats.rareSongsSeenCount ?? 0})`],
                         ['debuts', `Live Debuts (${stats.liveDebutsWitnessed ?? 0})`],
                         ['notSeen', `Not Seen Yet (${stats.songsNotSeen.length})`],
                     ].map(([id, label]) => (
@@ -300,6 +292,9 @@ export default function UserStatsWidget() {
                             <PText color="contrast-medium">No originals tracked yet.</PText>
                         ) : (
                             <div className="space-y-1">
+                                <PText size="sm" color="contrast-medium" className="block mb-2">
+                                    {originalsSeen} of {totalOriginals} originals seen ({originalsPct}%)
+                                </PText>
                                 {stats.songsSeen
                                     .filter(s => !isCover(s))
                                     .sort((a, b) => b.playCount - a.playCount || a.title.localeCompare(b.title))
@@ -323,6 +318,9 @@ export default function UserStatsWidget() {
                             <PText color="contrast-medium">No covers tracked yet.</PText>
                         ) : (
                             <div className="space-y-1">
+                                <PText size="sm" color="contrast-medium" className="block mb-2">
+                                    {coversSeen} of {totalCovers} covers seen ({coversPct}%)
+                                </PText>
                                 {stats.songsSeen
                                     .filter(isCover)
                                     .sort((a, b) => b.playCount - a.playCount || a.title.localeCompare(b.title))
@@ -337,26 +335,6 @@ export default function UserStatsWidget() {
                                             </PText>
                                         </div>
                                     ))}
-                            </div>
-                        )
-                    )}
-
-                    {activeTab === 'rare' && (
-                        !stats.rareSongsSeen || stats.rareSongsSeen.length === 0 ? (
-                            <PText color="contrast-medium">You haven't caught any of the all-time rarest songs yet.</PText>
-                        ) : (
-                            <div className="space-y-1">
-                                {stats.rareSongsSeen.map((song) => (
-                                    <div
-                                        key={song.id}
-                                        className="flex items-center justify-between gap-3 py-2 px-3 rounded-lg hover:bg-white/5 transition-colors"
-                                    >
-                                        <PText weight="semi-bold">{song.title}</PText>
-                                        <PText size="xs" color="contrast-medium" className="whitespace-nowrap shrink-0">
-                                            {song.playCount}x all-time
-                                        </PText>
-                                    </div>
-                                ))}
                             </div>
                         )
                     )}

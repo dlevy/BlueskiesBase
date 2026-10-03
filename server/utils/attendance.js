@@ -1,6 +1,5 @@
 const { supabase } = require('../config/supabase');
 const { computeDebutsForShows } = require('./debuts');
-const { computeGlobalSongStats } = require('./songStats');
 
 /**
  * Every song performed at any of the given shows, deduped to one entry per song with
@@ -109,31 +108,4 @@ async function computeDebutDetails(pastShows, songsSeen) {
     return { liveDebuts, tourDebuts };
 }
 
-/**
- * How many all-time-rarest songs a user has seen (plus the single rarest match and
- * the full list, rarest-first), given their already-computed songsSeen list. Used by
- * the personal stats route only — the public profile page doesn't surface this.
- */
-async function computeRarityCounts(songsSeen) {
-    let rareSongsSeenCount = 0;
-    let rarestSongSeen = null;
-    let rareSongsSeen = [];
-    try {
-        const globalStats = await computeGlobalSongStats(10);
-        const rarestSongs = [...globalStats.originals.rarest, ...globalStats.covers.rarest];
-        const playCountById = new Map(rarestSongs.map(s => [s.id, s.playCount]));
-        const seenRare = songsSeen.filter(s => playCountById.has(s.id));
-        rareSongsSeenCount = seenRare.length;
-        if (seenRare.length > 0) {
-            rareSongsSeen = seenRare
-                .map(s => ({ id: s.id, title: s.title, playCount: playCountById.get(s.id) }))
-                .sort((a, b) => a.playCount - b.playCount);
-            rarestSongSeen = { title: rareSongsSeen[0].title, playCount: rareSongsSeen[0].playCount };
-        }
-    } catch (err) {
-        console.error('[computeRarityCounts] Error computing rare songs seen:', err);
-    }
-    return { rareSongsSeenCount, rarestSongSeen, rareSongsSeen };
-}
-
-module.exports = { computeSongsSeenForShows, computeDebutDetails, computeRarityCounts };
+module.exports = { computeSongsSeenForShows, computeDebutDetails };
