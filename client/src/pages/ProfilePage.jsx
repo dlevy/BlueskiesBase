@@ -10,6 +10,7 @@ import ShowMapShare from '../components/ShowMapShare';
 import Avatar from '../components/Avatar';
 import ExpressInterestForm from '../components/ExpressInterestForm';
 import FactCard from '../components/FactCard';
+import AchievementsPanel from '../components/AchievementsPanel';
 import { getHighestBadge } from '../utils/badges';
 
 const textareaClass = "w-full rounded-lg border border-white/10 bg-white/5 py-1.5 px-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500/40 focus:border-transparent placeholder:text-gray-500 resize-none";
@@ -356,11 +357,11 @@ export default function ProfilePage() {
                     {profile.uniqueCities > 0 && (
                         <FactCard label="Cities Visited" value={`${profile.uniqueCities} cities`} />
                     )}
-                    {profile.mostPlayedSong && (
-                        <FactCard label="Most-Played Song" value={profile.mostPlayedSong.title} sub={`Seen ${profile.mostPlayedSong.playCount}x`} />
-                    )}
                 </div>
             </div>
+
+            {/* Achievements — public for any profile, so members can see each other's */}
+            <AchievementsPanel showCount={profile.totalShowsAttended} contributionCount={profile.contributionCount ?? 0} />
 
             {/* Debuts witnessed — the actual songs + dates, not just a count */}
             {(profile.liveDebuts?.length > 0 || profile.tourDebuts?.length > 0) && (

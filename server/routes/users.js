@@ -800,6 +800,17 @@ router.get('/profile/:username', async (req, res) => {
             }))
             .sort((a, b) => b.show.show_date.localeCompare(a.show.show_date));
 
+        // Community contribution count — powers the Community achievement track,
+        // same cheap head-only-count pattern as the personal stats route, just scoped
+        // to this profile's user id instead of the viewer's.
+        const [notesResult, submissionsResult, photosResult, postersResult] = await Promise.all([
+            supabase.from('user_notes').select('*', { count: 'exact', head: true }).eq('user_id', profile.id),
+            supabase.from('setlist_submissions').select('*', { count: 'exact', head: true }).eq('user_id', profile.id),
+            supabase.from('user_photos').select('*', { count: 'exact', head: true }).eq('user_id', profile.id),
+            supabase.from('user_posters').select('*', { count: 'exact', head: true }).eq('user_id', profile.id),
+        ]);
+        const contributionCount = (notesResult.count || 0) + (submissionsResult.count || 0) + (photosResult.count || 0) + (postersResult.count || 0);
+
         const response = {
             username: profile.username,
             role: profile.role || 'member',
@@ -816,11 +827,11 @@ router.get('/profile/:username', async (req, res) => {
             totalShowsAttended: pastShows.length,
             favoriteShow,
             favoriteVenue,
-            mostPlayedSong: funStats?.topSong || null,
             firstShow: funStats?.firstShow || null,
             uniqueCities: funStats?.uniqueCities || 0,
             liveDebuts,
             tourDebuts,
+            contributionCount,
             posterCollection,
             postersWanted,
         };
