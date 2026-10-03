@@ -394,7 +394,7 @@ export default function UserStatsWidget() {
                                                     className="text-xs text-[var(--p-color-info)] hover:opacity-80 transition-opacity whitespace-nowrap shrink-0"
                                                     onClick={e => e.stopPropagation()}
                                                 >
-                                                    Last: {formatDate(song.mostRecentShow.show_date)}
+                                                    Last Played: {formatDate(song.mostRecentShow.show_date)}
                                                 </Link>
                                             )}
                                         </div>
