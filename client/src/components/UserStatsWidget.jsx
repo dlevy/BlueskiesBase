@@ -9,6 +9,7 @@ import { getUserStats } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import ShowMapShare from './ShowMapShare';
 import AchievementsPanel from './AchievementsPanel';
+import FactCard from './FactCard';
 
 function StatCard({ value, label }) {
     const count = useCountUp(value);
@@ -16,16 +17,6 @@ function StatCard({ value, label }) {
         <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 text-center">
             <div className="font-display font-bold text-5xl leading-none mb-2 text-amber-400">{count}</div>
             <PText size="sm" color="contrast-medium" align="center">{label}</PText>
-        </div>
-    );
-}
-
-function FactCard({ label, value, sub }) {
-    return (
-        <div className="rounded-xl border border-white/10 bg-[#1a1e26] px-4 py-3 space-y-0.5">
-            <PText size="xs" style={{ color: 'var(--p-color-contrast-low)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</PText>
-            <div className="text-sm font-semibold" style={{ color: 'var(--p-color-primary)' }}>{value}</div>
-            {sub && <PText size="xs" color="contrast-medium">{sub}</PText>}
         </div>
     );
 }

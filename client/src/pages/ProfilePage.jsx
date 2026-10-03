@@ -9,6 +9,7 @@ import MainNavTabs from '../components/MainNavTabs';
 import ShowMapShare from '../components/ShowMapShare';
 import Avatar from '../components/Avatar';
 import ExpressInterestForm from '../components/ExpressInterestForm';
+import FactCard from '../components/FactCard';
 import { getHighestBadge } from '../utils/badges';
 
 const textareaClass = "w-full rounded-lg border border-white/10 bg-white/5 py-1.5 px-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500/40 focus:border-transparent placeholder:text-gray-500 resize-none";
@@ -31,16 +32,6 @@ function RoleBadge({ badge }) {
             <span aria-hidden="true">{badge.emoji}</span>
             {badge.label}
         </span>
-    );
-}
-
-function FactCard({ label, value, sub }) {
-    return (
-        <div className="rounded-xl border border-white/10 bg-[#1a1e26] px-4 py-3 space-y-0.5">
-            <PText size="xs" style={{ color: 'var(--p-color-contrast-low)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</PText>
-            <div className="text-sm font-semibold" style={{ color: 'var(--p-color-primary)' }}>{value}</div>
-            {sub && <PText size="xs" color="contrast-medium">{sub}</PText>}
-        </div>
     );
 }
 
@@ -339,7 +330,14 @@ export default function ProfilePage() {
 
             {/* Stats */}
             <div className="space-y-4">
-                <PHeading size="md" tag="h2">By the Numbers</PHeading>
+                <div className="flex items-center justify-between gap-2">
+                    <PHeading size="md" tag="h2">By the Numbers</PHeading>
+                    {isOwnProfile && (
+                        <Link to="/?tab=myshows" className="text-xs font-medium text-amber-400 hover:opacity-80 transition-opacity shrink-0">
+                            View full stats →
+                        </Link>
+                    )}
+                </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                     <FactCard label="Shows Attended" value={profile.totalShowsAttended} />
                     {profile.firstShow && (
