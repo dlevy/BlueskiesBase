@@ -1,14 +1,14 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
-    PHeading, PText, PButton, PSpinner, PInlineNotification, PDivider
+    PHeading, PText, PButton, PSpinner, PInlineNotification
 } from '@porsche-design-system/components-react';
 import { useCountUp } from '../hooks/useCountUp';
 import { buildShowPath } from '../utils/showSlug';
 import { getUserStats } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import ShowMapShare from './ShowMapShare';
-import BadgesPanel from './BadgesPanel';
+import AchievementsPanel from './AchievementsPanel';
 
 function StatCard({ value, label }) {
     const count = useCountUp(value);
@@ -30,7 +30,29 @@ function FactCard({ label, value, sub }) {
     );
 }
 
-const TABS = ['shows', 'upcoming', 'seen', 'notSeen'];
+// Non-linking attendee pills for a show row — the whole row is itself a Link to the
+// show page, so these can't be Links too (no nested <a> tags).
+function AttendeePills({ attendees }) {
+    if (!attendees || attendees.length === 0) return null;
+    return (
+        <div className="flex flex-wrap items-center gap-1 mt-1.5">
+            {attendees.slice(0, 6).map((a, i) => (
+                <span
+                    key={a.id || i}
+                    className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border border-white/10 bg-white/5"
+                    style={{ color: 'var(--p-color-contrast-medium)' }}
+                >
+                    {a.displayName || a.username || 'Private'}
+                </span>
+            ))}
+            {attendees.length > 6 && (
+                <span className="text-[11px]" style={{ color: 'var(--p-color-contrast-low)' }}>
+                    +{attendees.length - 6} more
+                </span>
+            )}
+        </div>
+    );
+}
 
 export default function UserStatsWidget() {
     const { user } = useAuth();
@@ -39,7 +61,6 @@ export default function UserStatsWidget() {
     const [error, setError] = useState(null);
     const [urlParams, setUrlParams] = useSearchParams();
     const activeTab = urlParams.get('statsTab') || 'shows';
-    const activeTabIndex = Math.max(0, TABS.indexOf(activeTab));
 
     const setActiveTab = (tab) => setUrlParams(prev => {
         const next = new URLSearchParams(prev);
@@ -121,6 +142,7 @@ export default function UserStatsWidget() {
     const isUpcoming = (d) => { const [y, m, day] = d.split('-'); return new Date(y, m - 1, day) >= today; };
     const upcomingShows = stats.attendedShows.filter(s => isUpcoming(s.show_date)).sort((a, b) => a.show_date.localeCompare(b.show_date));
     const pastShows = stats.attendedShows.filter(s => !isUpcoming(s.show_date)).sort((a, b) => b.show_date.localeCompare(a.show_date));
+    const attendeesByShow = stats.attendeesByShow || {};
 
     // % of the whole catalog witnessed live, split originals vs covers — songsSeen and
     // songsNotSeen together cover every song ever played by anyone, so no extra fetch
@@ -132,6 +154,37 @@ export default function UserStatsWidget() {
     const totalCovers = coversSeen + stats.songsNotSeen.filter(isCover).length;
     const originalsPct = totalOriginals > 0 ? Math.round((originalsSeen / totalOriginals) * 100) : 0;
     const coversPct = totalCovers > 0 ? Math.round((coversSeen / totalCovers) * 100) : 0;
+
+    // Fan Facts — all derived from data already in hand, no extra fetches.
+    const fanSince = pastShows.length > 0
+        ? [...pastShows].sort((a, b) => a.show_date.localeCompare(b.show_date))[0]
+        : null;
+    const fanSinceYears = fanSince ? today.getFullYear() - Number(fanSince.show_date.slice(0, 4)) : null;
+
+    const favoriteSong = stats.songsSeen.length > 0
+        ? [...stats.songsSeen].sort((a, b) => b.playCount - a.playCount)[0]
+        : null;
+
+    const venueTally = new Map();
+    pastShows.forEach(show => {
+        if (!show.venues) return;
+        const key = show.venues.name + '|' + show.venues.city;
+        const entry = venueTally.get(key) || { venue: show.venues, count: 0 };
+        entry.count++;
+        venueTally.set(key, entry);
+    });
+    const topVenue = [...venueTally.values()].sort((a, b) => b.count - a.count)[0] || null;
+
+    const buddyTally = new Map();
+    pastShows.forEach(show => {
+        (attendeesByShow[show.id] || []).forEach(a => {
+            if (!a.id) return;
+            const entry = buddyTally.get(a.id) || { person: a, count: 0 };
+            entry.count++;
+            buddyTally.set(a.id, entry);
+        });
+    });
+    const topBuddy = [...buddyTally.values()].sort((a, b) => b.count - a.count)[0] || null;
 
     if (stats.attendedShows.length === 0) {
         return (
@@ -148,16 +201,12 @@ export default function UserStatsWidget() {
         <div className="space-y-4">
             <PHeading size="xs" tag="h2">My Stats</PHeading>
 
-            {/* Summary Stats */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Summary + By the Numbers, folded into one glance */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <StatCard value={pastShows.length} label="Shows Attended" />
                 <StatCard value={upcomingShows.length} label="Upcoming Shows" />
                 <StatCard value={stats.songsSeen.length} label="Songs Seen Live" />
                 <StatCard value={stats.songsNotSeen.length} label="Songs Not Seen Yet" />
-            </div>
-
-            {/* By the Numbers */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                 <FactCard
                     label="Originals Seen"
                     value={`${originalsPct}%`}
@@ -171,59 +220,82 @@ export default function UserStatsWidget() {
                 <FactCard
                     label="Rare Songs Seen"
                     value={stats.rareSongsSeenCount ?? 0}
-                    sub="among the all-time rarest"
+                    sub={stats.rarestSongSeen ? `incl. ${stats.rarestSongSeen.title}` : 'among the all-time rarest'}
                 />
                 <FactCard
                     label="Live Debuts Witnessed"
                     value={stats.liveDebutsWitnessed ?? 0}
                     sub="first-ever performances"
                 />
-                <FactCard
-                    label="Tour Debuts Witnessed"
-                    value={stats.tourDebutsWitnessed ?? 0}
-                    sub="first on that tour"
-                />
             </div>
 
-            {/* Badges */}
-            <BadgesPanel showCount={pastShows.length} />
+            {/* Fan Facts */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {fanSince && (
+                    <FactCard
+                        label="Fan Since"
+                        value={fanSince.show_date.slice(0, 4)}
+                        sub={`${fanSinceYears} year${fanSinceYears === 1 ? '' : 's'} and counting`}
+                    />
+                )}
+                {favoriteSong && (
+                    <FactCard
+                        label="Favorite Song Live"
+                        value={favoriteSong.title}
+                        sub={`seen ${favoriteSong.playCount}x`}
+                    />
+                )}
+                {topVenue && (
+                    <FactCard
+                        label="Most-Seen Venue"
+                        value={topVenue.venue.name}
+                        sub={`${topVenue.count} show${topVenue.count === 1 ? '' : 's'} · ${topVenue.venue.city}`}
+                    />
+                )}
+                {topBuddy && (
+                    <FactCard
+                        label="Concert Buddy"
+                        value={topBuddy.person.displayName || topBuddy.person.username}
+                        sub={`${topBuddy.count} show${topBuddy.count === 1 ? '' : 's'} together`}
+                    />
+                )}
+            </div>
+
+            {/* Achievements */}
+            <AchievementsPanel showCount={pastShows.length} contributionCount={stats.contributionCounts?.total ?? 0} />
 
             {/* Show Map */}
             <ShowMapShare pastShows={pastShows} upcomingShows={upcomingShows} />
 
-            {/* Tab Navigation */}
-            <div className="flex flex-wrap border-b border-white/[0.07]">
-                {[
-                    ['shows', `Past Shows (${pastShows.length})`],
-                    ['upcoming', `Upcoming (${upcomingShows.length})`],
-                    ['seen', `Songs Seen (${stats.songsSeen.length})`],
-                    ['notSeen', `Not Seen Yet (${stats.songsNotSeen.length})`],
-                ].map(([id, label]) => (
-                    <button
-                        key={id}
-                        onClick={() => setActiveTab(id)}
-                        className={`h-9 px-4 text-sm font-medium transition-colors -mb-px border-b-2 whitespace-nowrap ${
-                            activeTab === id ? 'border-amber-400 text-amber-300' : 'border-transparent'
-                        }`}
-                        style={{ color: activeTab === id ? undefined : 'var(--p-color-contrast-medium)' }}
-                    >
-                        {label}
-                    </button>
-                ))}
-            </div>
+            {/* Tabs + content, merged into one container */}
+            <div className="rounded-2xl border border-white/10 bg-[#1a1e26] overflow-hidden">
+                <div className="flex flex-wrap gap-2 p-4 border-b border-white/[0.07]">
+                    {[
+                        ['shows', `Past Shows (${pastShows.length})`],
+                        ['upcoming', `Upcoming (${upcomingShows.length})`],
+                        ['seen', `Songs Seen (${stats.songsSeen.length})`],
+                        ['notSeen', `Not Seen Yet (${stats.songsNotSeen.length})`],
+                    ].map(([id, label]) => (
+                        <button
+                            key={id}
+                            onClick={() => setActiveTab(id)}
+                            className="h-9 px-4 rounded-full text-sm font-semibold transition-colors whitespace-nowrap"
+                            style={activeTab === id
+                                ? { background: 'rgba(245,158,11,0.18)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.4)' }
+                                : { background: 'transparent', color: 'var(--p-color-contrast-medium)', border: '1px solid transparent' }
+                            }
+                        >
+                            {label}
+                        </button>
+                    ))}
+                </div>
 
-            {/* Tab Content */}
-            <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6">
-                {activeTab === 'shows' && (
-                    <div>
-                        <PHeading size="md" tag="h3">Shows Attended</PHeading>
-                        <div className="mt-4">
-                            <PDivider />
-                        </div>
-                        {pastShows.length === 0 ? (
-                            <PText color="contrast-medium" className="mt-4">No past shows yet.</PText>
+                <div className="p-6">
+                    {activeTab === 'shows' && (
+                        pastShows.length === 0 ? (
+                            <PText color="contrast-medium">No past shows yet.</PText>
                         ) : (
-                            <div className="space-y-2 mt-4">
+                            <div className="space-y-2">
                                 {pastShows.map((show) => (
                                     <Link
                                         key={show.id}
@@ -237,21 +309,18 @@ export default function UserStatsWidget() {
                                                 {show.venues.name} · {show.venues.city}, {show.venues.state_country}
                                             </PText>
                                         )}
+                                        <AttendeePills attendees={attendeesByShow[show.id]} />
                                     </Link>
                                 ))}
                             </div>
-                        )}
-                    </div>
-                )}
+                        )
+                    )}
 
-                {activeTab === 'upcoming' && (
-                    <div>
-                        <PHeading size="md" tag="h3">Upcoming Shows</PHeading>
-                        <div className="mt-4"><PDivider /></div>
-                        {upcomingShows.length === 0 ? (
-                            <PText color="contrast-medium" className="mt-4">No upcoming shows marked yet.</PText>
+                    {activeTab === 'upcoming' && (
+                        upcomingShows.length === 0 ? (
+                            <PText color="contrast-medium">No upcoming shows marked yet.</PText>
                         ) : (
-                            <div className="space-y-2 mt-4">
+                            <div className="space-y-2">
                                 {upcomingShows.map((show) => (
                                     <Link
                                         key={show.id}
@@ -268,21 +337,18 @@ export default function UserStatsWidget() {
                                         {show.tour_name && (
                                             <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>{show.tour_name}</PText>
                                         )}
+                                        <AttendeePills attendees={attendeesByShow[show.id]} />
                                     </Link>
                                 ))}
                             </div>
-                        )}
-                    </div>
-                )}
+                        )
+                    )}
 
-                {activeTab === 'seen' && (
-                    <div>
-                        <PHeading size="md" tag="h3">Songs You've Seen Live</PHeading>
-                        <div className="mt-4"><PDivider /></div>
-                        {stats.songsSeen.length === 0 ? (
-                            <PText color="contrast-medium" className="mt-4">No songs tracked yet.</PText>
+                    {activeTab === 'seen' && (
+                        stats.songsSeen.length === 0 ? (
+                            <PText color="contrast-medium">No songs tracked yet.</PText>
                         ) : (
-                            <div className="space-y-1 mt-4">
+                            <div className="space-y-1">
                                 {stats.songsSeen
                                     .sort((a, b) => b.playCount - a.playCount || a.title.localeCompare(b.title))
                                     .map((song) => (
@@ -302,20 +368,16 @@ export default function UserStatsWidget() {
                                         </div>
                                     ))}
                             </div>
-                        )}
-                    </div>
-                )}
+                        )
+                    )}
 
-                {activeTab === 'notSeen' && (
-                    <div>
-                        <PHeading size="md" tag="h3">Songs You Haven't Seen Yet</PHeading>
-                        <div className="mt-4"><PDivider /></div>
-                        {stats.songsNotSeen.length === 0 ? (
+                    {activeTab === 'notSeen' && (
+                        stats.songsNotSeen.length === 0 ? (
                             <div className="text-center py-8">
                                 <PHeading size="lg" tag="p">You've seen all the songs!</PHeading>
                             </div>
                         ) : (
-                            <div className="space-y-1 mt-4">
+                            <div className="space-y-1">
                                 {stats.songsNotSeen
                                     .sort((a, b) => a.title.localeCompare(b.title))
                                     .map((song) => (
@@ -341,9 +403,9 @@ export default function UserStatsWidget() {
                                         </div>
                                     ))}
                             </div>
-                        )}
-                    </div>
-                )}
+                        )
+                    )}
+                </div>
             </div>
 
             <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }} align="center">

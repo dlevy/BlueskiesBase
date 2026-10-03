@@ -4,6 +4,7 @@ const multer = require('multer');
 const { supabase, supabaseAdmin } = require('../config/supabase');
 const { computeSongsSeenForShows, computeDebutCounts, computeDebutDetails, computeRarityCounts } = require('../utils/attendance');
 const { computeFunStats } = require('../utils/funStats');
+const { redactProfile } = require('../utils/privacy');
 
 const AVATARS_BUCKET = 'avatars';
 
@@ -437,8 +438,53 @@ router.get('/stats', async (req, res) => {
             .filter(us => us.shows?.show_date && us.shows.show_date <= todayStr)
             .map(us => us.show_id);
 
-        const { liveDebutsWitnessed, tourDebutsWitnessed } = await computeDebutCounts(pastAttendedShowIds);
-        const { rareSongsSeenCount } = await computeRarityCounts(songsSeen);
+        const { liveDebutsWitnessed } = await computeDebutCounts(pastAttendedShowIds);
+        const { rareSongsSeenCount, rarestSongSeen } = await computeRarityCounts(songsSeen);
+
+        // Who else attended/is attending each of this user's own shows — batched into
+        // one query here rather than a per-show-row client fetch (same data shape as
+        // GET /shows/:id/attendees, grouped by show_id, with the viewer themselves
+        // excluded since they obviously attended their own shows).
+        const attendeesByShow = {};
+        if (attendedShowIds.length > 0) {
+            const { data: attendeeRows, error: attendeesError } = await supabase
+                .from('user_shows')
+                .select(`
+                    show_id,
+                    user_id,
+                    profiles:user_id ( id, username, display_name, hide_from_directory )
+                `)
+                .in('show_id', attendedShowIds)
+                .neq('user_id', user.id);
+
+            if (attendeesError) {
+                console.error('[Stats] Error fetching co-attendees:', attendeesError);
+            } else {
+                (attendeeRows || []).forEach(row => {
+                    if (!row.profiles?.username) return;
+                    const p = redactProfile(row.profiles);
+                    if (!attendeesByShow[row.show_id]) attendeesByShow[row.show_id] = [];
+                    attendeesByShow[row.show_id].push({ id: p.id, username: p.username, displayName: p.display_name || null });
+                });
+            }
+        }
+
+        // Community contribution counts (setlist submissions, photos, posters, comments)
+        // — cheap head-only counts, same pattern as GET /community-stats, just scoped to
+        // this one user. Powers the "Community" achievement track.
+        const [notesResult, submissionsResult, photosResult, postersResult] = await Promise.all([
+            supabase.from('user_notes').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
+            supabase.from('setlist_submissions').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
+            supabase.from('user_photos').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
+            supabase.from('user_posters').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
+        ]);
+        const contributionCounts = {
+            notes: notesResult.count || 0,
+            submissions: submissionsResult.count || 0,
+            photos: photosResult.count || 0,
+            posters: postersResult.count || 0,
+        };
+        contributionCounts.total = contributionCounts.notes + contributionCounts.submissions + contributionCounts.photos + contributionCounts.posters;
 
         const endTime = Date.now();
         const duration = endTime - startTime;
@@ -453,8 +499,10 @@ router.get('/stats', async (req, res) => {
             totalSongsSeen: songsSeen.length,
             totalSongsNotSeen: songsNotSeenWithShow.length,
             liveDebutsWitnessed,
-            tourDebutsWitnessed,
             rareSongsSeenCount,
+            rarestSongSeen,
+            attendeesByShow,
+            contributionCounts,
         };
 
         console.log('[Stats] Sending response...');

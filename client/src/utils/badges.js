@@ -69,3 +69,44 @@ export function getHighestBadge(showCount) {
 export function getNextBadge(showCount) {
     return BADGES.find(b => showCount < b.threshold) ?? null;
 }
+
+// Community-contribution achievement track — rewards setlist submissions, photo/poster
+// uploads, and comments, on top of (not instead of) the attendance tiers above. A
+// separate, additive export so Avatar.jsx's corner-badge overlay (which reads BADGES/
+// getHighestBadge for the attendance tier only) is unaffected.
+export const COMMUNITY_TIERS = [
+    {
+        id: 'first-contribution',
+        threshold: 1,
+        emoji: '📝',
+        name: 'First Contribution',
+        desc: 'Added something to the archive',
+    },
+    {
+        id: 'regular',
+        threshold: 5,
+        emoji: '🔧',
+        name: 'Regular',
+        desc: 'A steady hand around here',
+    },
+    {
+        id: 'pillar-of-the-archive',
+        threshold: 20,
+        emoji: '🏛️',
+        name: 'Pillar of the Archive',
+        desc: 'One of the archive\'s most dedicated builders',
+    },
+];
+
+export function getEarnedCommunityTiers(contributionCount) {
+    return COMMUNITY_TIERS.filter(t => contributionCount >= t.threshold);
+}
+
+export function getHighestCommunityTier(contributionCount) {
+    const earned = getEarnedCommunityTiers(contributionCount);
+    return earned[earned.length - 1] ?? null;
+}
+
+export function getNextCommunityTier(contributionCount) {
+    return COMMUNITY_TIERS.find(t => contributionCount < t.threshold) ?? null;
+}
