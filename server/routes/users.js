@@ -1087,7 +1087,12 @@ router.get('/check-attendance/:showId', async (req, res) => {
 router.get('/community-stats', async (req, res) => {
     try {
         const [membersResult, photosResult, postersResult] = await Promise.all([
-            supabase.from('profiles').select('*', { count: 'exact', head: true }),
+            // Excludes accounts marked private (hide_from_directory), same definition
+            // GET /directory already uses — otherwise this count and the Members page's
+            // count diverge. .not(...'is', true) (rather than .eq(..., false)) so NULL
+            // rows (the common case — most profiles never explicitly set this) still
+            // count as "not hidden", matching the directory route's `!p.hide_from_directory`.
+            supabase.from('profiles').select('*', { count: 'exact', head: true }).not('hide_from_directory', 'is', true),
             supabase.from('user_photos').select('*', { count: 'exact', head: true }),
             supabase.from('user_posters').select('*', { count: 'exact', head: true }),
         ]);
