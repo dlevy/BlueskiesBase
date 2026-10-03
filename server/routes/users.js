@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const { supabase, supabaseAdmin } = require('../config/supabase');
-const { computeSongsSeenForShows, computeDebutCounts, computeDebutDetails, computeRarityCounts } = require('../utils/attendance');
+const { computeSongsSeenForShows, computeDebutDetails, computeRarityCounts } = require('../utils/attendance');
 const { computeFunStats } = require('../utils/funStats');
 const { redactProfile } = require('../utils/privacy');
 
@@ -430,16 +430,17 @@ router.get('/stats', async (req, res) => {
             }));
         }
 
-        // Debuts witnessed — live/tour debuts that happened at shows the user actually
-        // attended (only past shows; a future show marked "attending" has no setlist
-        // yet, but filtering explicitly keeps the intent clear either way).
+        // Past shows (full objects, not just ids) — a future show marked "attending"
+        // has no setlist yet, so debuts/fun-facts are scoped to shows that already
+        // happened, same "only past shows" intent as before.
         const todayStr = new Date().toISOString().slice(0, 10);
-        const pastAttendedShowIds = attendedShows
-            .filter(us => us.shows?.show_date && us.shows.show_date <= todayStr)
-            .map(us => us.show_id);
+        const pastShows = attendedShows
+            .map(us => us.shows)
+            .filter(s => s?.show_date && s.show_date <= todayStr);
 
-        const { liveDebutsWitnessed } = await computeDebutCounts(pastAttendedShowIds);
-        const { rareSongsSeenCount, rarestSongSeen } = await computeRarityCounts(songsSeen);
+        const { liveDebuts } = await computeDebutDetails(pastShows, songsSeen);
+        const { rareSongsSeenCount, rarestSongSeen, rareSongsSeen } = await computeRarityCounts(songsSeen);
+        const funStats = computeFunStats(pastShows, songsSeen);
 
         // Who else attended/is attending each of this user's own shows — batched into
         // one query here rather than a per-show-row client fetch (same data shape as
@@ -498,11 +499,14 @@ router.get('/stats', async (req, res) => {
             songsNotSeen: songsNotSeenWithShow,
             totalSongsSeen: songsSeen.length,
             totalSongsNotSeen: songsNotSeenWithShow.length,
-            liveDebutsWitnessed,
+            liveDebutsWitnessed: liveDebuts.length,
+            liveDebuts,
             rareSongsSeenCount,
             rarestSongSeen,
+            rareSongsSeen,
             attendeesByShow,
             contributionCounts,
+            funStats,
         };
 
         console.log('[Stats] Sending response...');

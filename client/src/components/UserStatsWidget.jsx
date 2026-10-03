@@ -155,36 +155,11 @@ export default function UserStatsWidget() {
     const originalsPct = totalOriginals > 0 ? Math.round((originalsSeen / totalOriginals) * 100) : 0;
     const coversPct = totalCovers > 0 ? Math.round((coversSeen / totalCovers) * 100) : 0;
 
-    // Fan Facts — all derived from data already in hand, no extra fetches.
-    const fanSince = pastShows.length > 0
-        ? [...pastShows].sort((a, b) => a.show_date.localeCompare(b.show_date))[0]
-        : null;
-    const fanSinceYears = fanSince ? today.getFullYear() - Number(fanSince.show_date.slice(0, 4)) : null;
-
-    const favoriteSong = stats.songsSeen.length > 0
-        ? [...stats.songsSeen].sort((a, b) => b.playCount - a.playCount)[0]
-        : null;
-
-    const venueTally = new Map();
-    pastShows.forEach(show => {
-        if (!show.venues) return;
-        const key = show.venues.name + '|' + show.venues.city;
-        const entry = venueTally.get(key) || { venue: show.venues, count: 0 };
-        entry.count++;
-        venueTally.set(key, entry);
-    });
-    const topVenue = [...venueTally.values()].sort((a, b) => b.count - a.count)[0] || null;
-
-    const buddyTally = new Map();
-    pastShows.forEach(show => {
-        (attendeesByShow[show.id] || []).forEach(a => {
-            if (!a.id) return;
-            const entry = buddyTally.get(a.id) || { person: a, count: 0 };
-            entry.count++;
-            buddyTally.set(a.id, entry);
-        });
-    });
-    const topBuddy = [...buddyTally.values()].sort((a, b) => b.count - a.count)[0] || null;
+    // Fan Facts — server-computed by the shared computeFunStats util (same one the
+    // public profile page uses), so "first show"/"top venue"/"top song" stay in
+    // lockstep with that definition instead of a second, possibly-diverging version.
+    const funStats = stats.funStats;
+    const firstShowYearsAgo = funStats ? today.getFullYear() - Number(funStats.firstShow.show_date.slice(0, 4)) : null;
 
     if (stats.attendedShows.length === 0) {
         return (
@@ -201,65 +176,38 @@ export default function UserStatsWidget() {
         <div className="space-y-4">
             <PHeading size="xs" tag="h2">My Stats</PHeading>
 
-            {/* Summary + By the Numbers, folded into one glance */}
+            {/* Summary */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <StatCard value={pastShows.length} label="Shows Attended" />
                 <StatCard value={upcomingShows.length} label="Upcoming Shows" />
                 <StatCard value={stats.songsSeen.length} label="Songs Seen Live" />
                 <StatCard value={stats.songsNotSeen.length} label="Songs Not Seen Yet" />
-                <FactCard
-                    label="Originals Seen"
-                    value={`${originalsPct}%`}
-                    sub={`${originalsSeen} of ${totalOriginals}`}
-                />
-                <FactCard
-                    label="Covers Seen"
-                    value={`${coversPct}%`}
-                    sub={`${coversSeen} of ${totalCovers}`}
-                />
-                <FactCard
-                    label="Rare Songs Seen"
-                    value={stats.rareSongsSeenCount ?? 0}
-                    sub={stats.rarestSongSeen ? `incl. ${stats.rarestSongSeen.title}` : 'among the all-time rarest'}
-                />
-                <FactCard
-                    label="Live Debuts Witnessed"
-                    value={stats.liveDebutsWitnessed ?? 0}
-                    sub="first-ever performances"
-                />
             </div>
 
             {/* Fan Facts */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {fanSince && (
+            {funStats && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <FactCard
-                        label="Fan Since"
-                        value={fanSince.show_date.slice(0, 4)}
-                        sub={`${fanSinceYears} year${fanSinceYears === 1 ? '' : 's'} and counting`}
+                        label="First Live Show"
+                        value={formatDate(funStats.firstShow.show_date)}
+                        sub={firstShowYearsAgo > 0 ? `${firstShowYearsAgo} year${firstShowYearsAgo === 1 ? '' : 's'} ago` : 'This year'}
                     />
-                )}
-                {favoriteSong && (
-                    <FactCard
-                        label="Favorite Song Live"
-                        value={favoriteSong.title}
-                        sub={`seen ${favoriteSong.playCount}x`}
-                    />
-                )}
-                {topVenue && (
-                    <FactCard
-                        label="Most-Seen Venue"
-                        value={topVenue.venue.name}
-                        sub={`${topVenue.count} show${topVenue.count === 1 ? '' : 's'} · ${topVenue.venue.city}`}
-                    />
-                )}
-                {topBuddy && (
-                    <FactCard
-                        label="Concert Buddy"
-                        value={topBuddy.person.displayName || topBuddy.person.username}
-                        sub={`${topBuddy.count} show${topBuddy.count === 1 ? '' : 's'} together`}
-                    />
-                )}
-            </div>
+                    {funStats.topSong && (
+                        <FactCard
+                            label="Favorite Song Live"
+                            value={funStats.topSong.title}
+                            sub={`seen ${funStats.topSong.playCount}x`}
+                        />
+                    )}
+                    {funStats.topVenue && (
+                        <FactCard
+                            label="Most-Seen Venue"
+                            value={funStats.topVenue.name}
+                            sub={`${funStats.topVenue.count} show${funStats.topVenue.count === 1 ? '' : 's'} · ${funStats.topVenue.city}`}
+                        />
+                    )}
+                </div>
+            )}
 
             {/* Achievements */}
             <AchievementsPanel showCount={pastShows.length} contributionCount={stats.contributionCounts?.total ?? 0} />
@@ -273,7 +221,10 @@ export default function UserStatsWidget() {
                     {[
                         ['shows', `Past Shows (${pastShows.length})`],
                         ['upcoming', `Upcoming (${upcomingShows.length})`],
-                        ['seen', `Songs Seen (${stats.songsSeen.length})`],
+                        ['originals', `Originals Seen (${originalsPct}%)`],
+                        ['covers', `Covers Seen (${coversPct}%)`],
+                        ['rare', `Rare Songs Seen (${stats.rareSongsSeenCount ?? 0})`],
+                        ['debuts', `Live Debuts (${stats.liveDebutsWitnessed ?? 0})`],
                         ['notSeen', `Not Seen Yet (${stats.songsNotSeen.length})`],
                     ].map(([id, label]) => (
                         <button
@@ -344,29 +295,97 @@ export default function UserStatsWidget() {
                         )
                     )}
 
-                    {activeTab === 'seen' && (
-                        stats.songsSeen.length === 0 ? (
-                            <PText color="contrast-medium">No songs tracked yet.</PText>
+                    {activeTab === 'originals' && (
+                        originalsSeen === 0 ? (
+                            <PText color="contrast-medium">No originals tracked yet.</PText>
                         ) : (
                             <div className="space-y-1">
                                 {stats.songsSeen
+                                    .filter(s => !isCover(s))
                                     .sort((a, b) => b.playCount - a.playCount || a.title.localeCompare(b.title))
                                     .map((song) => (
                                         <div
                                             key={song.id}
                                             className="flex items-center justify-between gap-3 py-2 px-3 rounded-lg hover:bg-white/5 transition-colors"
                                         >
-                                            <div className="flex items-center gap-2 min-w-0">
-                                                <PText weight="semi-bold">{song.title}</PText>
-                                                {!song.is_original && (
-                                                    <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-300 whitespace-nowrap">Cover</span>
-                                                )}
-                                            </div>
+                                            <PText weight="semi-bold">{song.title}</PText>
                                             <PText size="xs" color="contrast-medium" className="whitespace-nowrap shrink-0">
                                                 {song.playCount}x
                                             </PText>
                                         </div>
                                     ))}
+                            </div>
+                        )
+                    )}
+
+                    {activeTab === 'covers' && (
+                        coversSeen === 0 ? (
+                            <PText color="contrast-medium">No covers tracked yet.</PText>
+                        ) : (
+                            <div className="space-y-1">
+                                {stats.songsSeen
+                                    .filter(isCover)
+                                    .sort((a, b) => b.playCount - a.playCount || a.title.localeCompare(b.title))
+                                    .map((song) => (
+                                        <div
+                                            key={song.id}
+                                            className="flex items-center justify-between gap-3 py-2 px-3 rounded-lg hover:bg-white/5 transition-colors"
+                                        >
+                                            <PText weight="semi-bold">{song.title}</PText>
+                                            <PText size="xs" color="contrast-medium" className="whitespace-nowrap shrink-0">
+                                                {song.playCount}x
+                                            </PText>
+                                        </div>
+                                    ))}
+                            </div>
+                        )
+                    )}
+
+                    {activeTab === 'rare' && (
+                        !stats.rareSongsSeen || stats.rareSongsSeen.length === 0 ? (
+                            <PText color="contrast-medium">You haven't caught any of the all-time rarest songs yet.</PText>
+                        ) : (
+                            <div className="space-y-1">
+                                {stats.rareSongsSeen.map((song) => (
+                                    <div
+                                        key={song.id}
+                                        className="flex items-center justify-between gap-3 py-2 px-3 rounded-lg hover:bg-white/5 transition-colors"
+                                    >
+                                        <PText weight="semi-bold">{song.title}</PText>
+                                        <PText size="xs" color="contrast-medium" className="whitespace-nowrap shrink-0">
+                                            {song.playCount}x all-time
+                                        </PText>
+                                    </div>
+                                ))}
+                            </div>
+                        )
+                    )}
+
+                    {activeTab === 'debuts' && (
+                        !stats.liveDebuts || stats.liveDebuts.length === 0 ? (
+                            <PText color="contrast-medium">No live debuts witnessed yet.</PText>
+                        ) : (
+                            <div className="space-y-1">
+                                {stats.liveDebuts.map((d) => (
+                                    <div
+                                        key={`${d.showId}-${d.songId}`}
+                                        className="flex items-center justify-between gap-3 py-2 px-3 rounded-lg hover:bg-white/5 transition-colors"
+                                    >
+                                        <PText weight="semi-bold">{d.title}</PText>
+                                        {d.show ? (
+                                            <Link
+                                                to={buildShowPath(d.show)}
+                                                className="text-xs text-[var(--p-color-info)] hover:opacity-80 transition-opacity whitespace-nowrap shrink-0"
+                                            >
+                                                {formatDate(d.showDate)}
+                                            </Link>
+                                        ) : (
+                                            <PText size="xs" color="contrast-medium" className="whitespace-nowrap shrink-0">
+                                                {formatDate(d.showDate)}
+                                            </PText>
+                                        )}
+                                    </div>
+                                ))}
                             </div>
                         )
                     )}

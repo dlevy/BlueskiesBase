@@ -74,26 +74,6 @@ async function computeSongsSeenForShows(showIds) {
 }
 
 /**
- * Live/tour debuts witnessed at a set of a user's past attended shows. Shared by the
- * personal stats route and the public profile route so both agree on the same
- * definition (same debut utility either way).
- */
-async function computeDebutCounts(pastShowIds) {
-    let liveDebutsWitnessed = 0;
-    let tourDebutsWitnessed = 0;
-    try {
-        const debutsByShow = await computeDebutsForShows(pastShowIds);
-        Object.values(debutsByShow).forEach(d => {
-            liveDebutsWitnessed += d.live_debut_song_ids.length;
-            tourDebutsWitnessed += d.tour_debut_song_ids.length;
-        });
-    } catch (err) {
-        console.error('[computeDebutCounts] Error computing debuts witnessed:', err);
-    }
-    return { liveDebutsWitnessed, tourDebutsWitnessed };
-}
-
-/**
  * Live/tour debuts witnessed, with song title + the date/show they were witnessed at
  * (not just a count). Used by the public profile page; `pastShows` must be full show
  * objects (id + show_date, from the same set passed to computeSongsSeenForShows) and
@@ -130,29 +110,30 @@ async function computeDebutDetails(pastShows, songsSeen) {
 }
 
 /**
- * How many all-time-rarest songs a user has seen (and the single rarest match), given
- * their already-computed songsSeen list. Used by the personal stats route only — the
- * public profile page doesn't surface this.
+ * How many all-time-rarest songs a user has seen (plus the single rarest match and
+ * the full list, rarest-first), given their already-computed songsSeen list. Used by
+ * the personal stats route only — the public profile page doesn't surface this.
  */
 async function computeRarityCounts(songsSeen) {
     let rareSongsSeenCount = 0;
     let rarestSongSeen = null;
+    let rareSongsSeen = [];
     try {
         const globalStats = await computeGlobalSongStats(10);
         const rarestSongs = [...globalStats.originals.rarest, ...globalStats.covers.rarest];
-        const rareSongIds = new Set(rarestSongs.map(s => s.id));
-        const seenRare = songsSeen.filter(s => rareSongIds.has(s.id));
+        const playCountById = new Map(rarestSongs.map(s => [s.id, s.playCount]));
+        const seenRare = songsSeen.filter(s => playCountById.has(s.id));
         rareSongsSeenCount = seenRare.length;
         if (seenRare.length > 0) {
-            const rarestMatch = rarestSongs
-                .filter(s => seenRare.some(seen => seen.id === s.id))
-                .sort((a, b) => a.playCount - b.playCount)[0];
-            rarestSongSeen = rarestMatch ? { title: rarestMatch.title, playCount: rarestMatch.playCount } : null;
+            rareSongsSeen = seenRare
+                .map(s => ({ id: s.id, title: s.title, playCount: playCountById.get(s.id) }))
+                .sort((a, b) => a.playCount - b.playCount);
+            rarestSongSeen = { title: rareSongsSeen[0].title, playCount: rareSongsSeen[0].playCount };
         }
     } catch (err) {
         console.error('[computeRarityCounts] Error computing rare songs seen:', err);
     }
-    return { rareSongsSeenCount, rarestSongSeen };
+    return { rareSongsSeenCount, rarestSongSeen, rareSongsSeen };
 }
 
-module.exports = { computeSongsSeenForShows, computeDebutCounts, computeDebutDetails, computeRarityCounts };
+module.exports = { computeSongsSeenForShows, computeDebutDetails, computeRarityCounts };
