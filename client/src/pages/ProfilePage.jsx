@@ -329,6 +329,9 @@ export default function ProfilePage() {
                 )}
             </div>
 
+            {/* Achievements — public for any profile, so members can see each other's */}
+            <AchievementsPanel showCount={profile.totalShowsAttended} contributionCount={profile.contributionCount ?? 0} />
+
             {/* Stats */}
             <div className="space-y-4">
                 <div className="flex items-center justify-between gap-2">
@@ -339,29 +342,27 @@ export default function ProfilePage() {
                         </Link>
                     )}
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                    <FactCard label="Shows Attended" value={profile.totalShowsAttended} />
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                    <FactCard compact label="Shows Attended" value={profile.totalShowsAttended} />
                     {profile.firstShow && (
-                        <FactCard label="First Show" value={formatDate(profile.firstShow.show_date)} />
+                        <FactCard compact label="First Show" value={formatDate(profile.firstShow.show_date)} />
                     )}
                     {profile.favoriteShow && (
                         <FactCard
+                            compact
                             label="Favorite Show"
                             value={profile.favoriteShow.artist_name}
                             sub={`${formatDate(profile.favoriteShow.show_date)}${profile.favoriteShow.venues ? ' · ' + profile.favoriteShow.venues.name : ''}`}
                         />
                     )}
                     {profile.favoriteVenue && (
-                        <FactCard label="Favorite Venue" value={profile.favoriteVenue.name} sub={profile.favoriteVenue.city} />
+                        <FactCard compact label="Favorite Venue" value={profile.favoriteVenue.name} sub={profile.favoriteVenue.city} />
                     )}
                     {profile.uniqueCities > 0 && (
-                        <FactCard label="Cities Visited" value={`${profile.uniqueCities} cities`} />
+                        <FactCard compact label="Cities Visited" value={`${profile.uniqueCities} cities`} />
                     )}
                 </div>
             </div>
-
-            {/* Achievements — public for any profile, so members can see each other's */}
-            <AchievementsPanel showCount={profile.totalShowsAttended} contributionCount={profile.contributionCount ?? 0} />
 
             {/* Debuts witnessed — the actual songs + dates, not just a count */}
             {(profile.liveDebuts?.length > 0 || profile.tourDebuts?.length > 0) && (
@@ -436,6 +437,35 @@ export default function ProfilePage() {
                 </div>
             )}
 
+            {/* Map + Shows Attended, side-by-side as one "Shows" view — only present if
+                this user opted in to sharing attendance */}
+            {profile.attendedShows && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+                    <ShowMapShare pastShows={profile.attendedShows} upcomingShows={[]} title={`${displayLabel}'s Show Map`} />
+
+                    <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6">
+                        <PHeading size="lg" tag="h2">Shows Attended</PHeading>
+                        <div className="mt-4 space-y-2">
+                            {profile.attendedShows.map(show => (
+                                <Link
+                                    key={show.id}
+                                    to={buildShowPath(show)}
+                                    className="block rounded-xl border border-white/5 bg-white/5 p-4 hover:bg-white/10 hover:border-white/20 transition-all"
+                                >
+                                    <PText weight="semi-bold">{formatDate(show.show_date)}</PText>
+                                    <PText size="sm" color="contrast-medium">{show.artist_name}</PText>
+                                    {show.venues && (
+                                        <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>
+                                            {show.venues.name} · {show.venues.city}, {show.venues.state_country}
+                                        </PText>
+                                    )}
+                                </Link>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Poster collection */}
             {profile.posterCollection?.length > 0 && (
                 <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6">
@@ -448,7 +478,8 @@ export default function ProfilePage() {
                 </div>
             )}
 
-            {/* Posters wanted — a wishlist, distinct from the collection above */}
+            {/* Posters wanted — a wishlist, distinct from the collection above. Kept as
+                the last section on the page, alongside the collection above it. */}
             {profile.postersWanted?.length > 0 && (
                 <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6">
                     <PHeading size="lg" tag="h2">Posters Wanted</PHeading>
@@ -480,35 +511,6 @@ export default function ProfilePage() {
                             </li>
                         ))}
                     </ul>
-                </div>
-            )}
-
-            {/* Show map — only present if this user opted in to sharing attendance */}
-            {profile.attendedShows && (
-                <ShowMapShare pastShows={profile.attendedShows} upcomingShows={[]} title={`${displayLabel}'s Show Map`} />
-            )}
-
-            {/* Attended shows — only present if this user opted in */}
-            {profile.attendedShows && (
-                <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6">
-                    <PHeading size="lg" tag="h2">Shows Attended</PHeading>
-                    <div className="mt-4 space-y-2">
-                        {profile.attendedShows.map(show => (
-                            <Link
-                                key={show.id}
-                                to={buildShowPath(show)}
-                                className="block rounded-xl border border-white/5 bg-white/5 p-4 hover:bg-white/10 hover:border-white/20 transition-all"
-                            >
-                                <PText weight="semi-bold">{formatDate(show.show_date)}</PText>
-                                <PText size="sm" color="contrast-medium">{show.artist_name}</PText>
-                                {show.venues && (
-                                    <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>
-                                        {show.venues.name} · {show.venues.city}, {show.venues.state_country}
-                                    </PText>
-                                )}
-                            </Link>
-                        ))}
-                    </div>
                 </div>
             )}
         </div>
