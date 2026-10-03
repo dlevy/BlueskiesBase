@@ -5,6 +5,7 @@ import {
     uploadBandMemberPhoto, replaceBandMemberTenures, createGearItem, updateGearItem, deleteGearItem,
 } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
+import LinksEditor from '../../components/LinksEditor';
 
 const inputClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--p-color-info)] focus:border-transparent placeholder:text-gray-500";
 const labelClass = "block text-xs font-medium mb-1.5";
@@ -23,13 +24,14 @@ const CATEGORY_OPTIONS = [
 ];
 const CATEGORY_LABELS = Object.fromEntries(CATEGORY_OPTIONS.map(c => [c.value, c.label]));
 
-const blankGearForm = { category: 'guitar', make: '', model: '', year: '', notes: '', start_date: '', end_date: '', isCurrent: true, photoFile: null };
+const blankGearForm = { category: 'guitar', make: '', model: '', year: '', notes: '', start_date: '', end_date: '', isCurrent: true, links: [], photoFile: null };
 
 export default function BandMemberForm({ member, onClose }) {
     const { isAdmin } = useAuth();
     const [savedMember, setSavedMember] = useState(member);
     const [formData, setFormData] = useState({ name: member?.name || '', bio: member?.bio || '' });
     const [roles, setRoles] = useState(member?.roles || []);
+    const [links, setLinks] = useState(member?.links || []);
     const [newRole, setNewRole] = useState('');
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState(null);
@@ -74,10 +76,10 @@ export default function BandMemberForm({ member, onClose }) {
         setError(null);
         try {
             if (savedMember) {
-                const { member: updated } = await updateBandMember(savedMember.id, { name: formData.name, bio: formData.bio, roles });
+                const { member: updated } = await updateBandMember(savedMember.id, { name: formData.name, bio: formData.bio, roles, links });
                 setSavedMember(prev => ({ ...prev, ...updated }));
             } else {
-                const { member: created } = await createBandMember({ name: formData.name, bio: formData.bio, roles });
+                const { member: created } = await createBandMember({ name: formData.name, bio: formData.bio, roles, links });
                 setSavedMember(created);
             }
         } catch (err) {
@@ -152,6 +154,7 @@ export default function BandMemberForm({ member, onClose }) {
         start_date: gear.start_date || '',
         end_date: gear.end_date || '',
         isCurrent: !gear.end_date,
+        links: gear.links || [],
         photoFile: null,
     });
     const closeGearForm = () => setGearForm(null);
@@ -168,6 +171,7 @@ export default function BandMemberForm({ member, onClose }) {
                 notes: gearForm.notes,
                 start_date: gearForm.start_date,
                 end_date: gearForm.isCurrent ? '' : gearForm.end_date,
+                links: gearForm.links,
                 photoFile: gearForm.photoFile,
             };
             if (gearForm.editingGearId) {
@@ -246,6 +250,8 @@ export default function BandMemberForm({ member, onClose }) {
                     </div>
                     <PText size="x-small" color="contrast-medium">A member can have more than one — e.g. Keyboards + Saxophone.</PText>
                 </div>
+
+                <LinksEditor links={links} onChange={setLinks} label="Social / Website Links" />
 
                 <div className="flex gap-3 pt-4 border-t border-white/10">
                     <PButton type="submit" loading={saving}>
@@ -404,6 +410,7 @@ export default function BandMemberForm({ member, onClose }) {
                                     Currently in use
                                 </label>
                             </div>
+                            <LinksEditor links={gearForm.links} onChange={newLinks => setGearForm(prev => ({ ...prev, links: newLinks }))} label="Links (manufacturer page, demo video, etc.)" />
                             <div className="flex gap-2">
                                 <PButton type="button" loading={savingGear} onClick={handleSaveGear}>Save Gear Item</PButton>
                                 <PButton type="button" variant="secondary" disabled={savingGear} onClick={closeGearForm}>Cancel</PButton>

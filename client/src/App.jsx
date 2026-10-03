@@ -10,6 +10,7 @@ import ShowDetailPage from './pages/ShowDetailPage'
 import StatsPage from './pages/StatsPage'
 import PostersPage from './pages/PostersPage'
 import BandPage from './pages/BandPage'
+import BandMemberPage from './pages/BandMemberPage'
 import PhotosPage from './pages/PhotosPage'
 import LinksPage from './pages/LinksPage'
 import MembersPage from './pages/MembersPage'
@@ -55,6 +56,7 @@ function App() {
             <Route path="stats" element={<StatsPage />} />
             <Route path="posters" element={<PostersPage />} />
             <Route path="band" element={<BandPage />} />
+            <Route path="band/:slug" element={<BandMemberPage />} />
             <Route path="photos" element={<PhotosPage />} />
             <Route path="links" element={<LinksPage />} />
             <Route path="members" element={<MembersPage />} />

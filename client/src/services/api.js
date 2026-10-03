@@ -2038,14 +2038,14 @@ export const getBandMember = async (id) => {
     return response.json();
 };
 
-export const createBandMember = async ({ name, bio, roles }) => {
+export const createBandMember = async ({ name, bio, roles, links }) => {
     const token = await getAuthToken();
     if (!token) throw new Error('Not authenticated');
 
     const response = await fetchWithAuth(`${API_BASE_URL}/api/band-members`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ name, bio, roles }),
+        body: JSON.stringify({ name, bio, roles, links }),
     });
     if (!response.ok) {
         const error = await response.json().catch(() => ({}));
@@ -2054,14 +2054,14 @@ export const createBandMember = async ({ name, bio, roles }) => {
     return response.json();
 };
 
-export const updateBandMember = async (id, { name, bio, roles, sort_order } = {}) => {
+export const updateBandMember = async (id, { name, bio, roles, links, sort_order } = {}) => {
     const token = await getAuthToken();
     if (!token) throw new Error('Not authenticated');
 
     const response = await fetchWithAuth(`${API_BASE_URL}/api/band-members/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ name, bio, roles, sort_order }),
+        body: JSON.stringify({ name, bio, roles, links, sort_order }),
     });
     if (!response.ok) {
         const error = await response.json().catch(() => ({}));
@@ -2127,7 +2127,7 @@ export const replaceBandMemberTenures = async (id, tenures) => {
 /**
  * gear: { category, make?, model?, year?, notes?, start_date?, end_date?, photoFile? }
  */
-const gearFormData = ({ category, make, model, year, notes, start_date, end_date, photoFile }) => {
+const gearFormData = ({ category, make, model, year, notes, start_date, end_date, links, photoFile }) => {
     const formData = new FormData();
     formData.append('category', category);
     if (make) formData.append('make', make);
@@ -2136,6 +2136,7 @@ const gearFormData = ({ category, make, model, year, notes, start_date, end_date
     if (notes) formData.append('notes', notes);
     if (start_date) formData.append('start_date', start_date);
     if (end_date) formData.append('end_date', end_date);
+    if (links) formData.append('links', JSON.stringify(links));
     if (photoFile) formData.append('photo', photoFile);
     return formData;
 };

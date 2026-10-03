@@ -38,6 +38,29 @@ async function uploadPhotoToBucket(bucket, idForPath, file) {
     return publicUrl;
 }
 
+// Validates/normalizes a `links` payload — a plain array for band member JSON
+// bodies, or a JSON-encoded string for gear's multipart bodies (FormData can't
+// carry nested arrays). Drops empty rows, trims text, requires an http(s) url
+// on anything kept. Throws with a user-facing message on malformed input.
+function parseLinks(raw) {
+    if (raw === undefined || raw === null || raw === '') return [];
+    let value = raw;
+    if (typeof raw === 'string') {
+        try { value = JSON.parse(raw); } catch { throw new Error('links must be valid JSON'); }
+    }
+    if (!Array.isArray(value)) throw new Error('links must be an array');
+
+    return value
+        .map(entry => ({ text: (entry?.text || '').trim(), url: (entry?.url || '').trim() }))
+        .filter(entry => entry.text || entry.url)
+        .map(entry => {
+            if (!/^https?:\/\//i.test(entry.url)) {
+                throw new Error(`Link "${entry.text || entry.url}" needs a valid http(s) URL`);
+            }
+            return entry;
+        });
+}
+
 /**
  * GET /api/band-members
  * Public. Every band member with their tenures and gear embedded — the
@@ -50,9 +73,9 @@ router.get('/', async (req, res) => {
         const { data: members, error } = await supabaseAdmin
             .from('band_members')
             .select(`
-                id, name, photo_url, bio, roles, sort_order, created_at,
+                id, name, photo_url, bio, roles, links, sort_order, created_at,
                 band_member_tenures ( id, start_year, end_year ),
-                gear_items ( id, category, make, model, year, notes, photo_url, start_date, end_date )
+                gear_items ( id, category, make, model, year, notes, photo_url, links, start_date, end_date )
             `)
             .order('sort_order');
 
@@ -77,9 +100,9 @@ router.get('/:id', async (req, res) => {
         const { data: member, error } = await supabaseAdmin
             .from('band_members')
             .select(`
-                id, name, photo_url, bio, roles, sort_order, created_at,
+                id, name, photo_url, bio, roles, links, sort_order, created_at,
                 band_member_tenures ( id, start_year, end_year ),
-                gear_items ( id, category, make, model, year, notes, photo_url, start_date, end_date )
+                gear_items ( id, category, make, model, year, notes, photo_url, links, start_date, end_date )
             `)
             .eq('id', req.params.id)
             .single();
@@ -104,9 +127,16 @@ router.get('/:id', async (req, res) => {
  */
 router.post('/', requireEditorOrAdmin, async (req, res) => {
     try {
-        const { name, bio, roles } = req.body;
+        const { name, bio, roles, links } = req.body;
         if (!name || !name.trim()) {
             return res.status(400).json({ error: 'Name is required' });
+        }
+
+        let parsedLinks;
+        try {
+            parsedLinks = parseLinks(links);
+        } catch (linksError) {
+            return res.status(400).json({ error: linksError.message });
         }
 
         // New members go to the end of the roster, same "max + 1" convention
@@ -120,7 +150,7 @@ router.post('/', requireEditorOrAdmin, async (req, res) => {
 
         const { data: member, error } = await supabaseAdmin
             .from('band_members')
-            .insert({ name: name.trim(), bio: bio || null, roles: Array.isArray(roles) ? roles : [], sort_order: nextSortOrder })
+            .insert({ name: name.trim(), bio: bio || null, roles: Array.isArray(roles) ? roles : [], links: parsedLinks, sort_order: nextSortOrder })
             .select()
             .single();
 
@@ -144,7 +174,7 @@ router.post('/', requireEditorOrAdmin, async (req, res) => {
  */
 router.put('/:id', requireEditorOrAdmin, async (req, res) => {
     try {
-        const { name, bio, roles, sort_order } = req.body;
+        const { name, bio, roles, links, sort_order } = req.body;
         const updates = {};
 
         if (name !== undefined) {
@@ -153,6 +183,13 @@ router.put('/:id', requireEditorOrAdmin, async (req, res) => {
         }
         if (bio !== undefined) updates.bio = bio || null;
         if (roles !== undefined) updates.roles = Array.isArray(roles) ? roles : [];
+        if (links !== undefined) {
+            try {
+                updates.links = parseLinks(links);
+            } catch (linksError) {
+                return res.status(400).json({ error: linksError.message });
+            }
+        }
         if (sort_order !== undefined) updates.sort_order = sort_order;
 
         if (Object.keys(updates).length === 0) {
@@ -322,13 +359,20 @@ router.put('/:id/tenures', requireEditorOrAdmin, async (req, res) => {
 router.post('/:id/gear', requireEditorOrAdmin, uploadPhoto.single('photo'), async (req, res) => {
     try {
         const { id } = req.params;
-        const { category, make, model, year, notes, start_date, end_date } = req.body;
+        const { category, make, model, year, notes, start_date, end_date, links } = req.body;
 
         if (!VALID_CATEGORIES.includes(category)) {
             return res.status(400).json({ error: `category must be one of: ${VALID_CATEGORIES.join(', ')}` });
         }
         if (start_date && end_date && end_date < start_date) {
             return res.status(400).json({ error: "End date can't be before start date" });
+        }
+
+        let parsedLinks;
+        try {
+            parsedLinks = parseLinks(links);
+        } catch (linksError) {
+            return res.status(400).json({ error: linksError.message });
         }
 
         let photoUrl = null;
@@ -351,6 +395,7 @@ router.post('/:id/gear', requireEditorOrAdmin, uploadPhoto.single('photo'), asyn
                 year: year ? parseInt(year, 10) : null,
                 notes: notes || null,
                 photo_url: photoUrl,
+                links: parsedLinks,
                 start_date: start_date || null,
                 end_date: end_date || null,
             })
@@ -378,7 +423,7 @@ router.post('/:id/gear', requireEditorOrAdmin, uploadPhoto.single('photo'), asyn
 router.put('/gear/:gearId', requireEditorOrAdmin, uploadPhoto.single('photo'), async (req, res) => {
     try {
         const { gearId } = req.params;
-        const { category, make, model, year, notes, start_date, end_date } = req.body;
+        const { category, make, model, year, notes, start_date, end_date, links } = req.body;
 
         if (!VALID_CATEGORIES.includes(category)) {
             return res.status(400).json({ error: `category must be one of: ${VALID_CATEGORIES.join(', ')}` });
@@ -387,12 +432,20 @@ router.put('/gear/:gearId', requireEditorOrAdmin, uploadPhoto.single('photo'), a
             return res.status(400).json({ error: "End date can't be before start date" });
         }
 
+        let parsedLinks;
+        try {
+            parsedLinks = parseLinks(links);
+        } catch (linksError) {
+            return res.status(400).json({ error: linksError.message });
+        }
+
         const update = {
             category,
             make: make || null,
             model: model || null,
             year: year ? parseInt(year, 10) : null,
             notes: notes || null,
+            links: parsedLinks,
             start_date: start_date || null,
             end_date: end_date || null,
         };
