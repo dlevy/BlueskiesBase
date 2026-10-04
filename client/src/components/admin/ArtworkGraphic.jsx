@@ -10,8 +10,13 @@ import { forwardRef } from 'react';
 // directly on the image, so legibility doesn't depend on `posterOpacity` —
 // text always renders at full opacity/color, with a text-shadow as a second
 // safety margin for whatever shows through a bar at a low barOpacity.
-// `bgPosX`/`bgPosY` (0-100, percent) and `bgZoom` (>=1) let the background
-// image be panned/zoomed within the fixed square, same idea as a crop tool.
+// `bgPosX`/`bgPosY` (0-100, percent) and `bgZoom` let the background image be
+// panned/zoomed within the fixed square, same idea as a crop tool. The base
+// size (bgZoom=1) is `background-size: contain` — the whole image always
+// visible, letterboxed/pillarboxed as needed — not `cover`, which would
+// silently crop a poster whose aspect ratio doesn't match the square before
+// the user ever gets a chance to zoom/pan; bgZoom then scales up from there
+// via a CSS transform to crop in only when asked.
 const PALETTE = {
     heading: '#ffffff',
     body: 'rgba(255,255,255,0.92)',
@@ -45,7 +50,7 @@ const ArtworkGraphic = forwardRef(function ArtworkGraphic({
     // padding the outer content box no longer has (see below).
     const barStyle = {
         width: '100%', background: `rgba(0,0,0,${barOpacity})`,
-        paddingLeft: SIDE_PADDING, paddingRight: SIDE_PADDING, paddingTop: 20, paddingBottom: 20,
+        paddingLeft: SIDE_PADDING, paddingRight: SIDE_PADDING, paddingTop: 36, paddingBottom: 36,
         boxSizing: 'border-box',
     };
 
@@ -69,7 +74,7 @@ const ArtworkGraphic = forwardRef(function ArtworkGraphic({
                     style={{
                         position: 'absolute', inset: 0,
                         backgroundImage: `url("${backgroundImageUrl}")`,
-                        backgroundSize: 'cover',
+                        backgroundSize: 'contain',
                         backgroundPosition: `${bgPosX}% ${bgPosY}%`,
                         backgroundRepeat: 'no-repeat',
                         opacity: posterOpacity,
@@ -79,16 +84,16 @@ const ArtworkGraphic = forwardRef(function ArtworkGraphic({
                 />
             )}
 
-            {/* Content — a full-width black bar behind tour/band up top, and
-                another behind venue/location/date at the bottom, poster
-                showing through the gap between them. No side padding here —
-                each bar supplies its own, so the bars themselves reach the
-                full width of the canvas. */}
+            {/* Content — a full-width black bar behind tour/band, flush
+                against the very top of the canvas, and another behind
+                venue/location/date, flush against the very bottom, poster
+                showing through the gap between them. No padding on this
+                outer box at all — each bar supplies its own horizontal
+                padding, and sitting flush top/bottom is the point. */}
             <div style={{
                 position: 'relative', zIndex: 1, width: '100%', height: '100%',
                 display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
                 alignItems: 'center', textAlign: 'center',
-                paddingTop: 72, paddingBottom: 72,
                 boxSizing: 'border-box',
                 color: PALETTE.body, textShadow: TEXT_SHADOW,
             }}>

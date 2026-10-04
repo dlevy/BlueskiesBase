@@ -36,10 +36,11 @@ export default function ArtworkPage() {
     // once (a bar dark enough to read text over a bright image would also
     // darken the image everywhere else, even where no text sits).
     const [barOpacity, setBarOpacity] = useState(70);
-    // Pan (0-100, percent of the canvas) and zoom (>=100%) for the
-    // background image within the fixed square — reset whenever the
-    // background image itself changes, since a crop tuned for one
-    // poster/image has no reason to still make sense for another.
+    // Pan (0-100, percent of the canvas) and zoom (50-250%, 100% = the whole
+    // image visible via background-size: contain) for the background image
+    // within the fixed square — reset whenever the background image itself
+    // changes, since a crop tuned for one poster/image has no reason to
+    // still make sense for another.
     const [bgPosX, setBgPosX] = useState(50);
     const [bgPosY, setBgPosY] = useState(50);
     const [bgZoom, setBgZoom] = useState(100);
@@ -233,7 +234,7 @@ export default function ArtworkPage() {
                         </div>
                         <input
                             type="range"
-                            min={100}
+                            min={50}
                             max={250}
                             step={10}
                             value={bgZoom}
