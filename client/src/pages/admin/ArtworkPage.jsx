@@ -7,6 +7,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import ArtworkGraphic, { ARTWORK_SIZE } from '../../components/admin/ArtworkGraphic';
 import useBackgroundImageDataUrl from '../../hooks/useBackgroundImageDataUrl';
 import useGraphicPngExport from '../../hooks/useGraphicPngExport';
+import useAverageImageColor from '../../hooks/useAverageImageColor';
 
 const PREVIEW_WIDTH = 380;
 const DEFAULT_BG_URL = '/artwork-default-bg.png';
@@ -77,6 +78,10 @@ export default function ArtworkPage() {
     const rawBackgroundImageUrl = usingDefaultBackground ? DEFAULT_BG_URL : selectedPoster?.poster_url || null;
     const { dataUrl: backgroundImageDataUrl, loading: backgroundImageLoading } = useBackgroundImageDataUrl(rawBackgroundImageUrl);
     const { generating, generatedImageUrl, download, clearGeneratedImage } = useGraphicPngExport(graphicRef, backgroundImageDataUrl);
+    // Border color auto-derived from the background image itself (see
+    // ArtworkGraphic's strokeColor prop) — reuses the same already-inlined
+    // data: URL the export hook needs, no extra fetch.
+    const strokeColor = useAverageImageColor(backgroundImageDataUrl);
 
     useEffect(() => {
         setBgPosX(DEFAULT_POS);
@@ -284,6 +289,7 @@ export default function ArtworkPage() {
                                     bgPosX={bgPosX}
                                     bgPosY={bgPosY}
                                     bgZoom={bgZoom / 100}
+                                    strokeColor={strokeColor}
                                 />
                             </div>
                         </div>

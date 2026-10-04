@@ -16,7 +16,10 @@ import { forwardRef } from 'react';
 // visible, letterboxed/pillarboxed as needed — not `cover`, which would
 // silently crop a poster whose aspect ratio doesn't match the square before
 // the user ever gets a chance to zoom/pan; bgZoom then scales up from there
-// via a CSS transform to crop in only when asked.
+// via a CSS transform to crop in only when asked. `strokeColor` (a CSS
+// color string, or null for no border) draws a 1px border around the whole
+// square — see useAverageImageColor.js, which derives it from the
+// background image itself rather than a fixed color.
 const PALETTE = {
     heading: '#ffffff',
     body: 'rgba(255,255,255,0.92)',
@@ -38,7 +41,7 @@ function formatLongDate(dateString) {
 
 const ArtworkGraphic = forwardRef(function ArtworkGraphic({
     show, backgroundImageUrl, posterOpacity = 0.5, barOpacity = 0.7,
-    bgPosX = 50, bgPosY = 50, bgZoom = 1,
+    bgPosX = 50, bgPosY = 50, bgZoom = 1, strokeColor = null,
 }, ref) {
     const location = show.venues
         ? [show.venues.city, show.venues.state_country].filter(Boolean).join(', ')
@@ -70,6 +73,9 @@ const ArtworkGraphic = forwardRef(function ArtworkGraphic({
                 width: ARTWORK_SIZE,
                 height: ARTWORK_SIZE,
                 background: '#000000',
+                // border-box so the 1px stroke draws inset, keeping the box
+                // at exactly ARTWORK_SIZE rather than growing by 2px.
+                border: strokeColor ? `1px solid ${strokeColor}` : 'none',
                 fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
                 boxSizing: 'border-box',
                 overflow: 'hidden',
