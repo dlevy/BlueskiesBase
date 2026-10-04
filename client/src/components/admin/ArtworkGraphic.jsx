@@ -3,11 +3,11 @@ import { forwardRef } from 'react';
 // Fixed-pixel-size square graphic (1080x1080), captured via html-to-image —
 // a simpler sibling of InstagramPostGraphic.jsx: no setlist, no color-style
 // picker, no SkySets branding. Background is always an image (a show poster
-// or the default artwork), so it always uses this fixed high-contrast
-// overlay palette rather than a tour color style — an arbitrary poster/photo
-// can't be assumed to work with any given palette. Paired with a dark scrim
-// and a text-shadow on every text layer so legibility never depends on which
-// part of the image sits behind a line of text.
+// or the default artwork) composited at an adjustable opacity directly over
+// a solid black ground — not a variable-strength dark overlay drawn on top
+// of a fully-opaque image. Text always renders at full opacity/color on the
+// layer above, with a text-shadow as a legibility safety margin for however
+// bright the image underneath happens to be at a given opacity.
 const PALETTE = {
     heading: '#ffffff',
     body: 'rgba(255,255,255,0.92)',
@@ -15,6 +15,7 @@ const PALETTE = {
     accent: '#fbbf24',
 };
 const TEXT_SHADOW = '0 2px 10px rgba(0,0,0,0.85), 0 1px 3px rgba(0,0,0,0.7)';
+const HEADING_FONT_STACK = "'Space Grotesk', ui-sans-serif, system-ui, sans-serif";
 
 export const ARTWORK_SIZE = 1080;
 const SIDE_PADDING = 64;
@@ -26,17 +27,10 @@ function formatLongDate(dateString) {
     });
 }
 
-// Scrim alpha at each gradient stop, at the slider's full-dark end (1.0) —
-// actual rendered alpha is this times `overlayOpacity` (0.2-0.8, see
-// ArtworkPage.jsx's slider), so the shape stays the same at every setting
-// and only the overall darkness scales.
-const SCRIM_STOPS = { top: 0.9, midTop: 0.25, midBottom: 0.22, bottom: 1 };
-
-const ArtworkGraphic = forwardRef(function ArtworkGraphic({ show, backgroundImageUrl, overlayOpacity = 0.5 }, ref) {
+const ArtworkGraphic = forwardRef(function ArtworkGraphic({ show, backgroundImageUrl, posterOpacity = 0.5 }, ref) {
     const location = show.venues
         ? [show.venues.city, show.venues.state_country].filter(Boolean).join(', ')
         : null;
-    const scrim = (stop) => (stop * overlayOpacity).toFixed(2);
 
     return (
         <div
@@ -45,7 +39,7 @@ const ArtworkGraphic = forwardRef(function ArtworkGraphic({ show, backgroundImag
                 position: 'relative',
                 width: ARTWORK_SIZE,
                 height: ARTWORK_SIZE,
-                background: '#0b0e13',
+                background: '#000000',
                 fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
                 boxSizing: 'border-box',
                 overflow: 'hidden',
@@ -59,18 +53,10 @@ const ArtworkGraphic = forwardRef(function ArtworkGraphic({ show, backgroundImag
                         position: 'absolute', inset: 0,
                         backgroundImage: `url("${backgroundImageUrl}")`,
                         backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat',
+                        opacity: posterOpacity,
                     }}
                 />
             )}
-
-            {/* Scrim — dark at top (behind tour/band) and bottom (behind
-                venue/location/date), lighter through the middle so the poster
-                itself reads more clearly there. Overall darkness is user-
-                adjustable (see overlayOpacity/SCRIM_STOPS above). */}
-            <div style={{
-                position: 'absolute', inset: 0,
-                background: `linear-gradient(180deg, rgba(3,4,7,${scrim(SCRIM_STOPS.top)}) 0%, rgba(3,4,7,${scrim(SCRIM_STOPS.midTop)}) 28%, rgba(3,4,7,${scrim(SCRIM_STOPS.midBottom)}) 58%, rgba(3,4,7,${scrim(SCRIM_STOPS.bottom)}) 100%)`,
-            }} />
 
             {/* Content — tour/band up top, venue/location/date at the bottom,
                 poster showing through the gap between them. */}
@@ -92,7 +78,7 @@ const ArtworkGraphic = forwardRef(function ArtworkGraphic({ show, backgroundImag
                         </div>
                     )}
                     <div style={{
-                        fontFamily: "'Space Grotesk', ui-sans-serif, system-ui, sans-serif",
+                        fontFamily: HEADING_FONT_STACK,
                         fontWeight: 700, fontSize: 68, lineHeight: 1.1, color: PALETTE.heading,
                     }}>
                         {show.artist_name}
@@ -101,16 +87,16 @@ const ArtworkGraphic = forwardRef(function ArtworkGraphic({ show, backgroundImag
 
                 <div>
                     {location && (
-                        <div style={{ fontSize: 48, fontWeight: 600, textTransform: 'uppercase', color: PALETTE.body, marginBottom: 10 }}>
+                        <div style={{ fontFamily: HEADING_FONT_STACK, fontSize: 48, fontWeight: 600, textTransform: 'uppercase', color: PALETTE.body, marginBottom: 4 }}>
                             {location}
                         </div>
                     )}
                     {show.venues?.name && (
-                        <div style={{ fontSize: 28, fontWeight: 600, textTransform: 'uppercase', color: PALETTE.heading, marginBottom: 18 }}>
+                        <div style={{ fontSize: 28, fontWeight: 600, textTransform: 'uppercase', color: PALETTE.heading, marginBottom: 8 }}>
                             {show.venues.name}
                         </div>
                     )}
-                    <div style={{ fontSize: 48, fontWeight: 600, textTransform: 'uppercase', color: PALETTE.muted }}>
+                    <div style={{ fontFamily: HEADING_FONT_STACK, fontSize: 48, fontWeight: 600, textTransform: 'uppercase', color: PALETTE.muted }}>
                         {formatLongDate(show.show_date)}
                     </div>
                 </div>
