@@ -16,7 +16,7 @@ const PALETTE = {
 };
 const TEXT_SHADOW = '0 2px 10px rgba(0,0,0,0.85), 0 1px 3px rgba(0,0,0,0.7)';
 
-export const PROMO_SIZE = 1080;
+export const ARTWORK_SIZE = 1080;
 const SIDE_PADDING = 64;
 
 function formatLongDate(dateString) {
@@ -26,7 +26,7 @@ function formatLongDate(dateString) {
     });
 }
 
-const PromoGraphic = forwardRef(function PromoGraphic({ show, backgroundImageUrl }, ref) {
+const ArtworkGraphic = forwardRef(function ArtworkGraphic({ show, backgroundImageUrl }, ref) {
     const location = show.venues
         ? [show.venues.city, show.venues.state_country].filter(Boolean).join(', ')
         : null;
@@ -36,8 +36,8 @@ const PromoGraphic = forwardRef(function PromoGraphic({ show, backgroundImageUrl
             ref={ref}
             style={{
                 position: 'relative',
-                width: PROMO_SIZE,
-                height: PROMO_SIZE,
+                width: ARTWORK_SIZE,
+                height: ARTWORK_SIZE,
                 background: '#0b0e13',
                 fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
                 boxSizing: 'border-box',
@@ -56,52 +56,61 @@ const PromoGraphic = forwardRef(function PromoGraphic({ show, backgroundImageUrl
                 />
             )}
 
-            {/* Scrim — darkest at the bottom where the text block sits, light
-                enough up top that the background image still reads. */}
+            {/* Scrim — dark at top (behind tour/band) and bottom (behind
+                venue/location/date), lighter through the middle so the poster
+                itself reads more clearly there. Lighter overall than a single
+                top-to-bottom fade would need, since the two text blocks now
+                carry their own contrast via text-shadow. */}
             <div style={{
                 position: 'absolute', inset: 0,
-                background: 'linear-gradient(180deg, rgba(3,4,7,0.35) 0%, rgba(3,4,7,0.3) 40%, rgba(3,4,7,0.82) 75%, rgba(3,4,7,0.94) 100%)',
+                background: 'linear-gradient(180deg, rgba(3,4,7,0.55) 0%, rgba(3,4,7,0.1) 28%, rgba(3,4,7,0.08) 58%, rgba(3,4,7,0.72) 100%)',
             }} />
 
-            {/* Content — bottom-anchored text block */}
+            {/* Content — tour/band up top, venue/location/date at the bottom,
+                poster showing through the gap between them. */}
             <div style={{
                 position: 'relative', zIndex: 1, width: '100%', height: '100%',
-                display: 'flex', flexDirection: 'column', justifyContent: 'flex-end',
+                display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
                 alignItems: 'center', textAlign: 'center',
-                paddingLeft: SIDE_PADDING, paddingRight: SIDE_PADDING, paddingBottom: 72,
+                paddingLeft: SIDE_PADDING, paddingRight: SIDE_PADDING, paddingTop: 72, paddingBottom: 72,
                 boxSizing: 'border-box',
                 color: PALETTE.body, textShadow: TEXT_SHADOW,
             }}>
-                {show.tour_name && (
+                <div>
+                    {show.tour_name && (
+                        <div style={{
+                            fontSize: 26, fontWeight: 700, letterSpacing: 3, textTransform: 'uppercase',
+                            color: PALETTE.accent, marginBottom: 14,
+                        }}>
+                            {show.tour_name}
+                        </div>
+                    )}
                     <div style={{
-                        fontSize: 26, fontWeight: 700, letterSpacing: 3, textTransform: 'uppercase',
-                        color: PALETTE.accent, marginBottom: 14,
+                        fontFamily: "'Space Grotesk', ui-sans-serif, system-ui, sans-serif",
+                        fontWeight: 700, fontSize: 68, lineHeight: 1.1, color: PALETTE.heading,
                     }}>
-                        {show.tour_name}
+                        {show.artist_name}
                     </div>
-                )}
-                <div style={{
-                    fontFamily: "'Space Grotesk', ui-sans-serif, system-ui, sans-serif",
-                    fontWeight: 700, fontSize: 68, lineHeight: 1.1, color: PALETTE.heading, marginBottom: 18,
-                }}>
-                    {show.artist_name}
                 </div>
-                {show.venues?.name && (
-                    <div style={{ fontSize: 36, fontWeight: 600, color: PALETTE.heading, marginBottom: 4 }}>
-                        {show.venues.name}
+
+                <div>
+                    {show.venues?.name && (
+                        <div style={{ fontSize: 42, fontWeight: 600, color: PALETTE.heading, marginBottom: 10 }}>
+                            {show.venues.name}
+                        </div>
+                    )}
+                    {location && (
+                        <div style={{ fontSize: 48, fontWeight: 600, color: PALETTE.body, marginBottom: 18 }}>
+                            {location}
+                        </div>
+                    )}
+                    <div style={{ fontSize: 48, fontWeight: 600, color: PALETTE.muted }}>
+                        {formatLongDate(show.show_date)}
                     </div>
-                )}
-                {location && (
-                    <div style={{ fontSize: 30, fontWeight: 500, color: PALETTE.body, marginBottom: 14 }}>
-                        {location}
-                    </div>
-                )}
-                <div style={{ fontSize: 28, color: PALETTE.muted }}>
-                    {formatLongDate(show.show_date)}
                 </div>
             </div>
         </div>
     );
 });
 
-export default PromoGraphic;
+export default ArtworkGraphic;

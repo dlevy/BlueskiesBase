@@ -541,7 +541,7 @@ export default function ShowDetailPage() {
                     )}
                     {isAdmin && (
                         <button
-                            onClick={() => navigate(`/admin/shows/${show.id}/promo`)}
+                            onClick={() => navigate(`/admin/shows/${show.id}/artwork`)}
                             className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-sm border border-white/15 hover:border-white/25 hover:bg-white/5 transition-all"
                             style={{ color: 'var(--p-color-contrast-medium)' }}
                         >
@@ -549,7 +549,7 @@ export default function ShowDetailPage() {
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 5h16v14H4V5zm0 10l4.5-4.5 3 3L16 9l4 4" />
                                 <circle cx="8.5" cy="8.5" r="1.25" />
                             </svg>
-                            Promo
+                            Artwork
                         </button>
                     )}
                     {user && (

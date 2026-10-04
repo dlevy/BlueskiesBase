@@ -7,8 +7,8 @@ import { useState, useEffect } from 'react';
 // <img>/background renders fine, the export's own SVG->canvas rasterization
 // step can still come back with the image missing. A data: URL has no
 // cross-origin/canvas-taint question at all, for the preview or the export,
-// on any browser. Shared by every graphic-export page (Instagram post, promo
-// graphic) that lets the user pick a remote image as a background.
+// on any browser. Shared by every graphic-export page (Instagram post,
+// artwork) that lets the user pick a remote image as a background.
 export default function useBackgroundImageDataUrl(url) {
     const [dataUrl, setDataUrl] = useState(null);
     const [loading, setLoading] = useState(false);

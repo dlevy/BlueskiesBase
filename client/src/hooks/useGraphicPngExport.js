@@ -7,7 +7,7 @@ import { toPng } from 'html-to-image';
 // visible — <a download> is silently a no-op — so showing the PNG in a real
 // <img> lets a touch user long-press it and "Save Image" instead, which
 // always works. Desktop browsers still get the instant auto-download).
-// Shared by every graphic-export page (Instagram post, promo graphic).
+// Shared by every graphic-export page (Instagram post, artwork).
 //
 // `backgroundImageDataUrl`, if given, is preloaded/decoded before capture —
 // it's a CSS background-image in the graphic (not an <img>), so there's

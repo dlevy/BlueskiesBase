@@ -4,14 +4,14 @@ import { PHeading, PText, PButton, PButtonPure, PInlineNotification, PSpinner } 
 import { getShowById, getShowPoster } from '../../services/api';
 import { buildShowPath } from '../../utils/showSlug';
 import { useAuth } from '../../contexts/AuthContext';
-import PromoGraphic, { PROMO_SIZE } from '../../components/admin/PromoGraphic';
+import ArtworkGraphic, { ARTWORK_SIZE } from '../../components/admin/ArtworkGraphic';
 import useBackgroundImageDataUrl from '../../hooks/useBackgroundImageDataUrl';
 import useGraphicPngExport from '../../hooks/useGraphicPngExport';
 
 const PREVIEW_WIDTH = 380;
-const DEFAULT_BG_URL = '/promo-default-bg.png';
+const DEFAULT_BG_URL = '/artwork-default-bg.png';
 
-export default function PromoGraphicPage() {
+export default function ArtworkPage() {
     const { id } = useParams();
     const { isAdmin } = useAuth();
     const [show, setShow] = useState(null);
@@ -32,7 +32,7 @@ export default function PromoGraphicPage() {
         getShowById(id)
             .then(data => setShow(data))
             .catch(err => {
-                console.error('[PromoGraphicPage] Error loading show:', err);
+                console.error('[ArtworkPage] Error loading show:', err);
                 setError('Failed to load show');
             })
             .finally(() => setLoading(false));
@@ -45,7 +45,7 @@ export default function PromoGraphicPage() {
                 setPosters(loaded);
                 if (loaded.length > 0) setSelectedPosterId(loaded[0].id);
             })
-            .catch(err => console.error('[PromoGraphicPage] Error loading posters:', err))
+            .catch(err => console.error('[ArtworkPage] Error loading posters:', err))
             .finally(() => setPostersLoaded(true));
     }, [id]);
 
@@ -58,13 +58,13 @@ export default function PromoGraphicPage() {
     const handleDownload = () => {
         const datePart = show.show_date;
         const artistPart = show.artist_name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-        download(`${datePart}-${artistPart}-promo.png`);
+        download(`${datePart}-${artistPart}-artwork.png`);
     };
 
     if (!isAdmin) {
         return (
             <PText color="contrast-medium">
-                The promo graphic tool is restricted to full admins.
+                The artwork tool is restricted to full admins.
             </PText>
         );
     }
@@ -77,13 +77,13 @@ export default function PromoGraphicPage() {
         return <PInlineNotification heading="Error" description={error || 'Show not found'} state="error" dismissButton={false} />;
     }
 
-    const previewScale = PREVIEW_WIDTH / PROMO_SIZE;
+    const previewScale = PREVIEW_WIDTH / ARTWORK_SIZE;
 
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <PHeading size="2xl" tag="h1">Promo Graphic</PHeading>
+                    <PHeading size="2xl" tag="h1">Artwork</PHeading>
                     <PText size="small" color="contrast-medium">
                         {show.artist_name} &middot; {show.show_date}
                     </PText>
@@ -149,8 +149,8 @@ export default function PromoGraphicPage() {
                 {/* Preview */}
                 <div className="flex items-start justify-center rounded-2xl border border-white/10 p-8" style={{ background: 'var(--p-color-canvas)' }}>
                     <div style={{ width: PREVIEW_WIDTH, height: PREVIEW_WIDTH, overflow: 'hidden', borderRadius: 12, boxShadow: '0 10px 40px rgba(0,0,0,0.4)' }}>
-                        <div style={{ width: PROMO_SIZE, height: PROMO_SIZE, transform: `scale(${previewScale})`, transformOrigin: 'top left' }}>
-                            <PromoGraphic ref={graphicRef} show={show} backgroundImageUrl={backgroundImageDataUrl} />
+                        <div style={{ width: ARTWORK_SIZE, height: ARTWORK_SIZE, transform: `scale(${previewScale})`, transformOrigin: 'top left' }}>
+                            <ArtworkGraphic ref={graphicRef} show={show} backgroundImageUrl={backgroundImageDataUrl} />
                         </div>
                     </div>
                 </div>
@@ -175,7 +175,7 @@ export default function PromoGraphicPage() {
                     </button>
                     <img
                         src={generatedImageUrl}
-                        alt="Generated promo graphic"
+                        alt="Generated artwork"
                         onClick={(e) => e.stopPropagation()}
                         style={{ maxWidth: '100%', maxHeight: '80vh', borderRadius: 12 }}
                     />
