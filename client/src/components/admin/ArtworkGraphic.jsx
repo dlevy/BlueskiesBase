@@ -101,7 +101,12 @@ const ArtworkGraphic = forwardRef(function ArtworkGraphic({
             <div style={{
                 position: 'relative', zIndex: 1, width: '100%', height: '100%',
                 display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-                alignItems: 'center', textAlign: 'center',
+                // 'stretch' (not 'center') so each group's wrapper div fills
+                // the full canvas width — otherwise it shrinks to its own
+                // content's width and the bar's `width: 100%` only spans
+                // that shrunk box, not the canvas. textAlign still centers
+                // the text itself within the now-full-width bar.
+                alignItems: 'stretch', textAlign: 'center',
                 boxSizing: 'border-box',
                 color: PALETTE.body, textShadow: TEXT_SHADOW,
             }}>
