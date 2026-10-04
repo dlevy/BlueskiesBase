@@ -53,6 +53,14 @@ const ArtworkGraphic = forwardRef(function ArtworkGraphic({
         paddingLeft: SIDE_PADDING, paddingRight: SIDE_PADDING, paddingTop: 36, paddingBottom: 36,
         boxSizing: 'border-box',
     };
+    // A dedicated fade strip beyond each bar's own text/padding (rather than
+    // gradient-ing the bar itself) so the fade never cuts across the text —
+    // the bar stays flat/fully readable at `barOpacity`, and only this strip
+    // tapers to transparent, removing the hard edge where a bar meets the
+    // image without risking legibility right at that edge.
+    const FADE_HEIGHT = 80;
+    const fadeOut = { width: '100%', height: FADE_HEIGHT, background: `linear-gradient(to bottom, rgba(0,0,0,${barOpacity}) 0%, rgba(0,0,0,0) 100%)` };
+    const fadeIn = { width: '100%', height: FADE_HEIGHT, background: `linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,${barOpacity}) 100%)` };
 
     return (
         <div
@@ -97,36 +105,42 @@ const ArtworkGraphic = forwardRef(function ArtworkGraphic({
                 boxSizing: 'border-box',
                 color: PALETTE.body, textShadow: TEXT_SHADOW,
             }}>
-                <div style={barStyle}>
-                    {show.tour_name && (
+                <div>
+                    <div style={barStyle}>
+                        {show.tour_name && (
+                            <div style={{
+                                fontSize: 32, fontWeight: 700, letterSpacing: 3, textTransform: 'uppercase',
+                                color: PALETTE.accent, marginBottom: 14,
+                            }}>
+                                {show.tour_name}
+                            </div>
+                        )}
                         <div style={{
-                            fontSize: 32, fontWeight: 700, letterSpacing: 3, textTransform: 'uppercase',
-                            color: PALETTE.accent, marginBottom: 14,
+                            fontFamily: HEADING_FONT_STACK,
+                            fontWeight: 700, fontSize: 68, lineHeight: 1.1, color: PALETTE.heading,
                         }}>
-                            {show.tour_name}
+                            {show.artist_name}
                         </div>
-                    )}
-                    <div style={{
-                        fontFamily: HEADING_FONT_STACK,
-                        fontWeight: 700, fontSize: 68, lineHeight: 1.1, color: PALETTE.heading,
-                    }}>
-                        {show.artist_name}
                     </div>
+                    <div style={fadeOut} />
                 </div>
 
-                <div style={barStyle}>
-                    {location && (
-                        <div style={{ fontFamily: HEADING_FONT_STACK, fontSize: 48, fontWeight: 600, textTransform: 'uppercase', color: PALETTE.body, marginBottom: 4 }}>
-                            {location}
+                <div>
+                    <div style={fadeIn} />
+                    <div style={barStyle}>
+                        {location && (
+                            <div style={{ fontFamily: HEADING_FONT_STACK, fontSize: 48, fontWeight: 600, textTransform: 'uppercase', color: PALETTE.body, marginBottom: 4 }}>
+                                {location}
+                            </div>
+                        )}
+                        {show.venues?.name && (
+                            <div style={{ fontSize: 28, fontWeight: 600, textTransform: 'uppercase', color: PALETTE.heading, marginBottom: 8 }}>
+                                {show.venues.name}
+                            </div>
+                        )}
+                        <div style={{ fontFamily: HEADING_FONT_STACK, fontSize: 54, fontWeight: 600, textTransform: 'uppercase', color: PALETTE.muted }}>
+                            {formatLongDate(show.show_date)}
                         </div>
-                    )}
-                    {show.venues?.name && (
-                        <div style={{ fontSize: 28, fontWeight: 600, textTransform: 'uppercase', color: PALETTE.heading, marginBottom: 8 }}>
-                            {show.venues.name}
-                        </div>
-                    )}
-                    <div style={{ fontFamily: HEADING_FONT_STACK, fontSize: 48, fontWeight: 600, textTransform: 'uppercase', color: PALETTE.muted }}>
-                        {formatLongDate(show.show_date)}
                     </div>
                 </div>
             </div>
