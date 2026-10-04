@@ -41,7 +41,7 @@ import AdminUsers from './pages/admin/AdminUsers'
 import SiteSettingsPage from './pages/admin/SiteSettingsPage'
 import SetlistSubmissionsReview from './pages/admin/SetlistSubmissionsReview'
 import InstagramPostPage from './pages/admin/InstagramPostPage'
-import ArtworkPage from './pages/admin/ArtworkPage'
+import ArtworkPage from './pages/ArtworkPage'
 import './App.css'
 
 function App() {
@@ -58,6 +58,7 @@ function App() {
             <Route path="posters" element={<PostersPage />} />
             <Route path="band" element={<BandPage />} />
             <Route path="band/:slug" element={<BandMemberPage />} />
+            <Route path="artwork/:id" element={<ArtworkPage />} />
             <Route path="photos" element={<PhotosPage />} />
             <Route path="links" element={<LinksPage />} />
             <Route path="members" element={<MembersPage />} />
@@ -94,7 +95,6 @@ function App() {
             <Route path="shows/new" element={<ShowForm />} />
             <Route path="shows/edit/:id" element={<ShowForm />} />
             <Route path="shows/:id/instagram" element={<InstagramPostPage />} />
-            <Route path="shows/:id/artwork" element={<ArtworkPage />} />
             <Route path="songs" element={<SongsList />} />
             <Route path="albums" element={<AlbumsList />} />
             <Route path="links" element={<LinksList />} />

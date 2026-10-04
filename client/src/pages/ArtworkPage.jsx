@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { PHeading, PText, PButton, PButtonPure, PInlineNotification, PSpinner } from '@porsche-design-system/components-react';
-import { getShowById, getShowPoster } from '../../services/api';
-import { buildShowPath } from '../../utils/showSlug';
-import { useAuth } from '../../contexts/AuthContext';
-import ArtworkGraphic, { ARTWORK_SIZE } from '../../components/admin/ArtworkGraphic';
-import useBackgroundImageDataUrl from '../../hooks/useBackgroundImageDataUrl';
-import useGraphicPngExport from '../../hooks/useGraphicPngExport';
-import useAverageImageColor from '../../hooks/useAverageImageColor';
+import { getShowById, getShowPoster } from '../services/api';
+import { buildShowPath } from '../utils/showSlug';
+import MainNavTabs from '../components/MainNavTabs';
+import SEO from '../components/SEO';
+import ArtworkGraphic, { ARTWORK_SIZE } from '../components/ArtworkGraphic';
+import useBackgroundImageDataUrl from '../hooks/useBackgroundImageDataUrl';
+import useGraphicPngExport from '../hooks/useGraphicPngExport';
+import useAverageImageColor from '../hooks/useAverageImageColor';
 
 const PREVIEW_WIDTH = 380;
 const DEFAULT_BG_URL = '/artwork-default-bg.png';
@@ -16,7 +17,6 @@ const DEFAULT_ZOOM = 140;
 
 export default function ArtworkPage() {
     const { id } = useParams();
-    const { isAdmin } = useAuth();
     const [show, setShow] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -120,26 +120,35 @@ export default function ArtworkPage() {
         download(`${datePart}-${artistPart}-artwork.png`);
     };
 
-    if (!isAdmin) {
+    if (loading) {
         return (
-            <PText color="contrast-medium">
-                The artwork tool is restricted to full admins.
-            </PText>
+            <div className="px-4 py-4 md:py-6 max-w-5xl mx-auto">
+                <MainNavTabs />
+                <div className="flex justify-center items-center py-12"><PSpinner size="medium" /></div>
+            </div>
         );
     }
 
-    if (loading) {
-        return <div className="flex justify-center items-center py-12"><PSpinner size="medium" /></div>;
-    }
-
     if (error || !show) {
-        return <PInlineNotification heading="Error" description={error || 'Show not found'} state="error" dismissButton={false} />;
+        return (
+            <div className="px-4 py-4 md:py-6 max-w-5xl mx-auto">
+                <MainNavTabs />
+                <PInlineNotification heading="Error" description={error || 'Show not found'} state="error" dismissButton={false} />
+            </div>
+        );
     }
 
     const previewScale = PREVIEW_WIDTH / ARTWORK_SIZE;
 
     return (
-        <div className="space-y-6">
+        <div className="px-4 py-4 md:py-6 max-w-5xl mx-auto space-y-6">
+            <SEO
+                title={`Artwork — ${show.artist_name}`}
+                description={`Build a shareable square artwork graphic for ${show.artist_name}'s ${show.show_date} show.`}
+            />
+
+            <MainNavTabs />
+
             <div className="flex items-center justify-between">
                 <div>
                     <PHeading size="2xl" tag="h1">Artwork</PHeading>
@@ -147,7 +156,7 @@ export default function ArtworkPage() {
                         {show.artist_name} &middot; {show.show_date}
                     </PText>
                 </div>
-                <Link to={buildShowPath(show)} target="_blank">
+                <Link to={buildShowPath(show)}>
                     <PButtonPure size="small" icon="arrow-right">View Show Page</PButtonPure>
                 </Link>
             </div>

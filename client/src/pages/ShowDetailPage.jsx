@@ -241,7 +241,7 @@ function SetList({ songs, tourRarity, liveDebutSongIds, tourDebutSongIds }) {
 export default function ShowDetailPage() {
     const { artist, date, locationSlug } = useParams();
     const navigate = useNavigate();
-    const { user, isEditorOrAdmin, isAdmin } = useAuth();
+    const { user, isEditorOrAdmin } = useAuth();
     const triggerAvatarNudge = useAvatarNudge();
     const [show, setShow] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -539,19 +539,17 @@ export default function ShowDetailPage() {
                             IG
                         </button>
                     )}
-                    {isAdmin && (
-                        <button
-                            onClick={() => navigate(`/admin/shows/${show.id}/artwork`)}
-                            className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-sm border border-white/15 hover:border-white/25 hover:bg-white/5 transition-all"
-                            style={{ color: 'var(--p-color-contrast-medium)' }}
-                        >
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M4 5h16v14H4V5zm0 10l4.5-4.5 3 3L16 9l4 4" />
-                                <circle cx="8.5" cy="8.5" r="1.25" />
-                            </svg>
-                            Artwork
-                        </button>
-                    )}
+                    <button
+                        onClick={() => navigate(`/artwork/${show.id}`)}
+                        className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-sm border border-white/15 hover:border-white/25 hover:bg-white/5 transition-all"
+                        style={{ color: 'var(--p-color-contrast-medium)' }}
+                    >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 5h16v14H4V5zm0 10l4.5-4.5 3 3L16 9l4 4" />
+                            <circle cx="8.5" cy="8.5" r="1.25" />
+                        </svg>
+                        Artwork
+                    </button>
                     {user && (
                         <button
                             onClick={handleAttendanceToggle}
