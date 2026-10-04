@@ -10,6 +10,8 @@ import useGraphicPngExport from '../../hooks/useGraphicPngExport';
 
 const PREVIEW_WIDTH = 380;
 const DEFAULT_BG_URL = '/artwork-default-bg.png';
+const DEFAULT_POS = 50;
+const DEFAULT_ZOOM = 140;
 
 export default function ArtworkPage() {
     const { id } = useParams();
@@ -29,21 +31,21 @@ export default function ArtworkPage() {
     // behind it, as a percent — user-adjustable since the right amount is a
     // matter of taste per poster. Passed to ArtworkGraphic as
     // posterOpacity/100; text always renders at full opacity regardless.
-    const [posterOpacity, setPosterOpacity] = useState(50);
+    const [posterOpacity, setPosterOpacity] = useState(80);
     // Independent darkness for the two text bars (see ArtworkGraphic) — a
     // second lever since "how visible is the art" and "how readable is the
     // text" are different questions a single opacity value can't answer at
     // once (a bar dark enough to read text over a bright image would also
     // darken the image everywhere else, even where no text sits).
-    const [barOpacity, setBarOpacity] = useState(70);
+    const [barOpacity, setBarOpacity] = useState(60);
     // Pan (0-100, percent of the canvas) and zoom (50-250%, 100% = the whole
     // image visible via background-size: contain) for the background image
     // within the fixed square — reset whenever the background image itself
     // changes, since a crop tuned for one poster/image has no reason to
     // still make sense for another.
-    const [bgPosX, setBgPosX] = useState(50);
-    const [bgPosY, setBgPosY] = useState(50);
-    const [bgZoom, setBgZoom] = useState(100);
+    const [bgPosX, setBgPosX] = useState(DEFAULT_POS);
+    const [bgPosY, setBgPosY] = useState(DEFAULT_POS);
+    const [bgZoom, setBgZoom] = useState(DEFAULT_ZOOM);
     const draggingRef = useRef(false);
     const lastPointerRef = useRef({ x: 0, y: 0 });
 
@@ -77,12 +79,12 @@ export default function ArtworkPage() {
     const { generating, generatedImageUrl, download, clearGeneratedImage } = useGraphicPngExport(graphicRef, backgroundImageDataUrl);
 
     useEffect(() => {
-        setBgPosX(50);
-        setBgPosY(50);
-        setBgZoom(100);
+        setBgPosX(DEFAULT_POS);
+        setBgPosY(DEFAULT_POS);
+        setBgZoom(DEFAULT_ZOOM);
     }, [rawBackgroundImageUrl]);
 
-    const resetPosition = () => { setBgPosX(50); setBgPosY(50); setBgZoom(100); };
+    const resetPosition = () => { setBgPosX(DEFAULT_POS); setBgPosY(DEFAULT_POS); setBgZoom(DEFAULT_ZOOM); };
 
     const clamp = (n, min, max) => Math.min(max, Math.max(min, n));
 
