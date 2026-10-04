@@ -5,9 +5,13 @@ import { forwardRef } from 'react';
 // picker, no SkySets branding. Background is always an image (a show poster
 // or the default artwork) composited at an adjustable opacity directly over
 // a solid black ground — not a variable-strength dark overlay drawn on top
-// of a fully-opaque image. Text always renders at full opacity/color on the
-// layer above, with a text-shadow as a legibility safety margin for however
-// bright the image underneath happens to be at a given opacity.
+// of a fully-opaque image. Text sits inside two solid black bars (top and
+// bottom, independently adjustable opacity via `barOpacity`) rather than
+// directly on the image, so legibility doesn't depend on `posterOpacity` —
+// text always renders at full opacity/color, with a text-shadow as a second
+// safety margin for whatever shows through a bar at a low barOpacity.
+// `bgPosX`/`bgPosY` (0-100, percent) and `bgZoom` (>=1) let the background
+// image be panned/zoomed within the fixed square, same idea as a crop tool.
 const PALETTE = {
     heading: '#ffffff',
     body: 'rgba(255,255,255,0.92)',
@@ -27,10 +31,23 @@ function formatLongDate(dateString) {
     });
 }
 
-const ArtworkGraphic = forwardRef(function ArtworkGraphic({ show, backgroundImageUrl, posterOpacity = 0.5 }, ref) {
+const ArtworkGraphic = forwardRef(function ArtworkGraphic({
+    show, backgroundImageUrl, posterOpacity = 0.5, barOpacity = 0.7,
+    bgPosX = 50, bgPosY = 50, bgZoom = 1,
+}, ref) {
     const location = show.venues
         ? [show.venues.city, show.venues.state_country].filter(Boolean).join(', ')
         : null;
+
+    // Full-bleed solid bar behind a text group — one continuous rectangle
+    // (not per-line) so there's no gap in the bar between the lines it
+    // covers, with its own horizontal padding standing in for the side
+    // padding the outer content box no longer has (see below).
+    const barStyle = {
+        width: '100%', background: `rgba(0,0,0,${barOpacity})`,
+        paddingLeft: SIDE_PADDING, paddingRight: SIDE_PADDING, paddingTop: 20, paddingBottom: 20,
+        boxSizing: 'border-box',
+    };
 
     return (
         <div
@@ -52,23 +69,30 @@ const ArtworkGraphic = forwardRef(function ArtworkGraphic({ show, backgroundImag
                     style={{
                         position: 'absolute', inset: 0,
                         backgroundImage: `url("${backgroundImageUrl}")`,
-                        backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat',
+                        backgroundSize: 'cover',
+                        backgroundPosition: `${bgPosX}% ${bgPosY}%`,
+                        backgroundRepeat: 'no-repeat',
                         opacity: posterOpacity,
+                        transform: `scale(${bgZoom})`,
+                        transformOrigin: `${bgPosX}% ${bgPosY}%`,
                     }}
                 />
             )}
 
-            {/* Content — tour/band up top, venue/location/date at the bottom,
-                poster showing through the gap between them. */}
+            {/* Content — a full-width black bar behind tour/band up top, and
+                another behind venue/location/date at the bottom, poster
+                showing through the gap between them. No side padding here —
+                each bar supplies its own, so the bars themselves reach the
+                full width of the canvas. */}
             <div style={{
                 position: 'relative', zIndex: 1, width: '100%', height: '100%',
                 display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
                 alignItems: 'center', textAlign: 'center',
-                paddingLeft: SIDE_PADDING, paddingRight: SIDE_PADDING, paddingTop: 72, paddingBottom: 72,
+                paddingTop: 72, paddingBottom: 72,
                 boxSizing: 'border-box',
                 color: PALETTE.body, textShadow: TEXT_SHADOW,
             }}>
-                <div>
+                <div style={barStyle}>
                     {show.tour_name && (
                         <div style={{
                             fontSize: 32, fontWeight: 700, letterSpacing: 3, textTransform: 'uppercase',
@@ -85,7 +109,7 @@ const ArtworkGraphic = forwardRef(function ArtworkGraphic({ show, backgroundImag
                     </div>
                 </div>
 
-                <div>
+                <div style={barStyle}>
                     {location && (
                         <div style={{ fontFamily: HEADING_FONT_STACK, fontSize: 48, fontWeight: 600, textTransform: 'uppercase', color: PALETTE.body, marginBottom: 4 }}>
                             {location}

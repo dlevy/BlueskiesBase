@@ -30,6 +30,21 @@ export default function ArtworkPage() {
     // matter of taste per poster. Passed to ArtworkGraphic as
     // posterOpacity/100; text always renders at full opacity regardless.
     const [posterOpacity, setPosterOpacity] = useState(50);
+    // Independent darkness for the two text bars (see ArtworkGraphic) — a
+    // second lever since "how visible is the art" and "how readable is the
+    // text" are different questions a single opacity value can't answer at
+    // once (a bar dark enough to read text over a bright image would also
+    // darken the image everywhere else, even where no text sits).
+    const [barOpacity, setBarOpacity] = useState(70);
+    // Pan (0-100, percent of the canvas) and zoom (>=100%) for the
+    // background image within the fixed square — reset whenever the
+    // background image itself changes, since a crop tuned for one
+    // poster/image has no reason to still make sense for another.
+    const [bgPosX, setBgPosX] = useState(50);
+    const [bgPosY, setBgPosY] = useState(50);
+    const [bgZoom, setBgZoom] = useState(100);
+    const draggingRef = useRef(false);
+    const lastPointerRef = useRef({ x: 0, y: 0 });
 
     const graphicRef = useRef(null);
 
@@ -59,6 +74,37 @@ export default function ArtworkPage() {
     const rawBackgroundImageUrl = usingDefaultBackground ? DEFAULT_BG_URL : selectedPoster?.poster_url || null;
     const { dataUrl: backgroundImageDataUrl, loading: backgroundImageLoading } = useBackgroundImageDataUrl(rawBackgroundImageUrl);
     const { generating, generatedImageUrl, download, clearGeneratedImage } = useGraphicPngExport(graphicRef, backgroundImageDataUrl);
+
+    useEffect(() => {
+        setBgPosX(50);
+        setBgPosY(50);
+        setBgZoom(100);
+    }, [rawBackgroundImageUrl]);
+
+    const resetPosition = () => { setBgPosX(50); setBgPosY(50); setBgZoom(100); };
+
+    const clamp = (n, min, max) => Math.min(max, Math.max(min, n));
+
+    const handlePreviewPointerDown = (e) => {
+        draggingRef.current = true;
+        lastPointerRef.current = { x: e.clientX, y: e.clientY };
+        e.currentTarget.setPointerCapture(e.pointerId);
+    };
+    const handlePreviewPointerMove = (e) => {
+        if (!draggingRef.current) return;
+        const dx = e.clientX - lastPointerRef.current.x;
+        const dy = e.clientY - lastPointerRef.current.y;
+        lastPointerRef.current = { x: e.clientX, y: e.clientY };
+        // Dragging the preview right should make the image content follow
+        // the pointer (drag right -> see more of the image's left side), so
+        // the background-position percentage moves opposite the drag.
+        setBgPosX(prev => clamp(prev - (dx / PREVIEW_WIDTH) * 100, 0, 100));
+        setBgPosY(prev => clamp(prev - (dy / PREVIEW_WIDTH) * 100, 0, 100));
+    };
+    const handlePreviewPointerUp = (e) => {
+        draggingRef.current = false;
+        try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* already released */ }
+    };
 
     const handleDownload = () => {
         const datePart = show.show_date;
@@ -160,6 +206,45 @@ export default function ArtworkPage() {
                         />
                     </div>
 
+                    <div>
+                        <div className="flex items-center justify-between mb-2">
+                            <label className="block text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                                Text Bar Darkness
+                            </label>
+                            <span className="text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>{barOpacity}%</span>
+                        </div>
+                        <input
+                            type="range"
+                            min={0}
+                            max={100}
+                            step={10}
+                            value={barOpacity}
+                            onChange={e => setBarOpacity(Number(e.target.value))}
+                            className="w-full"
+                        />
+                    </div>
+
+                    <div>
+                        <div className="flex items-center justify-between mb-2">
+                            <label className="block text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                                Zoom
+                            </label>
+                            <span className="text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>{bgZoom}%</span>
+                        </div>
+                        <input
+                            type="range"
+                            min={100}
+                            max={250}
+                            step={10}
+                            value={bgZoom}
+                            onChange={e => setBgZoom(Number(e.target.value))}
+                            className="w-full"
+                        />
+                        <button type="button" onClick={resetPosition} className="text-xs mt-1.5" style={{ color: 'var(--p-color-info)' }}>
+                            Reset position &amp; zoom
+                        </button>
+                    </div>
+
                     <PButton onClick={handleDownload} loading={generating} disabled={backgroundImageLoading} className="w-full">
                         {backgroundImageLoading ? 'Loading background…' : 'Download PNG'}
                     </PButton>
@@ -170,12 +255,39 @@ export default function ArtworkPage() {
                 </div>
 
                 {/* Preview */}
-                <div className="flex items-start justify-center rounded-2xl border border-white/10 p-8" style={{ background: 'var(--p-color-canvas)' }}>
-                    <div style={{ width: PREVIEW_WIDTH, height: PREVIEW_WIDTH, overflow: 'hidden', borderRadius: 12, boxShadow: '0 10px 40px rgba(0,0,0,0.4)' }}>
-                        <div style={{ width: ARTWORK_SIZE, height: ARTWORK_SIZE, transform: `scale(${previewScale})`, transformOrigin: 'top left' }}>
-                            <ArtworkGraphic ref={graphicRef} show={show} backgroundImageUrl={backgroundImageDataUrl} posterOpacity={posterOpacity / 100} />
+                <div className="flex flex-col items-center gap-2">
+                    <div
+                        className="rounded-2xl border border-white/10 p-8 flex items-start justify-center"
+                        style={{ background: 'var(--p-color-canvas)' }}
+                    >
+                        <div
+                            onPointerDown={handlePreviewPointerDown}
+                            onPointerMove={handlePreviewPointerMove}
+                            onPointerUp={handlePreviewPointerUp}
+                            onPointerCancel={handlePreviewPointerUp}
+                            style={{
+                                width: PREVIEW_WIDTH, height: PREVIEW_WIDTH, overflow: 'hidden', borderRadius: 12,
+                                boxShadow: '0 10px 40px rgba(0,0,0,0.4)', touchAction: 'none',
+                                cursor: backgroundImageDataUrl ? 'grab' : 'default',
+                            }}
+                        >
+                            <div style={{ width: ARTWORK_SIZE, height: ARTWORK_SIZE, transform: `scale(${previewScale})`, transformOrigin: 'top left' }}>
+                                <ArtworkGraphic
+                                    ref={graphicRef}
+                                    show={show}
+                                    backgroundImageUrl={backgroundImageDataUrl}
+                                    posterOpacity={posterOpacity / 100}
+                                    barOpacity={barOpacity / 100}
+                                    bgPosX={bgPosX}
+                                    bgPosY={bgPosY}
+                                    bgZoom={bgZoom / 100}
+                                />
+                            </div>
                         </div>
                     </div>
+                    <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>
+                        Drag the preview to reposition the background image.
+                    </PText>
                 </div>
             </div>
 
