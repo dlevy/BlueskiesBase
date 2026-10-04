@@ -15,6 +15,7 @@ import PhotosPage from './pages/PhotosPage'
 import LinksPage from './pages/LinksPage'
 import MembersPage from './pages/MembersPage'
 import TourStatsPage from './pages/TourStatsPage'
+import UpcomingShowsPage from './pages/UpcomingShowsPage'
 import ProfilePage from './pages/ProfilePage'
 import EditProfilePage from './pages/EditProfilePage'
 import LoginPage from './pages/LoginPage'
@@ -63,6 +64,7 @@ function App() {
             <Route path="links" element={<LinksPage />} />
             <Route path="members" element={<MembersPage />} />
             <Route path="tour-stats" element={<TourStatsPage />} />
+            <Route path="upcoming-shows" element={<UpcomingShowsPage />} />
             {/* Static "edit" segment ranks above the dynamic :username in React
                 Router's matcher regardless of declaration order, so a user whose
                 username happened to be literally "edit" would have an unreachable
