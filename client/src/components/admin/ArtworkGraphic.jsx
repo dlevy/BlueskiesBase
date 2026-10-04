@@ -26,10 +26,17 @@ function formatLongDate(dateString) {
     });
 }
 
-const ArtworkGraphic = forwardRef(function ArtworkGraphic({ show, backgroundImageUrl }, ref) {
+// Scrim alpha at each gradient stop, at the slider's full-dark end (1.0) —
+// actual rendered alpha is this times `overlayOpacity` (0.2-0.8, see
+// ArtworkPage.jsx's slider), so the shape stays the same at every setting
+// and only the overall darkness scales.
+const SCRIM_STOPS = { top: 0.9, midTop: 0.25, midBottom: 0.22, bottom: 1 };
+
+const ArtworkGraphic = forwardRef(function ArtworkGraphic({ show, backgroundImageUrl, overlayOpacity = 0.5 }, ref) {
     const location = show.venues
         ? [show.venues.city, show.venues.state_country].filter(Boolean).join(', ')
         : null;
+    const scrim = (stop) => (stop * overlayOpacity).toFixed(2);
 
     return (
         <div
@@ -58,12 +65,11 @@ const ArtworkGraphic = forwardRef(function ArtworkGraphic({ show, backgroundImag
 
             {/* Scrim — dark at top (behind tour/band) and bottom (behind
                 venue/location/date), lighter through the middle so the poster
-                itself reads more clearly there. Lighter overall than a single
-                top-to-bottom fade would need, since the two text blocks now
-                carry their own contrast via text-shadow. */}
+                itself reads more clearly there. Overall darkness is user-
+                adjustable (see overlayOpacity/SCRIM_STOPS above). */}
             <div style={{
                 position: 'absolute', inset: 0,
-                background: 'linear-gradient(180deg, rgba(3,4,7,0.55) 0%, rgba(3,4,7,0.1) 28%, rgba(3,4,7,0.08) 58%, rgba(3,4,7,0.72) 100%)',
+                background: `linear-gradient(180deg, rgba(3,4,7,${scrim(SCRIM_STOPS.top)}) 0%, rgba(3,4,7,${scrim(SCRIM_STOPS.midTop)}) 28%, rgba(3,4,7,${scrim(SCRIM_STOPS.midBottom)}) 58%, rgba(3,4,7,${scrim(SCRIM_STOPS.bottom)}) 100%)`,
             }} />
 
             {/* Content — tour/band up top, venue/location/date at the bottom,
@@ -79,7 +85,7 @@ const ArtworkGraphic = forwardRef(function ArtworkGraphic({ show, backgroundImag
                 <div>
                     {show.tour_name && (
                         <div style={{
-                            fontSize: 26, fontWeight: 700, letterSpacing: 3, textTransform: 'uppercase',
+                            fontSize: 32, fontWeight: 700, letterSpacing: 3, textTransform: 'uppercase',
                             color: PALETTE.accent, marginBottom: 14,
                         }}>
                             {show.tour_name}
@@ -94,17 +100,17 @@ const ArtworkGraphic = forwardRef(function ArtworkGraphic({ show, backgroundImag
                 </div>
 
                 <div>
-                    {show.venues?.name && (
-                        <div style={{ fontSize: 42, fontWeight: 600, color: PALETTE.heading, marginBottom: 10 }}>
-                            {show.venues.name}
-                        </div>
-                    )}
                     {location && (
-                        <div style={{ fontSize: 48, fontWeight: 600, color: PALETTE.body, marginBottom: 18 }}>
+                        <div style={{ fontSize: 48, fontWeight: 600, textTransform: 'uppercase', color: PALETTE.body, marginBottom: 10 }}>
                             {location}
                         </div>
                     )}
-                    <div style={{ fontSize: 48, fontWeight: 600, color: PALETTE.muted }}>
+                    {show.venues?.name && (
+                        <div style={{ fontSize: 28, fontWeight: 600, textTransform: 'uppercase', color: PALETTE.heading, marginBottom: 18 }}>
+                            {show.venues.name}
+                        </div>
+                    )}
+                    <div style={{ fontSize: 48, fontWeight: 600, textTransform: 'uppercase', color: PALETTE.muted }}>
                         {formatLongDate(show.show_date)}
                     </div>
                 </div>

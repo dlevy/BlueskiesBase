@@ -25,6 +25,11 @@ export default function ArtworkPage() {
     // on the default background if the show has none.
     const [selectedPosterId, setSelectedPosterId] = useState(null);
     const [pickedDefaultExplicitly, setPickedDefaultExplicitly] = useState(false);
+    // How dark the scrim over the background image is, as a percent —
+    // user-adjustable since "how much should the art show through" is a
+    // matter of taste per poster, not something one fixed value gets right
+    // for every image. Passed to ArtworkGraphic as overlayOpacity/100.
+    const [overlayOpacity, setOverlayOpacity] = useState(50);
 
     const graphicRef = useRef(null);
 
@@ -137,6 +142,24 @@ export default function ArtworkPage() {
                         </button>
                     </div>
 
+                    <div>
+                        <div className="flex items-center justify-between mb-2">
+                            <label className="block text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                                Overlay Darkness
+                            </label>
+                            <span className="text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>{overlayOpacity}%</span>
+                        </div>
+                        <input
+                            type="range"
+                            min={20}
+                            max={80}
+                            step={10}
+                            value={overlayOpacity}
+                            onChange={e => setOverlayOpacity(Number(e.target.value))}
+                            className="w-full"
+                        />
+                    </div>
+
                     <PButton onClick={handleDownload} loading={generating} disabled={backgroundImageLoading} className="w-full">
                         {backgroundImageLoading ? 'Loading background…' : 'Download PNG'}
                     </PButton>
@@ -150,7 +173,7 @@ export default function ArtworkPage() {
                 <div className="flex items-start justify-center rounded-2xl border border-white/10 p-8" style={{ background: 'var(--p-color-canvas)' }}>
                     <div style={{ width: PREVIEW_WIDTH, height: PREVIEW_WIDTH, overflow: 'hidden', borderRadius: 12, boxShadow: '0 10px 40px rgba(0,0,0,0.4)' }}>
                         <div style={{ width: ARTWORK_SIZE, height: ARTWORK_SIZE, transform: `scale(${previewScale})`, transformOrigin: 'top left' }}>
-                            <ArtworkGraphic ref={graphicRef} show={show} backgroundImageUrl={backgroundImageDataUrl} />
+                            <ArtworkGraphic ref={graphicRef} show={show} backgroundImageUrl={backgroundImageDataUrl} overlayOpacity={overlayOpacity / 100} />
                         </div>
                     </div>
                 </div>
