@@ -111,8 +111,18 @@ export default function NotificationBell() {
             </button>
 
             {open && (
+                // `right-0` alone overflows off the left edge on mobile: this
+                // button sits well left of the header's true right edge (the
+                // avatar + "Sign Out" button follow it), so a 320px-wide panel
+                // anchored to the button's own right edge runs off-screen. Below
+                // the `sm` breakpoint, switch to `fixed` with explicit viewport
+                // insets instead of anchoring to this small button at all; `top-16`
+                // matches the header's own fixed `h-14` height plus a small gap.
+                // `max-h-[calc(100vh-5rem)]` + its own scroll is a second, independent
+                // safety net against a short/landscape viewport, separate from the
+                // notification list's own internal `max-h-96` scroll below.
                 <div
-                    className="absolute right-0 mt-2 w-80 max-w-[90vw] rounded-xl border border-white/10 shadow-xl z-50 overflow-hidden"
+                    className="fixed inset-x-4 top-16 sm:absolute sm:inset-x-auto sm:top-auto sm:right-0 sm:mt-2 w-auto sm:w-80 max-w-none sm:max-w-[90vw] max-h-[calc(100vh-5rem)] overflow-x-hidden overflow-y-auto rounded-xl border border-white/10 shadow-xl z-50"
                     style={{ background: '#1a1e26' }}
                 >
                     <div className="px-4 py-3 border-b border-white/10">
