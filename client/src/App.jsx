@@ -41,6 +41,7 @@ import AdminUsers from './pages/admin/AdminUsers'
 import SiteSettingsPage from './pages/admin/SiteSettingsPage'
 import SetlistSubmissionsReview from './pages/admin/SetlistSubmissionsReview'
 import InstagramPostPage from './pages/admin/InstagramPostPage'
+import PromoGraphicPage from './pages/admin/PromoGraphicPage'
 import './App.css'
 
 function App() {
@@ -93,6 +94,7 @@ function App() {
             <Route path="shows/new" element={<ShowForm />} />
             <Route path="shows/edit/:id" element={<ShowForm />} />
             <Route path="shows/:id/instagram" element={<InstagramPostPage />} />
+            <Route path="shows/:id/promo" element={<PromoGraphicPage />} />
             <Route path="songs" element={<SongsList />} />
             <Route path="albums" element={<AlbumsList />} />
             <Route path="links" element={<LinksList />} />

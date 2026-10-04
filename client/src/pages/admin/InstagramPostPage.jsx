@@ -1,11 +1,12 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { toPng } from 'html-to-image';
 import { PHeading, PText, PButton, PButtonPure, PInlineNotification, PSpinner } from '@porsche-design-system/components-react';
 import { getShowById, getShowDebuts, getShowPhotos, getShowPoster } from '../../services/api';
 import { buildShowPath } from '../../utils/showSlug';
 import InstagramPostGraphic from '../../components/admin/InstagramPostGraphic';
 import { POST_STYLES, DEFAULT_STYLE_KEY, POST_WIDTH, POST_HEIGHT } from '../../utils/instagramStyles';
+import useBackgroundImageDataUrl from '../../hooks/useBackgroundImageDataUrl';
+import useGraphicPngExport from '../../hooks/useGraphicPngExport';
 import Lightbox from 'yet-another-react-lightbox';
 import 'yet-another-react-lightbox/styles.css';
 
@@ -18,7 +19,6 @@ export default function InstagramPostPage() {
     const [error, setError] = useState(null);
 
     const [styleKey, setStyleKey] = useState(DEFAULT_STYLE_KEY);
-    const [generating, setGenerating] = useState(false);
     const [liveDebutSongIds, setLiveDebutSongIds] = useState(new Set());
     const [tourDebutSongIds, setTourDebutSongIds] = useState(new Set());
     const [photos, setPhotos] = useState([]);
@@ -27,22 +27,6 @@ export default function InstagramPostPage() {
     const [backgroundMode, setBackgroundMode] = useState('style');
     const [posterVariant, setPosterVariant] = useState('regular');
     const [selectedPhotoUrl, setSelectedPhotoUrl] = useState(null);
-    // The background image is fetched and inlined as a data: URL rather than
-    // handed to the graphic as a remote Supabase URL. Safari/WebKit's
-    // cross-origin canvas rules are notoriously unreliable for the
-    // html-to-image export specifically (see handleDownload) — even once the
-    // live on-screen <img> renders fine, the export's own SVG->canvas
-    // rasterization step can still come back with the image missing. A data:
-    // URL has no cross-origin/canvas-taint question at all, for the preview
-    // or the export, on any browser.
-    const [backgroundImageDataUrl, setBackgroundImageDataUrl] = useState(null);
-    const [backgroundImageLoading, setBackgroundImageLoading] = useState(false);
-    // iOS Safari doesn't support triggering a file save via a synthetic
-    // <a download> click — tapping "Download PNG" there does nothing
-    // visible. Showing the result in a real <img> (via the lightbox) lets
-    // any touch user long-press it and "Save Image" instead, which always
-    // works. Desktop browsers still get the instant auto-download below too.
-    const [generatedImageUrl, setGeneratedImageUrl] = useState(null);
 
     const graphicRef = useRef(null);
 
@@ -84,90 +68,14 @@ export default function InstagramPostPage() {
     const activePoster = (posterVariant === 'foil' && foilPoster) ? foilPoster : (regularPoster || foilPoster);
     const posterUrl = activePoster?.poster_url || null;
     const rawBackgroundImageUrl = backgroundMode === 'poster' ? posterUrl : backgroundMode === 'photo' ? selectedPhotoUrl : null;
+    const { dataUrl: backgroundImageDataUrl, loading: backgroundImageLoading } = useBackgroundImageDataUrl(rawBackgroundImageUrl);
+    const { generating, generatedImageUrl, download, clearGeneratedImage } = useGraphicPngExport(graphicRef, backgroundImageDataUrl);
 
-    useEffect(() => {
-        if (!rawBackgroundImageUrl) {
-            setBackgroundImageDataUrl(null);
-            setBackgroundImageLoading(false);
-            return;
-        }
-        let cancelled = false;
-        setBackgroundImageLoading(true);
-        (async () => {
-            try {
-                const res = await fetch(rawBackgroundImageUrl);
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                const blob = await res.blob();
-                const dataUrl = await new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onload = () => resolve(reader.result);
-                    reader.onerror = () => reject(reader.error);
-                    reader.readAsDataURL(blob);
-                });
-                if (!cancelled) setBackgroundImageDataUrl(dataUrl);
-            } catch (err) {
-                console.error('[InstagramPostPage] Failed to inline background image, falling back to remote URL:', err);
-                if (!cancelled) setBackgroundImageDataUrl(rawBackgroundImageUrl);
-            } finally {
-                if (!cancelled) setBackgroundImageLoading(false);
-            }
-        })();
-        return () => { cancelled = true; };
-    }, [rawBackgroundImageUrl]);
-
-    const handleDownload = useCallback(async () => {
-        if (!graphicRef.current) return;
-        setGenerating(true);
-        try {
-            await document.fonts.ready;
-
-            // Guard against capturing the DOM before the background image has
-            // actually finished decoding. It's a CSS background-image now
-            // (not an <img>), so there's nothing in the DOM to call
-            // .decode() on directly — decode an offscreen copy of the exact
-            // same data: URL instead.
-            if (backgroundImageDataUrl) {
-                const preload = new Image();
-                preload.src = backgroundImageDataUrl;
-                await preload.decode?.().catch(() => {});
-            }
-
-            // Also wait a couple of paint frames so the now-decoded
-            // background has actually been composited on screen, not just
-            // decoded in memory, before html-to-image reads the DOM.
-            await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-
-            // html-to-image rasterizes the DOM by serializing it into an SVG
-            // <foreignObject>, loading that SVG as a data: URL into an
-            // offscreen <img>, and drawing that image onto a canvas once it
-            // fires `onload`. On iOS/Safari, the very first time a given
-            // WebKit process rasterizes a *new* SVG payload that embeds a
-            // background image, `onload` can fire before the embedded raster
-            // content is actually painted into the decoded image — so the
-            // canvas draw captures a blank/background-less frame. Every
-            // *subsequent* rasterization of that same kind of payload (even
-            // with different embedded bytes) succeeds, which is exactly the
-            // "fails once, then works every time after" symptom reported.
-            // This is a known WebKit quirk with html2canvas/html-to-image
-            // (not specific to our data-URL or decode handling above) — the
-            // standard workaround is to render once and throw the result
-            // away to "warm up" the pipeline, then render again for real.
-            await toPng(graphicRef.current, { pixelRatio: 2, cacheBust: true }).catch(() => {});
-            const dataUrl = await toPng(graphicRef.current, { pixelRatio: 2, cacheBust: true });
-            const link = document.createElement('a');
-            const datePart = show.show_date;
-            const artistPart = show.artist_name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-            link.download = `${datePart}-${artistPart}-setlist.png`;
-            link.href = dataUrl;
-            link.click();
-            setGeneratedImageUrl(dataUrl);
-        } catch (err) {
-            console.error('[InstagramPostPage] Error generating image:', err);
-            alert('Failed to generate image');
-        } finally {
-            setGenerating(false);
-        }
-    }, [show, backgroundImageDataUrl]);
+    const handleDownload = () => {
+        const datePart = show.show_date;
+        const artistPart = show.artist_name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        download(`${datePart}-${artistPart}-setlist.png`);
+    };
 
     if (loading) {
         return <div className="flex justify-center items-center py-12"><PSpinner size="medium" /></div>;
@@ -394,11 +302,11 @@ export default function InstagramPostPage() {
                 <div
                     className="fixed inset-0 z-[100] flex flex-col items-center justify-center p-4 gap-4"
                     style={{ background: 'rgba(0,0,0,0.92)' }}
-                    onClick={() => setGeneratedImageUrl(null)}
+                    onClick={clearGeneratedImage}
                 >
                     <button
                         type="button"
-                        onClick={() => setGeneratedImageUrl(null)}
+                        onClick={clearGeneratedImage}
                         className="absolute top-4 right-4 text-sm text-white px-3 py-1.5 rounded-lg border border-white/30 hover:bg-white/10"
                     >
                         Close
