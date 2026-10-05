@@ -10,6 +10,7 @@ import HomePage from './pages/HomePage'
 import ShowDetailPage from './pages/ShowDetailPage'
 import StatsPage from './pages/StatsPage'
 import PostersPage from './pages/PostersPage'
+import DiscographyPage from './pages/DiscographyPage'
 import BandPage from './pages/BandPage'
 import BandMemberPage from './pages/BandMemberPage'
 import PhotosPage from './pages/PhotosPage'
@@ -74,6 +75,7 @@ function App() {
             <Route path="show/:artist/:date/:locationSlug" element={<ShowDetailPage />} />
             <Route path="stats" element={<StatsPage />} />
             <Route path="posters" element={<PostersPage />} />
+            <Route path="discography" element={<DiscographyPage />} />
             <Route path="band" element={<BandPage />} />
             <Route path="band/:slug" element={<BandMemberPage />} />
             <Route path="artwork/:id" element={<ArtworkPage />} />
@@ -287,6 +289,13 @@ function PublicLayout() {
                 style={{ color: 'var(--p-color-info)' }}
               >
                 Band
+              </Link>
+              <Link
+                to="/discography"
+                className="text-xs hover:opacity-80 transition-opacity"
+                style={{ color: 'var(--p-color-info)' }}
+              >
+                Discography
               </Link>
               {isEditorOrAdmin && (
                 <Link
