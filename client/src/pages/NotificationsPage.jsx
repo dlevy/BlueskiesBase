@@ -51,7 +51,7 @@ export default function NotificationsPage() {
     if (!user) return null;
 
     return (
-        <div className="px-4 py-4 md:py-6 max-w-3xl mx-auto">
+        <div className="px-4 pt-2 pb-4 md:pt-3 md:pb-6 max-w-3xl mx-auto">
             <SEO title="Notifications" description="Your notification history." />
 
             <PHeading size="xl" tag="h1" className="mb-4">Notifications</PHeading>

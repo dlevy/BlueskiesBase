@@ -221,7 +221,7 @@ export default function ProfilePage() {
 
     if (loading) {
         return (
-            <div className="px-4 py-4 md:py-6 max-w-4xl mx-auto">
+            <div className="px-4 pt-2 pb-4 md:pt-3 md:pb-6 max-w-4xl mx-auto">
                 <MainNavTabs />
                 <div className="flex justify-center items-center py-16"><PSpinner size="medium" /></div>
             </div>
@@ -230,7 +230,7 @@ export default function ProfilePage() {
 
     if (notFound) {
         return (
-            <div className="px-4 py-4 md:py-6 max-w-4xl mx-auto">
+            <div className="px-4 pt-2 pb-4 md:pt-3 md:pb-6 max-w-4xl mx-auto">
                 <MainNavTabs />
                 <div className="py-12 max-w-lg mx-auto text-center space-y-4">
                     <PHeading size="xl" tag="h1">Profile not found</PHeading>
@@ -243,7 +243,7 @@ export default function ProfilePage() {
 
     if (error || !profile) {
         return (
-            <div className="px-4 py-4 md:py-6 max-w-4xl mx-auto">
+            <div className="px-4 pt-2 pb-4 md:pt-3 md:pb-6 max-w-4xl mx-auto">
                 <MainNavTabs />
                 <div className="max-w-2xl mx-auto">
                     <PInlineNotification heading="Error" description={error || 'Something went wrong'} state="error" dismissButton={false} />
@@ -259,7 +259,7 @@ export default function ProfilePage() {
     const isOwnProfile = Boolean(viewerProfile?.username) && viewerProfile.username === profile.username;
 
     return (
-        <div className="px-4 py-4 md:py-6 max-w-4xl mx-auto space-y-6">
+        <div className="px-4 pt-2 pb-4 md:pt-3 md:pb-6 max-w-4xl mx-auto space-y-6">
             <SEO title={displayLabel} description={`${displayLabel}'s concert profile on SkySets.org`} />
 
             <MainNavTabs />

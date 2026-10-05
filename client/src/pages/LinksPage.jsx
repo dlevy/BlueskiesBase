@@ -110,7 +110,7 @@ export default function LinksPage() {
         .filter(section => section.links.length > 0);
 
     return (
-        <div className="px-4 py-4 md:py-6 max-w-6xl mx-auto">
+        <div className="px-4 pt-2 pb-4 md:pt-3 md:pb-6 max-w-6xl mx-auto">
             <SEO
                 title="Links"
                 description="Links to news articles, video channels, communities, and poster artists affiliated with Johnny Blue Skies and Sturgill Simpson."

@@ -392,7 +392,7 @@ export default function ShowDetailPage() {
 
     if (loading) {
         return (
-            <div className="px-4 py-4 md:py-6 max-w-4xl mx-auto">
+            <div className="px-4 pt-2 pb-4 md:pt-3 md:pb-6 max-w-4xl mx-auto">
                 <MainNavTabs />
                 <div className="min-h-[60vh] flex items-center justify-center">
                     <PSpinner size="large" aria={{ 'aria-label': 'Loading show details' }} />
@@ -403,7 +403,7 @@ export default function ShowDetailPage() {
 
     if (error || !show) {
         return (
-            <div className="px-4 py-4 md:py-6 max-w-4xl mx-auto space-y-4">
+            <div className="px-4 pt-2 pb-4 md:pt-3 md:pb-6 max-w-4xl mx-auto space-y-4">
                 <MainNavTabs />
                 <PInlineNotification
                     heading="Could not load show"

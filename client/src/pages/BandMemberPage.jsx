@@ -102,7 +102,7 @@ export default function BandMemberPage() {
 
     if (loading) {
         return (
-            <div className="px-4 py-4 md:py-6 max-w-3xl mx-auto">
+            <div className="px-4 pt-2 pb-4 md:pt-3 md:pb-6 max-w-3xl mx-auto">
                 <MainNavTabs />
                 <div className="flex justify-center items-center py-16"><PSpinner size="medium" /></div>
             </div>
@@ -113,7 +113,7 @@ export default function BandMemberPage() {
 
     if (error || !member) {
         return (
-            <div className="px-4 py-4 md:py-6 max-w-3xl mx-auto">
+            <div className="px-4 pt-2 pb-4 md:pt-3 md:pb-6 max-w-3xl mx-auto">
                 <MainNavTabs />
                 <div className="py-12 max-w-lg mx-auto text-center space-y-4">
                     <PHeading size="xl" tag="h1">{error ? 'Something went wrong' : 'Band member not found'}</PHeading>
@@ -136,7 +136,7 @@ export default function BandMemberPage() {
     };
 
     return (
-        <div className="px-4 py-4 md:py-6 max-w-3xl mx-auto space-y-6">
+        <div className="px-4 pt-2 pb-4 md:pt-3 md:pb-6 max-w-3xl mx-auto space-y-6">
             <SEO
                 title={member.name}
                 description={`${member.name}'s role and gear in Sturgill Simpson & Johnny Blue Skies' band.`}

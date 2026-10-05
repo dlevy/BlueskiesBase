@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { PSpinner } from '@porsche-design-system/components-react';
 import { supabase } from '../services/supabase';
-import UpcomingShowCard from './UpcomingShowCard';
+import ShowListCard from './ShowListCard';
 
 export default function UpcomingShowsWidget() {
     const [upcoming, setUpcoming] = useState([]);
@@ -60,7 +60,7 @@ export default function UpcomingShowsWidget() {
             ) : (
                 <div className="space-y-2">
                     {upcoming.map(show => (
-                        <UpcomingShowCard key={show.id} show={show} />
+                        <ShowListCard key={show.id} show={show} />
                     ))}
                 </div>
             )}

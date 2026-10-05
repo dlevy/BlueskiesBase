@@ -122,7 +122,7 @@ export default function ArtworkPage() {
 
     if (loading) {
         return (
-            <div className="px-4 py-4 md:py-6 max-w-5xl mx-auto">
+            <div className="px-4 pt-2 pb-4 md:pt-3 md:pb-6 max-w-5xl mx-auto">
                 <MainNavTabs />
                 <div className="flex justify-center items-center py-12"><PSpinner size="medium" /></div>
             </div>
@@ -131,7 +131,7 @@ export default function ArtworkPage() {
 
     if (error || !show) {
         return (
-            <div className="px-4 py-4 md:py-6 max-w-5xl mx-auto">
+            <div className="px-4 pt-2 pb-4 md:pt-3 md:pb-6 max-w-5xl mx-auto">
                 <MainNavTabs />
                 <PInlineNotification heading="Error" description={error || 'Show not found'} state="error" dismissButton={false} />
             </div>
@@ -141,7 +141,7 @@ export default function ArtworkPage() {
     const previewScale = PREVIEW_WIDTH / ARTWORK_SIZE;
 
     return (
-        <div className="px-4 py-4 md:py-6 max-w-5xl mx-auto space-y-6">
+        <div className="px-4 pt-2 pb-4 md:pt-3 md:pb-6 max-w-5xl mx-auto space-y-6">
             <SEO
                 title={`Artwork — ${show.artist_name}`}
                 description={`Build a shareable square artwork graphic for ${show.artist_name}'s ${show.show_date} show.`}

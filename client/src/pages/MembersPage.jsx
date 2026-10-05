@@ -91,7 +91,7 @@ export default function MembersPage() {
     ));
 
     return (
-        <div className="px-4 py-4 md:py-6 max-w-6xl mx-auto">
+        <div className="px-4 pt-2 pb-4 md:pt-3 md:pb-6 max-w-6xl mx-auto">
             <SEO
                 title="Members"
                 description="Browse members of the Sturgill Simpson and Johnny Blue Skies setlist archive community."

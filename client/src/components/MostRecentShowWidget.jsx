@@ -12,7 +12,7 @@ import { orderSetlistSongs } from '../utils/setlist';
 // empty — checking a window of recent shows avoids rendering a blank section.
 const LOOKBACK_SHOWS = 25;
 const PREVIEW_SONGS = 12;
-const OTHER_RECENT_SHOWS = 3;
+const OTHER_RECENT_SHOWS = 2;
 
 // One card design shared by the featured show and the ones below it — same size, same
 // content (artist, venue, tour, full setlist preview with debut tags). The only thing
@@ -175,9 +175,18 @@ export default function MostRecentShowWidget() {
 
     return (
         <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-5 mb-4">
-            <h2 className="font-display font-bold text-base mb-4" style={{ color: 'var(--p-color-primary)' }}>
-                Most Recent Shows
-            </h2>
+            <div className="flex items-baseline justify-between gap-2 mb-4">
+                <h2 className="font-display font-bold text-base" style={{ color: 'var(--p-color-primary)' }}>
+                    Most Recent Shows
+                </h2>
+                <Link
+                    to="/past-shows"
+                    className="text-xs font-medium shrink-0 hover:opacity-80 transition-opacity"
+                    style={{ color: 'var(--p-color-info)' }}
+                >
+                    View All →
+                </Link>
+            </div>
 
             <div className="space-y-4">
                 {displayShows.map(show => (

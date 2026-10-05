@@ -1,10 +1,12 @@
 import { Link } from 'react-router-dom';
 import { buildShowPath } from '../utils/showSlug';
 
-// Shared row for an upcoming show — date badge + venue/tour info — used by
-// both the homepage's UpcomingShowsWidget (first 3) and UpcomingShowsPage
-// (the full list), so the two stay visually identical.
-export default function UpcomingShowCard({ show }) {
+// Shared show row — date badge + venue/tour info — used anywhere a flat,
+// lightweight show list is needed (as opposed to ShowCard components
+// elsewhere that include a setlist preview): the homepage's
+// UpcomingShowsWidget, UpcomingShowsPage, and PastShowsPage all render the
+// same row so they stay visually identical regardless of time direction.
+export default function ShowListCard({ show }) {
     const [y, m, d] = show.show_date.split('-');
     const dateObj = new Date(Number(y), Number(m) - 1, Number(d));
     const monthStr = dateObj.toLocaleString('default', { month: 'short' }).toUpperCase();

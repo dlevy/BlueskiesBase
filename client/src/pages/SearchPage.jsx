@@ -341,6 +341,15 @@ export default function SearchPage() {
         setResults([]);
     };
 
+    // Separate from clearAllFilters (used by the in-panel "Clear All" button,
+    // which should leave the panel open so the user can keep adjusting
+    // filters) — the home icon clears filters *and* collapses the panel,
+    // landing back on the same clean default view as a fresh page load.
+    const handleHomeClick = () => {
+        clearAllFilters();
+        setFilterPanelOpen(false);
+    };
+
     const getActiveFilters = () => {
         const filters = [];
         if (searchParams.year) filters.push({ name: 'year', label: 'Year', value: searchParams.year });
@@ -358,13 +367,13 @@ export default function SearchPage() {
     const showResults = hasActiveFilters(searchParams) || loading;
 
     return (
-        <div className="px-4 py-4 md:py-6 max-w-6xl mx-auto">
+        <div className="px-4 pt-2 pb-4 md:pt-3 md:pb-6 max-w-6xl mx-auto">
             <SEO
                 title="Sturgill Simpson &amp; Johnny Blue Skies Setlists"
                 description="The complete Sturgill Simpson and Johnny Blue Skies setlist database. Search 400+ concerts from 2012 to present."
             />
 
-            <MainNavTabs />
+            <MainNavTabs onHomeClick={handleHomeClick} />
 
             {/* Search Tab */}
             {activeTab === 'search' && (

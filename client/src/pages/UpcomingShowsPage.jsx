@@ -3,7 +3,7 @@ import { PSpinner, PText } from '@porsche-design-system/components-react';
 import { supabase } from '../services/supabase';
 import MainNavTabs from '../components/MainNavTabs';
 import SEO from '../components/SEO';
-import UpcomingShowCard from '../components/UpcomingShowCard';
+import ShowListCard from '../components/ShowListCard';
 
 export default function UpcomingShowsPage() {
     const [upcoming, setUpcoming] = useState([]);
@@ -40,7 +40,7 @@ export default function UpcomingShowsPage() {
     }, []);
 
     return (
-        <div className="px-4 py-4 md:py-6 max-w-2xl mx-auto">
+        <div className="px-4 pt-2 pb-4 md:pt-3 md:pb-6 max-w-2xl mx-auto">
             <SEO
                 title="Upcoming Shows"
                 description="Every upcoming Sturgill Simpson and Johnny Blue Skies show, in chronological order."
@@ -76,7 +76,7 @@ export default function UpcomingShowsPage() {
             {!loading && !error && upcoming.length > 0 && (
                 <div className="space-y-2">
                     {upcoming.map(show => (
-                        <UpcomingShowCard key={show.id} show={show} />
+                        <ShowListCard key={show.id} show={show} />
                     ))}
                 </div>
             )}

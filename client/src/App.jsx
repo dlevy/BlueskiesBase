@@ -16,6 +16,7 @@ import LinksPage from './pages/LinksPage'
 import MembersPage from './pages/MembersPage'
 import TourStatsPage from './pages/TourStatsPage'
 import UpcomingShowsPage from './pages/UpcomingShowsPage'
+import PastShowsPage from './pages/PastShowsPage'
 import ProfilePage from './pages/ProfilePage'
 import EditProfilePage from './pages/EditProfilePage'
 import LoginPage from './pages/LoginPage'
@@ -65,6 +66,7 @@ function App() {
             <Route path="members" element={<MembersPage />} />
             <Route path="tour-stats" element={<TourStatsPage />} />
             <Route path="upcoming-shows" element={<UpcomingShowsPage />} />
+            <Route path="past-shows" element={<PastShowsPage />} />
             {/* Static "edit" segment ranks above the dynamic :username in React
                 Router's matcher regardless of declaration order, so a user whose
                 username happened to be literally "edit" would have an unreachable
@@ -255,6 +257,13 @@ function PublicLayout() {
               <span className="text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>
                 A fan archive. Not affiliated with Sturgill Simpson.
               </span>
+              <Link
+                to="/links"
+                className="text-xs hover:opacity-80 transition-opacity"
+                style={{ color: 'var(--p-color-info)' }}
+              >
+                Links
+              </Link>
               {isEditorOrAdmin && (
                 <Link
                   to="/admin"
