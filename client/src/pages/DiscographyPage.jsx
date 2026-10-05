@@ -10,15 +10,6 @@ function albumYear(releaseDate) {
     return releaseDate ? releaseDate.split('-')[0] : '';
 }
 
-// A song can be linked to more than one album (e.g. a compilation re-release)
-// — group it under whichever has the earliest release_date, same convention
-// used for the originals-by-album groupings on SearchPage/ShowDetailPage.
-function primaryAlbum(song) {
-    const assocs = (song.album_songs || []).filter(as => as.albums);
-    if (assocs.length === 0) return null;
-    return [...assocs].sort((a, b) => (a.albums.release_date || '').localeCompare(b.albums.release_date || ''))[0];
-}
-
 function SongRow({ song, expanded, onToggle }) {
     const hasLyrics = Boolean(song.lyrics?.trim());
     return (
@@ -79,11 +70,16 @@ export default function DiscographyPage() {
         const other = [];
 
         songs.forEach(song => {
-            const assoc = primaryAlbum(song);
-            if (!assoc) { other.push(song); return; }
-            const key = assoc.album_id;
-            if (!groups.has(key)) groups.set(key, { album: assoc.albums, songs: [] });
-            groups.get(key).songs.push({ ...song, track_order: assoc.track_order });
+            // Show a song under every album it's officially on, not just one —
+            // a Cuttin' Grass re-recording is still that album's own tracklist
+            // entry, even though the same song is also on its original album.
+            const assocs = (song.album_songs || []).filter(as => as.albums);
+            if (assocs.length === 0) { other.push(song); return; }
+            assocs.forEach(assoc => {
+                const key = assoc.album_id;
+                if (!groups.has(key)) groups.set(key, { album: assoc.albums, songs: [] });
+                groups.get(key).songs.push({ ...song, track_order: assoc.track_order });
+            });
         });
 
         const sortedGroups = [...groups.values()]
