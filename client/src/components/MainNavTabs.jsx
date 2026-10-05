@@ -21,11 +21,10 @@ const TABS = [
     { id: 'myshows', label: 'My Shows', to: '/?tab=myshows' },
     { id: 'posters', label: 'Posters', to: '/posters' },
     { id: 'photos', label: 'Photos', to: '/photos' },
-    { id: 'band', label: 'Band', to: '/band' },
     { id: 'members', label: 'Members', to: '/members' },
 ];
 
-const ROUTE_TAB = { '/posters': 'posters', '/photos': 'photos', '/members': 'members', '/band': 'band' };
+const ROUTE_TAB = { '/posters': 'posters', '/photos': 'photos', '/members': 'members' };
 
 // `onHomeClick` is optional — only SearchPage (the one place with filters to
 // reset) passes it. Other pages render MainNavTabs with it omitted, so the

@@ -264,6 +264,13 @@ function PublicLayout() {
               >
                 Links
               </Link>
+              <Link
+                to="/band"
+                className="text-xs hover:opacity-80 transition-opacity"
+                style={{ color: 'var(--p-color-info)' }}
+              >
+                Band
+              </Link>
               {isEditorOrAdmin && (
                 <Link
                   to="/admin"
