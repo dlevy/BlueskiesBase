@@ -1,9 +1,10 @@
-import { BrowserRouter as Router, Routes, Route, Link, Outlet, useNavigate } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Link, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { PButtonPure } from '@porsche-design-system/components-react'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { AvatarNudgeProvider } from './contexts/AvatarNudgeContext'
 import { setTokenGetter, getSiteSettings } from './services/api'
+import { trackPageview } from './utils/analytics'
 import ProtectedRoute from './components/ProtectedRoute'
 import HomePage from './pages/HomePage'
 import ShowDetailPage from './pages/ShowDetailPage'
@@ -43,14 +44,29 @@ import AdminUsers from './pages/admin/AdminUsers'
 import SiteSettingsPage from './pages/admin/SiteSettingsPage'
 import SetlistSubmissionsReview from './pages/admin/SetlistSubmissionsReview'
 import InstagramPostPage from './pages/admin/InstagramPostPage'
+import AnalyticsPage from './pages/admin/AnalyticsPage'
 import ArtworkPage from './pages/ArtworkPage'
 import './App.css'
+
+// Fires on every route change (pathname or query string), covering both the
+// public site and /admin — logged in-the-clear with the visitor's role when
+// known, so the analytics dashboard can filter staff out by default rather
+// than never recording their visits at all.
+function PageviewTracker() {
+  const location = useLocation();
+  useEffect(() => {
+    trackPageview();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname, location.search]);
+  return null;
+}
 
 function App() {
   return (
     <AuthProvider>
       <Router>
         <AvatarNudgeProvider>
+        <PageviewTracker />
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<PublicLayout />}>
@@ -107,6 +123,7 @@ function App() {
             <Route path="tours" element={<ToursList />} />
             <Route path="tours/:tourName" element={<TourEditPage />} />
             <Route path="setlist-submissions" element={<SetlistSubmissionsReview />} />
+            <Route path="analytics" element={<AnalyticsPage />} />
             <Route path="users" element={<AdminUsers />} />
             <Route path="settings" element={<SiteSettingsPage />} />
           </Route>

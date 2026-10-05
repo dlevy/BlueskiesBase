@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { toPng } from 'html-to-image';
+import { trackEvent } from '../utils/analytics';
 
 // Captures a forwardRef'd graphic node to a PNG via html-to-image, triggers a
 // download, and keeps the result around (`generatedImageUrl`) so the caller
@@ -13,7 +14,7 @@ import { toPng } from 'html-to-image';
 // it's a CSS background-image in the graphic (not an <img>), so there's
 // nothing in the DOM to call .decode() on directly; decoding an offscreen
 // copy of the exact same data: URL achieves the same thing.
-export default function useGraphicPngExport(graphicRef, backgroundImageDataUrl) {
+export default function useGraphicPngExport(graphicRef, backgroundImageDataUrl, eventName) {
     const [generating, setGenerating] = useState(false);
     const [generatedImageUrl, setGeneratedImageUrl] = useState(null);
 
@@ -57,13 +58,14 @@ export default function useGraphicPngExport(graphicRef, backgroundImageDataUrl) 
             link.href = dataUrl;
             link.click();
             setGeneratedImageUrl(dataUrl);
+            if (eventName) trackEvent(eventName);
         } catch (err) {
             console.error('[useGraphicPngExport] Error generating image:', err);
             alert('Failed to generate image');
         } finally {
             setGenerating(false);
         }
-    }, [graphicRef, backgroundImageDataUrl]);
+    }, [graphicRef, backgroundImageDataUrl, eventName]);
 
     const clearGeneratedImage = useCallback(() => setGeneratedImageUrl(null), []);
 

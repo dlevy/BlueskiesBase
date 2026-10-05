@@ -77,7 +77,7 @@ export default function ArtworkPage() {
     const selectedPoster = posters.find(p => p.id === selectedPosterId) || null;
     const rawBackgroundImageUrl = usingDefaultBackground ? DEFAULT_BG_URL : selectedPoster?.poster_url || null;
     const { dataUrl: backgroundImageDataUrl, loading: backgroundImageLoading } = useBackgroundImageDataUrl(rawBackgroundImageUrl);
-    const { generating, generatedImageUrl, download, clearGeneratedImage } = useGraphicPngExport(graphicRef, backgroundImageDataUrl);
+    const { generating, generatedImageUrl, download, clearGeneratedImage } = useGraphicPngExport(graphicRef, backgroundImageDataUrl, 'artwork_download');
     // Border color auto-derived from the background image itself (see
     // ArtworkGraphic's strokeColor prop) — reuses the same already-inlined
     // data: URL the export hook needs, no extra fetch.

@@ -1,5 +1,6 @@
 // API service for making calls to the backend
 import { supabase } from './supabase';
+import { trackEvent } from '../utils/analytics';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -902,6 +903,7 @@ export const markShowAttended = async (showId) => {
         const error = await response.json();
         throw new Error(error.error || 'Failed to mark show as attended');
     }
+    trackEvent('mark_show_attended');
     return response.json();
 };
 
@@ -1235,6 +1237,7 @@ export const saveSetlistSubmission = async (showId, songs, note) => {
         const error = await response.json().catch(() => ({}));
         throw new Error(error.error || 'Failed to save setlist submission');
     }
+    trackEvent('setlist_submitted');
     return response.json();
 };
 
@@ -1445,6 +1448,7 @@ export const uploadPhoto = async (showId, file, caption = '') => {
         const error = await response.json();
         throw new Error(error.error || 'Failed to upload photo');
     }
+    trackEvent('photo_uploaded');
     return response.json();
 };
 
@@ -1597,6 +1601,7 @@ export const uploadPoster = async (showId, file, caption = '', isFoil = false, c
         }
         throw error;
     }
+    trackEvent('poster_uploaded');
     return response.json();
 };
 
@@ -2184,6 +2189,30 @@ export const deleteGearItem = async (gearId) => {
     if (!response.ok) {
         const error = await response.json().catch(() => ({}));
         throw new Error(error.error || 'Failed to delete gear item');
+    }
+    return response.json();
+};
+
+/**
+ * Get the admin analytics summary (page views, feature usage) for a date
+ * range. Editor/admin only. `includeStaff` opts back into admin/editor-
+ * tagged rows, which are excluded by default.
+ */
+export const getAnalyticsSummary = async ({ from, to, includeStaff = false } = {}) => {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+
+    const params = new URLSearchParams();
+    if (from) params.set('from', from);
+    if (to) params.set('to', to);
+    if (includeStaff) params.set('includeStaff', 'true');
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/analytics/summary?${params}`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to load analytics');
     }
     return response.json();
 };

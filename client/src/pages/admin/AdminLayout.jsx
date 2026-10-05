@@ -61,6 +61,7 @@ export default function AdminLayout() {
                             { to: '/admin/venues', label: 'Venues' },
                             { to: '/admin/band-members', label: 'Band Members' },
                             { to: '/admin/setlist-submissions', label: 'Setlist Submissions' },
+                            { to: '/admin/analytics', label: 'Analytics' },
                             // Full admins only — user management (including deleting
                             // accounts) is intentionally out of reach for editors.
                             ...(isAdmin ? [{ to: '/admin/users', label: 'Users' }] : []),

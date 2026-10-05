@@ -69,7 +69,7 @@ export default function InstagramPostPage() {
     const posterUrl = activePoster?.poster_url || null;
     const rawBackgroundImageUrl = backgroundMode === 'poster' ? posterUrl : backgroundMode === 'photo' ? selectedPhotoUrl : null;
     const { dataUrl: backgroundImageDataUrl, loading: backgroundImageLoading } = useBackgroundImageDataUrl(rawBackgroundImageUrl);
-    const { generating, generatedImageUrl, download, clearGeneratedImage } = useGraphicPngExport(graphicRef, backgroundImageDataUrl);
+    const { generating, generatedImageUrl, download, clearGeneratedImage } = useGraphicPngExport(graphicRef, backgroundImageDataUrl, 'instagram_post_download');
 
     const handleDownload = () => {
         const datePart = show.show_date;

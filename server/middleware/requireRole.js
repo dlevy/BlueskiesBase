@@ -51,4 +51,20 @@ async function requireEditorOrAdmin(req, res, next) {
     next();
 }
 
-module.exports = { requireAdmin, requireEditorOrAdmin };
+/**
+ * Resolves `{ user, role }` from a bearer token if one is present and valid,
+ * otherwise returns `{ user: null, role: null }` rather than rejecting —
+ * for routes that accept both guest and logged-in callers but still want to
+ * know who's calling when they can (analytics events: an invalid/expired
+ * token shouldn't block logging the event, it should just log it as a guest).
+ */
+async function loadRequesterOptional(req) {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return { user: null, role: null };
+
+    const result = await loadRequester(req);
+    if (result.error) return { user: null, role: null };
+    return { user: result.user, role: result.role };
+}
+
+module.exports = { requireAdmin, requireEditorOrAdmin, loadRequesterOptional };
