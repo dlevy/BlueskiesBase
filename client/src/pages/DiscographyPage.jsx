@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { PSpinner, PText, PInlineNotification } from '@porsche-design-system/components-react';
 import { getSongs } from '../services/api';
 import MainNavTabs from '../components/MainNavTabs';
@@ -13,7 +14,7 @@ function albumYear(releaseDate) {
 function SongRow({ song, expanded, onToggle }) {
     const hasLyrics = Boolean(song.lyrics?.trim());
     return (
-        <li className="border-b border-white/5 last:border-b-0">
+        <li data-song-id={song.id} className="border-b border-white/5 last:border-b-0 scroll-mt-20">
             <button
                 type="button"
                 onClick={hasLyrics ? onToggle : undefined}
@@ -55,10 +56,12 @@ function SongRow({ song, expanded, onToggle }) {
 }
 
 export default function DiscographyPage() {
+    const [searchParams] = useSearchParams();
+    const targetSongId = searchParams.get('song');
     const [songs, setSongs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [expandedSongId, setExpandedSongId] = useState(null);
+    const [expandedSongId, setExpandedSongId] = useState(targetSongId || null);
 
     useEffect(() => {
         getSongs()
@@ -74,6 +77,18 @@ export default function DiscographyPage() {
             })
             .finally(() => setLoading(false));
     }, []);
+
+    // Deep link from a show page's lyrics icon (?song=<id>) — scroll to that
+    // song once it's actually rendered (requestAnimationFrame rather than
+    // immediately, so layout has settled after the loading spinner is gone).
+    useEffect(() => {
+        if (!targetSongId || loading) return;
+        const raf = requestAnimationFrame(() => {
+            document.querySelector(`[data-song-id="${targetSongId}"]`)
+                ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+        return () => cancelAnimationFrame(raf);
+    }, [targetSongId, loading]);
 
     const { albumGroups, otherSongs } = useMemo(() => {
         const groups = new Map();

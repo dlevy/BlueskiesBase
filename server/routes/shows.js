@@ -384,6 +384,7 @@ router.get('/:id', async (req, res) => {
                     is_original,
                     is_sunday_valley,
                     written_by,
+                    lyrics,
                     album_songs (
                         album_id,
                         albums (id, title, release_date)
@@ -434,6 +435,7 @@ router.get('/:id', async (req, res) => {
                 is_sunday_valley: item.songs?.is_sunday_valley,
                 original_artist: item.songs?.original_artist,
                 written_by: item.songs?.written_by,
+                lyrics: item.songs?.lyrics,
                 songs: item.songs  // Keep the full song object for backward compatibility
             });
         });

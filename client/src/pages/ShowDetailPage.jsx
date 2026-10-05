@@ -163,8 +163,27 @@ function SongRow({ song, position, tourRarity, liveDebutSongIds, tourDebutSongId
     const isLiveDebut = song.song_id != null && liveDebutSongIds?.has(song.song_id);
     const isTourDebut = song.song_id != null && tourDebutSongIds?.has(song.song_id);
 
+    const hasLyrics = Boolean(song.lyrics?.trim());
+
     return (
         <li className="flex gap-3 py-0.5 items-start">
+            {/* Reserves its width whether or not this song has lyrics, same
+                trick as the position number below, so titles stay aligned. */}
+            <span className="shrink-0 w-5 flex justify-center pt-0.5">
+                {hasLyrics && (
+                    <Link
+                        to={`/discography?song=${song.song_id}`}
+                        aria-label="View lyrics"
+                        title="View lyrics"
+                        className="p-1 -m-1 rounded hover:bg-white/10 transition-colors"
+                        style={{ color: 'var(--p-color-info)' }}
+                    >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h10M4 18h7" />
+                        </svg>
+                    </Link>
+                )}
+            </span>
             {/* position is null for a jam's return to a song already numbered
                 earlier in the same chain — left blank rather than renumbered,
                 but the slot stays the same width so the title still lines up
