@@ -444,11 +444,21 @@ export default function ShowDetailPage() {
     ];
     const firstFive = allSongsFlat.slice(0, 5).map(s => s.title).filter(Boolean).join(', ');
     const seoDescription = `${show.artist_name} performed at ${venueName} in ${venueCity} on ${longDate}.${firstFive ? ' Setlist: ' + firstFive + '.' : ''}`;
+    // Keep in sync with server/utils/showMeta.js buildShowHead — that's what
+    // crawlers actually see (prerendered into index.html for /show/* before
+    // this client-side version would ever run); this copy covers in-app
+    // client-side navigation between show pages.
+    // No ticketing/promoter data exists in this archive, so `offers` and
+    // `organizer` are deliberately omitted rather than fabricated.
     const jsonLd = {
         '@context': 'https://schema.org',
         '@type': 'MusicEvent',
         name: `${show.artist_name} – ${venueName}`,
         startDate: show.show_date,
+        endDate: show.show_date,
+        eventStatus: 'https://schema.org/EventScheduled',
+        eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
+        description: seoDescription,
         location: {
             '@type': 'MusicVenue',
             name: venueName,
