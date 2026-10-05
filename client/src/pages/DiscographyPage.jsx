@@ -29,6 +29,11 @@ function SongRow({ song, expanded, onToggle }) {
                             Sunday Valley
                         </span>
                     )}
+                    {song.is_original === false && (
+                        <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-300 whitespace-nowrap shrink-0">
+                            Cover{song.original_artist ? ` · ${song.original_artist}` : ''}
+                        </span>
+                    )}
                 </div>
                 {hasLyrics ? (
                     <span className="text-xs shrink-0" style={{ color: 'var(--p-color-info)' }}>
@@ -57,7 +62,12 @@ export default function DiscographyPage() {
 
     useEffect(() => {
         getSongs()
-            .then(data => setSongs((data.songs || []).filter(s => s.is_original === true)))
+            .then(data => setSongs((data.songs || []).filter(s =>
+                // Originals (wherever they appear), plus covers only when
+                // they're an actual album track — not every song ever
+                // covered live, which would be most of the catalog.
+                s.is_original === true || (s.album_songs && s.album_songs.length > 0)
+            )))
             .catch(err => {
                 console.error('[DiscographyPage] Error fetching songs:', err);
                 setError('Failed to load the discography. Please refresh the page.');
@@ -102,7 +112,7 @@ export default function DiscographyPage() {
         <div className="px-4 pt-2 pb-4 md:pt-3 md:pb-6 max-w-3xl mx-auto">
             <SEO
                 title="Discography"
-                description="Every Sturgill Simpson and Johnny Blue Skies original song, grouped by album, with lyrics where available."
+                description="Every Sturgill Simpson and Johnny Blue Skies album, grouped with its tracklist, including cover songs, with lyrics where available."
             />
 
             <MainNavTabs />
@@ -112,7 +122,7 @@ export default function DiscographyPage() {
                     Discography
                 </h1>
                 <PText size="small" color="contrast-medium">
-                    Original songs, grouped by album. Tap a song to view its lyrics.
+                    Every album's tracklist, including cover songs. Tap a song to view its lyrics.
                 </PText>
             </div>
 
@@ -171,7 +181,7 @@ export default function DiscographyPage() {
                     )}
 
                     {albumGroups.length === 0 && otherSongs.length === 0 && (
-                        <PText color="contrast-medium">No original songs found.</PText>
+                        <PText color="contrast-medium">No songs found.</PText>
                     )}
                 </div>
             )}
