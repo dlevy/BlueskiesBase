@@ -217,11 +217,11 @@ router.get('/:id', async (req, res) => {
  */
 router.post('/', requireEditorOrAdmin, async (req, res) => {
     try {
-        const { title, original_artist, is_original, written_by, lyrics, notes, album_id } = req.body;
+        const { title, original_artist, is_original, is_sunday_valley, written_by, lyrics, notes, album_id } = req.body;
 
         const { data: song, error } = await supabase
             .from('songs')
-            .insert([{ title, original_artist, is_original, written_by, lyrics, notes, album_id: album_id || null }])
+            .insert([{ title, original_artist, is_original, is_sunday_valley, written_by, lyrics, notes, album_id: album_id || null }])
             .select()
             .single();
 
@@ -245,11 +245,11 @@ router.post('/', requireEditorOrAdmin, async (req, res) => {
 router.put('/:id', requireEditorOrAdmin, async (req, res) => {
     try {
         const { id } = req.params;
-        const { title, original_artist, is_original, written_by, lyrics, notes, album_id, track_order } = req.body;
+        const { title, original_artist, is_original, is_sunday_valley, written_by, lyrics, notes, album_id, track_order } = req.body;
 
         const { data: song, error } = await supabase
             .from('songs')
-            .update({ title, original_artist, is_original, written_by, lyrics, notes, album_id: album_id || null, track_order, updated_at: new Date() })
+            .update({ title, original_artist, is_original, is_sunday_valley, written_by, lyrics, notes, album_id: album_id || null, track_order, updated_at: new Date() })
             .eq('id', id)
             .select()
             .single();

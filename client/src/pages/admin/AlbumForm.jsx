@@ -333,6 +333,11 @@ export default function AlbumForm({ album, onClose }) {
                                                         Cover{song.original_artist ? ` · ${song.original_artist}` : ''}
                                                     </span>
                                                 )}
+                                                {song.is_sunday_valley && (
+                                                    <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-teal-500/10 text-teal-300 whitespace-nowrap shrink-0">
+                                                        Sunday Valley
+                                                    </span>
+                                                )}
                                             </div>
 
                                             <button
@@ -370,7 +375,7 @@ export default function AlbumForm({ album, onClose }) {
                                         <option value="">Select a song…</option>
                                         {availableSongs.map(song => (
                                             <option key={song.id} value={song.id}>
-                                                {song.title}{!song.is_original ? ` (Cover${song.original_artist ? ' · ' + song.original_artist : ''})` : ''}
+                                                {song.title}{song.is_sunday_valley ? ' (Sunday Valley)' : !song.is_original ? ` (Cover${song.original_artist ? ' · ' + song.original_artist : ''})` : ''}
                                             </option>
                                         ))}
                                     </select>

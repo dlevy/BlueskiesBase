@@ -41,6 +41,7 @@ export default function SongsList() {
         let filtered = songs;
         if (filterType === 'original') filtered = filtered.filter(s => s.is_original);
         else if (filterType === 'cover') filtered = filtered.filter(s => !s.is_original);
+        else if (filterType === 'sunday-valley') filtered = filtered.filter(s => s.is_sunday_valley);
         if (searchTerm) {
             const term = searchTerm.toLowerCase();
             filtered = filtered.filter(s =>
@@ -104,6 +105,7 @@ export default function SongsList() {
                             <option value="all">All Songs</option>
                             <option value="original">Original Songs Only</option>
                             <option value="cover">Cover Songs Only</option>
+                            <option value="sunday-valley">Sunday Valley Only</option>
                         </select>
                     </div>
                 </div>
@@ -140,8 +142,8 @@ export default function SongsList() {
                                             <PText size="small" weight="semi-bold">{song.title}</PText>
                                         </td>
                                         <td className="px-4 py-3">
-                                            <PTag color={song.is_original ? 'notification-success' : 'notification-info'}>
-                                                {song.is_original ? 'Original' : 'Cover'}
+                                            <PTag color={song.is_sunday_valley ? 'notification-warning' : song.is_original ? 'notification-success' : 'notification-info'}>
+                                                {song.is_sunday_valley ? 'Sunday Valley' : song.is_original ? 'Original' : 'Cover'}
                                             </PTag>
                                         </td>
                                         <td className="px-4 py-3">

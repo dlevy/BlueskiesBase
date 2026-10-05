@@ -61,6 +61,7 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
                     song_id: song.song_id || song.songs?.id,
                     title: song.title || song.songs?.title,
                     is_original: song.is_original ?? null,
+                    is_sunday_valley: song.is_sunday_valley ?? false,
                     original_artist: song.original_artist || null,
                     notes: song.notes || '',
                     jams_into: song.jams_into || null,
@@ -99,6 +100,7 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
             song_id: song.id,
             title: song.title,
             is_original: song.is_original,
+            is_sunday_valley: song.is_sunday_valley,
             original_artist: song.original_artist,
             written_by: song.written_by,
             notes: '',
@@ -304,6 +306,12 @@ function SetlistSongItem({ song, index, isFirst, isLast, onRemove, onMove, onUpd
                         <span className="shrink-0 text-xs px-1.5 py-0.5 rounded border"
                             style={{ color: 'var(--p-color-info)', borderColor: 'var(--p-color-info)', background: 'color-mix(in srgb, var(--p-color-info) 10%, transparent)' }}>
                             Cover
+                        </span>
+                    )}
+                    {song.is_sunday_valley && (
+                        <span className="shrink-0 text-xs px-1.5 py-0.5 rounded border"
+                            style={{ color: '#2dd4bf', borderColor: '#2dd4bf', background: 'color-mix(in srgb, #2dd4bf 10%, transparent)' }}>
+                            Sunday Valley
                         </span>
                     )}
                     {song.jams_into && (

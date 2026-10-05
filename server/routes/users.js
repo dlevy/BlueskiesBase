@@ -318,6 +318,7 @@ router.get('/stats', async (req, res) => {
                         id,
                         title,
                         is_original,
+                        is_sunday_valley,
                         original_artist
                     )
                 `)

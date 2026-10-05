@@ -41,3 +41,15 @@ export async function getLiveCoverTitles(songsData) {
         .map(s => s.title)
         .sort((a, b) => a.localeCompare(b));
 }
+
+// Songs written & originally performed under Sturgill's pre-solo band name,
+// Sunday Valley — flagged is_sunday_valley on the songs table (is_original
+// stays true for these; it's an additional tag, not a cover classification).
+// No extra query needed, unlike getLiveCoverTitles — is_sunday_valley is a
+// direct column already present once the caller's `songs` select includes it.
+export function getSundayValleyTitles(songsData) {
+    return (songsData || [])
+        .filter(s => s.is_sunday_valley === true)
+        .map(s => s.title)
+        .sort((a, b) => a.localeCompare(b));
+}

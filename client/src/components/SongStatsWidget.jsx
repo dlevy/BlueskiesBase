@@ -336,6 +336,9 @@ export default function SongStatsWidget() {
                                         {!song.is_original && (
                                             <span className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-300 whitespace-nowrap shrink-0">Cover</span>
                                         )}
+                                        {song.is_sunday_valley && (
+                                            <span className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-teal-500/10 text-teal-300 whitespace-nowrap shrink-0">Sunday Valley</span>
+                                        )}
                                     </div>
                                     <div className="h-1 rounded-full overflow-hidden mb-1" style={{ background: 'var(--p-color-contrast-lower)' }}>
                                         <div

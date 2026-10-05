@@ -29,6 +29,7 @@ async function computeSongsSeenForShows(showIds) {
                     id,
                     title,
                     is_original,
+                    is_sunday_valley,
                     original_artist
                 )
             `)

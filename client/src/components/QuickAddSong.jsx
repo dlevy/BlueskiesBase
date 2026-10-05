@@ -124,7 +124,11 @@ export default function QuickAddSong({ allSongs, onAddSong, onSongCreated, allow
                             className="w-full text-left px-3 py-2 text-sm border-b border-white/5 last:border-b-0 transition-colors"
                             style={{ background: i === highlighted ? 'color-mix(in srgb, var(--p-color-notification-warning) 15%, transparent)' : 'transparent' }}>
                             <span style={{ color: 'var(--p-color-primary)' }}>{song.title}</span>
-                            {song.original_artist && (
+                            {song.is_sunday_valley ? (
+                                <span className="ml-2 text-xs" style={{ color: '#2dd4bf' }}>
+                                    Sunday Valley
+                                </span>
+                            ) : song.original_artist && (
                                 <span className="ml-2 text-xs" style={{ color: 'var(--p-color-contrast-medium)' }}>
                                     Cover of {song.original_artist}
                                 </span>

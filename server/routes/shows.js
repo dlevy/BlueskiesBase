@@ -382,6 +382,7 @@ router.get('/:id', async (req, res) => {
                     title,
                     original_artist,
                     is_original,
+                    is_sunday_valley,
                     written_by,
                     album_songs (
                         album_id,
@@ -430,6 +431,7 @@ router.get('/:id', async (req, res) => {
                 // Song metadata from songs table
                 title: item.songs?.title,
                 is_original: item.songs?.is_original,
+                is_sunday_valley: item.songs?.is_sunday_valley,
                 original_artist: item.songs?.original_artist,
                 written_by: item.songs?.written_by,
                 songs: item.songs  // Keep the full song object for backward compatibility

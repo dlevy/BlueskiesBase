@@ -375,6 +375,9 @@ export default function StatsPage() {
                                                 {!song.is_original && (
                                                     <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-300 whitespace-nowrap">Cover</span>
                                                 )}
+                                                {song.is_sunday_valley && (
+                                                    <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-teal-500/10 text-teal-300 whitespace-nowrap">Sunday Valley</span>
+                                                )}
                                             </div>
                                             <PTag color="notification-success-soft">{song.playCount}x</PTag>
                                         </div>
@@ -405,6 +408,9 @@ export default function StatsPage() {
                                             <PText weight="semi-bold">{song.title}</PText>
                                             {!song.is_original && song.original_artist && (
                                                 <PText size="xs" color="contrast-medium">Cover · {song.original_artist}</PText>
+                                            )}
+                                            {song.is_sunday_valley && (
+                                                <PText size="xs" style={{ color: '#2dd4bf' }}>Sunday Valley</PText>
                                             )}
                                             {song.mostRecentShow && (
                                                 <div className="mt-2">

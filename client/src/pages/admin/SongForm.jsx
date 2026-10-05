@@ -12,6 +12,7 @@ export default function SongForm({ song, onClose }) {
     const [formData, setFormData] = useState({
         title: '',
         is_original: true,
+        is_sunday_valley: false,
         original_artist: '',
         written_by: '',
         lyrics: '',
@@ -40,6 +41,7 @@ export default function SongForm({ song, onClose }) {
             setFormData({
                 title: song.title || '',
                 is_original: song.is_original ?? true,
+                is_sunday_valley: song.is_sunday_valley ?? false,
                 original_artist: song.original_artist || '',
                 written_by: song.written_by || '',
                 lyrics: song.lyrics || '',
@@ -52,6 +54,29 @@ export default function SongForm({ song, onClose }) {
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
         setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+    };
+
+    // A Sunday Valley song is always an original (Sturgill's own, just
+    // performed under his pre-solo band name) — checking this forces
+    // is_original on and clears any cover-artist text; a cover of someone
+    // else's song can't also be tagged Sunday Valley.
+    const handleSundayValleyChange = (e) => {
+        const checked = e.target.checked;
+        setFormData(prev => ({
+            ...prev,
+            is_sunday_valley: checked,
+            is_original: checked ? true : prev.is_original,
+            original_artist: checked ? '' : prev.original_artist,
+        }));
+    };
+
+    const handleIsOriginalChange = (e) => {
+        const checked = e.target.checked;
+        setFormData(prev => ({
+            ...prev,
+            is_original: checked,
+            is_sunday_valley: checked ? prev.is_sunday_valley : false,
+        }));
     };
 
     const handleSubmit = async (e) => {
@@ -110,9 +135,17 @@ export default function SongForm({ song, onClose }) {
 
                 <div className="flex items-center gap-3 p-3 rounded-xl border border-white/10 bg-white/5">
                     <input type="checkbox" name="is_original" id="is_original"
-                        checked={formData.is_original} onChange={handleChange} className="w-4 h-4" />
+                        checked={formData.is_original} onChange={handleIsOriginalChange} className="w-4 h-4" />
                     <label htmlFor="is_original" className="cursor-pointer">
                         <PText size="small">This is an original song (not a cover)</PText>
+                    </label>
+                </div>
+
+                <div className="flex items-center gap-3 p-3 rounded-xl border border-white/10 bg-white/5">
+                    <input type="checkbox" name="is_sunday_valley" id="is_sunday_valley"
+                        checked={formData.is_sunday_valley} onChange={handleSundayValleyChange} className="w-4 h-4" />
+                    <label htmlFor="is_sunday_valley" className="cursor-pointer">
+                        <PText size="small">Sunday Valley song (Sturgill's early band — still his own original)</PText>
                     </label>
                 </div>
 

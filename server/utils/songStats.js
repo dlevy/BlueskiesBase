@@ -67,6 +67,7 @@ async function computeGlobalSongStats(limit = 10, filter = null) {
                     id,
                     title,
                     is_original,
+                    is_sunday_valley,
                     original_artist,
                     album_id
                 )
@@ -102,6 +103,7 @@ async function computeGlobalSongStats(limit = 10, filter = null) {
                 id: songId,
                 title: ss.songs.title,
                 is_original: ss.songs.is_original,
+                is_sunday_valley: ss.songs.is_sunday_valley,
                 original_artist: ss.songs.original_artist,
                 shows: new Set(),
                 lastPlayed: showDate,
@@ -117,6 +119,7 @@ async function computeGlobalSongStats(limit = 10, filter = null) {
         id: song.id,
         title: song.title,
         is_original: song.is_original,
+        is_sunday_valley: song.is_sunday_valley,
         original_artist: song.original_artist,
         playCount: song.shows.size,
         lastPlayed: song.lastPlayed,

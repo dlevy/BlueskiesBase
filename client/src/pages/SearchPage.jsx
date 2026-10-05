@@ -15,7 +15,7 @@ import MostRecentShowWidget from '../components/MostRecentShowWidget';
 import SetlistPreview from '../components/SetlistPreview';
 import MainNavTabs from '../components/MainNavTabs';
 import { orderSetlistSongs } from '../utils/setlist';
-import { getLiveCoverTitles } from '../utils/coverSongs';
+import { getLiveCoverTitles, getSundayValleyTitles } from '../utils/coverSongs';
 import SEO from '../components/SEO';
 
 const selectClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-transparent";
@@ -67,6 +67,7 @@ export default function SearchPage() {
     const [years, setYears] = useState([]);
     const [originalsByAlbum, setOriginalsByAlbum] = useState([]);
     const [coverSongs, setCoverSongs] = useState([]);
+    const [sundayValleySongs, setSundayValleySongs] = useState([]);
     const [totalShows, setTotalShows] = useState(0);
     const [filterPanelOpen, setFilterPanelOpen] = useState(false);
 
@@ -87,7 +88,7 @@ export default function SearchPage() {
                     // in a URL which exceeds PostgREST's length limit.
                     const { data: songsData, error: songsError } = await supabase
                         .from('songs')
-                        .select('id, title, is_original, album_songs(album_id, track_order, albums(id, title, release_date))')
+                        .select('id, title, is_original, is_sunday_valley, album_songs(album_id, track_order, albums(id, title, release_date))')
                         .order('title');
 
                     if (!songsError && songsData?.length > 0) {
@@ -96,6 +97,7 @@ export default function SearchPage() {
                         // Covers — flat alphabetical list, live performances only
                         // (excludes songs only ever DJ'd between/after sets)
                         setCoverSongs(await getLiveCoverTitles(uniqueSongs));
+                        setSundayValleySongs(getSundayValleyTitles(uniqueSongs));
 
                         // Originals — grouped by album via junction table, newest album first
                         // A song may appear in multiple albums
@@ -481,7 +483,7 @@ export default function SearchPage() {
                                 <div className="mb-4">
                                     <label className="block text-xs font-semibold mb-0.5" style={{ color: 'var(--p-color-contrast-medium)' }}>FIND SHOWS BY SONG PLAYED</label>
                                     <p className="text-xs mb-2" style={{ color: 'var(--p-color-contrast-low)' }}>Find every show where a specific song was performed</p>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                         <div>
                                             <label className="block text-xs mb-1" style={{ color: 'var(--p-color-contrast-low)' }}>Originals</label>
                                             <select name="song" value={searchParams.song} onChange={handleInputChange} className={selectClass}
@@ -502,6 +504,16 @@ export default function SearchPage() {
                                                 style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
                                                 <option value="">Select a cover…</option>
                                                 {coverSongs.map(title => (
+                                                    <option key={title} value={title}>{title}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs mb-1" style={{ color: 'var(--p-color-contrast-low)' }}>Sunday Valley</label>
+                                            <select name="song" value={searchParams.song} onChange={handleInputChange} className={selectClass}
+                                                style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
+                                                <option value="">Select a Sunday Valley song…</option>
+                                                {sundayValleySongs.map(title => (
                                                     <option key={title} value={title}>{title}</option>
                                                 ))}
                                             </select>

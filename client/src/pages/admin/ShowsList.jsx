@@ -5,7 +5,7 @@ import { getShows, searchShows, deleteShow } from '../../services/api';
 import { buildShowPath } from '../../utils/showSlug';
 import { supabase } from '../../services/supabase';
 import { useAuth } from '../../contexts/AuthContext';
-import { getLiveCoverTitles } from '../../utils/coverSongs';
+import { getLiveCoverTitles, getSundayValleyTitles } from '../../utils/coverSongs';
 
 const selectClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-transparent";
 
@@ -38,6 +38,7 @@ export default function ShowsList() {
     const [years, setYears] = useState([]);
     const [originalsByAlbum, setOriginalsByAlbum] = useState([]);
     const [coverSongs, setCoverSongs] = useState([]);
+    const [sundayValleySongs, setSundayValleySongs] = useState([]);
 
     const page = parseInt(searchParams.get('page') || '1', 10);
     const filtering = hasActiveFilters(filters);
@@ -56,12 +57,13 @@ export default function ShowsList() {
 
                 const { data: songsData } = await supabase
                     .from('songs')
-                    .select('id, title, is_original, album_songs(album_id, track_order, albums(id, title, release_date))')
+                    .select('id, title, is_original, is_sunday_valley, album_songs(album_id, track_order, albums(id, title, release_date))')
                     .order('title');
                 if (songsData?.length > 0) {
                     // Live performances only (excludes songs only ever DJ'd
                     // between/after sets).
                     setCoverSongs(await getLiveCoverTitles(songsData));
+                    setSundayValleySongs(getSundayValleyTitles(songsData));
 
                     const albumMap = new Map();
                     songsData.filter(s => s.is_original === true).forEach(song => {
@@ -310,7 +312,7 @@ export default function ShowsList() {
                         <div className="mb-4">
                             <label className="block text-xs font-semibold mb-0.5" style={{ color: 'var(--p-color-contrast-medium)' }}>FIND SHOWS BY SONG PLAYED</label>
                             <p className="text-xs mb-2" style={{ color: 'var(--p-color-contrast-low)' }}>Find every show where a specific song was performed</p>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                 <div>
                                     <label className="block text-xs mb-1" style={{ color: 'var(--p-color-contrast-low)' }}>Originals</label>
                                     <select name="song" value={filters.song} onChange={handleInputChange} className={selectClass}
@@ -331,6 +333,16 @@ export default function ShowsList() {
                                         style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
                                         <option value="">Select a cover…</option>
                                         {coverSongs.map(title => (
+                                            <option key={title} value={title}>{title}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs mb-1" style={{ color: 'var(--p-color-contrast-low)' }}>Sunday Valley</label>
+                                    <select name="song" value={filters.song} onChange={handleInputChange} className={selectClass}
+                                        style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
+                                        <option value="">Select a Sunday Valley song…</option>
+                                        {sundayValleySongs.map(title => (
                                             <option key={title} value={title}>{title}</option>
                                         ))}
                                     </select>

@@ -62,7 +62,7 @@ router.get('/', requireEditorOrAdmin, async (req, res) => {
                     song_order,
                     notes,
                     merged_into_setlist,
-                    songs ( id, title, original_artist, is_original )
+                    songs ( id, title, original_artist, is_original, is_sunday_valley )
                 )
             `)
             .order('created_at', { ascending: false });
@@ -106,7 +106,7 @@ router.get('/show/:showId', async (req, res) => {
                     song_order,
                     notes,
                     merged_into_setlist,
-                    songs ( id, title, original_artist, is_original )
+                    songs ( id, title, original_artist, is_original, is_sunday_valley )
                 )
             `)
             .eq('show_id', showId)
@@ -144,7 +144,7 @@ router.get('/user/:showId', authenticate, async (req, res) => {
                 note,
                 setlist_submission_songs (
                     id, song_id, song_order, notes, merged_into_setlist,
-                    songs ( id, title, original_artist, is_original )
+                    songs ( id, title, original_artist, is_original, is_sunday_valley )
                 )
             `)
             .eq('show_id', showId)
@@ -281,7 +281,7 @@ router.post('/', authenticate, async (req, res) => {
                 profiles:user_id ( id, username ),
                 setlist_submission_songs (
                     id, song_id, song_order, notes, merged_into_setlist,
-                    songs ( id, title, original_artist, is_original )
+                    songs ( id, title, original_artist, is_original, is_sunday_valley )
                 )
             `)
             .eq('id', submissionId)
@@ -404,7 +404,7 @@ router.post('/songs/:songRowId/merge', requireEditorOrAdmin, async (req, res) =>
             })
             .select(`
                 id, song_id, set_number, song_order, is_encore, notes, jams_into, performance_type,
-                songs!setlist_songs_song_id_fkey ( id, title, original_artist, is_original, written_by )
+                songs!setlist_songs_song_id_fkey ( id, title, original_artist, is_original, is_sunday_valley, written_by )
             `)
             .single();
         if (insertError) {
@@ -513,7 +513,7 @@ router.post('/:submissionId/merge-all', requireEditorOrAdmin, async (req, res) =
             .insert(insertRows)
             .select(`
                 id, song_id, set_number, song_order, is_encore, notes, jams_into, performance_type,
-                songs!setlist_songs_song_id_fkey ( id, title, original_artist, is_original, written_by )
+                songs!setlist_songs_song_id_fkey ( id, title, original_artist, is_original, is_sunday_valley, written_by )
             `);
         if (insertError) {
             console.error('[POST /setlist-submissions/:submissionId/merge-all] Error inserting into setlist_songs:', insertError);

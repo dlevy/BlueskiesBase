@@ -200,6 +200,14 @@ function SongRow({ song, position, tourRarity, liveDebutSongIds, tourDebutSongId
                             cover
                         </span>
                     )}
+                    {song.is_sunday_valley && (
+                        <span
+                            className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-teal-500/10 text-teal-300"
+                            title="Written & originally performed by Sturgill's early band, Sunday Valley"
+                        >
+                            Sunday Valley
+                        </span>
+                    )}
                     {isLiveDebut && <LiveDebutBadge />}
                     {isTourDebut && <TourDebutBadge />}
                     {isRare && (
