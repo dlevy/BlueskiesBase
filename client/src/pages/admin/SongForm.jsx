@@ -173,7 +173,7 @@ export default function SongForm({ song, onClose }) {
                         <option value="">-- No Album / Unreleased --</option>
                         {albums.map(album => (
                             <option key={album.id} value={album.id}>
-                                {album.title} ({new Date(album.release_date).getFullYear()}) - {album.album_type}
+                                {album.title} ({album.release_date?.split('-')[0]}) - {album.album_type}
                             </option>
                         ))}
                     </select>

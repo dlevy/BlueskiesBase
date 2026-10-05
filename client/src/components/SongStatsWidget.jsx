@@ -264,8 +264,13 @@ export default function SongStatsWidget() {
     }, [loadSongStats]);
 
     const formatDate = (dateString) => {
-        const date = new Date(dateString);
-        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        // Called with both a plain DATE string (song.lastPlayed, e.g.
+        // "2026-10-05") and a full ISO timestamp (new Date().toISOString()
+        // below) — take just the date portion and parse it as local parts
+        // rather than `new Date(dateString)`, which reads a bare date as UTC
+        // midnight and can print the wrong day in a timezone west of UTC.
+        const [year, month, day] = dateString.split('T')[0].split('-');
+        return new Date(year, month - 1, day).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     };
 
     if (loading) {

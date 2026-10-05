@@ -39,8 +39,11 @@ export default function AlbumsList() {
 
     const formatDate = (dateString) => {
         if (!dateString) return 'Unknown';
-        const date = new Date(dateString);
-        return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+        // release_date is a plain DATE column (YYYY-MM-DD) — parse the parts
+        // directly rather than `new Date(dateString)`, which reads it as UTC
+        // midnight and can print the wrong day in a timezone west of UTC.
+        const [year, month, day] = dateString.split('-');
+        return new Date(year, month - 1, day).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
     };
 
     if (loading) return <div className="flex justify-center items-center py-12"><PSpinner size="medium" /></div>;

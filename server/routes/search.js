@@ -174,8 +174,11 @@ router.get('/shows', async (req, res) => {
         // Filter by month only (across all years) if month is selected without year
         if (month && !year && filteredShows) {
             filteredShows = filteredShows.filter(show => {
-                const showDate = new Date(show.show_date);
-                const showMonth = showDate.getMonth() + 1; // getMonth() returns 0-11
+                // show_date is a plain DATE string (YYYY-MM-DD) — read the month
+                // directly rather than `new Date(show.show_date).getMonth()`,
+                // which parses it as UTC midnight and can read back the wrong
+                // month in a timezone west of UTC.
+                const showMonth = parseInt(show.show_date.split('-')[1], 10);
                 return showMonth === parseInt(month);
             });
         }
