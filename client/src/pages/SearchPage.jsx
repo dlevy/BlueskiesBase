@@ -15,6 +15,7 @@ import MostRecentShowWidget from '../components/MostRecentShowWidget';
 import SetlistPreview from '../components/SetlistPreview';
 import MainNavTabs from '../components/MainNavTabs';
 import { orderSetlistSongs } from '../utils/setlist';
+import { getLiveCoverTitles } from '../utils/coverSongs';
 import SEO from '../components/SEO';
 
 const selectClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-transparent";
@@ -92,13 +93,9 @@ export default function SearchPage() {
                     if (!songsError && songsData?.length > 0) {
                         const uniqueSongs = songsData;
 
-                        // Covers — flat alphabetical list
-                        setCoverSongs(
-                            uniqueSongs
-                                .filter(s => s.is_original === false)
-                                .sort((a, b) => a.title.localeCompare(b.title))
-                                .map(s => s.title)
-                        );
+                        // Covers — flat alphabetical list, live performances only
+                        // (excludes songs only ever DJ'd between/after sets)
+                        setCoverSongs(await getLiveCoverTitles(uniqueSongs));
 
                         // Originals — grouped by album via junction table, newest album first
                         // A song may appear in multiple albums

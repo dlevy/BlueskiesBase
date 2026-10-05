@@ -5,6 +5,7 @@ import { getShows, searchShows, deleteShow } from '../../services/api';
 import { buildShowPath } from '../../utils/showSlug';
 import { supabase } from '../../services/supabase';
 import { useAuth } from '../../contexts/AuthContext';
+import { getLiveCoverTitles } from '../../utils/coverSongs';
 
 const selectClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-transparent";
 
@@ -58,11 +59,9 @@ export default function ShowsList() {
                     .select('id, title, is_original, album_songs(album_id, track_order, albums(id, title, release_date))')
                     .order('title');
                 if (songsData?.length > 0) {
-                    setCoverSongs(
-                        songsData.filter(s => s.is_original === false)
-                            .sort((a, b) => a.title.localeCompare(b.title))
-                            .map(s => s.title)
-                    );
+                    // Live performances only (excludes songs only ever DJ'd
+                    // between/after sets).
+                    setCoverSongs(await getLiveCoverTitles(songsData));
 
                     const albumMap = new Map();
                     songsData.filter(s => s.is_original === true).forEach(song => {
