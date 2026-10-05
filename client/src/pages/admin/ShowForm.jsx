@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { PHeading, PText, PButton, PButtonPure, PInlineNotification, PSpinner } from '@porsche-design-system/components-react';
 import { getShowById, createShow, updateShow, deleteShow, getVenues, updateSetlist, createVenue, getBands, createBand } from '../../services/api';
 import { fetchTourList } from '../../utils/tourSongCounts';
+import { buildShowPath } from '../../utils/showSlug';
 import SetlistEditor from '../../components/SetlistEditor';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -228,7 +229,14 @@ export default function ShowForm() {
             if (setlistData.length > 0 || isEdit) {
                 await updateSetlist(showId, setlistData);
             }
-            navigate('/admin/shows');
+
+            // Land on the public show page rather than back on the admin list —
+            // saving is usually immediately followed by checking how it looks live.
+            const venue = venues.find(v => v.id === formData.venue_id);
+            const path = venue
+                ? buildShowPath({ artist_name: formData.artist_name, show_date: formData.show_date, venues: venue })
+                : null;
+            navigate(path || '/admin/shows');
         } catch (err) {
             console.error('Error saving show:', err);
             setError(err.message || 'Failed to save show');
