@@ -41,12 +41,20 @@ function buildShowHead(show) {
     const longDate = new Date(y, m - 1, d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
     const title = `${show.artist_name} at ${venueName} – ${longDate} Setlist | SkySets.org`;
-    const description = `${show.artist_name} performed at ${venueName} in ${venueCity} on ${longDate}.`;
+    const description = `${show.artist_name} performed at ${venueName} in ${venueCity} on ${longDate}.`
+        + (show.tour_name ? ` Part of the ${show.tour_name} tour.` : '');
 
     // No ticketing/promoter data exists in this archive (it's a historical
     // setlist database, not a ticketing site) — deliberately not fabricating
     // `offers` or `organizer`, since inventing those would violate Google's
     // structured data guidelines.
+    //
+    // Tour name is folded into `description` rather than modeled as
+    // `subEvent` — a tour isn't a sub-event contained within this show (the
+    // relationship schema.org's subEvent describes), and worse, nesting it
+    // as its own `@type: Event` object makes Google validate *that* object
+    // against the same required-fields rules, which it can never satisfy
+    // (a tour spans many dates/venues, not one).
     const jsonLd = {
         '@context': 'https://schema.org',
         '@type': 'MusicEvent',
@@ -66,7 +74,6 @@ function buildShowHead(show) {
             },
         },
         performer: { '@type': 'MusicGroup', name: show.artist_name },
-        ...(show.tour_name ? { subEvent: { '@type': 'Event', name: show.tour_name } } : {}),
     };
 
     return { title, description, jsonLd };

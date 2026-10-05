@@ -449,7 +449,11 @@ export default function ShowDetailPage() {
     // this client-side version would ever run); this copy covers in-app
     // client-side navigation between show pages.
     // No ticketing/promoter data exists in this archive, so `offers` and
-    // `organizer` are deliberately omitted rather than fabricated.
+    // `organizer` are deliberately omitted rather than fabricated. Tour name
+    // is folded into the description text, not modeled as `subEvent` — that
+    // nests a second `@type: Event` object which Google then validates
+    // against the same required-fields rules, and a tour (spanning many
+    // dates/venues) can never satisfy a single startDate/location.
     const jsonLd = {
         '@context': 'https://schema.org',
         '@type': 'MusicEvent',
@@ -458,14 +462,13 @@ export default function ShowDetailPage() {
         endDate: show.show_date,
         eventStatus: 'https://schema.org/EventScheduled',
         eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
-        description: seoDescription,
+        description: seoDescription + (show.tour_name ? ` Part of the ${show.tour_name} tour.` : ''),
         location: {
             '@type': 'MusicVenue',
             name: venueName,
             address: { '@type': 'PostalAddress', addressLocality: show.venues?.city, addressRegion: show.venues?.state_country }
         },
         performer: { '@type': 'MusicGroup', name: show.artist_name },
-        ...(show.tour_name ? { subEvent: { '@type': 'Event', name: show.tour_name } } : {})
     };
 
     const attendanceLabel = attended
