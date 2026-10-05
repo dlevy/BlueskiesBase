@@ -9,6 +9,7 @@ const cards = [
     { to: '/admin/links', label: 'Links', description: 'Manage categorized links shown on the public Links page' },
     { to: '/admin/tours', label: 'Tours', description: 'Manage tours and assign a default Instagram post style' },
     { to: '/admin/venues', label: 'Venues', description: 'Manage venue information and locations' },
+    { to: '/admin/band-members', label: 'Band Members', description: 'Manage band members, their roles, and gear' },
     { to: '/admin/setlist-submissions', label: 'Setlist Submissions', description: 'Review community setlist corrections and accept them into the official setlist' },
     { to: '/admin/analytics', label: 'Analytics', description: 'Page views and feature usage, with your own admin/editor visits excluded by default' },
     // Full admins only — matches the same gating on the nav bar in AdminLayout.
