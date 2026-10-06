@@ -5,7 +5,7 @@ const { supabase, supabaseAdmin } = require('../config/supabase');
 const { optimizeFullImage, generateThumbnail } = require('../utils/imageProcessing');
 const { requireEditorOrAdmin } = require('../middleware/requireRole');
 const { notifyShowAttendees, notifyPosterLinkedToShows } = require('../utils/notify');
-const { redactProfile } = require('../utils/privacy');
+const { redactProfile, resolveDisplayName } = require('../utils/privacy');
 
 // Configure multer for memory storage
 const upload = multer({
@@ -102,13 +102,37 @@ router.get('/', async (req, res) => {
             byPoster.get(row.poster_id).shows.push(row.shows);
         });
 
-        const withShow = Array.from(byPoster.values()).map(({ poster, shows }) => {
+        // Who owns each poster — count + display names for the gallery's
+        // hover tooltip. user_poster_collection.user_id references auth.users,
+        // not public.profiles, so it can't be embedded via a single select
+        // (same reason GET /for-trade below resolves it as a second query).
+        const { data: collectionRows } = await supabaseAdmin
+            .from('user_poster_collection')
+            .select('poster_id, user_id');
+
+        const ownerIds = [...new Set((collectionRows || []).map(r => r.user_id))];
+        const { data: ownerProfiles } = await supabaseAdmin
+            .from('profiles')
+            .select('id, username, display_name, hide_from_directory')
+            .in('id', ownerIds.length > 0 ? ownerIds : ['00000000-0000-0000-0000-000000000000']);
+        const profileById = {};
+        (ownerProfiles || []).forEach(p => { profileById[p.id] = p; });
+
+        const ownersByPoster = new Map();
+        (collectionRows || []).forEach(row => {
+            if (!ownersByPoster.has(row.poster_id)) ownersByPoster.set(row.poster_id, []);
+            ownersByPoster.get(row.poster_id).push(resolveDisplayName(profileById[row.user_id]));
+        });
+
+        const withShow = Array.from(byPoster.entries()).map(([posterId, { poster, shows }]) => {
             shows.sort((a, b) => a.show_date.localeCompare(b.show_date));
+            const names = ownersByPoster.get(posterId) || [];
             return {
                 ...poster,
                 shows: shows[0],
                 linkedShows: shows,
                 showCount: shows.length,
+                owners: { count: names.length, names },
             };
         });
 

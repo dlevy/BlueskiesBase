@@ -60,6 +60,18 @@ function PosterTile({ poster, onImageClick }) {
                         Foil
                     </span>
                 )}
+                {poster.owners?.count > 0 && (
+                    <span
+                        className="absolute bottom-1.5 left-1.5 flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded"
+                        style={{ background: 'rgba(0,0,0,0.7)', color: '#fbbf24' }}
+                        title={`Owned by ${poster.owners.names.join(', ')}`}
+                    >
+                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 12a4 4 0 100-8 4 4 0 000 8zm0 2c-4.42 0-8 2.24-8 5v1h16v-1c0-2.76-3.58-5-8-5z" />
+                        </svg>
+                        {poster.owners.count}
+                    </span>
+                )}
             </button>
 
             <Link to={buildShowPath(show)} className="block p-3 pb-1 hover:bg-white/[0.05] transition-colors">
