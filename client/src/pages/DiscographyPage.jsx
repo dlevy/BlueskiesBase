@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import { PSpinner, PText, PInlineNotification } from '@porsche-design-system/components-react';
 import { getSongs } from '../services/api';
+import { buildShowPath } from '../utils/showSlug';
 import MainNavTabs from '../components/MainNavTabs';
 import SEO from '../components/SEO';
 
@@ -9,6 +10,14 @@ const ALBUM_TYPE_LABELS = { studio: 'Studio', live: 'Live', compilation: 'Compil
 
 function albumYear(releaseDate) {
     return releaseDate ? releaseDate.split('-')[0] : '';
+}
+
+// show_date is a plain DATE string (YYYY-MM-DD) — parse the parts directly
+// rather than `new Date(dateString)`, which reads it as UTC midnight and can
+// print the wrong day in a timezone west of UTC.
+function formatDate(dateStr) {
+    const [y, m, d] = dateStr.split('-');
+    return new Date(Number(y), Number(m) - 1, Number(d)).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 function SongRow({ song, expanded, onToggle }) {
@@ -46,6 +55,20 @@ function SongRow({ song, expanded, onToggle }) {
                     </span>
                 )}
             </button>
+            {/* Sibling of the button, not nested inside it — a <Link> renders an
+                <a>, and nesting <a> inside <button> is invalid HTML. */}
+            <div className="pb-2 px-1 text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>
+                {song.last_played_show ? (
+                    <>
+                        Played {song.performance_count}× · Last:{' '}
+                        <Link to={buildShowPath(song.last_played_show)} className="hover:underline" style={{ color: 'var(--p-color-info)' }}>
+                            {formatDate(song.last_played_show.show_date)}
+                        </Link>
+                    </>
+                ) : (
+                    'Never played live'
+                )}
+            </div>
             {expanded && hasLyrics && (
                 <pre className="whitespace-pre-wrap font-sans text-sm pb-3 px-1" style={{ color: 'var(--p-color-contrast-medium)' }}>
                     {song.lyrics}

@@ -47,7 +47,7 @@ router.get('/', async (req, res) => {
         while (hasMore) {
             const { data: batch, error: batchError } = await supabase
                 .from('setlist_songs')
-                .select('song_id, show_id, performance_type')
+                .select('song_id, show_id, performance_type, shows(show_date)')
                 .in('song_id', songIds)
                 .neq('performance_type', 'dj')
                 .order('id')
@@ -67,21 +67,45 @@ router.get('/', async (req, res) => {
             }
         }
 
-        // Count unique shows per song
+        // Count unique shows per song, and track the most recent show each was played at
         const performanceCounts = {};
+        const lastPlayed = {}; // song_id -> { show_id, show_date }
         if (allSetlistSongs.length > 0) {
             allSetlistSongs.forEach(entry => {
                 if (!performanceCounts[entry.song_id]) {
                     performanceCounts[entry.song_id] = new Set();
                 }
                 performanceCounts[entry.song_id].add(entry.show_id);
+
+                const showDate = entry.shows?.show_date;
+                if (showDate && (!lastPlayed[entry.song_id] || showDate > lastPlayed[entry.song_id].show_date)) {
+                    lastPlayed[entry.song_id] = { show_id: entry.show_id, show_date: showDate };
+                }
             });
         }
 
-        // Add performance_count to each song
+        // One batch fetch of full show info for just the distinct "last played"
+        // shows needed (many songs share the same most recent show), shaped to
+        // match what client/src/utils/showSlug.js's buildShowPath() expects.
+        const lastPlayedShowIds = [...new Set(Object.values(lastPlayed).map(lp => lp.show_id))];
+        let lastPlayedShowById = {};
+        if (lastPlayedShowIds.length > 0) {
+            const { data: lastPlayedShows, error: lastPlayedError } = await supabase
+                .from('shows')
+                .select('id, show_date, artist_name, tour_name, venues(name, city, state_country)')
+                .in('id', lastPlayedShowIds);
+            if (lastPlayedError) {
+                console.error('Error fetching last-played shows:', lastPlayedError);
+            } else {
+                (lastPlayedShows || []).forEach(show => { lastPlayedShowById[show.id] = show; });
+            }
+        }
+
+        // Add performance_count and last_played_show to each song
         const songsWithCounts = songs.map(song => ({
             ...song,
-            performance_count: performanceCounts[song.id] ? performanceCounts[song.id].size : 0
+            performance_count: performanceCounts[song.id] ? performanceCounts[song.id].size : 0,
+            last_played_show: lastPlayed[song.id] ? (lastPlayedShowById[lastPlayed[song.id].show_id] || null) : null,
         }));
 
         const responseBody = { songs: songsWithCounts };
