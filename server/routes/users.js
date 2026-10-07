@@ -717,9 +717,9 @@ router.get('/profile/:username', async (req, res) => {
         }
 
         const todayStr = new Date().toISOString().slice(0, 10);
-        const pastShows = (attendedShows || [])
-            .map(us => us.shows)
-            .filter(s => s?.show_date && s.show_date <= todayStr);
+        const allAttendedShows = (attendedShows || []).map(us => us.shows).filter(Boolean);
+        const pastShows = allAttendedShows.filter(s => s.show_date && s.show_date <= todayStr);
+        const upcomingShows = allAttendedShows.filter(s => s.show_date && s.show_date > todayStr);
         const pastShowIds = pastShows.map(s => s.id);
 
         const songsSeen = await computeSongsSeenForShows(pastShowIds);
@@ -839,6 +839,7 @@ router.get('/profile/:username', async (req, res) => {
 
         if (profile.show_attendance_public) {
             response.attendedShows = pastShows.sort((a, b) => b.show_date.localeCompare(a.show_date));
+            response.upcomingShows = upcomingShows.sort((a, b) => a.show_date.localeCompare(b.show_date));
         }
 
         res.json(response);

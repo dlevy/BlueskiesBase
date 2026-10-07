@@ -441,7 +441,7 @@ export default function ProfilePage() {
                 this user opted in to sharing attendance */}
             {profile.attendedShows && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
-                    <ShowMapShare pastShows={profile.attendedShows} upcomingShows={[]} title={`${displayLabel}'s Show Map`} />
+                    <ShowMapShare pastShows={profile.attendedShows} upcomingShows={profile.upcomingShows || []} title={`${displayLabel}'s Show Map`} />
 
                     <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6">
                         <PHeading size="lg" tag="h2">Shows Attended</PHeading>
