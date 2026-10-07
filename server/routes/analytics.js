@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { supabase } = require('../config/supabase');
-const { requireEditorOrAdmin, loadRequesterOptional } = require('../middleware/requireRole');
+const { requireAdmin, requireEditorOrAdmin, loadRequesterOptional } = require('../middleware/requireRole');
 
 const VALID_EVENT_TYPES = ['pageview', 'feature'];
 
@@ -126,6 +126,74 @@ router.get('/summary', requireEditorOrAdmin, async (req, res) => {
         });
     } catch (error) {
         console.error('Error in GET /analytics/summary:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * GET /api/analytics/events
+ * Admin only (stricter than /summary — this names real people, not just
+ * aggregate counts). A paginated, reverse-chronological audit log of raw
+ * events, each resolved to the user who triggered it.
+ * Query params:
+ *   from, to          — YYYY-MM-DD, inclusive date range (defaults to the last 30 days)
+ *   includeStaff      — 'true' to include admin/editor-tagged rows (default: excluded)
+ *   eventType         — 'pageview' | 'feature' (default: both)
+ *   page, limit        — pagination (limit capped at 200, default 50)
+ */
+router.get('/events', requireAdmin, async (req, res) => {
+    try {
+        const includeStaff = req.query.includeStaff === 'true';
+        const to = req.query.to || new Date().toISOString().slice(0, 10);
+        const from = req.query.from || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+        const toExclusive = new Date(new Date(to + 'T00:00:00Z').getTime() + 24 * 60 * 60 * 1000).toISOString();
+        const fromInclusive = new Date(from + 'T00:00:00Z').toISOString();
+
+        const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+        const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 200);
+        const offset = (page - 1) * limit;
+
+        let query = supabase
+            .from('analytics_events')
+            // user_id references profiles directly, so PostgREST can embed it
+            // without the two-query workaround other routes need for tables
+            // that reference auth.users instead.
+            .select('id, event_type, event_name, path, user_role, session_id, created_at, profiles(username, display_name)', { count: 'exact' })
+            .gte('created_at', fromInclusive)
+            .lt('created_at', toExclusive)
+            .order('created_at', { ascending: false });
+
+        if (VALID_EVENT_TYPES.includes(req.query.eventType)) {
+            query = query.eq('event_type', req.query.eventType);
+        }
+        if (!includeStaff) {
+            query = query.or('user_role.is.null,user_role.eq.member');
+        }
+
+        const { data, error, count } = await query.range(offset, offset + limit - 1);
+        if (error) {
+            console.error('[GET /analytics/events] Error:', error);
+            return res.status(500).json({ error: 'Failed to load events' });
+        }
+
+        res.json({
+            events: (data || []).map(r => ({
+                id: r.id,
+                eventType: r.event_type,
+                eventName: r.event_name,
+                path: r.path,
+                userRole: r.user_role,
+                // Admins see the real name here regardless of hide_from_directory
+                // — that flag controls what's shown publicly, not to admins
+                // reviewing their own site's activity.
+                userName: r.profiles?.display_name || r.profiles?.username || null,
+                sessionId: r.session_id,
+                createdAt: r.created_at,
+            })),
+            pagination: { page, limit, total: count || 0, totalPages: Math.ceil((count || 0) / limit) },
+        });
+    } catch (error) {
+        console.error('Error in GET /analytics/events:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });

@@ -2217,3 +2217,30 @@ export const getAnalyticsSummary = async ({ from, to, includeStaff = false } = {
     return response.json();
 };
 
+/**
+ * Paginated, reverse-chronological analytics event log, each resolved to
+ * the user who triggered it. Admin only (stricter than getAnalyticsSummary
+ * — this names real people, not just aggregate counts).
+ */
+export const getAnalyticsEvents = async ({ from, to, includeStaff = false, eventType, page = 1, limit = 50 } = {}) => {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+
+    const params = new URLSearchParams();
+    if (from) params.set('from', from);
+    if (to) params.set('to', to);
+    if (includeStaff) params.set('includeStaff', 'true');
+    if (eventType) params.set('eventType', eventType);
+    params.set('page', page);
+    params.set('limit', limit);
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/analytics/events?${params}`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to load the audit log');
+    }
+    return response.json();
+};
+
