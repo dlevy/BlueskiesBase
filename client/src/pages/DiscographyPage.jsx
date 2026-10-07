@@ -20,6 +20,15 @@ function formatDate(dateStr) {
     return new Date(Number(y), Number(m) - 1, Number(d)).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+function CalendarIcon() {
+    return (
+        <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <rect x="3" y="5" width="18" height="16" rx="2" />
+            <path strokeLinecap="round" d="M3 10h18M8 3v4M16 3v4" />
+        </svg>
+    );
+}
+
 function SongRow({ song, expanded, onToggle }) {
     const hasLyrics = Boolean(song.lyrics?.trim());
     return (
@@ -56,17 +65,29 @@ function SongRow({ song, expanded, onToggle }) {
                 )}
             </button>
             {/* Sibling of the button, not nested inside it — a <Link> renders an
-                <a>, and nesting <a> inside <button> is invalid HTML. */}
-            <div className="pb-2 px-1 text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>
+                <a>, and nesting <a> inside <button> is invalid HTML. Grey
+                throughout, not blue — blue is reserved for the lyrics toggle
+                above, and a second blue link here read as visual noise. */}
+            <div className="pb-2 px-1">
                 {song.last_played_show ? (
-                    <>
-                        Played {song.performance_count}× · Last:{' '}
-                        <Link to={buildShowPath(song.last_played_show)} className="hover:underline" style={{ color: 'var(--p-color-info)' }}>
-                            {formatDate(song.last_played_show.show_date)}
-                        </Link>
-                    </>
+                    <Link
+                        to={buildShowPath(song.last_played_show)}
+                        className="inline-flex items-center gap-1 text-xs hover:opacity-80 transition-opacity"
+                        style={{ color: 'var(--p-color-contrast-low)' }}
+                        title={`Last played ${formatDate(song.last_played_show.show_date)}`}
+                    >
+                        <CalendarIcon />
+                        {song.performance_count}×
+                    </Link>
                 ) : (
-                    'Never played live'
+                    <span
+                        className="inline-flex items-center gap-1 text-xs"
+                        style={{ color: 'var(--p-color-contrast-low)' }}
+                        title="No setlist in our records includes this song — it may still have been played before we started tracking, or at a show we don't have a setlist for"
+                    >
+                        <CalendarIcon />
+                        No recorded performances
+                    </span>
                 )}
             </div>
             {expanded && hasLyrics && (
