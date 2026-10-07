@@ -158,14 +158,8 @@ export default function AnalyticsPage() {
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         <RankedList title="Most Viewed Pages" rows={summary.topPages} emptyText="No page views yet." />
-                        <RankedList title="Least Viewed Pages" rows={summary.leastViewedPages} emptyText="No page views yet." />
+                        <RankedList title="Feature Usage" rows={summary.topFeatures} emptyText="No feature events logged yet." />
                     </div>
-
-                    <RankedList
-                        title="Feature Usage"
-                        rows={summary.topFeatures}
-                        emptyText="No feature events logged yet."
-                    />
                 </>
             )}
         </div>
