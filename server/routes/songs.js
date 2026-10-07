@@ -2,14 +2,18 @@ const express = require('express');
 const router = express.Router();
 const { supabase } = require('../config/supabase');
 const { computeGlobalSongStats } = require('../utils/songStats');
+const { getSongsCache, setSongsCache, invalidateSongsCache } = require('../utils/songsCache');
 const { requireAdmin, requireEditorOrAdmin } = require('../middleware/requireRole');
 
 /**
  * GET /api/songs
- * Get all songs with performance counts
+ * Get all songs with performance counts. Cached — see server/utils/songsCache.js.
  */
 router.get('/', async (req, res) => {
     try {
+        const cached = getSongsCache();
+        if (cached) return res.json(cached);
+
         // Try to include album data via junction table; fall back to basic fetch if table doesn't exist
         let songs;
         const { data: songsWithAlbums, error: joinError } = await supabase
@@ -80,7 +84,9 @@ router.get('/', async (req, res) => {
             performance_count: performanceCounts[song.id] ? performanceCounts[song.id].size : 0
         }));
 
-        res.json({ songs: songsWithCounts });
+        const responseBody = { songs: songsWithCounts };
+        setSongsCache(responseBody);
+        res.json(responseBody);
 
     } catch (error) {
         console.error('Error:', error);
@@ -217,7 +223,13 @@ router.get('/:id', async (req, res) => {
  */
 router.post('/', requireEditorOrAdmin, async (req, res) => {
     try {
-        const { title, original_artist, is_original, is_sunday_valley, written_by, lyrics, notes, album_id } = req.body;
+        // Default is_original/is_sunday_valley rather than passing undefined
+        // straight through — Supabase sends an explicit NULL for an
+        // undefined insert field rather than omitting it, which violates
+        // is_sunday_valley's NOT NULL constraint. Matters in practice: the
+        // "+ Add as new song" quick-create flow (QuickAddSong.jsx) only ever
+        // sends { title }.
+        const { title, original_artist, is_original = true, is_sunday_valley = false, written_by, lyrics, notes, album_id } = req.body;
 
         const { data: song, error } = await supabase
             .from('songs')
@@ -230,6 +242,7 @@ router.post('/', requireEditorOrAdmin, async (req, res) => {
             return res.status(500).json({ error: 'Failed to create song' });
         }
 
+        invalidateSongsCache();
         res.status(201).json(song);
 
     } catch (error) {
@@ -259,6 +272,7 @@ router.put('/:id', requireEditorOrAdmin, async (req, res) => {
             return res.status(500).json({ error: 'Failed to update song' });
         }
 
+        invalidateSongsCache();
         res.json(song);
 
     } catch (error) {
@@ -317,6 +331,7 @@ router.delete('/:id', requireAdmin, async (req, res) => {
             return res.status(500).json({ error: 'Failed to delete song' });
         }
 
+        invalidateSongsCache();
         res.json({ message: 'Song deleted successfully' });
 
     } catch (error) {

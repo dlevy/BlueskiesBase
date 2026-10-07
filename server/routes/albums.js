@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { supabase } = require('../config/supabase');
 const { requireAdmin, requireEditorOrAdmin } = require('../middleware/requireRole');
+const { invalidateSongsCache } = require('../utils/songsCache');
 
 /**
  * GET /api/albums
@@ -221,6 +222,7 @@ router.post('/:id/songs', requireEditorOrAdmin, async (req, res) => {
             return res.status(500).json({ error: 'Failed to add song to album' });
         }
 
+        invalidateSongsCache();
         res.status(201).json(data);
     } catch (err) {
         res.status(500).json({ error: 'Internal server error' });
@@ -247,6 +249,7 @@ router.put('/:id/songs/order', requireEditorOrAdmin, async (req, res) => {
 
         if (updates.some(r => r.error)) return res.status(500).json({ error: 'Failed to update song order' });
 
+        invalidateSongsCache();
         res.json({ message: 'Order updated' });
     } catch (err) {
         res.status(500).json({ error: 'Internal server error' });
@@ -269,6 +272,7 @@ router.delete('/:id/songs/:songId', requireEditorOrAdmin, async (req, res) => {
 
         if (error) return res.status(500).json({ error: 'Failed to remove song from album' });
 
+        invalidateSongsCache();
         res.json({ message: 'Song removed from album' });
     } catch (err) {
         res.status(500).json({ error: 'Internal server error' });
