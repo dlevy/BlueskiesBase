@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { PSpinner, PText } from '@porsche-design-system/components-react';
-import { getAllPosters, getPostersForTrade } from '../services/api';
+import { getAllPosters, getPostersForTrade, getMyPosterCollection, addToPosterCollection, removeFromPosterCollection } from '../services/api';
 import { buildShowPath } from '../utils/showSlug';
+import { useAuth } from '../contexts/AuthContext';
 import MainNavTabs from '../components/MainNavTabs';
 import SEO from '../components/SEO';
 import ExpressInterestForm from '../components/ExpressInterestForm';
@@ -31,7 +32,41 @@ function useUncroppedImageDetection() {
     return [needsContain, handleImageLoad];
 }
 
-function PosterTile({ poster, onImageClick }) {
+// Own <button>, not nested inside the image's lightbox-trigger <button> —
+// nesting interactive elements is invalid HTML, so this is a sibling
+// positioned via the shared wrapper's position:relative instead.
+function CollectionButton({ isOwned, onToggle }) {
+    const [working, setWorking] = useState(false);
+
+    const handleClick = async (e) => {
+        e.stopPropagation();
+        if (working) return;
+        setWorking(true);
+        try {
+            await onToggle();
+        } finally {
+            setWorking(false);
+        }
+    };
+
+    return (
+        <button
+            type="button"
+            onClick={handleClick}
+            disabled={working}
+            title={isOwned ? 'Remove from my collection' : 'Add to my collection'}
+            aria-label={isOwned ? 'Remove from my collection' : 'Add to my collection'}
+            className="absolute top-1.5 left-1.5 inline-flex items-center justify-center w-6 h-6 rounded-full transition-colors disabled:opacity-50"
+            style={{ background: 'rgba(0,0,0,0.7)', color: isOwned ? '#fbbf24' : '#fff' }}
+        >
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill={isOwned ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 3a1 1 0 00-1 1v16l7-4 7 4V4a1 1 0 00-1-1H6z" />
+            </svg>
+        </button>
+    );
+}
+
+function PosterTile({ poster, onImageClick, isOwned, onToggleCollection }) {
     const show = poster.shows;
     const showCount = poster.showCount || 1;
     const isTourPoster = showCount > 1;
@@ -40,18 +75,20 @@ function PosterTile({ poster, onImageClick }) {
 
     return (
         <div className="group rounded-xl overflow-hidden border border-white/10 bg-white/[0.03] hover:border-amber-500/30 hover:-translate-y-1 hover:shadow-lg hover:shadow-black/30 transition-all duration-150">
-            <button
-                type="button"
-                onClick={onImageClick}
-                className={`relative block w-full aspect-[2/3] overflow-hidden bg-white/5 cursor-pointer ${needsContain ? 'border border-white/15' : ''}`}
-            >
-                <img
-                    src={poster.thumbnail_url || poster.poster_url}
-                    alt={poster.caption || `${show.artist_name} poster — ${show.venues?.name || show.venues?.city || ''}`}
-                    loading="lazy"
-                    onLoad={handleImageLoad}
-                    className={`w-full h-full ${needsContain ? 'object-contain' : 'object-cover'} group-hover:scale-105 transition-transform duration-300`}
-                />
+            <div className="relative">
+                <button
+                    type="button"
+                    onClick={onImageClick}
+                    className={`block w-full aspect-[2/3] overflow-hidden bg-white/5 cursor-pointer ${needsContain ? 'border border-white/15' : ''}`}
+                >
+                    <img
+                        src={poster.thumbnail_url || poster.poster_url}
+                        alt={poster.caption || `${show.artist_name} poster — ${show.venues?.name || show.venues?.city || ''}`}
+                        loading="lazy"
+                        onLoad={handleImageLoad}
+                        className={`w-full h-full ${needsContain ? 'object-contain' : 'object-cover'} group-hover:scale-105 transition-transform duration-300`}
+                    />
+                </button>
                 {poster.is_foil && (
                     <span
                         className="absolute top-1.5 right-1.5 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded"
@@ -72,7 +109,10 @@ function PosterTile({ poster, onImageClick }) {
                         {poster.owners.count}
                     </span>
                 )}
-            </button>
+                {onToggleCollection && (
+                    <CollectionButton isOwned={isOwned} onToggle={onToggleCollection} />
+                )}
+            </div>
 
             <Link to={buildShowPath(show)} className="block p-3 pb-1 hover:bg-white/[0.05] transition-colors">
                 <p className="text-xs font-mono uppercase tracking-wide" style={{ color: 'var(--p-color-contrast-low)' }}>
@@ -170,12 +210,18 @@ function ForTradeTile({ listing }) {
 }
 
 export default function PostersPage() {
+    const { user } = useAuth();
     const [posters, setPosters] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [lightboxIndex, setLightboxIndex] = useState(-1);
     const [forTradeListings, setForTradeListings] = useState([]);
     const [forTradeExpanded, setForTradeExpanded] = useState(false);
+    // The logged-in viewer's own collection, for the quick add/remove button
+    // on each tile — a second, lighter-weight way into the same collection
+    // EditProfilePage already manages in full (poster picker, foil/edition,
+    // for-trade listing). Not fetched at all for a logged-out visitor.
+    const [myCollection, setMyCollection] = useState([]);
 
     useEffect(() => {
         let cancelled = false;
@@ -201,6 +247,39 @@ export default function PostersPage() {
 
         return () => { cancelled = true; };
     }, []);
+
+    useEffect(() => {
+        if (!user) { setMyCollection([]); return; }
+        let cancelled = false;
+        getMyPosterCollection()
+            .then(data => { if (!cancelled) setMyCollection(data.collection || []); })
+            .catch(err => console.error('[PostersPage] Error loading my poster collection:', err));
+        return () => { cancelled = true; };
+    }, [user]);
+
+    const collectionEntryByPosterId = useMemo(() => {
+        const map = new Map();
+        myCollection.forEach(entry => {
+            if (entry.user_posters?.id) map.set(entry.user_posters.id, entry);
+        });
+        return map;
+    }, [myCollection]);
+
+    const handleToggleCollection = async (posterId) => {
+        const existing = collectionEntryByPosterId.get(posterId);
+        try {
+            if (existing) {
+                await removeFromPosterCollection(existing.id);
+                setMyCollection(prev => prev.filter(e => e.id !== existing.id));
+            } else {
+                const created = await addToPosterCollection(posterId);
+                setMyCollection(prev => [...prev, { id: created.id, user_posters: { id: posterId } }]);
+            }
+        } catch (err) {
+            console.error('[PostersPage] Error updating poster collection:', err);
+            alert(err.message || 'Failed to update your collection');
+        }
+    };
 
     return (
         <div className="px-4 pt-2 pb-4 md:pt-3 md:pb-6 max-w-6xl mx-auto">
@@ -286,7 +365,13 @@ export default function PostersPage() {
             {!loading && !error && posters.length > 0 && (
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                     {posters.map((poster, index) => (
-                        <PosterTile key={poster.id} poster={poster} onImageClick={() => setLightboxIndex(index)} />
+                        <PosterTile
+                            key={poster.id}
+                            poster={poster}
+                            onImageClick={() => setLightboxIndex(index)}
+                            isOwned={collectionEntryByPosterId.has(poster.id)}
+                            onToggleCollection={user ? () => handleToggleCollection(poster.id) : null}
+                        />
                     ))}
                 </div>
             )}
