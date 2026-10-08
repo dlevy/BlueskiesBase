@@ -368,7 +368,10 @@ export default function ProfilePage() {
             {(profile.liveDebuts?.length > 0 || profile.tourDebuts?.length > 0) && (
                 <div className="space-y-4">
                     <PHeading size="md" tag="h2">Debuts Witnessed</PHeading>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Two columns only when both sections have entries — one column
+                        (full width) otherwise, so a single section doesn't leave a
+                        blank gap where the other column would have been. */}
+                    <div className={`grid grid-cols-1 gap-4 ${profile.liveDebuts?.length > 0 && profile.tourDebuts?.length > 0 ? 'md:grid-cols-2' : ''}`}>
                         {profile.liveDebuts?.length > 0 && (
                             <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-5">
                                 <PText size="xs" weight="semi-bold" className="uppercase tracking-wide mb-3" style={{ color: '#34d399' }}>
