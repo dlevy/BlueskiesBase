@@ -26,7 +26,7 @@ import MemberLoginPage from './pages/MemberLoginPage'
 import SignupPage from './pages/SignupPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import AuthDebugPage from './pages/AuthDebugPage'
-import InstagramFollowBanner from './components/InstagramFollowBanner'
+import AnnouncementBanner from './components/AnnouncementBanner'
 import Avatar from './components/Avatar'
 import NotificationBell from './components/NotificationBell'
 import NotificationsPage from './pages/NotificationsPage'
@@ -143,6 +143,14 @@ const DEFAULT_FOOTER_LINKS = [
   { text: 'Initial setlist import thanks to Setlist.fm', url: 'https://www.setlist.fm' },
   { text: 'Inspired by crowesbase.com', url: 'https://www.crowesbase.com' },
 ];
+const DEFAULT_BANNER = {
+  enabled: true,
+  prefixText: 'Follow',
+  linkText: '@jbssetlists',
+  linkUrl: 'https://www.instagram.com/jbssetlists/',
+  suffixText: 'for face-melting setlists to your IG feed.',
+  color: '#fbbf24',
+};
 
 function PublicLayout() {
   const { user, profile, isEditorOrAdmin, signOut, getToken } = useAuth();
@@ -154,6 +162,7 @@ function PublicLayout() {
   const [headerTitle, setHeaderTitle] = useState(DEFAULT_HEADER_TITLE);
   const [headerSubtitle, setHeaderSubtitle] = useState(DEFAULT_HEADER_SUBTITLE);
   const [footerLinks, setFooterLinks] = useState(DEFAULT_FOOTER_LINKS);
+  const [banner, setBanner] = useState(DEFAULT_BANNER);
 
   useEffect(() => {
     if (getToken) {
@@ -167,6 +176,7 @@ function PublicLayout() {
         if (data.headerTitle) setHeaderTitle(data.headerTitle);
         if (data.headerSubtitle !== undefined) setHeaderSubtitle(data.headerSubtitle);
         if (data.footerLinks) setFooterLinks(data.footerLinks);
+        if (data.banner) setBanner(data.banner);
       })
       .catch(err => console.error('[PublicLayout] Error loading site settings:', err));
   }, []);
@@ -258,7 +268,7 @@ function PublicLayout() {
         </div>
       </header>
 
-      <InstagramFollowBanner />
+      <AnnouncementBanner banner={banner} />
 
       {/* Main content */}
       <main className="flex-1">

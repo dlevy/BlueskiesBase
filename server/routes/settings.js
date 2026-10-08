@@ -14,9 +14,18 @@ const DEFAULTS = {
         { text: 'Initial setlist import thanks to Setlist.fm', url: 'https://www.setlist.fm' },
         { text: 'Inspired by crowesbase.com', url: 'https://www.crowesbase.com' },
     ],
+    banner: {
+        enabled: true,
+        prefixText: 'Follow',
+        linkText: '@jbssetlists',
+        linkUrl: 'https://www.instagram.com/jbssetlists/',
+        suffixText: 'for face-melting setlists to your IG feed.',
+        color: '#fbbf24',
+    },
 };
 
 const MAX_FOOTER_LINKS = 8;
+const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
 
 /**
  * GET /api/settings
@@ -27,7 +36,7 @@ router.get('/', async (req, res) => {
     try {
         const { data, error } = await supabase
             .from('site_settings')
-            .select('header_title, header_subtitle, footer_links')
+            .select('header_title, header_subtitle, footer_links, banner')
             .eq('id', true)
             .single();
 
@@ -35,7 +44,12 @@ router.get('/', async (req, res) => {
             return res.json(DEFAULTS);
         }
 
-        res.json({ headerTitle: data.header_title, headerSubtitle: data.header_subtitle, footerLinks: data.footer_links });
+        res.json({
+            headerTitle: data.header_title,
+            headerSubtitle: data.header_subtitle,
+            footerLinks: data.footer_links,
+            banner: data.banner || DEFAULTS.banner,
+        });
     } catch (err) {
         console.error('[GET /api/settings] Error:', err);
         res.json(DEFAULTS);
@@ -45,12 +59,14 @@ router.get('/', async (req, res) => {
 /**
  * PUT /api/settings
  * Update site-wide editable text. Admin only.
- * Body: { headerTitle?, headerSubtitle?, footerLinks? }
+ * Body: { headerTitle?, headerSubtitle?, footerLinks?, banner? }
  * footerLinks: [{ text, url? }, ...], up to MAX_FOOTER_LINKS items.
+ * banner: { enabled, prefixText?, linkText?, linkUrl?, suffixText?, color? } —
+ * linkText and linkUrl must be given together or not at all.
  */
 router.put('/', requireAdmin, async (req, res) => {
     try {
-        const { headerTitle, headerSubtitle, footerLinks } = req.body;
+        const { headerTitle, headerSubtitle, footerLinks, banner } = req.body;
         const updates = {};
 
         if (headerTitle !== undefined) {
@@ -95,6 +111,50 @@ router.put('/', requireAdmin, async (req, res) => {
             }
             updates.footer_links = sanitized;
         }
+        if (banner !== undefined) {
+            if (typeof banner !== 'object' || banner === null || Array.isArray(banner)) {
+                return res.status(400).json({ error: 'banner must be an object' });
+            }
+
+            const prefixText = (banner.prefixText || '').trim();
+            const linkText = (banner.linkText || '').trim();
+            const suffixText = (banner.suffixText || '').trim();
+            let linkUrl = (banner.linkUrl || '').trim();
+            const color = (banner.color || '').trim();
+
+            if (prefixText.length > 150) return res.status(400).json({ error: 'Banner text must be 150 characters or fewer' });
+            if (linkText.length > 100) return res.status(400).json({ error: 'Banner link text must be 100 characters or fewer' });
+            if (suffixText.length > 150) return res.status(400).json({ error: 'Banner text must be 150 characters or fewer' });
+
+            // The linked phrase and its URL only make sense together — one
+            // without the other is either a dead link or an orphaned URL.
+            if (Boolean(linkText) !== Boolean(linkUrl)) {
+                return res.status(400).json({ error: 'Banner link text and link URL must be given together' });
+            }
+            if (linkUrl) {
+                if (linkUrl.length > 300) return res.status(400).json({ error: 'Banner link URL must be 300 characters or fewer' });
+                try {
+                    new URL(linkUrl);
+                } catch {
+                    return res.status(400).json({ error: `"${linkUrl}" is not a valid URL` });
+                }
+            } else {
+                linkUrl = null;
+            }
+
+            if (color && !HEX_COLOR_RE.test(color)) {
+                return res.status(400).json({ error: 'Banner color must be a hex color like #fbbf24' });
+            }
+
+            updates.banner = {
+                enabled: Boolean(banner.enabled),
+                prefixText,
+                linkText,
+                linkUrl,
+                suffixText,
+                color: color || DEFAULTS.banner.color,
+            };
+        }
 
         if (Object.keys(updates).length === 0) {
             return res.status(400).json({ error: 'No fields to update' });
@@ -105,7 +165,7 @@ router.put('/', requireAdmin, async (req, res) => {
             .from('site_settings')
             .update(updates)
             .eq('id', true)
-            .select('header_title, header_subtitle, footer_links')
+            .select('header_title, header_subtitle, footer_links, banner')
             .single();
 
         if (error) {
@@ -113,7 +173,12 @@ router.put('/', requireAdmin, async (req, res) => {
             return res.status(500).json({ error: 'Failed to update settings' });
         }
 
-        res.json({ headerTitle: data.header_title, headerSubtitle: data.header_subtitle, footerLinks: data.footer_links });
+        res.json({
+            headerTitle: data.header_title,
+            headerSubtitle: data.header_subtitle,
+            footerLinks: data.footer_links,
+            banner: data.banner,
+        });
     } catch (err) {
         console.error('[PUT /api/settings] Error:', err);
         res.status(500).json({ error: 'Internal server error' });

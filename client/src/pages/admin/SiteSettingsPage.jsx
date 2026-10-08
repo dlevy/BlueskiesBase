@@ -2,17 +2,21 @@ import { useState, useEffect } from 'react';
 import { PHeading, PText, PButton, PInlineNotification, PSpinner } from '@porsche-design-system/components-react';
 import { getSiteSettings, updateSiteSettings } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
+import AnnouncementBanner from '../../components/AnnouncementBanner';
 
 const inputClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--p-color-info)] focus:border-transparent placeholder:text-gray-500";
 const labelClass = "block text-xs font-medium mb-1.5";
 
 const MAX_FOOTER_LINKS = 8;
+const DEFAULT_BANNER = { enabled: true, prefixText: '', linkText: '', linkUrl: '', suffixText: '', color: '#fbbf24' };
 
 export default function SiteSettingsPage() {
     const { isAdmin } = useAuth();
     const [headerTitle, setHeaderTitle] = useState('');
     const [headerSubtitle, setHeaderSubtitle] = useState('');
     const [footerLinks, setFooterLinks] = useState([]);
+    const [banner, setBanner] = useState(DEFAULT_BANNER);
+    const [bannerError, setBannerError] = useState('');
     const [newItemText, setNewItemText] = useState('');
     const [newItemUrl, setNewItemUrl] = useState('');
     const [linkFormError, setLinkFormError] = useState('');
@@ -32,6 +36,7 @@ export default function SiteSettingsPage() {
                 setHeaderTitle(data.headerTitle || '');
                 setHeaderSubtitle(data.headerSubtitle || '');
                 setFooterLinks(data.footerLinks || []);
+                setBanner({ ...DEFAULT_BANNER, ...(data.banner || {}) });
             })
             .catch(err => {
                 console.error('Error loading site settings:', err);
@@ -94,11 +99,20 @@ export default function SiteSettingsPage() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setBannerError('');
+        if (Boolean(banner.linkText.trim()) !== Boolean(banner.linkUrl.trim())) {
+            setBannerError('Link text and link URL must be given together — fill in both or neither.');
+            return;
+        }
+        if (banner.linkUrl.trim()) {
+            try { new URL(banner.linkUrl.trim()); } catch { setBannerError('Please enter a valid link URL'); return; }
+        }
+
         setSaving(true);
         setError(null);
         setSuccess(false);
         try {
-            await updateSiteSettings({ headerTitle, headerSubtitle, footerLinks });
+            await updateSiteSettings({ headerTitle, headerSubtitle, footerLinks, banner });
             setSuccess(true);
         } catch (err) {
             console.error('Error saving site settings:', err);
@@ -143,6 +157,71 @@ export default function SiteSettingsPage() {
                     <PText size="x-small" color="contrast-medium">
                         The smaller line underneath — desktop only, hidden if left blank. Optional.
                     </PText>
+                </div>
+
+                <div className="pt-6 border-t border-white/10 space-y-3">
+                    <div className="flex items-center justify-between">
+                        <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)', marginBottom: 0 }}>
+                            Announcement Banner
+                        </label>
+                        <label className="flex items-center gap-1.5 text-xs cursor-pointer" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                            <input type="checkbox" checked={banner.enabled}
+                                onChange={e => setBanner(prev => ({ ...prev, enabled: e.target.checked }))} />
+                            Visible on site
+                        </label>
+                    </div>
+                    <PText size="x-small" color="contrast-medium">
+                        Shown below the header on every page, no dismiss button — toggle it off above when there's nothing to announce. The middle phrase is optional; fill in both its text and URL to make it a link, or leave both blank for plain text.
+                    </PText>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <div>
+                            <label className="block text-[10px] mb-1" style={{ color: 'var(--p-color-contrast-low)' }}>Before text</label>
+                            <input type="text" value={banner.prefixText} onChange={e => setBanner(prev => ({ ...prev, prefixText: e.target.value }))}
+                                placeholder="Follow" maxLength={150} className={inputClass} />
+                        </div>
+                        <div>
+                            <label className="block text-[10px] mb-1" style={{ color: 'var(--p-color-contrast-low)' }}>Linked phrase (optional)</label>
+                            <input type="text" value={banner.linkText} onChange={e => setBanner(prev => ({ ...prev, linkText: e.target.value }))}
+                                placeholder="@jbssetlists" maxLength={100} className={inputClass} />
+                        </div>
+                        <div>
+                            <label className="block text-[10px] mb-1" style={{ color: 'var(--p-color-contrast-low)' }}>After text</label>
+                            <input type="text" value={banner.suffixText} onChange={e => setBanner(prev => ({ ...prev, suffixText: e.target.value }))}
+                                placeholder="for face-melting setlists to your IG feed." maxLength={150} className={inputClass} />
+                        </div>
+                    </div>
+                    <div className="flex flex-wrap items-end gap-2">
+                        <div className="flex-1 min-w-[200px]">
+                            <label className="block text-[10px] mb-1" style={{ color: 'var(--p-color-contrast-low)' }}>Link URL (required if there's a linked phrase)</label>
+                            <input type="url" value={banner.linkUrl} onChange={e => setBanner(prev => ({ ...prev, linkUrl: e.target.value }))}
+                                placeholder="https://www.instagram.com/jbssetlists/" maxLength={300} className={inputClass} />
+                        </div>
+                        <div>
+                            <label className="block text-[10px] mb-1" style={{ color: 'var(--p-color-contrast-low)' }}>Accent color</label>
+                            <div className="flex items-center gap-2">
+                                <input type="color" value={banner.color}
+                                    onChange={e => setBanner(prev => ({ ...prev, color: e.target.value }))}
+                                    className="w-10 h-9 rounded-lg border border-white/10 bg-white/5 cursor-pointer" />
+                                <span className="text-xs font-mono" style={{ color: 'var(--p-color-contrast-medium)' }}>{banner.color}</span>
+                            </div>
+                        </div>
+                    </div>
+                    {bannerError && (
+                        <PText size="x-small" style={{ color: 'var(--p-color-error)' }}>{bannerError}</PText>
+                    )}
+
+                    <div>
+                        <PText size="x-small" color="contrast-medium" className="block mb-1.5">Preview</PText>
+                        <div className="rounded-lg border border-white/10 overflow-hidden">
+                            <AnnouncementBanner banner={banner} />
+                            {!banner.enabled && (
+                                <div className="px-4 py-2 text-xs text-center" style={{ color: 'var(--p-color-contrast-low)' }}>
+                                    Hidden — "Visible on site" is off
+                                </div>
+                            )}
+                        </div>
+                    </div>
                 </div>
 
                 <div className="pt-6 border-t border-white/10 space-y-3">
