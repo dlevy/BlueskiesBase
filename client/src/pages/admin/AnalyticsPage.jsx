@@ -5,6 +5,7 @@ import { getAnalyticsSummary, getAnalyticsEvents } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 
 const RANGE_OPTIONS = [
+    { label: '24 hours', last24h: true },
     { label: '7 days', days: 7 },
     { label: '30 days', days: 30 },
     { label: '90 days', days: 90 },
@@ -27,6 +28,13 @@ function todayStr() {
 function formatShortDate(dateStr) {
     const [y, m, d] = dateStr.split('-');
     return new Date(Number(y), Number(m) - 1, Number(d)).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+// dailyPageviews buckets are hour-keyed ISO strings (e.g. "2026-10-08T14:00:00Z")
+// in 24-hour-range mode, plain "YYYY-MM-DD" day keys otherwise — see
+// server/routes/analytics.js's resolveRange/granularity.
+function formatShortHour(isoStr) {
+    return new Date(isoStr).toLocaleTimeString('en-US', { hour: 'numeric' });
 }
 
 function formatDateTime(isoString) {
@@ -60,20 +68,20 @@ function RankedList({ title, rows, emptyText, formatLabel }) {
 // backing route's own admin-only gate, server/routes/analytics.js).
 // Reuses the parent's date range + includeStaff filters so the log stays
 // consistent with whatever the rest of the page is currently showing.
-function AuditLog({ from, to, includeStaff }) {
+function AuditLog({ from, to, last24h, includeStaff }) {
     const [eventType, setEventType] = useState('feature');
     const [page, setPage] = useState(1);
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    useEffect(() => { setPage(1); }, [from, to, includeStaff, eventType]);
+    useEffect(() => { setPage(1); }, [from, to, last24h, includeStaff, eventType]);
 
     useEffect(() => {
         let cancelled = false;
         setLoading(true);
         setError(null);
-        getAnalyticsEvents({ from, to, includeStaff, eventType: eventType || undefined, page, limit: 50 })
+        getAnalyticsEvents({ from, to, last24h, includeStaff, eventType: eventType || undefined, page, limit: 50 })
             .then(result => { if (!cancelled) setData(result); })
             .catch(err => {
                 console.error('[AuditLog] Error loading events:', err);
@@ -81,7 +89,7 @@ function AuditLog({ from, to, includeStaff }) {
             })
             .finally(() => { if (!cancelled) setLoading(false); });
         return () => { cancelled = true; };
-    }, [from, to, includeStaff, eventType, page]);
+    }, [from, to, last24h, includeStaff, eventType, page]);
 
     return (
         <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-5">
@@ -184,17 +192,20 @@ function AuditLog({ from, to, includeStaff }) {
 
 export default function AnalyticsPage() {
     const { isAdmin } = useAuth();
-    const [rangeDays, setRangeDays] = useState(30);
+    const [range, setRange] = useState(RANGE_OPTIONS[2]); // '30 days', the historical default
     const [includeStaff, setIncludeStaff] = useState(false);
     const [summary, setSummary] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
+    const rangeFrom = range.last24h ? undefined : isoDateDaysAgo(range.days);
+    const rangeTo = range.last24h ? undefined : todayStr();
+
     const load = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
-            const data = await getAnalyticsSummary({ from: isoDateDaysAgo(rangeDays), to: todayStr(), includeStaff });
+            const data = await getAnalyticsSummary({ from: rangeFrom, to: rangeTo, last24h: range.last24h, includeStaff });
             setSummary(data);
         } catch (err) {
             console.error('[AnalyticsPage] Error loading analytics:', err);
@@ -202,7 +213,7 @@ export default function AnalyticsPage() {
         } finally {
             setLoading(false);
         }
-    }, [rangeDays, includeStaff]);
+    }, [rangeFrom, rangeTo, range.last24h, includeStaff]);
 
     useEffect(() => { load(); }, [load]);
 
@@ -215,15 +226,15 @@ export default function AnalyticsPage() {
                     <div className="flex gap-1.5">
                         {RANGE_OPTIONS.map(opt => (
                             <button
-                                key={opt.days}
+                                key={opt.label}
                                 type="button"
-                                onClick={() => setRangeDays(opt.days)}
+                                onClick={() => setRange(opt)}
                                 className={`text-xs px-3 py-1.5 rounded-lg border transition-all ${
-                                    rangeDays === opt.days
+                                    range.label === opt.label
                                         ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
                                         : 'border-white/10 hover:border-white/25'
                                 }`}
-                                style={rangeDays !== opt.days ? { color: 'var(--p-color-contrast-medium)' } : undefined}
+                                style={range.label !== opt.label ? { color: 'var(--p-color-contrast-medium)' } : undefined}
                             >
                                 {opt.label}
                             </button>
@@ -270,7 +281,7 @@ export default function AnalyticsPage() {
                                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" vertical={false} />
                                         <XAxis
                                             dataKey="date"
-                                            tickFormatter={formatShortDate}
+                                            tickFormatter={summary.granularity === 'hour' ? formatShortHour : formatShortDate}
                                             tick={{ fill: 'var(--p-color-contrast-low)', fontSize: 11 }}
                                             axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
                                             tickLine={false}
@@ -283,9 +294,11 @@ export default function AnalyticsPage() {
                                             width={32}
                                         />
                                         <Tooltip
-                                            labelFormatter={formatShortDate}
+                                            labelFormatter={summary.granularity === 'hour' ? formatShortHour : formatShortDate}
                                             contentStyle={{ background: '#0f1218', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, fontSize: 12 }}
                                             labelStyle={{ color: 'var(--p-color-primary)' }}
+                                            itemStyle={{ color: 'var(--p-color-primary)' }}
+                                            cursor={{ fill: 'rgba(255,255,255,0.06)' }}
                                         />
                                         <Bar dataKey="count" name="Page Views" fill="#f59e0b" radius={[3, 3, 0, 0]} />
                                     </BarChart>
@@ -300,7 +313,7 @@ export default function AnalyticsPage() {
                     </div>
 
                     {isAdmin && (
-                        <AuditLog from={isoDateDaysAgo(rangeDays)} to={todayStr()} includeStaff={includeStaff} />
+                        <AuditLog from={rangeFrom} to={rangeTo} last24h={range.last24h} includeStaff={includeStaff} />
                     )}
                 </>
             )}

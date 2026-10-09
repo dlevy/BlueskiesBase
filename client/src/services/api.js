@@ -1748,6 +1748,7 @@ export const addToPosterCollection = async (posterId) => {
         const error = await response.json().catch(() => ({}));
         throw new Error(error.error || 'Failed to add poster to collection');
     }
+    trackEvent('poster_added_to_collection');
     return response.json();
 };
 
@@ -1787,6 +1788,7 @@ export const updateCollectionTradeStatus = async (collectionId, { forTrade, trad
         const error = await response.json().catch(() => ({}));
         throw new Error(error.error || 'Failed to update');
     }
+    if (forTrade === true) trackEvent('poster_listed_for_trade');
     return response.json();
 };
 
@@ -1819,6 +1821,9 @@ export const sendPosterInterest = async (collectionId, message, replyToUserId = 
         const error = await response.json().catch(() => ({}));
         throw new Error(error.error || 'Failed to send message');
     }
+    // Only the initial "Interested" message, not a reply in an existing
+    // conversation — that's the actual trade-interest signal.
+    if (!replyToUserId) trackEvent('poster_trade_interest_sent');
     return response.json();
 };
 
@@ -2198,13 +2203,17 @@ export const deleteGearItem = async (gearId) => {
  * range. Editor/admin only. `includeStaff` opts back into admin/editor-
  * tagged rows, which are excluded by default.
  */
-export const getAnalyticsSummary = async ({ from, to, includeStaff = false } = {}) => {
+export const getAnalyticsSummary = async ({ from, to, last24h = false, includeStaff = false } = {}) => {
     const token = await getAuthToken();
     if (!token) throw new Error('Not authenticated');
 
     const params = new URLSearchParams();
-    if (from) params.set('from', from);
-    if (to) params.set('to', to);
+    if (last24h) {
+        params.set('last24h', 'true');
+    } else {
+        if (from) params.set('from', from);
+        if (to) params.set('to', to);
+    }
     if (includeStaff) params.set('includeStaff', 'true');
 
     const response = await fetchWithAuth(`${API_BASE_URL}/api/analytics/summary?${params}`, {
@@ -2222,13 +2231,17 @@ export const getAnalyticsSummary = async ({ from, to, includeStaff = false } = {
  * the user who triggered it. Admin only (stricter than getAnalyticsSummary
  * — this names real people, not just aggregate counts).
  */
-export const getAnalyticsEvents = async ({ from, to, includeStaff = false, eventType, page = 1, limit = 50 } = {}) => {
+export const getAnalyticsEvents = async ({ from, to, last24h = false, includeStaff = false, eventType, page = 1, limit = 50 } = {}) => {
     const token = await getAuthToken();
     if (!token) throw new Error('Not authenticated');
 
     const params = new URLSearchParams();
-    if (from) params.set('from', from);
-    if (to) params.set('to', to);
+    if (last24h) {
+        params.set('last24h', 'true');
+    } else {
+        if (from) params.set('from', from);
+        if (to) params.set('to', to);
+    }
     if (includeStaff) params.set('includeStaff', 'true');
     if (eventType) params.set('eventType', eventType);
     params.set('page', page);

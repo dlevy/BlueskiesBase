@@ -5,6 +5,34 @@ const { requireAdmin, requireEditorOrAdmin, loadRequesterOptional } = require('.
 
 const VALID_EVENT_TYPES = ['pageview', 'feature'];
 
+// Shared by /summary and /events. `last24h=true` is a genuinely precise
+// rolling 24-hour window (now minus 24h) — distinct from the day-bucketed
+// from/to range the 7/30/90-day buttons use, where from/to are calendar
+// dates and the actual boundary gets rounded out to whole UTC days. That
+// rounding is harmless at 7+ day granularity, but reusing it for a "last 24
+// hours" option would silently span up to 48 hours depending on time of day.
+function resolveRange(req) {
+    if (req.query.last24h === 'true') {
+        const toExclusive = new Date();
+        const fromInclusive = new Date(toExclusive.getTime() - 24 * 60 * 60 * 1000);
+        return {
+            from: fromInclusive.toISOString(),
+            to: toExclusive.toISOString(),
+            fromInclusive: fromInclusive.toISOString(),
+            toExclusive: toExclusive.toISOString(),
+            granularity: 'hour',
+        };
+    }
+
+    const to = req.query.to || new Date().toISOString().slice(0, 10);
+    const from = req.query.from || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    // Range end is exclusive of the next day so `to` itself is fully included
+    // regardless of time-of-day the events were logged at.
+    const toExclusive = new Date(new Date(to + 'T00:00:00Z').getTime() + 24 * 60 * 60 * 1000).toISOString();
+    const fromInclusive = new Date(from + 'T00:00:00Z').toISOString();
+    return { from, to, fromInclusive, toExclusive, granularity: 'day' };
+}
+
 /**
  * POST /api/analytics/event
  * Public — logs one pageview or feature-usage event. Never rejects on a
@@ -54,17 +82,13 @@ router.post('/event', async (req, res) => {
  * GET /api/analytics/summary
  * Editor/admin only. Query params:
  *   from, to          — YYYY-MM-DD, inclusive date range (defaults to the last 30 days)
+ *   last24h           — 'true' for a precise rolling 24-hour window instead (overrides from/to)
  *   includeStaff      — 'true' to include admin/editor-tagged rows (default: excluded)
  */
 router.get('/summary', requireEditorOrAdmin, async (req, res) => {
     try {
         const includeStaff = req.query.includeStaff === 'true';
-        const to = req.query.to || new Date().toISOString().slice(0, 10);
-        const from = req.query.from || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-        // Range end is exclusive of the next day so `to` itself is fully included
-        // regardless of time-of-day the events were logged at.
-        const toExclusive = new Date(new Date(to + 'T00:00:00Z').getTime() + 24 * 60 * 60 * 1000).toISOString();
-        const fromInclusive = new Date(from + 'T00:00:00Z').toISOString();
+        const { from, to, fromInclusive, toExclusive, granularity } = resolveRange(req);
 
         let query = supabase
             .from('analytics_events')
@@ -96,10 +120,12 @@ router.get('/summary', requireEditorOrAdmin, async (req, res) => {
 
         const uniqueSessions = new Set(rows.map(r => r.session_id)).size;
 
+        // Hour buckets for the 24-hour view (a day-bucketed chart would be
+        // just 1-2 bars), day buckets otherwise.
         const dailyCounts = {};
         pageviews.forEach(r => {
-            const day = r.created_at.slice(0, 10);
-            dailyCounts[day] = (dailyCounts[day] || 0) + 1;
+            const bucket = granularity === 'hour' ? r.created_at.slice(0, 13) + ':00:00Z' : r.created_at.slice(0, 10);
+            dailyCounts[bucket] = (dailyCounts[bucket] || 0) + 1;
         });
         const dailyPageviews = Object.entries(dailyCounts)
             .map(([date, count]) => ({ date, count }))
@@ -117,6 +143,7 @@ router.get('/summary', requireEditorOrAdmin, async (req, res) => {
 
         res.json({
             range: { from, to },
+            granularity,
             totalPageviews: pageviews.length,
             uniqueSessions,
             dailyPageviews,
@@ -137,6 +164,7 @@ router.get('/summary', requireEditorOrAdmin, async (req, res) => {
  * events, each resolved to the user who triggered it.
  * Query params:
  *   from, to          — YYYY-MM-DD, inclusive date range (defaults to the last 30 days)
+ *   last24h           — 'true' for a precise rolling 24-hour window instead (overrides from/to)
  *   includeStaff      — 'true' to include admin/editor-tagged rows (default: excluded)
  *   eventType         — 'pageview' | 'feature' (default: both)
  *   page, limit        — pagination (limit capped at 200, default 50)
@@ -144,10 +172,7 @@ router.get('/summary', requireEditorOrAdmin, async (req, res) => {
 router.get('/events', requireAdmin, async (req, res) => {
     try {
         const includeStaff = req.query.includeStaff === 'true';
-        const to = req.query.to || new Date().toISOString().slice(0, 10);
-        const from = req.query.from || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-        const toExclusive = new Date(new Date(to + 'T00:00:00Z').getTime() + 24 * 60 * 60 * 1000).toISOString();
-        const fromInclusive = new Date(from + 'T00:00:00Z').toISOString();
+        const { fromInclusive, toExclusive } = resolveRange(req);
 
         const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
         const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 200);

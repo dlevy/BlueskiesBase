@@ -1,3 +1,5 @@
+import { trackEvent } from '../utils/analytics';
+
 // Site-wide announcement bar — admin-editable (text, color, an optional
 // hyperlinked phrase within the text) via Site Settings. No dismiss button:
 // an admin controls visibility with the `enabled` flag instead of each
@@ -28,6 +30,7 @@ export default function AnnouncementBanner({ banner }) {
                         rel="noopener noreferrer"
                         className="font-semibold hover:underline"
                         style={{ color: accent }}
+                        onClick={() => trackEvent('banner_link_clicked')}
                     >
                         {linkText}
                     </a>
