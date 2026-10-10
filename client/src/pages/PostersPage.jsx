@@ -17,6 +17,45 @@ function formatDate(dateStr) {
     });
 }
 
+function formatDropDateTime(isoString) {
+    return new Date(isoString).toLocaleString('en-US', {
+        month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+    });
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function UpcomingDropTile({ poster }) {
+    const show = poster.shows;
+    return (
+        <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
+            <img
+                src={poster.thumbnail_url || poster.poster_url}
+                alt={poster.caption || `${show.artist_name} poster`}
+                className="w-12 h-16 object-cover rounded-lg shrink-0"
+            />
+            <div className="min-w-0">
+                <p className="text-xs font-semibold truncate" style={{ color: 'var(--p-color-primary)' }}>
+                    {show.artist_name} — {formatDate(show.show_date)}
+                </p>
+                <p className="text-xs font-mono" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                    Drops {formatDropDateTime(poster.drop_at)}
+                </p>
+                {poster.drop_url && (
+                    <a
+                        href={poster.drop_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs font-semibold text-amber-400 hover:underline"
+                    >
+                        View drop →
+                    </a>
+                )}
+            </div>
+        </div>
+    );
+}
+
 // Most posters are portrait and fill the aspect-[2/3] tile edge-to-edge with
 // object-cover. A poster that isn't narrower than the tile itself — landscape
 // or square — gets cropped on the sides that way, so once we know (from the
@@ -257,6 +296,13 @@ export default function PostersPage() {
         return () => { cancelled = true; };
     }, [user]);
 
+    const upcomingDrops = useMemo(() => {
+        const now = Date.now();
+        return posters
+            .filter(p => p.drop_at && new Date(p.drop_at).getTime() > now && new Date(p.drop_at).getTime() - now <= DAY_MS)
+            .sort((a, b) => new Date(a.drop_at) - new Date(b.drop_at));
+    }, [posters]);
+
     const collectionEntryByPosterId = useMemo(() => {
         const map = new Map();
         myCollection.forEach(entry => {
@@ -295,6 +341,27 @@ export default function PostersPage() {
                     Posters
                 </h1>
             </div>
+
+            {upcomingDrops.length > 0 && (
+                <div className="mb-6">
+                    <div className="flex items-center gap-2 mb-3">
+                        <span className="font-display font-semibold text-sm" style={{ color: 'var(--p-color-primary)' }}>
+                            Dropping Soon
+                        </span>
+                        <span
+                            className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                            style={{ background: 'rgba(245,158,11,0.12)', color: '#f59e0b' }}
+                        >
+                            {upcomingDrops.length}
+                        </span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {upcomingDrops.map(poster => (
+                            <UpcomingDropTile key={poster.id} poster={poster} />
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {forTradeListings.length > 0 && (
                 <div className="mb-6 rounded-xl border border-white/10 bg-white/[0.03]">

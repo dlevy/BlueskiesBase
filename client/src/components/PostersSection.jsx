@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { PHeading, PText, PButtonPure, PInlineNotification, PDivider } from '@porsche-design-system/components-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getShowPoster, uploadPoster, updatePosterDetails, deletePoster, getPosterShows, linkPosterToRange, unlinkPosterShow } from '../services/api';
+import { toDatetimeLocalValue } from '../utils/datetimeLocal';
 import ThanksButton from './ThanksButton';
 import Lightbox from 'yet-another-react-lightbox';
 import 'yet-another-react-lightbox/styles.css';
@@ -11,6 +12,12 @@ function formatShortDate(dateStr) {
     const [y, m, d] = dateStr.split('-');
     return new Date(Number(y), Number(m) - 1, Number(d)).toLocaleDateString('en-US', {
         month: 'short', day: 'numeric', year: 'numeric',
+    });
+}
+
+function formatDropDateTime(isoString) {
+    return new Date(isoString).toLocaleString('en-US', {
+        month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit',
     });
 }
 
@@ -194,6 +201,8 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
     const [editingCredit, setEditingCredit] = useState(false);
     const [editArtistName, setEditArtistName] = useState('');
     const [editArtistUrl, setEditArtistUrl] = useState('');
+    const [editDropAt, setEditDropAt] = useState('');
+    const [editDropUrl, setEditDropUrl] = useState('');
     const [savingCredit, setSavingCredit] = useState(false);
     const [creditError, setCreditError] = useState(null);
 
@@ -213,6 +222,8 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
     const openCreditEditor = () => {
         setEditArtistName(poster.poster_artist_name || '');
         setEditArtistUrl(poster.poster_artist_url || '');
+        setEditDropAt(toDatetimeLocalValue(poster.drop_at));
+        setEditDropUrl(poster.drop_url || '');
         setCreditError(null);
         setEditingCredit(true);
     };
@@ -221,12 +232,17 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
         try {
             setSavingCredit(true);
             setCreditError(null);
-            await updatePosterDetails(poster.id, { posterArtistName: editArtistName, posterArtistUrl: editArtistUrl });
+            await updatePosterDetails(poster.id, {
+                posterArtistName: editArtistName,
+                posterArtistUrl: editArtistUrl,
+                dropAt: editDropAt ? new Date(editDropAt).toISOString() : '',
+                dropUrl: editDropUrl,
+            });
             setEditingCredit(false);
             await onChanged();
         } catch (err) {
-            console.error('Error updating poster credit:', err);
-            setCreditError(err.message || 'Failed to update credit');
+            console.error('Error updating poster details:', err);
+            setCreditError(err.message || 'Failed to update details');
         } finally {
             setSavingCredit(false);
         }
@@ -389,6 +405,20 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
                         </PText>
                     )}
 
+                    {poster.drop_at && (
+                        <PText size="xs" align="center" style={{ color: 'var(--p-color-contrast-low)' }}>
+                            Drops {formatDropDateTime(poster.drop_at)}
+                            {poster.drop_url && (
+                                <>
+                                    {' — '}
+                                    <a href={poster.drop_url} target="_blank" rel="noopener noreferrer" className="font-semibold text-amber-400 hover:underline">
+                                        view drop
+                                    </a>
+                                </>
+                            )}
+                        </PText>
+                    )}
+
                     <div className="flex items-center justify-between pt-3 border-t border-white/5">
                         <div className="space-y-1">
                             <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>
@@ -408,7 +438,7 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
                         </div>
                         <div className="flex items-center gap-2">
                             {isEditorOrAdmin && !editingCredit && (
-                                <PButtonPure size="x-small" icon="edit" onClick={openCreditEditor}>Edit credit</PButtonPure>
+                                <PButtonPure size="x-small" icon="edit" onClick={openCreditEditor}>Edit details</PButtonPure>
                             )}
                             {canDelete && (
                                 <PButtonPure size="x-small" icon="delete" onClick={handleDelete}>Delete</PButtonPure>
@@ -432,6 +462,20 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
                                 </label>
                                 <input type="url" value={editArtistUrl} onChange={(e) => setEditArtistUrl(e.target.value)}
                                     placeholder="https://example.com" className={inputClass} />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                                    Drop Date/Time (optional)
+                                </label>
+                                <input type="datetime-local" value={editDropAt} onChange={(e) => setEditDropAt(e.target.value)}
+                                    className={inputClass} />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                                    Drop URL (optional)
+                                </label>
+                                <input type="url" value={editDropUrl} onChange={(e) => setEditDropUrl(e.target.value)}
+                                    placeholder="https://example.com/store" className={inputClass} />
                             </div>
                             <div className="flex gap-2">
                                 <button className={btnPrimary} disabled={savingCredit} onClick={handleSaveCredit}>

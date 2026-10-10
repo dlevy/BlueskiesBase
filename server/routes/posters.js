@@ -75,6 +75,8 @@ router.get('/', async (req, res) => {
                     is_foil,
                     poster_artist_name,
                     poster_artist_url,
+                    drop_at,
+                    drop_url,
                     created_at
                 ),
                 shows (
@@ -1085,7 +1087,7 @@ router.delete('/wants/:id', authenticate, async (req, res) => {
 router.put('/:posterId', authenticate, async (req, res) => {
     try {
         const { posterId } = req.params;
-        const { caption, posterArtistName, posterArtistUrl } = req.body;
+        const { caption, posterArtistName, posterArtistUrl, dropAt, dropUrl } = req.body;
         const userId = req.user.id;
 
         // Check if user is admin/editor
@@ -1118,6 +1120,33 @@ router.put('/:posterId', authenticate, async (req, res) => {
         if (isEditorOrAdmin) {
             if (posterArtistName !== undefined) update.poster_artist_name = posterArtistName || null;
             if (posterArtistUrl !== undefined) update.poster_artist_url = posterArtistUrl || null;
+
+            if (dropAt !== undefined) {
+                if (dropAt) {
+                    const parsed = new Date(dropAt);
+                    if (isNaN(parsed.getTime())) {
+                        return res.status(400).json({ error: 'Drop date/time must be a valid date' });
+                    }
+                    update.drop_at = parsed.toISOString();
+                } else {
+                    update.drop_at = null;
+                }
+            }
+            if (dropUrl !== undefined) {
+                if (dropUrl) {
+                    if (dropUrl.length > 500) {
+                        return res.status(400).json({ error: 'Drop URL must be 500 characters or fewer' });
+                    }
+                    try {
+                        new URL(dropUrl);
+                    } catch {
+                        return res.status(400).json({ error: `"${dropUrl}" is not a valid URL` });
+                    }
+                    update.drop_url = dropUrl;
+                } else {
+                    update.drop_url = null;
+                }
+            }
         }
 
         const { data: updatedPoster, error } = await supabaseAdmin

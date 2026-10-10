@@ -3,6 +3,7 @@ import { PHeading, PText, PButton, PButtonPure, PInlineNotification, PSpinner } 
 import { getSiteSettings, updateSiteSettings } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import AnnouncementBanner, { DEFAULT_BANNER as INSTAGRAM_DEFAULT_BANNER } from '../../components/AnnouncementBanner';
+import { toDatetimeLocalValue } from '../../utils/datetimeLocal';
 
 const inputClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--p-color-info)] focus:border-transparent placeholder:text-gray-500";
 const labelClass = "block text-xs font-medium mb-1.5";
@@ -11,18 +12,6 @@ const MAX_FOOTER_LINKS = 8;
 // Blank shape used only as a merge base for whatever the API returns — NOT
 // the "Reset to Default" content, see INSTAGRAM_DEFAULT_BANNER for that.
 const DEFAULT_BANNER = { enabled: true, prefixText: '', linkText: '', linkUrl: '', suffixText: '', color: '#fbbf24', scheduledOffAt: '' };
-
-// <input type="datetime-local"> both reads and writes a timezone-less local
-// string ("YYYY-MM-DDTHH:mm"), so a stored UTC ISO string needs converting
-// to the browser's local time to populate the field, and back to a real UTC
-// instant (via `new Date(localString).toISOString()`, since a
-// timezone-less string is parsed as local time) when saving.
-function toDatetimeLocalValue(isoString) {
-    if (!isoString) return '';
-    const d = new Date(isoString);
-    const pad = n => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
 
 export default function SiteSettingsPage() {
     const { isAdmin } = useAuth();
