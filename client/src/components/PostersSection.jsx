@@ -410,18 +410,19 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
 
                     {poster.drop_at && (
                         <PText size="xs" align="center" style={{ color: 'var(--p-color-contrast-low)' }}>
-                            Drops {formatDropDateTime(poster.drop_at)}
-                            {poster.drop_sold_out && (
-                                <span className="font-bold uppercase tracking-wide ml-1.5" style={{ color: '#f87171' }}>
-                                    Sold Out
-                                </span>
-                            )}
-                            {poster.drop_url && (
+                            {poster.drop_sold_out ? (
+                                <>AP drop on {formatDropDateTime(poster.drop_at)} — sold out</>
+                            ) : (
                                 <>
-                                    {' — '}
-                                    <a href={poster.drop_url} target="_blank" rel="noopener noreferrer" className="font-semibold text-amber-400 hover:underline">
-                                        view drop
-                                    </a>
+                                    Drops {formatDropDateTime(poster.drop_at)}
+                                    {poster.drop_url && (
+                                        <>
+                                            {' — '}
+                                            <a href={poster.drop_url} target="_blank" rel="noopener noreferrer" className="font-semibold text-amber-400 hover:underline">
+                                                view drop
+                                            </a>
+                                        </>
+                                    )}
                                 </>
                             )}
                         </PText>
