@@ -355,7 +355,7 @@ export default function PostersPage() {
                         </span>
                     </div>
                     <p className="text-xs mb-3" style={{ color: 'var(--p-color-contrast-medium)' }}>
-                        This list is only as complete as what's been entered — if you know of a drop that's missing, let us know and we'll add it.
+                        Shows upcoming drops and ones from the last 24 hours. This list is only as complete as what's been entered — if you know of a drop that's missing, let us know and we'll add it.
                     </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                         {upcomingDrops.map(poster => (
