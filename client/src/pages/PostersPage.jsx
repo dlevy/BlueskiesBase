@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { PSpinner, PText } from '@porsche-design-system/components-react';
-import { getAllPosters, getPostersForTrade, getMyPosterCollection, addToPosterCollection, removeFromPosterCollection } from '../services/api';
+import { getAllPosters, getPostersForTrade, getMyPosterCollection, addToPosterCollection, removeFromPosterCollection, getMyPosterWants, addPosterWant, removePosterWant } from '../services/api';
 import { buildShowPath } from '../utils/showSlug';
 import { useAuth } from '../contexts/AuthContext';
 import MainNavTabs from '../components/MainNavTabs';
@@ -106,7 +106,40 @@ function CollectionButton({ isOwned, onToggle }) {
     );
 }
 
-function PosterTile({ poster, onImageClick, isOwned, onToggleCollection }) {
+// Same sibling-button pattern as CollectionButton, opposite corner, distinct
+// icon/color so "I own this" and "I want this" are never confused on one tile.
+function WantButton({ isWanted, onToggle }) {
+    const [working, setWorking] = useState(false);
+
+    const handleClick = async (e) => {
+        e.stopPropagation();
+        if (working) return;
+        setWorking(true);
+        try {
+            await onToggle();
+        } finally {
+            setWorking(false);
+        }
+    };
+
+    return (
+        <button
+            type="button"
+            onClick={handleClick}
+            disabled={working}
+            title={isWanted ? 'Remove from my wanted list' : 'Add to my wanted list'}
+            aria-label={isWanted ? 'Remove from my wanted list' : 'Add to my wanted list'}
+            className="absolute bottom-1.5 right-1.5 inline-flex items-center justify-center w-6 h-6 rounded-full transition-colors disabled:opacity-50"
+            style={{ background: 'rgba(0,0,0,0.7)', color: isWanted ? '#c084fc' : '#fff' }}
+        >
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill={isWanted ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 21V4h13l-3 4 3 4H4" />
+            </svg>
+        </button>
+    );
+}
+
+function PosterTile({ poster, onImageClick, isOwned, onToggleCollection, isWanted, onToggleWant }) {
     const show = poster.shows;
     const showCount = poster.showCount || 1;
     const isTourPoster = showCount > 1;
@@ -151,6 +184,9 @@ function PosterTile({ poster, onImageClick, isOwned, onToggleCollection }) {
                 )}
                 {onToggleCollection && (
                     <CollectionButton isOwned={isOwned} onToggle={onToggleCollection} />
+                )}
+                {onToggleWant && (
+                    <WantButton isWanted={isWanted} onToggle={onToggleWant} />
                 )}
             </div>
 
@@ -258,6 +294,12 @@ export default function PostersPage() {
     // EditProfilePage already manages in full (poster picker, foil/edition,
     // for-trade listing). Not fetched at all for a logged-out visitor.
     const [myCollection, setMyCollection] = useState([]);
+    // Same idea, for the "Posters Wanted" wishlist (user_poster_wants) — a
+    // quicker way into the per-show+variant list EditProfilePage already
+    // manages in full. A poster tile is per-image, but a want is per-show, so
+    // the toggle targets poster.shows.id (the same show already shown/linked
+    // on the tile) at the default 'any' variant.
+    const [myWants, setMyWants] = useState([]);
 
     useEffect(() => {
         let cancelled = false;
@@ -293,6 +335,15 @@ export default function PostersPage() {
         return () => { cancelled = true; };
     }, [user]);
 
+    useEffect(() => {
+        if (!user) { setMyWants([]); return; }
+        let cancelled = false;
+        getMyPosterWants()
+            .then(data => { if (!cancelled) setMyWants(data.wants || []); })
+            .catch(err => console.error('[PostersPage] Error loading my poster wants:', err));
+        return () => { cancelled = true; };
+    }, [user]);
+
     const upcomingDrops = useMemo(() => {
         const now = Date.now();
         // Any upcoming drop shows, however far out; once passed, it drops off
@@ -323,6 +374,30 @@ export default function PostersPage() {
         } catch (err) {
             console.error('[PostersPage] Error updating poster collection:', err);
             alert(err.message || 'Failed to update your collection');
+        }
+    };
+
+    const wantEntryByShowId = useMemo(() => {
+        const map = new Map();
+        myWants.forEach(entry => {
+            if (entry.shows?.id) map.set(entry.shows.id, entry);
+        });
+        return map;
+    }, [myWants]);
+
+    const handleToggleWant = async (showId) => {
+        const existing = wantEntryByShowId.get(showId);
+        try {
+            if (existing) {
+                await removePosterWant(existing.id);
+                setMyWants(prev => prev.filter(e => e.id !== existing.id));
+            } else {
+                const created = await addPosterWant(showId);
+                setMyWants(prev => [...prev, { id: created.id, variant: created.variant, shows: { id: showId } }]);
+            }
+        } catch (err) {
+            console.error('[PostersPage] Error updating poster wants:', err);
+            alert(err.message || 'Failed to update your wanted list');
         }
     };
 
@@ -423,6 +498,8 @@ export default function PostersPage() {
                             onImageClick={() => setLightboxIndex(index)}
                             isOwned={collectionEntryByPosterId.has(poster.id)}
                             onToggleCollection={user ? () => handleToggleCollection(poster.id) : null}
+                            isWanted={wantEntryByShowId.has(poster.shows.id)}
+                            onToggleWant={user ? () => handleToggleWant(poster.shows.id) : null}
                         />
                     ))}
                 </div>

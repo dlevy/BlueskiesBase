@@ -1863,6 +1863,7 @@ export const addPosterWant = async (showId, variant = 'any') => {
         const error = await response.json().catch(() => ({}));
         throw new Error(error.error || 'Failed to add to wanted list');
     }
+    trackEvent('poster_want_added');
     return response.json();
 };
 
