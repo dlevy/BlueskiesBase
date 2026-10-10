@@ -1609,7 +1609,7 @@ export const uploadPoster = async (showId, file, caption = '', isFoil = false, c
  * Update a poster's caption and/or artist credit (posterArtistName/posterArtistUrl
  * are editor/admin-only server-side — see PUT /api/posters/:posterId).
  */
-export const updatePosterDetails = async (posterId, { caption, posterArtistName, posterArtistUrl, dropAt, dropUrl, isFoil } = {}) => {
+export const updatePosterDetails = async (posterId, { caption, posterArtistName, posterArtistUrl, dropAt, dropUrl, isFoil, displayOrder } = {}) => {
     const token = await getAuthToken();
     if (!token) {
         throw new Error('Not authenticated');
@@ -1622,6 +1622,7 @@ export const updatePosterDetails = async (posterId, { caption, posterArtistName,
     if (dropAt !== undefined) body.dropAt = dropAt;
     if (dropUrl !== undefined) body.dropUrl = dropUrl;
     if (isFoil !== undefined) body.isFoil = isFoil;
+    if (displayOrder !== undefined) body.displayOrder = displayOrder;
 
     const response = await fetchWithAuth(`${API_BASE_URL}/api/posters/${posterId}`, {
         method: 'PUT',

@@ -190,7 +190,7 @@ function Spinner() {
 // supported concept (every additional upload is always a fresh one), so the
 // upload/replace affordance is disabled for those and adding more happens via
 // the separate "+ Add Additional Poster" form instead.
-function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, isEditorOrAdmin, onImageClick, onChanged, thanksRows = [], onThanksChanged, additional = false }) {
+function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, isEditorOrAdmin, onImageClick, onChanged, thanksRows = [], onThanksChanged, additional = false, onMove, canMoveUp, canMoveDown }) {
     const [uploading, setUploading] = useState(false);
     const [error, setError] = useState(null);
     const [selectedFile, setSelectedFile] = useState(null);
@@ -443,6 +443,12 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
                             />
                         </div>
                         <div className="flex items-center gap-2">
+                            {onMove && (
+                                <>
+                                    <PButtonPure size="x-small" icon="arrow-up" disabled={!canMoveUp} onClick={() => onMove('up')}>Move up</PButtonPure>
+                                    <PButtonPure size="x-small" icon="arrow-down" disabled={!canMoveDown} onClick={() => onMove('down')}>Move down</PButtonPure>
+                                </>
+                            )}
                             {isEditorOrAdmin && !editingCredit && (
                                 <PButtonPure size="x-small" icon="edit" onClick={openCreditEditor}>Edit details</PButtonPure>
                             )}
@@ -650,6 +656,26 @@ export default function PostersSection({ showId, showDate, thanksRows = [], onTh
     const additionalPosters = posters.filter(p => !p.is_primary);
     const slides = posters.map(p => ({ src: p.poster_url, alt: p.caption || 'Show poster', title: p.caption }));
 
+    // Swaps the poster with its neighbor, then renumbers every additional
+    // poster's display_order to its new index — simpler and more robust than
+    // only touching the two swapped rows, and the list is always small.
+    const handleMoveAdditionalPoster = async (posterId, direction) => {
+        const index = additionalPosters.findIndex(p => p.id === posterId);
+        const targetIndex = direction === 'up' ? index - 1 : index + 1;
+        if (index === -1 || targetIndex < 0 || targetIndex >= additionalPosters.length) return;
+
+        const reordered = [...additionalPosters];
+        [reordered[index], reordered[targetIndex]] = [reordered[targetIndex], reordered[index]];
+
+        try {
+            await Promise.all(reordered.map((p, i) => updatePosterDetails(p.id, { displayOrder: i })));
+            await loadPosters();
+        } catch (err) {
+            console.error('Error reordering additional posters:', err);
+            setError('Failed to reorder posters');
+        }
+    };
+
     return (
         <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 space-y-4">
             <div className="flex items-baseline justify-between gap-3 flex-wrap">
@@ -698,7 +724,7 @@ export default function PostersSection({ showId, showDate, thanksRows = [], onTh
                         Additional Posters
                     </PText>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {additionalPosters.map((poster) => (
+                        {additionalPosters.map((poster, index) => (
                             <PosterSlot
                                 key={poster.id}
                                 label={poster.is_foil ? 'Additional Poster (Foil)' : 'Additional Poster'}
@@ -714,6 +740,9 @@ export default function PostersSection({ showId, showDate, thanksRows = [], onTh
                                 onChanged={loadPosters}
                                 thanksRows={thanksRows}
                                 onThanksChanged={onThanksChanged}
+                                onMove={isEditorOrAdmin ? (direction) => handleMoveAdditionalPoster(poster.id, direction) : null}
+                                canMoveUp={index > 0}
+                                canMoveDown={index < additionalPosters.length - 1}
                             />
                         ))}
                     </div>

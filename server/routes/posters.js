@@ -188,7 +188,16 @@ router.get('/show/:showId', async (req, res) => {
         const posters = (links || [])
             .map(l => l.user_posters)
             .filter(Boolean)
-            .sort((a, b) => (a.is_foil ? 1 : 0) - (b.is_foil ? 1 : 0));
+            .sort((a, b) => {
+                // Primary (regular/foil) vs. additional doesn't matter for
+                // display — the client pulls each out by its own predicate —
+                // but the two groups need different tiebreakers: is_foil for
+                // primaries (there are only ever two), display_order for
+                // additional posters (where is_foil is just a badge, not an
+                // ordering signal).
+                if (a.is_primary && b.is_primary) return (a.is_foil ? 1 : 0) - (b.is_foil ? 1 : 0);
+                return a.display_order - b.display_order || a.created_at.localeCompare(b.created_at);
+            });
 
         res.json({ posters });
     } catch (error) {
@@ -1089,7 +1098,7 @@ router.delete('/wants/:id', authenticate, async (req, res) => {
 router.put('/:posterId', authenticate, async (req, res) => {
     try {
         const { posterId } = req.params;
-        const { caption, posterArtistName, posterArtistUrl, dropAt, dropUrl, isFoil } = req.body;
+        const { caption, posterArtistName, posterArtistUrl, dropAt, dropUrl, isFoil, displayOrder } = req.body;
         const userId = req.user.id;
 
         // Check if user is admin/editor
@@ -1183,6 +1192,14 @@ router.put('/:posterId', authenticate, async (req, res) => {
                     }
                     update.is_foil = newIsFoil;
                 }
+            }
+
+            if (displayOrder !== undefined) {
+                const parsedOrder = parseInt(displayOrder, 10);
+                if (isNaN(parsedOrder)) {
+                    return res.status(400).json({ error: 'displayOrder must be a number' });
+                }
+                update.display_order = parsedOrder;
             }
         }
 
