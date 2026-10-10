@@ -322,7 +322,7 @@ router.get('/stats', async (req, res) => {
                         original_artist
                     )
                 `)
-                .neq('performance_type', 'dj')
+                .not('performance_type', 'in', '(dj,soundcheck)')
                 .order('id')
                 .range(page * pageSize, (page + 1) * pageSize - 1);
 
@@ -390,7 +390,7 @@ router.get('/stats', async (req, res) => {
                         )
                     `, { count: 'exact' })
                     .in('song_id', notSeenSongIds)
-                    .neq('performance_type', 'dj')
+                    .not('performance_type', 'in', '(dj,soundcheck)')
                     .order('shows(show_date)', { ascending: false })
                     .order('id')
                     .range(rangeStart, rangeEnd);

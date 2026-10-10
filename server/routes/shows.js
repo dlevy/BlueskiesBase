@@ -194,7 +194,7 @@ router.get('/:id/tour-rarity', async (req, res) => {
                 .select('song_id, show_id')
                 .in('show_id', tourShowIds)
                 .not('song_id', 'is', null)
-                .neq('performance_type', 'dj')
+                .not('performance_type', 'in', '(dj,soundcheck)')
                 .order('id')
                 .range(rangeStart, rangeStart + 999);
 
@@ -415,7 +415,7 @@ router.get('/:id', async (req, res) => {
         // Organize setlist by sets
         const sets = {};
         setlist.forEach(item => {
-            const setNum = item.is_encore ? 'encore' : `set${item.set_number}`;
+            const setNum = item.performance_type === 'soundcheck' ? 'soundcheck' : (item.is_encore ? 'encore' : `set${item.set_number}`);
             if (!sets[setNum]) {
                 sets[setNum] = [];
             }
@@ -682,7 +682,7 @@ router.put('/:id/setlist', requireEditorOrAdmin, async (req, res) => {
 
             // Validate performance_type if provided
             const performanceType = item.performance_type || 'full';
-            const validPerformanceTypes = ['full', 'tease', 'partial', 'dj'];
+            const validPerformanceTypes = ['full', 'tease', 'partial', 'dj', 'soundcheck'];
             if (!validPerformanceTypes.includes(performanceType)) {
                 throw new Error(`Entry ${index + 1}: performance_type must be one of: ${validPerformanceTypes.join(', ')}`);
             }
@@ -850,10 +850,10 @@ router.post('/:id/setlist/song', requireEditorOrAdmin, async (req, res) => {
 
         // Validate performance_type if provided
         const performanceTypeValue = performance_type || 'full';
-        const validPerformanceTypes = ['full', 'tease', 'partial', 'dj'];
+        const validPerformanceTypes = ['full', 'tease', 'partial', 'dj', 'soundcheck'];
         if (!validPerformanceTypes.includes(performanceTypeValue)) {
             return res.status(400).json({
-                error: 'performance_type must be one of: full, tease, partial, dj',
+                error: `performance_type must be one of: ${validPerformanceTypes.join(', ')}`,
                 provided: performanceTypeValue
             });
         }

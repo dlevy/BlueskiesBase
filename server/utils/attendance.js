@@ -7,8 +7,9 @@ const { computeDebutsForShows } = require('./debuts');
  * a song jammed out of and back into one show still only counts once for that show).
  * Shared by the personal stats route (own attended shows) and the public profile
  * route (a target user's attended shows), so both use the same reduction.
- * Excludes performance_type='dj' rows — a DJ spin at an afterparty isn't a song
- * performance you "saw", for the same reason it's excluded from debut/rarity stats.
+ * Excludes performance_type='dj'/'soundcheck' rows — a DJ spin or a soundcheck
+ * song isn't a performance you "saw", for the same reason both are excluded
+ * from debut/rarity stats.
  */
 async function computeSongsSeenForShows(showIds) {
     if (!showIds || showIds.length === 0) return [];
@@ -34,7 +35,7 @@ async function computeSongsSeenForShows(showIds) {
                 )
             `)
             .in('show_id', showIds)
-            .neq('performance_type', 'dj')
+            .not('performance_type', 'in', '(dj,soundcheck)')
             .order('id')
             .range(page * pageSize, (page + 1) * pageSize - 1);
 

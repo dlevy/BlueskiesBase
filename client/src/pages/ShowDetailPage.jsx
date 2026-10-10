@@ -469,6 +469,11 @@ export default function ShowDetailPage() {
         ...(show.setlist?.set3 || []),
         ...(show.setlist?.encore || []),
     ];
+    // Deliberately excluded from allSongsFlat/the SEO description/every stats
+    // computation on this page — not performed during the show, same
+    // treatment as a DJ'd song, just split into its own section instead of
+    // flagged inline.
+    const soundcheckSongs = show.setlist?.soundcheck || [];
     const firstFive = allSongsFlat.slice(0, 5).map(s => s.title).filter(Boolean).join(', ');
     const seoDescription = `${show.artist_name} performed at ${venueName} in ${venueCity} on ${longDate}.${firstFive ? ' Setlist: ' + firstFive + '.' : ''}`;
     // Keep in sync with server/utils/showMeta.js buildShowHead — that's what
@@ -682,6 +687,27 @@ export default function ShowDetailPage() {
                 {/* Who Was There */}
                 <WhoWasThereSection showId={show.id} refreshOn={attended} isFutureShow={isFutureShow} />
             </div>
+
+            {/* Sound Check — shown above the Setlist card, only when there's anything
+                to show. Not counted toward stats (see soundcheckSongs above), and no
+                per-song badge needed: every row here is already uniformly soundcheck
+                by virtue of the section itself. */}
+            {soundcheckSongs.length > 0 && (
+                <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 md:p-10">
+                    <div className="flex items-baseline justify-between mb-6">
+                        <PHeading size="large" tag="h2">Sound Check</PHeading>
+                        <span className="text-xs font-display" style={{ color: 'var(--p-color-contrast-low)' }}>
+                            {soundcheckSongs.length} songs
+                        </span>
+                    </div>
+                    <SetList
+                        songs={soundcheckSongs}
+                        tourRarity={tourRarity}
+                        liveDebutSongIds={liveDebutSongIds}
+                        tourDebutSongIds={tourDebutSongIds}
+                    />
+                </div>
+            )}
 
             {/* Setlist */}
             <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 md:p-10">

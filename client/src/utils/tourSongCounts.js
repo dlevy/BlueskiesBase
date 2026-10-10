@@ -56,6 +56,9 @@ export async function fetchTourList({ minShows = MIN_TOUR_SHOWS } = {}) {
 // Distinct-show play counts per song title for every already-played show (show_date
 // <= today) on a tour, sorted most- to least-played. Paginated with a stable order
 // so repeated fetches return consistent results (see [[pagination-determinism]]).
+// Excludes performance_type='dj'/'soundcheck' rows, same treatment as the server's
+// equivalent tour-rarity computation (GET /api/shows/:id/tour-rarity) — neither is
+// an actual live performance, so neither should count here either.
 export async function fetchTourSongCounts(tourName) {
     const todayStr = new Date().toISOString().slice(0, 10);
 
@@ -87,6 +90,7 @@ export async function fetchTourSongCounts(tourName) {
                 )
             `)
             .in('show_id', playedIds)
+            .not('performance_type', 'in', '(dj,soundcheck)')
             .order('id')
             .range(rangeStart, rangeStart + 999);
         if (error || !page?.length) break;

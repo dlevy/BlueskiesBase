@@ -6,15 +6,18 @@ import { CSS } from '@dnd-kit/utilities';
 import { getSongs } from '../services/api';
 import QuickAddSong from './QuickAddSong';
 
-const SET_ORDER = ['set1', 'set2', 'set3', 'encore'];
-const SET_LABELS = { set1: 'Set 1', set2: 'Set 2', set3: 'Set 3', encore: 'Encore' };
-const EMPTY_SETLIST = { set1: [], set2: [], set3: [], encore: [] };
+// soundcheck sorts first so it renders above Set 1 when active, matching
+// the public show page's "Sound Check" section sitting above the Setlist.
+const SET_ORDER = ['soundcheck', 'set1', 'set2', 'set3', 'encore'];
+const SET_LABELS = { soundcheck: 'Sound Check', set1: 'Set 1', set2: 'Set 2', set3: 'Set 3', encore: 'Encore' };
+const EMPTY_SETLIST = { soundcheck: [], set1: [], set2: [], set3: [], encore: [] };
 
 export default function SetlistEditor({ initialSetlist = {}, onChange }) {
     const [setlist, setSetlist] = useState(EMPTY_SETLIST);
-    // Which set sections are shown. Always includes set1 — everything else (set2, set3,
-    // encore) only appears once it holds songs (loaded from an existing show) or the admin
-    // explicitly adds it, so a typical single-set show doesn't render three empty boxes.
+    // Which set sections are shown. Always includes set1 — everything else (soundcheck,
+    // set2, set3, encore) only appears once it holds songs (loaded from an existing show)
+    // or the admin explicitly adds it, so a typical single-set show doesn't render extra
+    // empty boxes.
     const [activeSets, setActiveSets] = useState(['set1']);
     const [allSongs, setAllSongs] = useState([]);
 
@@ -34,7 +37,13 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
         if (onChange) {
             const apiFormat = [];
             Object.entries(updatedSetlist).forEach(([setKey, songs]) => {
-                const setNumber = setKey === 'encore' ? 1 : parseInt(setKey.replace('set', ''));
+                const isSoundcheck = setKey === 'soundcheck';
+                // set_number=0 is a sentinel for soundcheck rows — set_number is NOT NULL
+                // in the DB but otherwise meaningless there, since performance_type is the
+                // authoritative "what kind of row is this" signal (same relationship 'dj'
+                // already has to a real set — the difference is soundcheck gets its own
+                // section instead of living inline within one).
+                const setNumber = isSoundcheck ? 0 : (setKey === 'encore' ? 1 : parseInt(setKey.replace('set', '')));
                 const isEncore = setKey === 'encore';
                 songs.forEach((song, index) => {
                     apiFormat.push({
@@ -44,7 +53,9 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
                         is_encore: isEncore,
                         notes: song.notes || null,
                         jams_into: song.jams_into || null,
-                        performance_type: song.performance_type || 'full'
+                        // Soundcheck isn't independently editable to tease/partial/dj —
+                        // those classify a live performance, which this isn't.
+                        performance_type: isSoundcheck ? 'soundcheck' : (song.performance_type || 'full')
                     });
                 });
             });
@@ -53,7 +64,7 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
     }, [onChange]);
 
     const convertInitialSetlist = useCallback((initial) => {
-        const converted = { set1: [], set2: [], set3: [], encore: [] };
+        const converted = { soundcheck: [], set1: [], set2: [], set3: [], encore: [] };
         Object.entries(initial).forEach(([setKey, songs]) => {
             if (songs && Array.isArray(songs)) {
                 converted[setKey] = songs.map((song, index) => ({
@@ -176,6 +187,7 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
 
     const nextNumberedSet = ['set2', 'set3'].find(k => !activeSets.includes(k));
     const encoreActive = activeSets.includes('encore');
+    const soundcheckActive = activeSets.includes('soundcheck');
 
     return (
         <div className="space-y-4">
@@ -188,6 +200,7 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
                         label={SET_LABELS[setKey]}
                         songs={setlist[setKey]}
                         allSongs={allSongs}
+                        isSoundcheck={setKey === 'soundcheck'}
                         onAddSong={(song) => handleAddSong(setKey, song)}
                         onSongCreated={handleSongCreated}
                         onRemoveSong={(index) => handleRemoveSong(setKey, index)}
@@ -199,8 +212,13 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
                 ))}
             </div>
 
-            {(nextNumberedSet || !encoreActive) && (
+            {(nextNumberedSet || !encoreActive || !soundcheckActive) && (
                 <div className="flex gap-2">
+                    {!soundcheckActive && (
+                        <PButton type="button" variant="secondary" size="small" onClick={() => addSetSection('soundcheck')}>
+                            + Add Sound Check
+                        </PButton>
+                    )}
                     {nextNumberedSet && (
                         <PButton type="button" variant="secondary" size="small" onClick={() => addSetSection(nextNumberedSet)}>
                             + Add {SET_LABELS[nextNumberedSet]}
@@ -217,7 +235,7 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
     );
 }
 
-function SetSection({ label, songs, allSongs, onAddSong, onSongCreated, onRemoveSong, onMoveSong, onUpdateSong, onDragEnd, onRemoveSet }) {
+function SetSection({ label, songs, allSongs, isSoundcheck, onAddSong, onSongCreated, onRemoveSong, onMoveSong, onUpdateSong, onDragEnd, onRemoveSet }) {
     // A small activation distance keeps a plain click on the ⚙/×/drag-handle buttons from
     // being mistaken for a drag; KeyboardSensor gives the drag handle the standard dnd-kit
     // keyboard flow (Tab to it, Space to pick up, arrow keys to move, Space to drop).
@@ -250,6 +268,7 @@ function SetSection({ label, songs, allSongs, onAddSong, onSongCreated, onRemove
                                     index={index}
                                     isFirst={index === 0}
                                     isLast={index === songs.length - 1}
+                                    isSoundcheck={isSoundcheck}
                                     onRemove={() => onRemoveSong(index)}
                                     onMove={(direction) => onMoveSong(index, direction)}
                                     onUpdate={(field, value) => onUpdateSong(index, field, value)}
@@ -265,7 +284,7 @@ function SetSection({ label, songs, allSongs, onAddSong, onSongCreated, onRemove
     );
 }
 
-function SetlistSongItem({ song, index, isFirst, isLast, onRemove, onMove, onUpdate }) {
+function SetlistSongItem({ song, index, isFirst, isLast, isSoundcheck, onRemove, onMove, onUpdate }) {
     const [isExpanded, setIsExpanded] = useState(false);
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: song.id });
 
@@ -359,20 +378,25 @@ function SetlistSongItem({ song, index, isFirst, isLast, onRemove, onMove, onUpd
                     )}
 
                     <div className="pt-2 border-t border-white/10 space-y-2">
-                        <div>
-                            <label className="block text-xs mb-1" style={{ color: 'var(--p-color-contrast-medium)' }}>
-                                Performance Type
-                            </label>
-                            <select value={song.performance_type || 'full'}
-                                onChange={e => onUpdate('performance_type', e.target.value)}
-                                className="w-full rounded border border-white/10 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-[var(--p-color-info)]"
-                                style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
-                                <option value="full">Full Performance</option>
-                                <option value="tease">Tease</option>
-                                <option value="partial">Partial</option>
-                                <option value="dj">DJ'd (not performed live)</option>
-                            </select>
-                        </div>
+                        {/* Meaningless for a soundcheck song — tease/partial/dj all
+                            classify a live performance, which this isn't; its
+                            performance_type is always forced to 'soundcheck' on save. */}
+                        {!isSoundcheck && (
+                            <div>
+                                <label className="block text-xs mb-1" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                                    Performance Type
+                                </label>
+                                <select value={song.performance_type || 'full'}
+                                    onChange={e => onUpdate('performance_type', e.target.value)}
+                                    className="w-full rounded border border-white/10 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-[var(--p-color-info)]"
+                                    style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
+                                    <option value="full">Full Performance</option>
+                                    <option value="tease">Tease</option>
+                                    <option value="partial">Partial</option>
+                                    <option value="dj">DJ'd (not performed live)</option>
+                                </select>
+                            </div>
+                        )}
 
                         <label className="flex items-center gap-2 text-xs cursor-pointer"
                             style={{ color: 'var(--p-color-contrast-medium)' }}>

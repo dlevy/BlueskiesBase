@@ -12,9 +12,9 @@ const { supabase } = require('../config/supabase');
  * the song's catalog created_at, which just reflects when it was entered (e.g. every song
  * off a new album gets bulk-added to the catalog on release day, regardless of whether or
  * when any of them are actually performed live). Rows with performance_type='dj' (an
- * afterparty-style DJ spin, not an actual live performance by the band) are excluded
- * entirely — both from "was this song played at this show" and from the earliest-date
- * math, so a DJ'd track never wrongly claims a debut, and never blocks a later real one.
+ * afterparty-style DJ spin) or 'soundcheck' (not performed during the actual show) are
+ * excluded entirely — both from "was this song played at this show" and from the
+ * earliest-date math, so neither ever wrongly claims a debut or blocks a later real one.
  * Returns { [show_id]: { live_debut_song_ids: [...], tour_debut_song_ids: [...] } } — every
  * requested show_id is present, with empty arrays for a show with no setlist or that
  * doesn't exist (callers that need to distinguish "doesn't exist" should check separately).
@@ -42,7 +42,7 @@ async function computeDebutsForShows(showIds) {
             .select('show_id, song_id')
             .in('show_id', showIds)
             .not('song_id', 'is', null)
-            .neq('performance_type', 'dj')
+            .not('performance_type', 'in', '(dj,soundcheck)')
             .order('id')
             .range(rangeStart, rangeStart + 999);
         if (error) throw new Error('Failed to load setlists for batch: ' + error.message);
@@ -68,7 +68,7 @@ async function computeDebutsForShows(showIds) {
             .from('setlist_songs')
             .select('song_id, show_id, shows(show_date)')
             .in('song_id', songIdsInvolved)
-            .neq('performance_type', 'dj')
+            .not('performance_type', 'in', '(dj,soundcheck)')
             .order('id')
             .range(rangeStart, rangeStart + 999);
         if (error) throw new Error('Failed to compute debuts: ' + error.message);

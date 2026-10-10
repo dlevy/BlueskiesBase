@@ -49,7 +49,7 @@ router.get('/', async (req, res) => {
                 .from('setlist_songs')
                 .select('song_id, show_id, performance_type, shows(show_date)')
                 .in('song_id', songIds)
-                .neq('performance_type', 'dj')
+                .not('performance_type', 'in', '(dj,soundcheck)')
                 .order('id')
                 .range(from, from + batchSize - 1);
 
@@ -208,14 +208,16 @@ router.get('/:id', async (req, res) => {
 
         const performances = allPerformances;
 
-        // Calculate performance type counts — 'dj' (afterparty-style DJ spin, not
-        // an actual live performance) is tracked as its own bucket rather than
-        // folded into the others, same treatment as tease/partial.
+        // Calculate performance type counts — 'dj' (afterparty-style DJ spin) and
+        // 'soundcheck' (not performed during the actual show) are each tracked as
+        // their own bucket rather than folded into the others, same treatment as
+        // tease/partial.
         const performanceTypeCounts = {
             full: 0,
             tease: 0,
             partial: 0,
-            dj: 0
+            dj: 0,
+            soundcheck: 0
         };
 
         performances.forEach(perf => {
@@ -229,10 +231,10 @@ router.get('/:id', async (req, res) => {
             ...song,
             performances,
             performance_type_counts: performanceTypeCounts,
-            // Excludes DJ'd spins — this number represents real performances,
-            // even though the full `performances` list above still includes them
-            // for historical completeness.
-            total_performances: performances.filter(p => p.performance_type !== 'dj').length
+            // Excludes DJ'd spins and soundcheck plays — this number represents
+            // real performances, even though the full `performances` list above
+            // still includes them for historical completeness.
+            total_performances: performances.filter(p => p.performance_type !== 'dj' && p.performance_type !== 'soundcheck').length
         });
 
     } catch (error) {

@@ -18,8 +18,9 @@ const cache = new Map(); // limit -> { data, expiresAt }
  * having existed during earlier tours (same issue already fixed for the per-tour
  * Rare badge). The public Stats tab requests enough per bucket to paginate beyond
  * the first page.
- * Excludes performance_type='dj' rows (an afterparty DJ spin, not an actual live
- * performance) — those shouldn't inflate a song's play count or rarity ranking.
+ * Excludes performance_type='dj'/'soundcheck' rows (an afterparty DJ spin or a
+ * soundcheck song, not an actual live performance) — those shouldn't inflate a
+ * song's play count or rarity ranking.
  *
  * `filter` narrows the computation to a subset of shows — either
  * `{ startDate, endDate }` or `{ tourName }` — for the Stats tab's Song Stats
@@ -72,7 +73,7 @@ async function computeGlobalSongStats(limit = 10, filter = null) {
                     album_id
                 )
             `)
-            .neq('performance_type', 'dj')
+            .not('performance_type', 'in', '(dj,soundcheck)')
             .order('id');
         if (showIds) setlistQuery = setlistQuery.in('show_id', showIds);
 
