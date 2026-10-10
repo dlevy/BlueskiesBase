@@ -706,6 +706,9 @@ export default function ShowDetailPage() {
                         liveDebutSongIds={liveDebutSongIds}
                         tourDebutSongIds={tourDebutSongIds}
                     />
+                    <PText size="xs" className="mt-4 pt-4 border-t border-white/10 block" style={{ color: 'var(--p-color-contrast-low)' }}>
+                        Soundcheck songs aren't counted as songs you've seen live.
+                    </PText>
                 </div>
             )}
 
