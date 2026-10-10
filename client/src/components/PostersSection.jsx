@@ -416,10 +416,10 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
                         </PText>
                     )}
 
-                    {poster.drop_at && (
+                    {(poster.drop_at || poster.drop_sold_out) && (
                         <PText size="xs" align="center" style={{ color: 'var(--p-color-contrast-low)' }}>
                             {poster.drop_sold_out ? (
-                                <>AP drop on {formatDropDate(poster.drop_at)} — sold out</>
+                                <>AP drop{poster.drop_at ? ` on ${formatDropDate(poster.drop_at)}` : ''} — sold out</>
                             ) : (
                                 <>
                                     Drops {formatDropDateTime(poster.drop_at)}

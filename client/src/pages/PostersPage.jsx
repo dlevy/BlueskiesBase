@@ -159,7 +159,7 @@ function PosterTile({ poster, onImageClick, isOwned, onToggleCollection }) {
                     <span
                         className="absolute bottom-1.5 right-1.5 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded"
                         style={{ background: 'rgba(248,113,113,0.85)', color: '#1a0b0b' }}
-                        title={`AP drop on ${formatDropDate(poster.drop_at)} — sold out`}
+                        title={poster.drop_at ? `AP drop on ${formatDropDate(poster.drop_at)} — sold out` : 'AP drop — sold out'}
                     >
                         AP Sold Out
                     </span>
