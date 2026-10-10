@@ -155,7 +155,7 @@ function DebutBadge({ label, color, title }) {
 const LiveDebutBadge = () => <DebutBadge label="Live Debut" color="#34d399" title="First live performance of this song, ever" />;
 const TourDebutBadge = () => <DebutBadge label="Tour Debut" color="#22d3ee" title="First time this song has been played on this tour" />;
 
-function SongRow({ song, position, tourRarity, liveDebutSongIds, tourDebutSongIds }) {
+function SongRow({ song, position, tourRarity, liveDebutSongIds, tourDebutSongIds, showPosition = true }) {
     const tourCount = tourRarity?.total_shows > 0 && song.song_id
         ? tourRarity.song_counts[song.song_id]
         : undefined;
@@ -188,9 +188,11 @@ function SongRow({ song, position, tourRarity, liveDebutSongIds, tourDebutSongId
                 earlier in the same chain — left blank rather than renumbered,
                 but the slot stays the same width so the title still lines up
                 under every other title in the list. */}
-            <span className="shrink-0 w-6 text-right font-mono text-sm leading-relaxed font-bold text-amber-400">
-                {position ?? ''}
-            </span>
+            {showPosition && (
+                <span className="shrink-0 w-6 text-right font-mono text-sm leading-relaxed font-bold text-amber-400">
+                    {position ?? ''}
+                </span>
+            )}
             <div className="flex-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                     <span className="text-sm leading-relaxed font-semibold" style={{ color: 'var(--p-color-primary)' }}>
@@ -247,7 +249,7 @@ function SongRow({ song, position, tourRarity, liveDebutSongIds, tourDebutSongId
     );
 }
 
-function SetList({ songs, tourRarity, liveDebutSongIds, tourDebutSongIds }) {
+function SetList({ songs, tourRarity, liveDebutSongIds, tourDebutSongIds, showPosition = true }) {
     const rows = assignSetlistDisplayNumbers(songs);
     return (
         <ol className="space-y-1">
@@ -259,6 +261,7 @@ function SetList({ songs, tourRarity, liveDebutSongIds, tourDebutSongIds }) {
                     tourRarity={tourRarity}
                     liveDebutSongIds={liveDebutSongIds}
                     tourDebutSongIds={tourDebutSongIds}
+                    showPosition={showPosition}
                 />
             ))}
         </ol>
@@ -689,9 +692,13 @@ export default function ShowDetailPage() {
             </div>
 
             {/* Sound Check — shown above the Setlist card, only when there's anything
-                to show. Not counted toward stats (see soundcheckSongs above), and no
-                per-song badge needed: every row here is already uniformly soundcheck
-                by virtue of the section itself. */}
+                to show. Not counted toward stats (see soundcheckSongs above). No
+                position numbers (soundcheck order isn't meaningful), and tourRarity/
+                liveDebutSongIds/tourDebutSongIds are deliberately omitted — those
+                badges are computed per song_id, not per-row, so passing them here
+                would wrongly tag a soundcheck row with rare/debut status earned by
+                that song's real setlist performance. Cover/Sunday Valley badges are
+                intrinsic to the song itself, so those still show as normal. */}
             {soundcheckSongs.length > 0 && (
                 <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 md:p-10">
                     <div className="flex items-baseline justify-between mb-6">
@@ -700,14 +707,9 @@ export default function ShowDetailPage() {
                             {soundcheckSongs.length} songs
                         </span>
                     </div>
-                    <SetList
-                        songs={soundcheckSongs}
-                        tourRarity={tourRarity}
-                        liveDebutSongIds={liveDebutSongIds}
-                        tourDebutSongIds={tourDebutSongIds}
-                    />
+                    <SetList songs={soundcheckSongs} showPosition={false} />
                     <PText size="xs" className="mt-4 pt-4 border-t border-white/10 block" style={{ color: 'var(--p-color-contrast-low)' }}>
-                        Soundcheck songs aren't counted as songs you've seen live.
+                        Sound check songs aren't counted as songs you've seen live.
                     </PText>
                 </div>
             )}
