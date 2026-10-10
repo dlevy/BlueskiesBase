@@ -23,10 +23,9 @@ function formatDropDateTime(isoString) {
     });
 }
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-
 function UpcomingDropTile({ poster }) {
     const show = poster.shows;
+    const isPast = new Date(poster.drop_at).getTime() <= Date.now();
     return (
         <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
             <img
@@ -39,7 +38,7 @@ function UpcomingDropTile({ poster }) {
                     {show.artist_name} — {formatDate(show.show_date)}
                 </p>
                 <p className="text-xs font-mono" style={{ color: 'var(--p-color-contrast-medium)' }}>
-                    Drops {formatDropDateTime(poster.drop_at)}
+                    {isPast ? 'Available since' : 'Drops'} {formatDropDateTime(poster.drop_at)}
                 </p>
                 {poster.drop_url && (
                     <a
@@ -294,9 +293,15 @@ export default function PostersPage() {
 
     const upcomingDrops = useMemo(() => {
         const now = Date.now();
-        return posters
-            .filter(p => p.drop_at && new Date(p.drop_at).getTime() > now && new Date(p.drop_at).getTime() - now <= DAY_MS)
+        const withDrops = posters.filter(p => p.drop_at && !p.drop_sold_out);
+        // Still-upcoming drops first (soonest first), then already-available
+        // ones (most recently dropped first) — a drop keeps showing here
+        // indefinitely once it's passed, until explicitly marked sold out.
+        const future = withDrops.filter(p => new Date(p.drop_at).getTime() > now)
             .sort((a, b) => new Date(a.drop_at) - new Date(b.drop_at));
+        const past = withDrops.filter(p => new Date(p.drop_at).getTime() <= now)
+            .sort((a, b) => new Date(b.drop_at) - new Date(a.drop_at));
+        return [...future, ...past];
     }, [posters]);
 
     const collectionEntryByPosterId = useMemo(() => {
@@ -342,7 +347,7 @@ export default function PostersPage() {
                 <div className="mb-6">
                     <div className="flex items-center gap-2 mb-3">
                         <span className="font-display font-semibold text-sm" style={{ color: 'var(--p-color-primary)' }}>
-                            Dropping Soon
+                            Poster Drops
                         </span>
                         <span
                             className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
@@ -351,6 +356,9 @@ export default function PostersPage() {
                             {upcomingDrops.length}
                         </span>
                     </div>
+                    <p className="text-xs mb-3" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                        This list is only as complete as what's been entered — if you know of a drop that's missing, let us know and we'll add it.
+                    </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                         {upcomingDrops.map(poster => (
                             <UpcomingDropTile key={poster.id} poster={poster} />

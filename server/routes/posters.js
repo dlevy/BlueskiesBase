@@ -77,6 +77,7 @@ router.get('/', async (req, res) => {
                     poster_artist_url,
                     drop_at,
                     drop_url,
+                    drop_sold_out,
                     created_at
                 ),
                 shows (
@@ -1087,7 +1088,7 @@ router.delete('/wants/:id', authenticate, async (req, res) => {
 router.put('/:posterId', authenticate, async (req, res) => {
     try {
         const { posterId } = req.params;
-        const { caption, posterArtistName, posterArtistUrl, dropAt, dropUrl } = req.body;
+        const { caption, posterArtistName, posterArtistUrl, dropAt, dropUrl, dropSoldOut } = req.body;
         const userId = req.user.id;
 
         // Check if user is admin/editor
@@ -1147,6 +1148,7 @@ router.put('/:posterId', authenticate, async (req, res) => {
                     update.drop_url = null;
                 }
             }
+            if (dropSoldOut !== undefined) update.drop_sold_out = Boolean(dropSoldOut);
         }
 
         const { data: updatedPoster, error } = await supabaseAdmin

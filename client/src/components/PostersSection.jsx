@@ -203,6 +203,7 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
     const [editArtistUrl, setEditArtistUrl] = useState('');
     const [editDropAt, setEditDropAt] = useState('');
     const [editDropUrl, setEditDropUrl] = useState('');
+    const [editDropSoldOut, setEditDropSoldOut] = useState(false);
     const [savingCredit, setSavingCredit] = useState(false);
     const [creditError, setCreditError] = useState(null);
 
@@ -224,6 +225,7 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
         setEditArtistUrl(poster.poster_artist_url || '');
         setEditDropAt(toDatetimeLocalValue(poster.drop_at));
         setEditDropUrl(poster.drop_url || '');
+        setEditDropSoldOut(poster.drop_sold_out || false);
         setCreditError(null);
         setEditingCredit(true);
     };
@@ -237,6 +239,7 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
                 posterArtistUrl: editArtistUrl,
                 dropAt: editDropAt ? new Date(editDropAt).toISOString() : '',
                 dropUrl: editDropUrl,
+                dropSoldOut: editDropSoldOut,
             });
             setEditingCredit(false);
             await onChanged();
@@ -408,6 +411,11 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
                     {poster.drop_at && (
                         <PText size="xs" align="center" style={{ color: 'var(--p-color-contrast-low)' }}>
                             Drops {formatDropDateTime(poster.drop_at)}
+                            {poster.drop_sold_out && (
+                                <span className="font-bold uppercase tracking-wide ml-1.5" style={{ color: '#f87171' }}>
+                                    Sold Out
+                                </span>
+                            )}
                             {poster.drop_url && (
                                 <>
                                     {' — '}
@@ -477,6 +485,10 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
                                 <input type="url" value={editDropUrl} onChange={(e) => setEditDropUrl(e.target.value)}
                                     placeholder="https://example.com/store" className={inputClass} />
                             </div>
+                            <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                                <input type="checkbox" checked={editDropSoldOut} onChange={(e) => setEditDropSoldOut(e.target.checked)} />
+                                Sold out
+                            </label>
                             <div className="flex gap-2">
                                 <button className={btnPrimary} disabled={savingCredit} onClick={handleSaveCredit}>
                                     {savingCredit ? 'Saving…' : 'Save'}
