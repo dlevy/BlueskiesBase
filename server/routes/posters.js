@@ -7,6 +7,17 @@ const { requireEditorOrAdmin } = require('../middleware/requireRole');
 const { notifyShowAttendees, notifyPosterLinkedToShows } = require('../utils/notify');
 const { redactProfile, resolveDisplayName } = require('../utils/privacy');
 
+// How a show's posters are ordered, for both GET / (one tile per poster,
+// grouped by show) and GET /show/:showId: primary posters always come
+// first — regular before foil — then every additional poster after, by its
+// own admin-controlled display_order (is_foil has no bearing there; it's
+// just a badge on an additional poster, not an ordering signal).
+function comparePosterDisplayOrder(a, b) {
+    if (a.is_primary !== b.is_primary) return a.is_primary ? -1 : 1;
+    if (a.is_primary) return (a.is_foil ? 1 : 0) - (b.is_foil ? 1 : 0);
+    return a.display_order - b.display_order || a.created_at.localeCompare(b.created_at);
+}
+
 // Configure multer for memory storage
 const upload = multer({
     storage: multer.memoryStorage(),
@@ -144,13 +155,8 @@ router.get('/', async (req, res) => {
             const dateCompare = b.shows.show_date.localeCompare(a.shows.show_date);
             if (dateCompare !== 0) return dateCompare;
             if (a.shows.id !== b.shows.id) return String(a.shows.id).localeCompare(String(b.shows.id));
-            // Same show: regular before foil, primary before additional, then
-            // the admin-controlled display_order within additional posters —
-            // same tiebreak chain the show page itself uses (GET /show/:showId).
-            return (a.is_foil ? 1 : 0) - (b.is_foil ? 1 : 0) ||
-                (a.is_primary ? 0 : 1) - (b.is_primary ? 0 : 1) ||
-                a.display_order - b.display_order ||
-                a.created_at.localeCompare(b.created_at);
+            // Same show: same tiebreak chain the show page itself uses (GET /show/:showId).
+            return comparePosterDisplayOrder(a, b);
         });
 
         res.json({ posters: withShow });
@@ -195,16 +201,7 @@ router.get('/show/:showId', async (req, res) => {
         const posters = (links || [])
             .map(l => l.user_posters)
             .filter(Boolean)
-            .sort((a, b) => {
-                // Primary (regular/foil) vs. additional doesn't matter for
-                // display — the client pulls each out by its own predicate —
-                // but the two groups need different tiebreakers: is_foil for
-                // primaries (there are only ever two), display_order for
-                // additional posters (where is_foil is just a badge, not an
-                // ordering signal).
-                if (a.is_primary && b.is_primary) return (a.is_foil ? 1 : 0) - (b.is_foil ? 1 : 0);
-                return a.display_order - b.display_order || a.created_at.localeCompare(b.created_at);
-            });
+            .sort(comparePosterDisplayOrder);
 
         res.json({ posters });
     } catch (error) {
