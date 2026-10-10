@@ -161,7 +161,7 @@ function PosterTile({ poster, onImageClick, isOwned, onToggleCollection }) {
                         style={{ background: 'rgba(248,113,113,0.85)', color: '#1a0b0b' }}
                         title={`AP drop on ${formatDropDate(poster.drop_at)} — sold out`}
                     >
-                        Sold Out
+                        AP Sold Out
                     </span>
                 )}
                 {onToggleCollection && (
