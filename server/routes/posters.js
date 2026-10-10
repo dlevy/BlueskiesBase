@@ -73,6 +73,8 @@ router.get('/', async (req, res) => {
                     thumbnail_url,
                     caption,
                     is_foil,
+                    is_primary,
+                    display_order,
                     poster_artist_name,
                     poster_artist_url,
                     drop_at,
@@ -142,8 +144,13 @@ router.get('/', async (req, res) => {
             const dateCompare = b.shows.show_date.localeCompare(a.shows.show_date);
             if (dateCompare !== 0) return dateCompare;
             if (a.shows.id !== b.shows.id) return String(a.shows.id).localeCompare(String(b.shows.id));
-            // Same show: regular poster always before its foil variant.
-            return (a.is_foil ? 1 : 0) - (b.is_foil ? 1 : 0);
+            // Same show: regular before foil, primary before additional, then
+            // the admin-controlled display_order within additional posters —
+            // same tiebreak chain the show page itself uses (GET /show/:showId).
+            return (a.is_foil ? 1 : 0) - (b.is_foil ? 1 : 0) ||
+                (a.is_primary ? 0 : 1) - (b.is_primary ? 0 : 1) ||
+                a.display_order - b.display_order ||
+                a.created_at.localeCompare(b.created_at);
         });
 
         res.json({ posters: withShow });
