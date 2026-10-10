@@ -19,7 +19,7 @@ function formatDate(dateStr) {
 
 function formatDropDateTime(isoString) {
     return new Date(isoString).toLocaleString('en-US', {
-        month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+        month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short',
     });
 }
 
@@ -202,33 +202,28 @@ function PosterTile({ poster, onImageClick, isOwned, onToggleCollection }) {
 function ForTradeTile({ listing }) {
     const show = listing.show;
     const owner = listing.owner;
-    const [needsContain, handleImageLoad] = useUncroppedImageDetection();
 
     return (
-        <div className="rounded-xl overflow-hidden border border-white/10 bg-white/[0.03] hover:border-amber-500/30 transition-all duration-150">
-            <Link to={buildShowPath(show)} className={`relative block w-full aspect-[2/3] overflow-hidden bg-white/5 ${needsContain ? 'border border-white/15' : ''}`}>
+        <div className="flex items-start gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
+            <Link to={buildShowPath(show)} className="relative shrink-0">
                 <img
                     src={listing.thumbnailUrl || listing.posterUrl}
                     alt={`${show.artist_name} poster`}
                     loading="lazy"
-                    onLoad={handleImageLoad}
-                    className={`w-full h-full ${needsContain ? 'object-contain' : 'object-cover'}`}
+                    className="w-12 h-16 object-cover rounded-lg"
                 />
                 {listing.hasFoil && (
                     <span
-                        className="absolute top-1.5 right-1.5 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded"
+                        className="absolute -top-1 -right-1 text-[9px] font-bold uppercase tracking-wide px-1 py-0.5 rounded"
                         style={{ background: 'rgba(192,132,252,0.85)', color: '#1a0b2e' }}
                     >
                         Foil
                     </span>
                 )}
             </Link>
-            <div className="p-3 space-y-1.5">
-                <p className="text-xs font-mono uppercase tracking-wide" style={{ color: 'var(--p-color-contrast-low)' }}>
-                    {formatDate(show.show_date)}
-                </p>
-                <p className="text-sm font-semibold truncate" style={{ color: 'var(--p-color-primary)' }}>
-                    {show.artist_name}
+            <div className="min-w-0 space-y-0.5">
+                <p className="text-xs font-semibold truncate" style={{ color: 'var(--p-color-primary)' }}>
+                    {show.artist_name} — {formatDate(show.show_date)}
                 </p>
                 <p className="text-xs">
                     {owner?.username ? (
@@ -242,7 +237,9 @@ function ForTradeTile({ listing }) {
                 {listing.tradeComment && (
                     <p className="text-xs italic" style={{ color: 'var(--p-color-contrast-medium)' }}>{listing.tradeComment}</p>
                 )}
-                <ExpressInterestForm collectionId={listing.id} />
+                <div className="pt-0.5">
+                    <ExpressInterestForm collectionId={listing.id} />
+                </div>
             </div>
         </div>
     );
@@ -255,7 +252,6 @@ export default function PostersPage() {
     const [error, setError] = useState(null);
     const [lightboxIndex, setLightboxIndex] = useState(-1);
     const [forTradeListings, setForTradeListings] = useState([]);
-    const [forTradeExpanded, setForTradeExpanded] = useState(false);
     // The logged-in viewer's own collection, for the quick add/remove button
     // on each tile — a second, lighter-weight way into the same collection
     // EditProfilePage already manages in full (poster picker, foil/edition,
@@ -364,43 +360,26 @@ export default function PostersPage() {
             )}
 
             {forTradeListings.length > 0 && (
-                <div className="mb-6 rounded-xl border border-white/10 bg-white/[0.03]">
-                    <button
-                        type="button"
-                        onClick={() => setForTradeExpanded(v => !v)}
-                        className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left"
-                    >
-                        <span className="flex items-center gap-2">
-                            <span className="font-display font-semibold text-sm" style={{ color: 'var(--p-color-primary)' }}>
-                                Available for Sale/Trade
-                            </span>
-                            <span
-                                className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
-                                style={{ background: 'rgba(245,158,11,0.12)', color: '#f59e0b' }}
-                            >
-                                {forTradeListings.length}
-                            </span>
+                <div className="mb-6">
+                    <div className="flex items-center gap-2 mb-1">
+                        <span className="font-display font-semibold text-sm" style={{ color: 'var(--p-color-primary)' }}>
+                            Available for Sale/Trade
                         </span>
-                        <svg
-                            className={`w-4 h-4 shrink-0 transition-transform ${forTradeExpanded ? 'rotate-180' : ''}`}
-                            viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
-                            style={{ color: 'var(--p-color-contrast-medium)' }}
+                        <span
+                            className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                            style={{ background: 'rgba(245,158,11,0.12)', color: '#f59e0b' }}
                         >
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                        </svg>
-                    </button>
-                    {forTradeExpanded && (
-                        <div className="px-4 pb-4">
-                            <p className="text-xs mb-3" style={{ color: 'var(--p-color-contrast-medium)' }}>
-                                Posters members are offering up from their own collection.
-                            </p>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                                {forTradeListings.map(listing => (
-                                    <ForTradeTile key={listing.id} listing={listing} />
-                                ))}
-                            </div>
-                        </div>
-                    )}
+                            {forTradeListings.length}
+                        </span>
+                    </div>
+                    <p className="text-xs mb-3" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                        Posters members are offering up from their own collection.
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {forTradeListings.map(listing => (
+                            <ForTradeTile key={listing.id} listing={listing} />
+                        ))}
+                    </div>
                 </div>
             )}
 
