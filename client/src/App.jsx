@@ -26,7 +26,7 @@ import MemberLoginPage from './pages/MemberLoginPage'
 import SignupPage from './pages/SignupPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import AuthDebugPage from './pages/AuthDebugPage'
-import AnnouncementBanner from './components/AnnouncementBanner'
+import AnnouncementBanner, { DEFAULT_BANNER } from './components/AnnouncementBanner'
 import Avatar from './components/Avatar'
 import NotificationBell from './components/NotificationBell'
 import NotificationsPage from './pages/NotificationsPage'
@@ -143,15 +143,6 @@ const DEFAULT_FOOTER_LINKS = [
   { text: 'Initial setlist import thanks to Setlist.fm', url: 'https://www.setlist.fm' },
   { text: 'Inspired by crowesbase.com', url: 'https://www.crowesbase.com' },
 ];
-const DEFAULT_BANNER = {
-  enabled: true,
-  prefixText: 'Follow',
-  linkText: '@jbssetlists',
-  linkUrl: 'https://www.instagram.com/jbssetlists/',
-  suffixText: 'for face-melting setlists to your IG feed.',
-  color: '#fbbf24',
-};
-
 function PublicLayout() {
   const { user, profile, isEditorOrAdmin, signOut, getToken } = useAuth();
   const navigate = useNavigate();
@@ -162,7 +153,11 @@ function PublicLayout() {
   const [headerTitle, setHeaderTitle] = useState(DEFAULT_HEADER_TITLE);
   const [headerSubtitle, setHeaderSubtitle] = useState(DEFAULT_HEADER_SUBTITLE);
   const [footerLinks, setFooterLinks] = useState(DEFAULT_FOOTER_LINKS);
-  const [banner, setBanner] = useState(DEFAULT_BANNER);
+  // null (not DEFAULT_BANNER) while loading — rendering nothing until the
+  // fetch resolves avoids flashing stale/default content before swapping to
+  // whatever's actually configured, unlike header/footer above where the
+  // default already matches the common unconfigured case.
+  const [banner, setBanner] = useState(null);
 
   useEffect(() => {
     if (getToken) {
@@ -178,7 +173,12 @@ function PublicLayout() {
         if (data.footerLinks) setFooterLinks(data.footerLinks);
         if (data.banner) setBanner(data.banner);
       })
-      .catch(err => console.error('[PublicLayout] Error loading site settings:', err));
+      .catch(err => {
+        console.error('[PublicLayout] Error loading site settings:', err);
+        // Total fetch failure — fall back to the standing default rather
+        // than leaving the banner area permanently blank.
+        setBanner(DEFAULT_BANNER);
+      });
   }, []);
 
   const handleSignOut = async () => {

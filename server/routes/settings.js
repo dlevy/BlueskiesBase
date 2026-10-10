@@ -21,6 +21,7 @@ const DEFAULTS = {
         linkUrl: 'https://www.instagram.com/jbssetlists/',
         suffixText: 'for face-melting setlists to your IG feed.',
         color: '#fbbf24',
+        scheduledOffAt: null,
     },
 };
 
@@ -61,8 +62,12 @@ router.get('/', async (req, res) => {
  * Update site-wide editable text. Admin only.
  * Body: { headerTitle?, headerSubtitle?, footerLinks?, banner? }
  * footerLinks: [{ text, url? }, ...], up to MAX_FOOTER_LINKS items.
- * banner: { enabled, prefixText?, linkText?, linkUrl?, suffixText?, color? } —
- * linkText and linkUrl must be given together or not at all.
+ * banner: { enabled, prefixText?, linkText?, linkUrl?, suffixText?, color?, scheduledOffAt? } —
+ * linkText and linkUrl must be given together or not at all. scheduledOffAt
+ * is an optional ISO timestamp; once it passes, the client reverts the
+ * banner's *content* to the standing default (see AnnouncementBanner.jsx) —
+ * this stored value never changes on its own, the reversion is computed at
+ * display time from the current clock vs. this timestamp.
  */
 router.put('/', requireAdmin, async (req, res) => {
     try {
@@ -146,6 +151,15 @@ router.put('/', requireAdmin, async (req, res) => {
                 return res.status(400).json({ error: 'Banner color must be a hex color like #fbbf24' });
             }
 
+            let scheduledOffAt = null;
+            if (banner.scheduledOffAt) {
+                const parsed = new Date(banner.scheduledOffAt);
+                if (isNaN(parsed.getTime())) {
+                    return res.status(400).json({ error: 'Banner schedule must be a valid date/time' });
+                }
+                scheduledOffAt = parsed.toISOString();
+            }
+
             updates.banner = {
                 enabled: Boolean(banner.enabled),
                 prefixText,
@@ -153,6 +167,7 @@ router.put('/', requireAdmin, async (req, res) => {
                 linkUrl,
                 suffixText,
                 color: color || DEFAULTS.banner.color,
+                scheduledOffAt,
             };
         }
 

@@ -1,14 +1,28 @@
 import { useState, useEffect } from 'react';
-import { PHeading, PText, PButton, PInlineNotification, PSpinner } from '@porsche-design-system/components-react';
+import { PHeading, PText, PButton, PButtonPure, PInlineNotification, PSpinner } from '@porsche-design-system/components-react';
 import { getSiteSettings, updateSiteSettings } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
-import AnnouncementBanner from '../../components/AnnouncementBanner';
+import AnnouncementBanner, { DEFAULT_BANNER as INSTAGRAM_DEFAULT_BANNER } from '../../components/AnnouncementBanner';
 
 const inputClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--p-color-info)] focus:border-transparent placeholder:text-gray-500";
 const labelClass = "block text-xs font-medium mb-1.5";
 
 const MAX_FOOTER_LINKS = 8;
-const DEFAULT_BANNER = { enabled: true, prefixText: '', linkText: '', linkUrl: '', suffixText: '', color: '#fbbf24' };
+// Blank shape used only as a merge base for whatever the API returns — NOT
+// the "Reset to Default" content, see INSTAGRAM_DEFAULT_BANNER for that.
+const DEFAULT_BANNER = { enabled: true, prefixText: '', linkText: '', linkUrl: '', suffixText: '', color: '#fbbf24', scheduledOffAt: '' };
+
+// <input type="datetime-local"> both reads and writes a timezone-less local
+// string ("YYYY-MM-DDTHH:mm"), so a stored UTC ISO string needs converting
+// to the browser's local time to populate the field, and back to a real UTC
+// instant (via `new Date(localString).toISOString()`, since a
+// timezone-less string is parsed as local time) when saving.
+function toDatetimeLocalValue(isoString) {
+    if (!isoString) return '';
+    const d = new Date(isoString);
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
 export default function SiteSettingsPage() {
     const { isAdmin } = useAuth();
@@ -97,6 +111,24 @@ export default function SiteSettingsPage() {
 
     if (loading) return <div className="flex justify-center items-center py-12"><PSpinner size="medium" /></div>;
 
+    // Fills the form with the standing Instagram default — same content
+    // AnnouncementBanner.jsx falls back to automatically once a schedule
+    // passes, but here as an explicit action so an admin can revert the
+    // saved config itself, not just wait one out. Doesn't save by itself;
+    // the admin still reviews and hits Save, same as any other edit here.
+    const handleResetBannerToDefault = () => {
+        setBanner({
+            enabled: true,
+            prefixText: INSTAGRAM_DEFAULT_BANNER.prefixText,
+            linkText: INSTAGRAM_DEFAULT_BANNER.linkText,
+            linkUrl: INSTAGRAM_DEFAULT_BANNER.linkUrl || '',
+            suffixText: INSTAGRAM_DEFAULT_BANNER.suffixText,
+            color: INSTAGRAM_DEFAULT_BANNER.color,
+            scheduledOffAt: '',
+        });
+        setBannerError('');
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setBannerError('');
@@ -164,14 +196,19 @@ export default function SiteSettingsPage() {
                         <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)', marginBottom: 0 }}>
                             Announcement Banner
                         </label>
-                        <label className="flex items-center gap-1.5 text-xs cursor-pointer" style={{ color: 'var(--p-color-contrast-medium)' }}>
-                            <input type="checkbox" checked={banner.enabled}
-                                onChange={e => setBanner(prev => ({ ...prev, enabled: e.target.checked }))} />
-                            Visible on site
-                        </label>
+                        <div className="flex items-center gap-3">
+                            <PButtonPure type="button" size="small" onClick={handleResetBannerToDefault}>
+                                Reset to Default
+                            </PButtonPure>
+                            <label className="flex items-center gap-1.5 text-xs cursor-pointer" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                                <input type="checkbox" checked={banner.enabled}
+                                    onChange={e => setBanner(prev => ({ ...prev, enabled: e.target.checked }))} />
+                                Visible on site
+                            </label>
+                        </div>
                     </div>
                     <PText size="x-small" color="contrast-medium">
-                        Shown below the header on every page, no dismiss button — toggle it off above when there's nothing to announce. The middle phrase is optional; fill in both its text and URL to make it a link, or leave both blank for plain text.
+                        Shown below the header on every page, no dismiss button — toggle it off above when there's nothing to announce, or use Reset to Default to fill this back in with the standing Instagram-follow message. The middle phrase is optional; fill in both its text and URL to make it a link, or leave both blank for plain text.
                     </PText>
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -206,6 +243,27 @@ export default function SiteSettingsPage() {
                                 <span className="text-xs font-mono" style={{ color: 'var(--p-color-contrast-medium)' }}>{banner.color}</span>
                             </div>
                         </div>
+                    </div>
+                    <div className="flex flex-wrap items-end gap-2">
+                        <div>
+                            <label className="block text-[10px] mb-1" style={{ color: 'var(--p-color-contrast-low)' }}>Revert to default at (optional)</label>
+                            <input type="datetime-local" value={toDatetimeLocalValue(banner.scheduledOffAt)}
+                                onChange={e => setBanner(prev => ({ ...prev, scheduledOffAt: e.target.value ? new Date(e.target.value).toISOString() : '' }))}
+                                className={inputClass} />
+                        </div>
+                        {banner.scheduledOffAt && (
+                            <PButtonPure type="button" size="small"
+                                onClick={() => setBanner(prev => ({ ...prev, scheduledOffAt: '' }))}>
+                                Clear
+                            </PButtonPure>
+                        )}
+                        {banner.scheduledOffAt && (
+                            <PText size="x-small" style={{ color: new Date(banner.scheduledOffAt) <= new Date() ? 'var(--p-color-warning)' : 'var(--p-color-contrast-medium)' }}>
+                                {new Date(banner.scheduledOffAt) <= new Date()
+                                    ? 'Past — currently showing the default banner below, not your custom text.'
+                                    : `Automatically reverts to the default banner at this time, no need to come back and turn it off.`}
+                            </PText>
+                        )}
                     </div>
                     {bannerError && (
                         <PText size="x-small" style={{ color: 'var(--p-color-error)' }}>{bannerError}</PText>
