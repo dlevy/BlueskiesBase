@@ -202,6 +202,7 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
     const [editCaption, setEditCaption] = useState('');
     const [editArtistName, setEditArtistName] = useState('');
     const [editArtistUrl, setEditArtistUrl] = useState('');
+    const [editIsFoil, setEditIsFoil] = useState(false);
     const [editDropAt, setEditDropAt] = useState('');
     const [editDropUrl, setEditDropUrl] = useState('');
     const [savingCredit, setSavingCredit] = useState(false);
@@ -224,6 +225,7 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
         setEditCaption(poster.caption || '');
         setEditArtistName(poster.poster_artist_name || '');
         setEditArtistUrl(poster.poster_artist_url || '');
+        setEditIsFoil(poster.is_foil || false);
         setEditDropAt(toDatetimeLocalValue(poster.drop_at));
         setEditDropUrl(poster.drop_url || '');
         setCreditError(null);
@@ -238,6 +240,7 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
                 caption: editCaption,
                 posterArtistName: editArtistName,
                 posterArtistUrl: editArtistUrl,
+                isFoil: editIsFoil,
                 dropAt: editDropAt ? new Date(editDropAt).toISOString() : '',
                 dropUrl: editDropUrl,
             });
@@ -459,6 +462,10 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
                                 <input type="text" value={editCaption} onChange={(e) => setEditCaption(e.target.value)}
                                     placeholder="Add a caption…" className={inputClass} />
                             </div>
+                            <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                                <input type="checkbox" checked={editIsFoil} onChange={(e) => setEditIsFoil(e.target.checked)} />
+                                Foil
+                            </label>
                             <div>
                                 <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>
                                     Poster Artist

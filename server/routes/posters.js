@@ -1080,14 +1080,16 @@ router.delete('/wants/:id', authenticate, async (req, res) => {
 
 /**
  * PUT /api/posters/:posterId
- * Update poster caption (owner or admin) and/or artist credit (editor/admin
- * only — see POST /upload for why credit stays at that higher bar). Lets an
- * editor fix/add credit without re-uploading the image.
+ * Update poster caption (owner or admin) and/or artist credit/drop info/
+ * is_foil (editor/admin only — see POST /upload for why these stay at that
+ * higher bar). Lets an editor fix/add these without re-uploading the image —
+ * most useful for additional (non-primary) posters, which have no
+ * upload/replace affordance at all once created.
  */
 router.put('/:posterId', authenticate, async (req, res) => {
     try {
         const { posterId } = req.params;
-        const { caption, posterArtistName, posterArtistUrl, dropAt, dropUrl } = req.body;
+        const { caption, posterArtistName, posterArtistUrl, dropAt, dropUrl, isFoil } = req.body;
         const userId = req.user.id;
 
         // Check if user is admin/editor
@@ -1103,7 +1105,7 @@ router.put('/:posterId', authenticate, async (req, res) => {
         // Get the poster to check ownership
         const { data: poster } = await supabaseAdmin
             .from('user_posters')
-            .select('user_id')
+            .select('user_id, is_foil, is_primary')
             .eq('id', posterId)
             .single();
 
@@ -1147,6 +1149,41 @@ router.put('/:posterId', authenticate, async (req, res) => {
                     update.drop_url = null;
                 }
             }
+
+            // poster_show_links carries its own (denormalized) is_foil per
+            // link, used by the unique "one primary regular + one primary
+            // foil per show" constraint — so flipping this poster's flag
+            // must also be mirrored onto every link row below, and (for a
+            // primary poster only) checked against the constraint first,
+            // since a stale link-table value would let the constraint miss
+            // a real conflict.
+            if (isFoil !== undefined) {
+                const newIsFoil = Boolean(isFoil);
+                if (newIsFoil !== poster.is_foil) {
+                    if (poster.is_primary) {
+                        const { data: linkedShows } = await supabaseAdmin
+                            .from('poster_show_links')
+                            .select('show_id')
+                            .eq('poster_id', posterId);
+                        const linkedShowIds = (linkedShows || []).map(l => l.show_id);
+                        if (linkedShowIds.length > 0) {
+                            const { data: conflicts } = await supabaseAdmin
+                                .from('poster_show_links')
+                                .select('show_id')
+                                .eq('is_foil', newIsFoil)
+                                .eq('is_primary', true)
+                                .neq('poster_id', posterId)
+                                .in('show_id', linkedShowIds);
+                            if (conflicts && conflicts.length > 0) {
+                                return res.status(400).json({
+                                    error: `This show already has a primary ${newIsFoil ? 'foil' : 'regular'} poster`,
+                                });
+                            }
+                        }
+                    }
+                    update.is_foil = newIsFoil;
+                }
+            }
         }
 
         const { data: updatedPoster, error } = await supabaseAdmin
@@ -1166,6 +1203,14 @@ router.put('/:posterId', authenticate, async (req, res) => {
         if (error) {
             console.error('Error updating poster:', error);
             return res.status(500).json({ error: 'Failed to update poster' });
+        }
+
+        if (update.is_foil !== undefined) {
+            const { error: linkError } = await supabaseAdmin
+                .from('poster_show_links')
+                .update({ is_foil: update.is_foil })
+                .eq('poster_id', posterId);
+            if (linkError) console.error('Error syncing is_foil onto poster_show_links:', linkError);
         }
 
         res.json({ poster: updatedPoster });
