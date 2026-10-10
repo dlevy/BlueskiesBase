@@ -21,6 +21,14 @@ function formatDropDateTime(isoString) {
     });
 }
 
+// Once a drop is sold out, the exact time it dropped stops being useful
+// information — just the date is kept.
+function formatDropDate(isoString) {
+    return new Date(isoString).toLocaleDateString('en-US', {
+        month: 'short', day: 'numeric', year: 'numeric',
+    });
+}
+
 // Editor/admin-only tool for linking a single poster image to a whole run of
 // shows (e.g. one poster used for an entire tour leg), so it appears on every
 // one of those shows' pages but only once, as a date range, on the public
@@ -411,7 +419,7 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
                     {poster.drop_at && (
                         <PText size="xs" align="center" style={{ color: 'var(--p-color-contrast-low)' }}>
                             {poster.drop_sold_out ? (
-                                <>AP drop on {formatDropDateTime(poster.drop_at)} — sold out</>
+                                <>AP drop on {formatDropDate(poster.drop_at)} — sold out</>
                             ) : (
                                 <>
                                     Drops {formatDropDateTime(poster.drop_at)}

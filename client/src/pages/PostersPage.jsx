@@ -23,6 +23,14 @@ function formatDropDateTime(isoString) {
     });
 }
 
+// Once a drop is sold out, the exact time it dropped stops being useful
+// information — just the date is kept.
+function formatDropDate(isoString) {
+    return new Date(isoString).toLocaleDateString('en-US', {
+        month: 'short', day: 'numeric', year: 'numeric',
+    });
+}
+
 function UpcomingDropTile({ poster }) {
     const show = poster.shows;
     const isPast = new Date(poster.drop_at).getTime() <= Date.now();
@@ -145,6 +153,15 @@ function PosterTile({ poster, onImageClick, isOwned, onToggleCollection }) {
                             <path d="M12 12a4 4 0 100-8 4 4 0 000 8zm0 2c-4.42 0-8 2.24-8 5v1h16v-1c0-2.76-3.58-5-8-5z" />
                         </svg>
                         {poster.owners.count}
+                    </span>
+                )}
+                {poster.drop_sold_out && (
+                    <span
+                        className="absolute bottom-1.5 right-1.5 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded"
+                        style={{ background: 'rgba(248,113,113,0.85)', color: '#1a0b0b' }}
+                        title={`AP drop on ${formatDropDate(poster.drop_at)} — sold out`}
+                    >
+                        Sold Out
                     </span>
                 )}
                 {onToggleCollection && (
