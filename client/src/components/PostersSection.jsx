@@ -21,14 +21,6 @@ function formatDropDateTime(isoString) {
     });
 }
 
-// Once a drop is sold out, the exact time it dropped stops being useful
-// information — just the date is kept.
-function formatDropDate(isoString) {
-    return new Date(isoString).toLocaleDateString('en-US', {
-        month: 'short', day: 'numeric', year: 'numeric',
-    });
-}
-
 // Editor/admin-only tool for linking a single poster image to a whole run of
 // shows (e.g. one poster used for an entire tour leg), so it appears on every
 // one of those shows' pages but only once, as a date range, on the public
@@ -207,11 +199,11 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
     const [uploadArtistUrl, setUploadArtistUrl] = useState('');
     const [showUploadForm, setShowUploadForm] = useState(false);
     const [editingCredit, setEditingCredit] = useState(false);
+    const [editCaption, setEditCaption] = useState('');
     const [editArtistName, setEditArtistName] = useState('');
     const [editArtistUrl, setEditArtistUrl] = useState('');
     const [editDropAt, setEditDropAt] = useState('');
     const [editDropUrl, setEditDropUrl] = useState('');
-    const [editDropSoldOut, setEditDropSoldOut] = useState(false);
     const [savingCredit, setSavingCredit] = useState(false);
     const [creditError, setCreditError] = useState(null);
 
@@ -229,11 +221,11 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
     };
 
     const openCreditEditor = () => {
+        setEditCaption(poster.caption || '');
         setEditArtistName(poster.poster_artist_name || '');
         setEditArtistUrl(poster.poster_artist_url || '');
         setEditDropAt(toDatetimeLocalValue(poster.drop_at));
         setEditDropUrl(poster.drop_url || '');
-        setEditDropSoldOut(poster.drop_sold_out || false);
         setCreditError(null);
         setEditingCredit(true);
     };
@@ -243,11 +235,11 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
             setSavingCredit(true);
             setCreditError(null);
             await updatePosterDetails(poster.id, {
+                caption: editCaption,
                 posterArtistName: editArtistName,
                 posterArtistUrl: editArtistUrl,
                 dropAt: editDropAt ? new Date(editDropAt).toISOString() : '',
                 dropUrl: editDropUrl,
-                dropSoldOut: editDropSoldOut,
             });
             setEditingCredit(false);
             await onChanged();
@@ -416,21 +408,15 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
                         </PText>
                     )}
 
-                    {(poster.drop_at || poster.drop_sold_out) && (
+                    {poster.drop_at && (
                         <PText size="xs" align="center" style={{ color: 'var(--p-color-contrast-low)' }}>
-                            {poster.drop_sold_out ? (
-                                <>AP drop{poster.drop_at ? ` on ${formatDropDate(poster.drop_at)}` : ''} — sold out</>
-                            ) : (
+                            Drops {formatDropDateTime(poster.drop_at)}
+                            {poster.drop_url && (
                                 <>
-                                    Drops {formatDropDateTime(poster.drop_at)}
-                                    {poster.drop_url && (
-                                        <>
-                                            {' — '}
-                                            <a href={poster.drop_url} target="_blank" rel="noopener noreferrer" className="font-semibold text-amber-400 hover:underline">
-                                                view drop
-                                            </a>
-                                        </>
-                                    )}
+                                    {' — '}
+                                    <a href={poster.drop_url} target="_blank" rel="noopener noreferrer" className="font-semibold text-amber-400 hover:underline">
+                                        view drop
+                                    </a>
                                 </>
                             )}
                         </PText>
@@ -468,6 +454,13 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
                             {creditError && <PInlineNotification heading="Error" description={creditError} state="error" dismissButton={false} />}
                             <div>
                                 <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                                    Caption
+                                </label>
+                                <input type="text" value={editCaption} onChange={(e) => setEditCaption(e.target.value)}
+                                    placeholder="Add a caption…" className={inputClass} />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>
                                     Poster Artist
                                 </label>
                                 <input type="text" value={editArtistName} onChange={(e) => setEditArtistName(e.target.value)}
@@ -494,10 +487,6 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
                                 <input type="url" value={editDropUrl} onChange={(e) => setEditDropUrl(e.target.value)}
                                     placeholder="https://example.com/store" className={inputClass} />
                             </div>
-                            <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--p-color-contrast-medium)' }}>
-                                <input type="checkbox" checked={editDropSoldOut} onChange={(e) => setEditDropSoldOut(e.target.checked)} />
-                                Sold out
-                            </label>
                             <div className="flex gap-2">
                                 <button className={btnPrimary} disabled={savingCredit} onClick={handleSaveCredit}>
                                     {savingCredit ? 'Saving…' : 'Save'}

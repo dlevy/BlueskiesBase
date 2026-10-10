@@ -23,13 +23,7 @@ function formatDropDateTime(isoString) {
     });
 }
 
-// Once a drop is sold out, the exact time it dropped stops being useful
-// information — just the date is kept.
-function formatDropDate(isoString) {
-    return new Date(isoString).toLocaleDateString('en-US', {
-        month: 'short', day: 'numeric', year: 'numeric',
-    });
-}
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 function UpcomingDropTile({ poster }) {
     const show = poster.shows;
@@ -153,15 +147,6 @@ function PosterTile({ poster, onImageClick, isOwned, onToggleCollection }) {
                             <path d="M12 12a4 4 0 100-8 4 4 0 000 8zm0 2c-4.42 0-8 2.24-8 5v1h16v-1c0-2.76-3.58-5-8-5z" />
                         </svg>
                         {poster.owners.count}
-                    </span>
-                )}
-                {poster.drop_sold_out && (
-                    <span
-                        className="absolute bottom-1.5 right-1.5 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded"
-                        style={{ background: 'rgba(248,113,113,0.85)', color: '#1a0b0b' }}
-                        title={poster.drop_at ? `AP drop on ${formatDropDate(poster.drop_at)} — sold out` : 'AP drop — sold out'}
-                    >
-                        AP Sold Out
                     </span>
                 )}
                 {onToggleCollection && (
@@ -310,15 +295,11 @@ export default function PostersPage() {
 
     const upcomingDrops = useMemo(() => {
         const now = Date.now();
-        const withDrops = posters.filter(p => p.drop_at && !p.drop_sold_out);
-        // Still-upcoming drops first (soonest first), then already-available
-        // ones (most recently dropped first) — a drop keeps showing here
-        // indefinitely once it's passed, until explicitly marked sold out.
-        const future = withDrops.filter(p => new Date(p.drop_at).getTime() > now)
+        // Any upcoming drop shows, however far out; once passed, it drops off
+        // this list again automatically 24 hours later.
+        return posters
+            .filter(p => p.drop_at && now - new Date(p.drop_at).getTime() <= DAY_MS)
             .sort((a, b) => new Date(a.drop_at) - new Date(b.drop_at));
-        const past = withDrops.filter(p => new Date(p.drop_at).getTime() <= now)
-            .sort((a, b) => new Date(b.drop_at) - new Date(a.drop_at));
-        return [...future, ...past];
     }, [posters]);
 
     const collectionEntryByPosterId = useMemo(() => {
