@@ -1,8 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { PSpinner, PText, PInlineNotification } from '@porsche-design-system/components-react';
 import { getSongs } from '../services/api';
-import { buildShowPath } from '../utils/showSlug';
 import MainNavTabs from '../components/MainNavTabs';
 import SEO from '../components/SEO';
 
@@ -20,17 +19,11 @@ function formatDate(dateStr) {
     return new Date(Number(y), Number(m) - 1, Number(d)).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-function CalendarIcon() {
-    return (
-        <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <rect x="3" y="5" width="18" height="16" rx="2" />
-            <path strokeLinecap="round" d="M3 10h18M8 3v4M16 3v4" />
-        </svg>
-    );
-}
-
 function SongRow({ song, expanded, onToggle }) {
     const hasLyrics = Boolean(song.lyrics?.trim());
+    const performanceTitle = song.last_played_show
+        ? `Played ${song.performance_count}× · Last: ${formatDate(song.last_played_show.show_date)}`
+        : 'No setlist in our records includes this song — it may still have been played before we started tracking, or at a show we don\'t have a setlist for';
     return (
         <li data-song-id={song.id} className="border-b border-white/5 last:border-b-0 scroll-mt-20">
             <button
@@ -40,7 +33,7 @@ function SongRow({ song, expanded, onToggle }) {
                 className={`w-full flex items-center justify-between gap-3 py-2.5 text-left transition-colors ${hasLyrics ? 'hover:bg-white/5 cursor-pointer' : 'cursor-default'}`}
             >
                 <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-sm font-medium truncate" style={{ color: 'var(--p-color-primary)' }}>
+                    <span className="text-sm font-medium truncate" style={{ color: 'var(--p-color-primary)' }} title={performanceTitle}>
                         {song.title}
                     </span>
                     {song.is_sunday_valley && (
@@ -64,32 +57,6 @@ function SongRow({ song, expanded, onToggle }) {
                     </span>
                 )}
             </button>
-            {/* Sibling of the button, not nested inside it — a <Link> renders an
-                <a>, and nesting <a> inside <button> is invalid HTML. Grey
-                throughout, not blue — blue is reserved for the lyrics toggle
-                above, and a second blue link here read as visual noise. */}
-            <div className="pb-2 px-1">
-                {song.last_played_show ? (
-                    <Link
-                        to={buildShowPath(song.last_played_show)}
-                        className="inline-flex items-center gap-1 text-xs hover:opacity-80 transition-opacity"
-                        style={{ color: 'var(--p-color-contrast-low)' }}
-                        title={`Last played ${formatDate(song.last_played_show.show_date)}`}
-                    >
-                        <CalendarIcon />
-                        {song.performance_count}×
-                    </Link>
-                ) : (
-                    <span
-                        className="inline-flex items-center gap-1 text-xs"
-                        style={{ color: 'var(--p-color-contrast-low)' }}
-                        title="No setlist in our records includes this song — it may still have been played before we started tracking, or at a show we don't have a setlist for"
-                    >
-                        <CalendarIcon />
-                        No recorded performances
-                    </span>
-                )}
-            </div>
             {expanded && hasLyrics && (
                 <pre className="whitespace-pre-wrap font-sans text-sm pb-3 px-1" style={{ color: 'var(--p-color-contrast-medium)' }}>
                     {song.lyrics}
