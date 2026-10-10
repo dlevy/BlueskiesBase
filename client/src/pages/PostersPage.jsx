@@ -17,6 +17,18 @@ function formatDate(dateStr) {
     });
 }
 
+function posterWantVariant(poster) {
+    return poster.is_foil ? 'foil' : 'regular';
+}
+
+// Only one want row exists per show (unique on user_id+show_id), so it only
+// counts as "wanted" for this specific poster if the stored variant actually
+// matches it (or is 'any') — a regular and foil tile for the same show must
+// not both light up just because one of them has a want on file.
+function isPosterWanted(entry, poster) {
+    return Boolean(entry && (entry.variant === 'any' || entry.variant === posterWantVariant(poster)));
+}
+
 function formatDropDateTime(isoString) {
     return new Date(isoString).toLocaleString('en-US', {
         month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short',
@@ -385,15 +397,22 @@ export default function PostersPage() {
         return map;
     }, [myWants]);
 
-    const handleToggleWant = async (showId) => {
+    // Only one want row exists per show (unique on user_id+show_id), so a
+    // regular and a foil tile for the same show share one entry — the entry
+    // only counts as "wanted" for a given tile if its variant actually
+    // matches (or is 'any'). Toggling on a specific tile sets/overwrites that
+    // show's want to this exact variant, which is what makes picking foil
+    // stop also lighting up regular (and vice versa).
+    const handleToggleWant = async (showId, variant) => {
         const existing = wantEntryByShowId.get(showId);
+        const matches = existing && (existing.variant === 'any' || existing.variant === variant);
         try {
-            if (existing) {
+            if (matches) {
                 await removePosterWant(existing.id);
                 setMyWants(prev => prev.filter(e => e.id !== existing.id));
             } else {
-                const created = await addPosterWant(showId);
-                setMyWants(prev => [...prev, { id: created.id, variant: created.variant, shows: { id: showId } }]);
+                const created = await addPosterWant(showId, variant);
+                setMyWants(prev => [...prev.filter(e => e.id !== existing?.id), { id: created.id, variant: created.variant, shows: { id: showId } }]);
             }
         } catch (err) {
             console.error('[PostersPage] Error updating poster wants:', err);
@@ -498,8 +517,8 @@ export default function PostersPage() {
                             onImageClick={() => setLightboxIndex(index)}
                             isOwned={collectionEntryByPosterId.has(poster.id)}
                             onToggleCollection={user ? () => handleToggleCollection(poster.id) : null}
-                            isWanted={wantEntryByShowId.has(poster.shows.id)}
-                            onToggleWant={user ? () => handleToggleWant(poster.shows.id) : null}
+                            isWanted={isPosterWanted(wantEntryByShowId.get(poster.shows.id), poster)}
+                            onToggleWant={user ? () => handleToggleWant(poster.shows.id, posterWantVariant(poster)) : null}
                         />
                     ))}
                 </div>
