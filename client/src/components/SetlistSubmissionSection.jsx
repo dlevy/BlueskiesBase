@@ -64,7 +64,18 @@ const MergedBadge = () => (
  * record when an editor or admin pulls individual songs in (the "Add to official
  * setlist" control below).
  */
-export default function SetlistSubmissionSection({ showId, thanksRows = [], onThanksChanged }) {
+// merged_into_setlist only gets set when a song is pulled in through the
+// merge button below — it says nothing about a song an admin instead typed
+// directly into the show's own setlist editor, which is the far more common
+// path in practice. officialSongIds (every song_id already in the show's
+// real setlist, passed down from ShowDetailPage) is the ground truth: a
+// song counts as already official either way, and — just as importantly —
+// this also keeps the merge button from offering to add a duplicate.
+function isAlreadyOfficial(row, officialSongIds) {
+    return Boolean(row.merged_into_setlist) || officialSongIds.has(row.song_id);
+}
+
+export default function SetlistSubmissionSection({ showId, thanksRows = [], onThanksChanged, officialSongIds = new Set() }) {
     const { user, isAdmin, isEditorOrAdmin } = useAuth();
 
     const [submissions, setSubmissions] = useState([]);
@@ -199,7 +210,7 @@ export default function SetlistSubmissionSection({ showId, thanksRows = [], onTh
     };
 
     const handleMergeAll = async (submission) => {
-        const pendingSongs = submission.setlist_submission_songs.filter(row => !row.merged_into_setlist);
+        const pendingSongs = submission.setlist_submission_songs.filter(row => !isAlreadyOfficial(row, officialSongIds));
         if (!confirm(
             `Accept all ${pendingSongs.length} remaining song${pendingSongs.length === 1 ? '' : 's'} into the official setlist? ` +
             'Each uses its currently selected set (defaulting to Set 1) — you can still remove one afterward from the show\'s setlist editor if something\'s wrong.'
@@ -265,7 +276,7 @@ export default function SetlistSubmissionSection({ showId, thanksRows = [], onTh
                                             <span className="font-mono text-xs mr-2" style={{ color: 'var(--p-color-contrast-medium)' }}>{i + 1}.</span>
                                             {song.title}
                                         </span>
-                                        {song.merged_into_setlist ? (
+                                        {isAlreadyOfficial(song, officialSongIds) ? (
                                             <MergedBadge />
                                         ) : isEditorOrAdmin && (
                                             <MergeControl
@@ -344,7 +355,7 @@ export default function SetlistSubmissionSection({ showId, thanksRows = [], onTh
                     {othersSubmissions.map((submission) => {
                         const submissionThanks = thanksRows.filter(t => t.contentType === 'setlist_submission' && t.contentId === submission.id);
                         const isHighlighted = highlightedId === submission.id;
-                        const pendingSongsCount = submission.setlist_submission_songs.filter(row => !row.merged_into_setlist).length;
+                        const pendingSongsCount = submission.setlist_submission_songs.filter(row => !isAlreadyOfficial(row, officialSongIds)).length;
                         return (
                         <div
                             key={submission.id}
@@ -383,10 +394,10 @@ export default function SetlistSubmissionSection({ showId, thanksRows = [], onTh
                             <ol className="space-y-1">
                                 {submission.setlist_submission_songs.map((row) => (
                                     <li key={row.id} className="flex items-center gap-2 text-sm flex-wrap">
-                                        <span style={{ color: row.merged_into_setlist ? 'var(--p-color-contrast-low)' : 'var(--p-color-primary)' }}>
+                                        <span style={{ color: isAlreadyOfficial(row, officialSongIds) ? 'var(--p-color-contrast-low)' : 'var(--p-color-primary)' }}>
                                             {row.song_order}. {row.songs?.title}
                                         </span>
-                                        {row.merged_into_setlist ? (
+                                        {isAlreadyOfficial(row, officialSongIds) ? (
                                             <MergedBadge />
                                         ) : isEditorOrAdmin && (
                                             <MergeControl

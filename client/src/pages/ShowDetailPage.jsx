@@ -900,7 +900,12 @@ export default function ShowDetailPage() {
             {/* Setlist Submission */}
             {/* scroll-margin-top clears the sticky header (h-14) when jumped to via the anchor above */}
             <div id="community-setlist" style={{ scrollMarginTop: '4.5rem' }}>
-                <SetlistSubmissionSection showId={show.id} thanksRows={thanksRows} onThanksChanged={loadThanks} />
+                <SetlistSubmissionSection
+                    showId={show.id}
+                    thanksRows={thanksRows}
+                    onThanksChanged={loadThanks}
+                    officialSongIds={new Set(allSongsFlat.map(s => s.song_id).filter(Boolean))}
+                />
             </div>
         </div>
     );
