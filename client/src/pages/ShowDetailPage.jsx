@@ -29,6 +29,44 @@ function getYouTubeId(url) {
     return null;
 }
 
+// archive.org's embeddable player covers both audio-only and video items —
+// identifier is the slug right after /details/ on a normal item page URL.
+function getArchiveOrgId(url) {
+    try {
+        const u = new URL(url);
+        if (u.hostname.includes('archive.org') && u.pathname.startsWith('/details/')) {
+            return u.pathname.split('/')[2] || null;
+        }
+    } catch {}
+    return null;
+}
+
+function isNugsLink(url) {
+    try {
+        return new URL(url).hostname.includes('nugs.net');
+    } catch {
+        return false;
+    }
+}
+
+// nugs.net streams/sells recordings behind a paywall — there's nothing to
+// embed, just a visual heads-up next to the link so it's clear before
+// clicking through that it isn't free.
+function NugsPaywallIcon() {
+    return (
+        <span
+            className="inline-flex items-center justify-center w-6 h-6 rounded-full shrink-0"
+            style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}
+            title="Requires a paid nugs.net subscription or purchase to listen or download"
+        >
+            <svg className="w-[15px] h-[15px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                <rect x="5" y="11" width="14" height="9" rx="2" />
+                <path d="M8 11V7a4 4 0 118 0v4" />
+            </svg>
+        </span>
+    );
+}
+
 // Per-show setlist breakdown: album counts (each original attributed to its
 // earliest-released album, so the breakdown sums to the total), covers, and
 // rarity/debut counts using the same thresholds as the per-song badges below.
@@ -805,25 +843,50 @@ export default function ShowDetailPage() {
                     <div className="mt-6 space-y-8">
                         {show.links.map((link, i) => {
                             const ytId = getYouTubeId(link.url);
-                            return ytId ? (
-                                <div key={i}>
-                                    {link.description && (
-                                        <p className="text-sm mb-3" style={{ color: 'var(--p-color-contrast-medium)' }}>{link.description}</p>
-                                    )}
-                                    <div className="relative w-full rounded-xl overflow-hidden" style={{ paddingTop: '56.25%' }}>
-                                        <iframe
-                                            className="absolute inset-0 w-full h-full"
-                                            src={`https://www.youtube.com/embed/${ytId}`}
-                                            title={link.description || 'YouTube video'}
-                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                            allowFullScreen
-                                        />
+                            const archiveId = getArchiveOrgId(link.url);
+
+                            if (ytId) {
+                                return (
+                                    <div key={i}>
+                                        {link.description && (
+                                            <p className="text-sm mb-3" style={{ color: 'var(--p-color-contrast-medium)' }}>{link.description}</p>
+                                        )}
+                                        <div className="relative w-full rounded-xl overflow-hidden" style={{ paddingTop: '56.25%' }}>
+                                            <iframe
+                                                className="absolute inset-0 w-full h-full"
+                                                src={`https://www.youtube.com/embed/${ytId}`}
+                                                title={link.description || 'YouTube video'}
+                                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                allowFullScreen
+                                            />
+                                        </div>
                                     </div>
-                                </div>
-                            ) : (
+                                );
+                            }
+
+                            if (archiveId) {
+                                return (
+                                    <div key={i}>
+                                        {link.description && (
+                                            <p className="text-sm mb-3" style={{ color: 'var(--p-color-contrast-medium)' }}>{link.description}</p>
+                                        )}
+                                        <div className="w-full rounded-xl overflow-hidden" style={{ height: '29px' }}>
+                                            <iframe
+                                                className="w-full h-full"
+                                                src={`https://archive.org/embed/${archiveId}`}
+                                                title={link.description || 'Archive.org recording'}
+                                                allow="autoplay"
+                                                allowFullScreen
+                                            />
+                                        </div>
+                                    </div>
+                                );
+                            }
+
+                            return (
                                 <a key={i} href={link.url} target="_blank" rel="noopener noreferrer"
                                     className="flex items-center gap-2 text-sm text-amber-400 hover:underline break-all">
-                                    <span className="shrink-0">→</span>
+                                    {isNugsLink(link.url) ? <NugsPaywallIcon /> : <span className="shrink-0">→</span>}
                                     <span>{link.description || link.url}</span>
                                 </a>
                             );
