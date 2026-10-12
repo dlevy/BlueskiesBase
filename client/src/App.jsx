@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { PButtonPure } from '@porsche-design-system/components-react'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { AvatarNudgeProvider } from './contexts/AvatarNudgeContext'
+import { SiteSettingsProvider } from './contexts/SiteSettingsContext'
 import { setTokenGetter, getSiteSettings } from './services/api'
 import { trackPageview } from './utils/analytics'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -196,6 +197,7 @@ function PublicLayout() {
   };
 
   return (
+    <SiteSettingsProvider headerTitle={headerTitle} headerSubtitle={headerSubtitle}>
     <div className="min-h-screen flex flex-col" style={{ background: 'var(--p-color-canvas)' }}>
       {/* Header — full-bleed, sticky */}
       <header
@@ -351,6 +353,7 @@ function PublicLayout() {
         </div>
       </footer>
     </div>
+    </SiteSettingsProvider>
   );
 }
 

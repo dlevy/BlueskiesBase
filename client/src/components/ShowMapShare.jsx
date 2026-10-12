@@ -4,13 +4,56 @@ import { feature } from 'topojson-client';
 import 'leaflet/dist/leaflet.css';
 import { getHighestBadge } from '../utils/badges';
 import { supabase } from '../services/supabase';
+import { useSiteSettings } from '../contexts/SiteSettingsContext';
+
+// Fallback if somehow rendered outside SiteSettingsProvider (PublicLayout
+// already fetches these once for the header — reused here via context
+// instead of a second GET /api/settings round-trip).
+const DEFAULT_BRAND_TITLE = 'SkySets.org';
+const DEFAULT_BRAND_SUBTITLE = 'Sturgill Simpson & Johnny Blue Skies';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const GEO_CACHE_KEY = 'skysets_geocache_v1';
 let worldAtlasCache = null;
+let worldCountriesAtlasCache = null;
 let usAtlasCache = null;
 let usStatesGeoCache = null;
+let worldCountriesGeoCache = null;
+
+// ─── Antimeridian unwrapping ───────────────────────────────────────────────────
+// Leaflet draws a straight line between each pair of consecutive ring points in
+// plain lng/lat space. A landmass that crosses the antimeridian (Russia's
+// coastline runs from ~19°E to ~169°W) has consecutive points that jump from
+// near +180 to near -180 — Leaflet renders that as one long spurious line
+// straight across the whole map instead of wrapping around. Fixed by letting a
+// ring's longitudes drift outside [-180,180] at the seam (e.g. ...179, 180,
+// 181...) rather than snapping back — Leaflet's planar rendering handles
+// coordinates outside ±180 just fine, so the shape comes out continuous.
+function unwrapRing(ring) {
+    let offset = 0;
+    let prevLng = null;
+    return ring.map(([lng, lat]) => {
+        if (prevLng !== null) {
+            const delta = lng + offset - prevLng;
+            if (delta > 180) offset -= 360;
+            else if (delta < -180) offset += 360;
+        }
+        prevLng = lng + offset;
+        return [lng + offset, lat];
+    });
+}
+
+function unwrapGeometry(geom) {
+    if (!geom) return geom;
+    if (geom.type === 'Polygon') return { ...geom, coordinates: geom.coordinates.map(unwrapRing) };
+    if (geom.type === 'MultiPolygon') return { ...geom, coordinates: geom.coordinates.map(rings => rings.map(unwrapRing)) };
+    return geom;
+}
+
+function unwrapAntimeridian(fc) {
+    return { ...fc, features: fc.features.map(f => ({ ...f, geometry: unwrapGeometry(f.geometry) })) };
+}
 
 const PIN_COLORS = {
     attended: '#f59e0b',
@@ -40,6 +83,20 @@ async function fetchCoords(query) {
     return null;
 }
 
+// Best-effort, fire-and-forget: persists a freshly-geocoded venue's
+// coordinates server-side (venues.latitude/longitude) so the next viewer —
+// any show's map, any user — reads it straight from the DB instead of
+// re-querying Nominatim. The endpoint only ever fills a currently-null pair,
+// so this can't clobber existing (admin-entered or already-cached) data.
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+function cacheVenueGeocode(venueId, lat, lng) {
+    fetch(`${API_BASE_URL}/api/venues/${venueId}/geocode`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ latitude: lat, longitude: lng }),
+    }).catch(() => {});
+}
+
 // ─── Atlas loaders (CDN, module-level cache) ──────────────────────────────────
 
 async function loadWorldAtlas() {
@@ -56,48 +113,47 @@ async function loadUsAtlas() {
     return usAtlasCache;
 }
 
-// ─── Inverse Albers equal-area conic (lower-48 Albers USA parameters) ─────────
-// us-atlas stores coordinates in Albers screen-space, not lat/lng.
-// These are the exact D3 albersUsa parameters for the lower-48 inset.
-
-function albersInverse(px, py) {
-    const D = Math.PI / 180;
-    const phi1 = 29.5 * D, phi2 = 45.5 * D, phi0 = 37.5 * D, lam0 = -96 * D;
-    const k = 1070, tx = 487.5, ty = 305;
-    const n = (Math.sin(phi1) + Math.sin(phi2)) / 2;
-    const C = Math.cos(phi1) ** 2 + 2 * n * Math.sin(phi1);
-    const rho0 = Math.sqrt(C - 2 * n * Math.sin(phi0)) / n;
-    const x = (px - tx) / k;
-    const y = -(py - ty) / k;
-    const rho = Math.sqrt(x * x + (rho0 - y) ** 2);
-    const theta = Math.atan2(x, rho0 - y);
-    const lat = Math.asin(Math.min(1, Math.max(-1, (C - rho * rho * n * n) / (2 * n)))) / D;
-    const lng = (theta / n + lam0) / D;
-    return [lng, lat];
-}
-
-function convertAlbersGeomToWGS84(geom) {
-    if (!geom) return geom;
-    const convRing = ring => ring.map(([x, y]) => albersInverse(x, y));
-    const convRings = rings => rings.map(convRing);
-    if (geom.type === 'Polygon') return { ...geom, coordinates: convRings(geom.coordinates) };
-    if (geom.type === 'MultiPolygon') return { ...geom, coordinates: geom.coordinates.map(convRings) };
-    return geom;
-}
-
-// Convert full us-atlas to WGS84 GeoJSON for Leaflet (cached)
+// us-atlas's TopoJSON ships raw (unprojected) geometries in real WGS84
+// lng/lat — the same census data D3 projects into Albers USA screen-space
+// at render time via geoAlbersUsa(), but the stored coordinates themselves
+// were never in that space to begin with. An earlier version of this file
+// ran every ring through a hand-rolled inverse-Albers transform as if they
+// were Albers pixel coordinates, which took already-correct data and
+// projected it a second time — e.g. Alabama's real -88.3,30.2 became a
+// bogus -141,44 (the Gulf of Alaska). Fixed by using the geometries as-is.
 async function loadUsStatesWGS84() {
     if (usStatesGeoCache) return usStatesGeoCache;
     const topo = await loadUsAtlas();
     const fc = feature(topo, topo.objects.states);
-    // Alaska (id=2) and Hawaii (id=15) have wrong screen positions in Albers USA insets — skip them
-    usStatesGeoCache = {
+    // Alaska/Hawaii's real-world positions are far from the lower 48 and
+    // would force the map to zoom out dramatically to include them — skip
+    // them, same as before.
+    usStatesGeoCache = unwrapAntimeridian({
         type: 'FeatureCollection',
-        features: fc.features
-            .filter(f => f.id !== 2 && f.id !== 15)
-            .map(f => ({ ...f, geometry: convertAlbersGeomToWGS84(f.geometry) })),
-    };
+        features: fc.features.filter(f => f.id !== 2 && f.id !== 15),
+    });
     return usStatesGeoCache;
+}
+
+async function loadWorldCountriesAtlas() {
+    if (worldCountriesAtlasCache) return worldCountriesAtlasCache;
+    const res = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json');
+    worldCountriesAtlasCache = await res.json();
+    return worldCountriesAtlasCache;
+}
+
+// Per-country outlines worldwide — gives international pins the same visual
+// grounding the US state borders give domestic ones (previously there was
+// none at all outside the US), instead of floating on blank background (the
+// CARTO tile basemap doesn't render on localhost without a
+// production-domain-restricted key, so this vector layer is the only
+// landmass reference in local dev — and a nice lightweight one in
+// production too).
+async function loadWorldCountriesGeo() {
+    if (worldCountriesGeoCache) return worldCountriesGeoCache;
+    const topo = await loadWorldCountriesAtlas();
+    worldCountriesGeoCache = unwrapAntimeridian(feature(topo, topo.objects.countries));
+    return worldCountriesGeoCache;
 }
 
 // ─── Mercator projection ──────────────────────────────────────────────────────
@@ -111,7 +167,7 @@ function mercatorNorm(lat, lng) {
 
 // ─── Canvas image generation ──────────────────────────────────────────────────
 
-async function buildShareImage({ pins, pastCount, upcomingCount, highestBadge }) {
+async function buildShareImage({ pins, pastCount, upcomingCount, highestBadge, attendedLabel = 'Attended', brandTitle = DEFAULT_BRAND_TITLE, brandSubtitle = DEFAULT_BRAND_SUBTITLE }) {
     const W = 900, OVERLAY_H = 80, MAP_H = 440, H = MAP_H + OVERLAY_H;
 
     const [topoData, usAtlasData, logoImg] = await Promise.all([
@@ -125,7 +181,9 @@ async function buildShareImage({ pins, pastCount, upcomingCount, highestBadge })
         }),
     ]);
 
-    const land = feature(topoData, topoData.objects.land);
+    // Same antimeridian fix as the live map (see unwrapAntimeridian) — without
+    // it, Russia's coastline draws a spurious line straight across the canvas.
+    const land = unwrapAntimeridian(feature(topoData, topoData.objects.land));
 
     // Compute bounding box from pins
     const norms = pins.map(p => mercatorNorm(p.lat, p.lng));
@@ -194,7 +252,8 @@ async function buildShareImage({ pins, pastCount, upcomingCount, highestBadge })
     ctx.lineWidth = 0.6;
     ctx.stroke();
 
-    // US state borders — convert Albers screen coords → lat/lng → canvas XY
+    // US state borders — already real lng/lat (see loadUsStatesWGS84), just
+    // project straight to canvas XY.
     const usStates = feature(usAtlasData, usAtlasData.objects.states);
     ctx.beginPath();
     usStates.features
@@ -203,8 +262,7 @@ async function buildShareImage({ pins, pastCount, upcomingCount, highestBadge })
             const geom = f.geometry;
             if (!geom) return;
             const drawUsRings = rings => rings.forEach(ring => {
-                ring.forEach(([ax, ay], i) => {
-                    const [lng, lat] = albersInverse(ax, ay);
+                ring.forEach(([lng, lat], i) => {
                     const [x, y] = toXY(lat, lng);
                     if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
                 });
@@ -234,12 +292,12 @@ async function buildShareImage({ pins, pastCount, upcomingCount, highestBadge })
         const [x, y] = toXY(pin.lat, pin.lng);
         if (x < -30 || x > W + 30 || y < -30 || y > MAP_H + 30) return;
         const color = PIN_COLORS[pin.pinType];
-        const grd = ctx.createRadialGradient(x, y, 0, x, y, 20);
+        const grd = ctx.createRadialGradient(x, y, 0, x, y, 10);
         grd.addColorStop(0, color + '55');
         grd.addColorStop(1, 'transparent');
-        ctx.beginPath(); ctx.arc(x, y, 20, 0, Math.PI * 2);
+        ctx.beginPath(); ctx.arc(x, y, 10, 0, Math.PI * 2);
         ctx.fillStyle = grd; ctx.fill();
-        ctx.beginPath(); ctx.arc(x, y, 8, 0, Math.PI * 2);
+        ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2);
         ctx.fillStyle = color; ctx.fill();
         ctx.strokeStyle = '#0e1117'; ctx.lineWidth = 2; ctx.stroke();
     });
@@ -274,14 +332,14 @@ async function buildShareImage({ pins, pastCount, upcomingCount, highestBadge })
     ctx.textAlign = 'left';
     ctx.fillStyle = '#f59e0b';
     ctx.font = '700 16px system-ui, sans-serif';
-    ctx.fillText('SkySets.org', TX, MAP_H + 30);
+    ctx.fillText(brandTitle, TX, MAP_H + 30);
     ctx.fillStyle = 'rgba(255,255,255,0.38)';
     ctx.font = '400 11px system-ui, sans-serif';
-    ctx.fillText('Sturgill Simpson & Johnny Blue Skies setlists', TX, MAP_H + 48);
+    ctx.fillText(brandSubtitle, TX, MAP_H + 48);
 
     // Legend (centered)
     const legendItems = [
-        ...(pastCount > 0 ? [{ type: 'attended', label: `${pastCount} Attended` }] : []),
+        ...(pastCount > 0 ? [{ type: 'attended', label: `${pastCount} ${attendedLabel}` }] : []),
         ...(upcomingCount > 0 ? [{ type: 'upcoming', label: `${upcomingCount} Upcoming` }] : []),
     ];
     ctx.font = '500 11px system-ui, sans-serif';
@@ -347,7 +405,21 @@ async function uploadToSupabase(blob) {
 
 function FitBounds({ pins }) {
     const map = useMap();
+    // Belt-and-suspenders: a late layout shift (web fonts, content above the
+    // map settling) after the effect below already ran can still leave the
+    // grid stale — one more invalidateSize() shortly after mount catches that.
     useEffect(() => {
+        const t = setTimeout(() => map.invalidateSize(), 250);
+        return () => clearTimeout(t);
+    }, [map]);
+    useEffect(() => {
+        // Leaflet captures the container's size at mount time; if that size
+        // changes afterward (e.g. content above this map loading/resizing on
+        // a page with several async sections), its internal pixel grid goes
+        // stale and everything — tiles, overlays, markers — renders shifted
+        // from where it should be. invalidateSize() forces a recompute
+        // before fitting bounds, so this is safe to call every time regardless.
+        map.invalidateSize();
         if (!pins.length) return;
         if (pins.length === 1) { map.setView([pins[0].lat, pins[0].lng], 7); return; }
         map.fitBounds(pins.map(p => [p.lat, p.lng]), { padding: [36, 36] });
@@ -356,38 +428,80 @@ function FitBounds({ pins }) {
 }
 
 const stateStyle = () => ({
-    color: 'rgba(220,195,140,0.3)',
+    color: '#263360',
     weight: 0.8,
     fillOpacity: 0,
 });
 
+const landStyle = () => ({
+    color: '#263360',
+    weight: 0.6,
+    fillColor: '#1c2540',
+    fillOpacity: 0.6,
+});
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function ShowMapShare({ pastShows, upcomingShows, title = 'My Show Map' }) {
+export default function ShowMapShare({ pastShows, upcomingShows, title = 'My Show Map', attendedLabel = 'Attended', showBadge = false }) {
     const [pins, setPins] = useState([]);
     const [geocoding, setGeocoding] = useState(false);
     const [progress, setProgress] = useState({ done: 0, total: 0 });
     const [usStatesGeo, setUsStatesGeo] = useState(null);
+    const [worldCountriesGeo, setWorldCountriesGeo] = useState(null);
     const [modalImage, setModalImage] = useState(null);
     const [generating, setGenerating] = useState(false);
     const [fbUploading, setFbUploading] = useState(false);
     const [shareError, setShareError] = useState(null);
     const dialogRef = useRef(null);
 
-    // Load US states WGS84 GeoJSON for Leaflet overlay
+    // Branding shown on the map (live overlay + downloadable share image) —
+    // same admin-editable site name/tagline as the main site header, read
+    // from context (PublicLayout already fetched it once) rather than a
+    // second GET /api/settings round-trip.
+    const { headerTitle, headerSubtitle } = useSiteSettings();
+    const brandTitle = headerTitle || DEFAULT_BRAND_TITLE;
+    const brandSubtitle = headerSubtitle !== undefined && headerSubtitle !== null ? headerSubtitle : DEFAULT_BRAND_SUBTITLE;
+
+    // Load US states WGS84 GeoJSON for Leaflet overlay — skipped entirely
+    // when there's nothing to map (e.g. a profile with no shows logged yet),
+    // since the component bails out to null below either way.
     useEffect(() => {
+        if (pastShows.length === 0 && upcomingShows.length === 0) return;
         loadUsStatesWGS84().then(setUsStatesGeo).catch(() => {});
-    }, []);
+        loadWorldCountriesGeo().then(setWorldCountriesGeo).catch(() => {});
+    }, [pastShows.length, upcomingShows.length]);
 
     // ── Geocoding ──────────────────────────────────────────────────────────────
+    // Dedup by city/state as before, but now carrying each venue's own stored
+    // latitude/longitude (set from the setlist.fm import for most venues) and
+    // its id(s) — a stored coordinate is used directly, skipping Nominatim
+    // entirely, and is far more accurate than a free-text city/state lookup
+    // (which has no country qualifier and can resolve to the wrong place for
+    // an ambiguous city name). Nominatim is now only a fallback for the
+    // venues that genuinely have no coordinates on file yet.
     useEffect(() => {
         const venueMap = new Map();
         const add = (show, type) => {
             if (!show.venues?.city) return;
             const key = `${show.venues.city}|${show.venues.state_country || ''}`;
             const ex = venueMap.get(key);
-            if (!ex) venueMap.set(key, { city: show.venues.city, stateCountry: show.venues.state_country, types: new Set([type]) });
-            else ex.types.add(type);
+            if (!ex) {
+                venueMap.set(key, {
+                    city: show.venues.city,
+                    stateCountry: show.venues.state_country,
+                    types: new Set([type]),
+                    lat: show.venues.latitude ?? null,
+                    lng: show.venues.longitude ?? null,
+                    venueIds: new Set(show.venues.id ? [show.venues.id] : []),
+                });
+            } else {
+                ex.types.add(type);
+                if (show.venues.id) ex.venueIds.add(show.venues.id);
+                if (ex.lat == null && show.venues.latitude != null) {
+                    ex.lat = show.venues.latitude;
+                    ex.lng = show.venues.longitude;
+                }
+            }
         };
         pastShows.forEach(s => add(s, 'attended'));
         upcomingShows.forEach(s => add(s, 'upcoming'));
@@ -397,26 +511,37 @@ export default function ShowMapShare({ pastShows, upcomingShows, title = 'My Sho
             stateCountry: v.stateCountry,
             pinType: v.types.has('attended') && v.types.has('upcoming') ? 'both'
                    : v.types.has('attended') ? 'attended' : 'upcoming',
+            lat: v.lat,
+            lng: v.lng,
+            venueIds: v.venueIds,
         }));
 
         const buildPins = async () => {
             const cache = getGeoCache();
-            const uncached = venues.filter(v => !cache[`${v.city}|${v.stateCountry || ''}`]);
-            if (uncached.length > 0) { setGeocoding(true); setProgress({ done: 0, total: uncached.length }); }
+            const needsLookup = venues.filter(v => v.lat == null && !cache[`${v.city}|${v.stateCountry || ''}`]);
+            if (needsLookup.length > 0) { setGeocoding(true); setProgress({ done: 0, total: needsLookup.length }); }
 
             const result = [];
             let done = 0;
             for (const venue of venues) {
+                if (venue.lat != null && venue.lng != null) {
+                    result.push({ lat: venue.lat, lng: venue.lng, city: venue.city, stateCountry: venue.stateCountry, pinType: venue.pinType });
+                    continue;
+                }
                 const key = `${venue.city}|${venue.stateCountry || ''}`;
                 let coords = cache[key];
                 if (!coords) {
                     if (done > 0) await new Promise(r => setTimeout(r, 1100));
                     coords = await fetchCoords([venue.city, venue.stateCountry].filter(Boolean).join(', '));
-                    if (coords) { cache[key] = coords; saveGeoCache(cache); }
+                    if (coords) {
+                        cache[key] = coords;
+                        saveGeoCache(cache);
+                        venue.venueIds.forEach(id => cacheVenueGeocode(id, coords.lat, coords.lng));
+                    }
                     done++;
-                    setProgress({ done, total: uncached.length });
+                    setProgress({ done, total: needsLookup.length });
                 }
-                if (coords) result.push({ ...coords, ...venue });
+                if (coords) result.push({ ...coords, city: venue.city, stateCountry: venue.stateCountry, pinType: venue.pinType });
             }
             setPins(result);
             setGeocoding(false);
@@ -424,7 +549,7 @@ export default function ShowMapShare({ pastShows, upcomingShows, title = 'My Sho
         buildPins();
     }, [pastShows, upcomingShows]);
 
-    const highestBadge = getHighestBadge(pastShows.length);
+    const highestBadge = showBadge ? getHighestBadge(pastShows.length) : null;
     const hasBoth = pins.some(p => p.pinType === 'both');
 
     // ── Generate + open modal ─────────────────────────────────────────────────
@@ -437,6 +562,9 @@ export default function ShowMapShare({ pastShows, upcomingShows, title = 'My Sho
                 pastCount: pastShows.length,
                 upcomingCount: upcomingShows.length,
                 highestBadge,
+                attendedLabel,
+                brandTitle,
+                brandSubtitle,
             });
             setModalImage(img);
             dialogRef.current?.showModal();
@@ -445,7 +573,7 @@ export default function ShowMapShare({ pastShows, upcomingShows, title = 'My Sho
             setShareError('Could not generate map image. Please try again.');
         }
         setGenerating(false);
-    }, [pins, pastShows.length, upcomingShows.length, highestBadge]);
+    }, [pins, pastShows.length, upcomingShows.length, highestBadge, attendedLabel, brandTitle, brandSubtitle]);
 
     const closeModal = () => { dialogRef.current?.close(); };
 
@@ -509,7 +637,7 @@ export default function ShowMapShare({ pastShows, upcomingShows, title = 'My Sho
                         {title}
                     </h3>
                     <p className="text-xs mt-0.5" style={{ color: 'var(--p-color-contrast-low)' }}>
-                        {pastShows.length} attended · {upcomingShows.length} upcoming
+                        {pastShows.length} {attendedLabel.toLowerCase()} · {upcomingShows.length} upcoming
                     </p>
                 </div>
                 {geocoding && (
@@ -523,7 +651,7 @@ export default function ShowMapShare({ pastShows, upcomingShows, title = 'My Sho
             <div className="flex items-center gap-5">
                 <div className="flex items-center gap-1.5">
                     <span className="w-2.5 h-2.5 rounded-full shrink-0 inline-block" style={{ background: PIN_COLORS.attended }} />
-                    <span className="text-xs" style={{ color: 'var(--p-color-contrast-medium)' }}>Attended</span>
+                    <span className="text-xs" style={{ color: 'var(--p-color-contrast-medium)' }}>{attendedLabel}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                     <span className="w-2.5 h-2.5 rounded-full shrink-0 inline-block" style={{ background: PIN_COLORS.upcoming }} />
@@ -545,6 +673,16 @@ export default function ShowMapShare({ pastShows, upcomingShows, title = 'My Sho
                         zoom={4}
                         style={{ height: '100%', width: '100%', background: '#141820' }}
                         scrollWheelZoom={false}
+                        // The world-countries overlay added for international pin
+                        // context renders ~180 separate shapes (vs. the single
+                        // merged shape the old land-only overlay used) — Leaflet's
+                        // default SVG renderer creates one DOM <path> per shape,
+                        // which got noticeably slower to paint. Canvas rendering
+                        // draws every vector layer (this, state borders, pins) into
+                        // one canvas instead, which is dramatically cheaper for this
+                        // many shapes and not needed for any per-shape interactivity
+                        // here (none of these layers have click handlers).
+                        preferCanvas={true}
                     >
                         <TileLayer
                             // CARTO retired anonymous/keyless raster tile access — unauthenticated
@@ -556,6 +694,13 @@ export default function ShowMapShare({ pastShows, upcomingShows, title = 'My Sho
                             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
                             maxZoom={19}
                         />
+                        {worldCountriesGeo && (
+                            <GeoJSON
+                                key="world-countries"
+                                data={worldCountriesGeo}
+                                style={landStyle}
+                            />
+                        )}
                         {usStatesGeo && (
                             <GeoJSON
                                 key="us-states"
@@ -568,7 +713,7 @@ export default function ShowMapShare({ pastShows, upcomingShows, title = 'My Sho
                             <CircleMarker
                                 key={i}
                                 center={[pin.lat, pin.lng]}
-                                radius={9}
+                                radius={4.5}
                                 pathOptions={{ fillColor: PIN_COLORS[pin.pinType], color: '#0d0f14', weight: 2, fillOpacity: 0.9 }}
                             >
                                 <Tooltip>{pin.city}{pin.stateCountry ? `, ${pin.stateCountry}` : ''}</Tooltip>
@@ -594,9 +739,9 @@ export default function ShowMapShare({ pastShows, upcomingShows, title = 'My Sho
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <img src="/logo.png" alt="" style={{ width: 28, height: 28, borderRadius: 4 }} />
                         <div>
-                            <div style={{ color: '#f59e0b', fontWeight: 700, fontSize: 13, lineHeight: 1 }}>SkySets.org</div>
+                            <div style={{ color: '#f59e0b', fontWeight: 700, fontSize: 13, lineHeight: 1 }}>{brandTitle}</div>
                             <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10, marginTop: 2 }}>
-                                Sturgill Simpson &amp; Johnny Blue Skies
+                                {brandSubtitle}
                             </div>
                         </div>
                     </div>

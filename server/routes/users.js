@@ -706,7 +706,7 @@ router.get('/profile/:username', async (req, res) => {
                     show_date,
                     artist_name,
                     tour_name,
-                    venues ( name, city, state_country )
+                    venues ( id, name, city, state_country, latitude, longitude )
                 )
             `)
             .eq('user_id', profile.id);

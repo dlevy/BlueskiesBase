@@ -132,6 +132,55 @@ router.put('/:id', requireEditorOrAdmin, async (req, res) => {
 });
 
 /**
+ * PATCH /api/venues/:id/geocode
+ * Cache a geocoded lat/lng for a venue that doesn't have one yet — called by
+ * ShowMapShare.jsx after it falls back to Nominatim for a venue missing
+ * coordinates, so the next viewer (any show's map, any user) doesn't have to
+ * re-geocode it. Deliberately public (no auth) since every map view is a
+ * potential contributor to this shared cache, and it's narrowly safe: it
+ * only ever fills a currently-null pair, never overwrites existing
+ * (admin-entered or already-cached) coordinates.
+ */
+router.patch('/:id/geocode', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { latitude, longitude } = req.body;
+
+        if (typeof latitude !== 'number' || typeof longitude !== 'number' ||
+            !Number.isFinite(latitude) || !Number.isFinite(longitude) ||
+            latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+            return res.status(400).json({ error: 'latitude/longitude must be valid coordinates' });
+        }
+
+        const { data: venue, error: fetchError } = await supabase
+            .from('venues')
+            .select('latitude, longitude')
+            .eq('id', id)
+            .single();
+        if (fetchError || !venue) {
+            return res.status(404).json({ error: 'Venue not found' });
+        }
+        if (venue.latitude != null || venue.longitude != null) {
+            return res.json({ cached: false, reason: 'already set' });
+        }
+
+        const { error: updateError } = await supabase
+            .from('venues')
+            .update({ latitude, longitude })
+            .eq('id', id);
+        if (updateError) {
+            console.error('Error caching venue geocode:', updateError);
+            return res.status(500).json({ error: 'Failed to cache coordinates' });
+        }
+
+        res.json({ cached: true });
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
  * DELETE /api/venues/:id
  * Delete a venue (admin only). Refuses if any show still references it —
  * unlike albums/categories, a show can't fall back to a "no venue" state.

@@ -3,12 +3,50 @@ import { useNavigate } from 'react-router-dom';
 import { PHeading, PText, PButtonPure, PSpinner, PInlineNotification } from '@porsche-design-system/components-react';
 import { fetchTourList, fetchDefaultTourName, fetchTourSongCounts } from '../utils/tourSongCounts';
 import SEO from '../components/SEO';
+import ShowMapShare from '../components/ShowMapShare';
 
 const selectClass = "w-full sm:w-auto rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-transparent";
 
 function formatDate(dateStr) {
     const [y, m, d] = dateStr.split('-');
     return new Date(Number(y), Number(m) - 1, Number(d)).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+// Opening/Closing Songs — one-off songs (count 1) are hidden by default to
+// keep the default view compact; a "+N more" link reveals them (data's
+// already loaded, this is just a local toggle, not a new fetch).
+function TourSongBars({ songs, showAll, onShowMore }) {
+    const visible = showAll ? songs : songs.filter(s => s.count > 1);
+    const hiddenCount = songs.length - songs.filter(s => s.count > 1).length;
+    const maxCount = songs[0]?.count || 0;
+    return (
+        <div className="space-y-1.5">
+            {visible.map(({ title, count, isOriginal }) => (
+                <div key={title} className="flex items-center gap-3">
+                    <span className="text-xs w-40 sm:w-56 shrink-0 truncate text-right" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                        {title}
+                    </span>
+                    <div className="flex-1 h-4 rounded bg-white/5 overflow-hidden">
+                        <div
+                            className={`h-full rounded transition-all duration-700 ${isOriginal === false ? 'bg-blue-400/70' : 'bg-amber-400/80'}`}
+                            style={{ width: `${(count / maxCount) * 100}%` }}
+                        />
+                    </div>
+                    <span className="text-xs w-4 shrink-0" style={{ color: 'var(--p-color-contrast-medium)' }}>{count}</span>
+                </div>
+            ))}
+            {!showAll && hiddenCount > 0 && (
+                <button
+                    type="button"
+                    onClick={onShowMore}
+                    className="text-xs hover:underline"
+                    style={{ color: 'var(--p-color-info)' }}
+                >
+                    + {hiddenCount} more played once
+                </button>
+            )}
+        </div>
+    );
 }
 
 // Same purple star used for the per-song "Rare" badge on the show page — played at
@@ -33,6 +71,8 @@ export default function TourStatsPage() {
     const [loadingTours, setLoadingTours] = useState(true);
     const [loadingSongs, setLoadingSongs] = useState(false);
     const [error, setError] = useState(null);
+    const [showAllOpeners, setShowAllOpeners] = useState(false);
+    const [showAllClosers, setShowAllClosers] = useState(false);
 
     // Load the tour list once, then pick the default (current) tour.
     useEffect(() => {
@@ -62,6 +102,8 @@ export default function TourStatsPage() {
         let cancelled = false;
         setLoadingSongs(true);
         setError(null);
+        setShowAllOpeners(false);
+        setShowAllClosers(false);
         fetchTourSongCounts(selectedTour)
             .then(data => { if (!cancelled) setTourData(data); })
             .catch(err => {
@@ -165,6 +207,20 @@ export default function TourStatsPage() {
                                     ))}
                                 </div>
 
+                                {tourData.openingSongs.length > 0 && (
+                                    <div className="mt-6">
+                                        <PHeading size="small" tag="h3" className="mb-3">Opening Songs</PHeading>
+                                        <TourSongBars songs={tourData.openingSongs} showAll={showAllOpeners} onShowMore={() => setShowAllOpeners(true)} />
+                                    </div>
+                                )}
+
+                                {tourData.closingSongs.length > 0 && (
+                                    <div className="mt-6">
+                                        <PHeading size="small" tag="h3" className="mb-3">Closing Songs</PHeading>
+                                        <TourSongBars songs={tourData.closingSongs} showAll={showAllClosers} onShowMore={() => setShowAllClosers(true)} />
+                                    </div>
+                                )}
+
                                 {tourData.albumBreakdown.length > 0 && (
                                     <div className="mt-6">
                                         <PHeading size="small" tag="h3" className="mb-3">Album Breakdown</PHeading>
@@ -197,6 +253,16 @@ export default function TourStatsPage() {
                             </>
                         )}
                     </div>
+
+                    {tourData && (
+                        <ShowMapShare
+                            pastShows={tourData.pastShows}
+                            upcomingShows={tourData.upcomingShows}
+                            title={`${selectedTour} Tour Map`}
+                            attendedLabel="Played"
+                            showBadge={false}
+                        />
+                    )}
                 </>
             )}
         </div>

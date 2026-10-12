@@ -62,9 +62,11 @@ export async function fetchTourList({ minShows = MIN_TOUR_SHOWS } = {}) {
 export async function fetchTourSongCounts(tourName) {
     const todayStr = new Date().toISOString().slice(0, 10);
 
+    // venues included for the Tour Map (ShowMapShare, same shape it already
+    // reads off a user's attended/upcoming shows) — otherwise unused here.
     const { data: tourShows, error: tourError } = await supabase
         .from('shows')
-        .select('id, show_date')
+        .select('id, show_date, venues ( id, name, city, state_country, latitude, longitude )')
         .eq('tour_name', tourName)
         .order('show_date')
         .order('id');
@@ -72,10 +74,11 @@ export async function fetchTourSongCounts(tourName) {
     if (tourError || !tourShows?.length) return null;
 
     const played = tourShows.filter(s => s.show_date <= todayStr);
+    const upcoming = tourShows.filter(s => s.show_date > todayStr);
     const playedIds = played.map(s => s.id);
 
     if (playedIds.length === 0) {
-        return { totalShows: tourShows.length, playedShows: 0, firstDate: tourShows[0].show_date, lastDate: tourShows[tourShows.length - 1].show_date, playedIds: [], songCounts: [] };
+        return { totalShows: tourShows.length, playedShows: 0, firstDate: tourShows[0].show_date, lastDate: tourShows[tourShows.length - 1].show_date, playedIds: [], songCounts: [], openingSongs: [], closingSongs: [], pastShows: played, upcomingShows: upcoming };
     }
 
     let rows = [];
@@ -83,7 +86,7 @@ export async function fetchTourSongCounts(tourName) {
         const { data: page, error } = await supabase
             .from('setlist_songs')
             .select(`
-                song_id, show_id,
+                song_id, show_id, set_number, is_encore, song_order,
                 songs!setlist_songs_song_id_fkey (
                     title, is_original,
                     album_songs ( albums ( title, release_date ) )
@@ -108,6 +111,10 @@ export async function fetchTourSongCounts(tourName) {
     // sandwiched song still only counts once per show / once tour-wide.
     const songIdsByShow = {};
     const songMetaById = {};
+    // Distinct shows per song_id — same idea as showSetsByTitle above, but
+    // keyed by id (not title) so the album breakdown's per-song play count
+    // can't be thrown off by two different songs sharing a title.
+    const showSetsBySongId = {};
     rows.forEach(r => {
         const title = r.songs?.title;
         if (title) {
@@ -118,11 +125,43 @@ export async function fetchTourSongCounts(tourName) {
 
         if (r.song_id) {
             (songIdsByShow[r.show_id] ||= new Set()).add(r.song_id);
+            (showSetsBySongId[r.song_id] ||= new Set()).add(r.show_id);
             if (!songMetaById[r.song_id]) {
                 songMetaById[r.song_id] = { isOriginal: r.songs?.is_original, albumSongs: r.songs?.album_songs || [] };
             }
         }
     });
+
+    // Opener/closer: the earliest/latest performed song per show, ordered
+    // set1 < set2 < set3 < encore and by song_order within a set — not just
+    // set1/song_order 1, since an incomplete or oddly-logged setlist might
+    // not start there. One opener and one closer per show, so no sandwich
+    // double-counting to worry about here (unlike songCounts above).
+    const orderKey = r => (r.is_encore ? 4 : r.set_number) * 10000 + r.song_order;
+    const openerByShow = {};
+    const closerByShow = {};
+    rows.forEach(r => {
+        if (r.set_number == null || r.song_order == null) return;
+        const key = orderKey(r);
+        const opener = openerByShow[r.show_id];
+        if (!opener || key < opener.key) openerByShow[r.show_id] = { row: r, key };
+        const closer = closerByShow[r.show_id];
+        if (!closer || key > closer.key) closerByShow[r.show_id] = { row: r, key };
+    });
+
+    function tallyByTitle(byShow) {
+        const counts = {};
+        Object.values(byShow).forEach(({ row }) => {
+            const title = row.songs?.title;
+            if (!title) return;
+            const entry = (counts[title] ||= { title, count: 0, isOriginal: row.songs?.is_original });
+            entry.count++;
+        });
+        return Object.values(counts).sort((a, b) => b.count - a.count || a.title.localeCompare(b.title));
+    }
+
+    const openingSongs = tallyByTitle(openerByShow);
+    const closingSongs = tallyByTitle(closerByShow);
 
     const showsWithSetlist = Object.keys(songIdsByShow).length;
 
@@ -141,16 +180,18 @@ export async function fetchTourSongCounts(tourName) {
     const totalSongInstances = Object.values(songIdsByShow).reduce((sum, set) => sum + set.size, 0);
     const avgSongsPerShow = showsWithSetlist > 0 ? totalSongInstances / showsWithSetlist : 0;
 
-    // Album breakdown across the whole tour: each song played at least once is
-    // attributed to its earliest-released album (same rule as the per-show
-    // breakdown on the show page), counted once no matter how many shows it's
-    // been played at.
+    // Album breakdown across the whole tour: each song is attributed to its
+    // earliest-released album (same rule as the per-show breakdown on the
+    // show page), summing its total distinct-show play count — not just
+    // whether it was played at all — so an album with one song played 15
+    // times outweighs one with three songs played once each.
     const albumCounts = new Map();
     let otherOriginals = 0;
     let covers = 0;
-    Object.values(songMetaById).forEach(({ isOriginal, albumSongs }) => {
+    Object.entries(songMetaById).forEach(([songId, { isOriginal, albumSongs }]) => {
+        const playCount = showSetsBySongId[songId]?.size || 0;
         if (isOriginal === false) {
-            covers++;
+            covers += playCount;
             return;
         }
         const assocs = (albumSongs || []).filter(as => as.albums);
@@ -163,9 +204,9 @@ export async function fetchTourSongCounts(tourName) {
                 return ra.localeCompare(rb);
             })[0];
             const albumTitle = primary.albums?.title || 'Other';
-            albumCounts.set(albumTitle, (albumCounts.get(albumTitle) || 0) + 1);
+            albumCounts.set(albumTitle, (albumCounts.get(albumTitle) || 0) + playCount);
         } else {
-            otherOriginals++;
+            otherOriginals += playCount;
         }
     });
     const albumBreakdown = [...albumCounts.entries()]
@@ -180,9 +221,13 @@ export async function fetchTourSongCounts(tourName) {
         lastDate: tourShows[tourShows.length - 1].show_date,
         playedIds,
         songCounts,
+        openingSongs,
+        closingSongs,
         avgSongsPerShow,
         albumBreakdown,
         otherOriginals,
         covers,
+        pastShows: played,
+        upcomingShows: upcoming,
     };
 }
