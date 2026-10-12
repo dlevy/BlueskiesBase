@@ -180,20 +180,20 @@ export async function fetchTourSongCounts(tourName) {
     const totalSongInstances = Object.values(songIdsByShow).reduce((sum, set) => sum + set.size, 0);
     const avgSongsPerShow = showsWithSetlist > 0 ? totalSongInstances / showsWithSetlist : 0;
 
-    // Album breakdown across the whole tour: each song is attributed to its
-    // earliest-released album (same rule as the per-show breakdown on the
-    // show page), summing its total distinct-show play count — not just
-    // whether it was played at all — so an album with one song played 15
-    // times outweighs one with three songs played once each.
+    // Album breakdown across the whole tour: a song with a real album_songs
+    // association is attributed to its earliest-released album (same rule as
+    // the per-show breakdown on the show page) regardless of is_original — a
+    // cover that's an actual album track (several on Mutiny After Midnight,
+    // for instance) counts toward that album, not the generic Covers bucket.
+    // Summed by total distinct-show play count, not just whether it was
+    // played at all, so an album with one song played 15 times outweighs one
+    // with three songs played once each. Only a song with no album
+    // association at all falls through to otherOriginals/covers.
     const albumCounts = new Map();
     let otherOriginals = 0;
     let covers = 0;
     Object.entries(songMetaById).forEach(([songId, { isOriginal, albumSongs }]) => {
         const playCount = showSetsBySongId[songId]?.size || 0;
-        if (isOriginal === false) {
-            covers += playCount;
-            return;
-        }
         const assocs = (albumSongs || []).filter(as => as.albums);
         if (assocs.length > 0) {
             const primary = [...assocs].sort((a, b) => {
@@ -205,6 +205,8 @@ export async function fetchTourSongCounts(tourName) {
             })[0];
             const albumTitle = primary.albums?.title || 'Other';
             albumCounts.set(albumTitle, (albumCounts.get(albumTitle) || 0) + playCount);
+        } else if (isOriginal === false) {
+            covers += playCount;
         } else {
             otherOriginals += playCount;
         }

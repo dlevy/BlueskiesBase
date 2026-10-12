@@ -196,8 +196,12 @@ export default function SongStatsWidget() {
         const fetchHolyGrails = async () => {
             try {
                 const songsData = await getSongs();
+                // Originals, plus covers that are real album tracks — an
+                // unplayed cover officially released on an album is still a
+                // deep-cut worth spotlighting here, same reasoning as the
+                // Discography page's album grouping.
                 const unplayed = (songsData.songs || []).filter(
-                    s => s.is_original === true && s.performance_count === 0
+                    s => (s.is_original === true || (s.album_songs?.length > 0)) && s.performance_count === 0
                 );
 
                 const albumMap = new Map();

@@ -1,15 +1,19 @@
 import { supabase } from '../services/supabase';
 
-// A cover song is excluded from the "covers" filter dropdown only if every
-// one of its setlist_songs rows is performance_type 'dj' — played over the
-// speakers between/after sets, never covered live, so listing it alongside
-// real covers would be misleading. A cover that's never been performed at
-// all (no setlist_songs rows yet) still belongs in the list, same as before
-// this filtering existed — it just has no DJ rows to exclude it either.
+// A cover song is excluded from the "covers" filter dropdown if either:
+// - it's a real album track (it shows up grouped under that album in the
+//   "Originals by Album" dropdown instead, alongside this file's caller —
+//   listing it in both places would be redundant), or
+// - every one of its setlist_songs rows is performance_type 'dj' — played
+//   over the speakers between/after sets, never covered live, so listing it
+//   alongside real covers would be misleading.
+// A cover that's never been performed at all (no setlist_songs rows yet)
+// still belongs in the list, same as before this filtering existed — it
+// just has no DJ rows to exclude it either.
 // Shared by SearchPage and admin/ShowsList, which both build this same
 // dropdown from an already-fetched `songs` query.
 export async function getLiveCoverTitles(songsData) {
-    const covers = (songsData || []).filter(s => s.is_original === false);
+    const covers = (songsData || []).filter(s => s.is_original === false && !(s.album_songs?.length > 0));
     if (covers.length === 0) return [];
 
     const coverIds = covers.map(s => s.id);

@@ -94,23 +94,25 @@ function computeSetlistStats(show, tourRarity, liveDebutSongIds, tourDebutSongId
         if (!song.song_id || seen.has(song.song_id)) return;
         seen.add(song.song_id);
 
-        if (song.is_original === false) {
+        // A real album_songs association wins regardless of is_original — a
+        // cover that's an actual album track counts toward that album, not
+        // the generic Covers bucket. Only a song with no album association
+        // at all falls through to otherOriginals/covers.
+        const assocs = (song.songs?.album_songs || []).filter(as => as.albums);
+        if (assocs.length > 0) {
+            const primary = [...assocs].sort((a, b) => {
+                const ra = a.albums?.release_date || '';
+                const rb = b.albums?.release_date || '';
+                if (!ra) return 1;
+                if (!rb) return -1;
+                return ra.localeCompare(rb);
+            })[0];
+            const title = primary.albums?.title || 'Other';
+            albumCounts.set(title, (albumCounts.get(title) || 0) + 1);
+        } else if (song.is_original === false) {
             covers++;
         } else if (song.is_original === true) {
-            const assocs = (song.songs?.album_songs || []).filter(as => as.albums);
-            if (assocs.length > 0) {
-                const primary = [...assocs].sort((a, b) => {
-                    const ra = a.albums?.release_date || '';
-                    const rb = b.albums?.release_date || '';
-                    if (!ra) return 1;
-                    if (!rb) return -1;
-                    return ra.localeCompare(rb);
-                })[0];
-                const title = primary.albums?.title || 'Other';
-                albumCounts.set(title, (albumCounts.get(title) || 0) + 1);
-            } else {
-                otherOriginals++;
-            }
+            otherOriginals++;
         }
 
         const tourCount = tourRarity?.total_shows > 0 ? tourRarity.song_counts[song.song_id] : undefined;

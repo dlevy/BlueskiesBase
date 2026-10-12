@@ -99,10 +99,11 @@ export default function SearchPage() {
                         setCoverSongs(await getLiveCoverTitles(uniqueSongs));
                         setSundayValleySongs(getSundayValleyTitles(uniqueSongs));
 
-                        // Originals — grouped by album via junction table, newest album first
-                        // A song may appear in multiple albums
+                        // Originals (wherever they appear), plus covers that are
+                        // real album tracks — grouped by album via junction table,
+                        // newest album first. A song may appear in multiple albums.
                         const albumMap = new Map();
-                        uniqueSongs.filter(s => s.is_original === true).forEach(song => {
+                        uniqueSongs.filter(s => s.is_original === true || (s.album_songs && s.album_songs.length > 0)).forEach(song => {
                             const assocs = song.album_songs && song.album_songs.length > 0 ? song.album_songs : null;
                             if (assocs) {
                                 assocs.forEach(as => {

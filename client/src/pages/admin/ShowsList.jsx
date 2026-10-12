@@ -66,7 +66,7 @@ export default function ShowsList() {
                     setSundayValleySongs(getSundayValleyTitles(songsData));
 
                     const albumMap = new Map();
-                    songsData.filter(s => s.is_original === true).forEach(song => {
+                    songsData.filter(s => s.is_original === true || (s.album_songs && s.album_songs.length > 0)).forEach(song => {
                         const assocs = song.album_songs && song.album_songs.length > 0 ? song.album_songs : null;
                         if (assocs) {
                             assocs.forEach(as => {
