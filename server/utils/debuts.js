@@ -1,4 +1,5 @@
 const { supabase } = require('../config/supabase');
+const { computeSetlistIndex } = require('./setlistIndex');
 
 /**
  * Computes live-debut and tour-debut song ids for a batch of shows in as few queries as
@@ -56,65 +57,24 @@ async function computeDebutsForShows(showIds) {
         (songsByShow[show_id] ||= new Set()).add(song_id);
     });
 
-    const songIdsInvolved = [...new Set(batchSongs.map(r => r.song_id))];
-    if (songIdsInvolved.length === 0) return result;
+    if (batchSongs.length === 0) return result;
 
-    // Every performance, anywhere, of any song played by any show in the batch — to find
-    // each song's true earliest date, both globally and within whichever tour(s) are
-    // involved. Paginated for the same reason as above.
-    let performances = [];
-    for (let rangeStart = 0; ;) {
-        const { data: page, error } = await supabase
-            .from('setlist_songs')
-            .select('song_id, show_id, shows(show_date)')
-            .in('song_id', songIdsInvolved)
-            .not('performance_type', 'in', '(dj,soundcheck)')
-            .order('id')
-            .range(rangeStart, rangeStart + 999);
-        if (error) throw new Error('Failed to compute debuts: ' + error.message);
-        performances = performances.concat(page || []);
-        if (!page || page.length < 1000) break;
-        rangeStart += 1000;
-    }
-
-    // Live debut: earliest performance anywhere, ever.
-    const globalEarliest = {};
-    performances.forEach(({ song_id, shows: performedShow }) => {
-        const d = performedShow?.show_date;
-        if (!d) return;
-        if (!globalEarliest[song_id] || d < globalEarliest[song_id]) globalEarliest[song_id] = d;
-    });
-
-    // Tour debut: earliest performance within shows sharing a tour_name. Needs the FULL
-    // show list for every distinct tour touched by the batch, not just the batch's own
-    // shows — a song's earliest tour performance can easily be at a show outside whatever
-    // subset (e.g. a search result page) we were asked about.
-    const tourNames = [...new Set(Object.values(showMeta).map(s => s.tour_name).filter(Boolean))];
-    const showIdToTour = {};
-    for (const tourName of tourNames) {
-        const { data: tourShows, error } = await supabase.from('shows').select('id').eq('tour_name', tourName);
-        if (error) throw new Error('Failed to load tour shows: ' + error.message);
-        (tourShows || []).forEach(s => { showIdToTour[s.id] = tourName; });
-    }
-
-    const tourEarliest = {}; // tourName -> { song_id: date }
-    performances.forEach(({ song_id, show_id, shows: performedShow }) => {
-        const tourName = showIdToTour[show_id];
-        if (!tourName) return;
-        const d = performedShow?.show_date;
-        if (!d) return;
-        const forTour = (tourEarliest[tourName] ||= {});
-        if (!forTour[song_id] || d < forTour[song_id]) forTour[song_id] = d;
-    });
+    // Every song's true earliest performance date, globally and per-tour, from the
+    // shared cached index — instead of this function re-scanning every performance of
+    // every involved song itself, and instead of a separate query per distinct tour
+    // (both of which this used to do here; see setlistIndex.js's own comment for why
+    // that was expensive enough to matter).
+    const index = await computeSetlistIndex();
 
     showIds.forEach(showId => {
         const meta = showMeta[showId];
         if (!meta) return; // leaves the default empty arrays already set above
         const songsHere = [...(songsByShow[showId] || [])];
-        const live = songsHere.filter(songId => globalEarliest[songId] === meta.show_date);
+        const live = songsHere.filter(songId => index.globalEarliestBySong.get(songId) === meta.show_date);
         const liveSet = new Set(live);
-        const tour = meta.tour_name
-            ? songsHere.filter(songId => !liveSet.has(songId) && tourEarliest[meta.tour_name]?.[songId] === meta.show_date)
+        const tourEarliestForTour = meta.tour_name ? index.tourEarliestBySongTour.get(meta.tour_name) : null;
+        const tour = tourEarliestForTour
+            ? songsHere.filter(songId => !liveSet.has(songId) && tourEarliestForTour.get(songId) === meta.show_date)
             : [];
         result[showId] = { live_debut_song_ids: live, tour_debut_song_ids: tour };
     });

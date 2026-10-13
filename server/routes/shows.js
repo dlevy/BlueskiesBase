@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { supabase } = require('../config/supabase');
 const { computeDebutsForShows } = require('../utils/debuts');
+const { invalidateSetlistIndex } = require('../utils/setlistIndex');
 const { requireAdmin, requireEditorOrAdmin } = require('../middleware/requireRole');
 const { notifySetlistUpdated } = require('../utils/notify');
 const { redactProfile } = require('../utils/privacy');
@@ -520,6 +521,7 @@ router.patch('/:id/tour', requireEditorOrAdmin, async (req, res) => {
             return res.status(500).json({ error: 'Failed to update tour' });
         }
 
+        invalidateSetlistIndex();
         res.json(show);
     } catch (error) {
         console.error('[PATCH /shows/:id/tour] Error:', error);
@@ -565,6 +567,7 @@ router.put('/:id', requireEditorOrAdmin, async (req, res) => {
             console.error('Error updating show links:', linksError);
         }
 
+        invalidateSetlistIndex();
         res.json({ ...show, links: links ?? [] });
 
     } catch (error) {
@@ -601,6 +604,7 @@ router.delete('/:id', requireAdmin, async (req, res) => {
             return res.status(500).json({ error: 'Failed to delete show', detail: error.message });
         }
 
+        invalidateSetlistIndex();
         res.json({ message: 'Show deleted successfully' });
 
     } catch (error) {
@@ -646,6 +650,7 @@ router.put('/:id/setlist', requireEditorOrAdmin, async (req, res) => {
 
             if (oldSignature !== '') {
                 await notifySetlistUpdated({ showId: id, actorId: req.user.id });
+                invalidateSetlistIndex();
             }
 
             return res.json({ message: 'Setlist cleared successfully', setlist: [] });
@@ -798,6 +803,7 @@ router.put('/:id/setlist', requireEditorOrAdmin, async (req, res) => {
 
         if (setlistSignature(setlistEntries) !== oldSignature) {
             await notifySetlistUpdated({ showId: id, actorId: req.user.id });
+            invalidateSetlistIndex();
         }
 
         res.json({ message: 'Setlist updated successfully', setlist: newSetlist });
@@ -937,6 +943,7 @@ router.post('/:id/setlist/song', requireEditorOrAdmin, async (req, res) => {
         }
 
         await notifySetlistUpdated({ showId: id, actorId: req.user.id });
+        invalidateSetlistIndex();
 
         res.status(201).json(setlistSong);
 
@@ -968,6 +975,7 @@ router.delete('/:showId/setlist/:setlistId', requireEditorOrAdmin, async (req, r
         }
 
         await notifySetlistUpdated({ showId, actorId: req.user.id });
+        invalidateSetlistIndex();
 
         res.json({ message: 'Song removed from setlist successfully' });
 

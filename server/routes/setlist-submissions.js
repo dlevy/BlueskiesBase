@@ -3,6 +3,7 @@ const router = express.Router();
 const { supabase, supabaseAdmin } = require('../config/supabase');
 const { notifySetlistUpdated, notifyStaffOfSubmission } = require('../utils/notify');
 const { requireEditorOrAdmin } = require('../middleware/requireRole');
+const { invalidateSetlistIndex } = require('../utils/setlistIndex');
 
 /**
  * Middleware to verify authentication
@@ -423,6 +424,7 @@ router.post('/songs/:songRowId/merge', requireEditorOrAdmin, async (req, res) =>
         }
 
         await notifySetlistUpdated({ showId, actorId: req.user.id });
+        invalidateSetlistIndex();
 
         res.json({ setlist_song: inserted });
     } catch (error) {
@@ -530,6 +532,7 @@ router.post('/:submissionId/merge-all', requireEditorOrAdmin, async (req, res) =
         }
 
         await notifySetlistUpdated({ showId, actorId: req.user.id });
+        invalidateSetlistIndex();
 
         res.json({ setlist_songs: inserted, mergedCount: inserted.length });
     } catch (error) {

@@ -5,6 +5,7 @@ const { supabase, supabaseAdmin } = require('../config/supabase');
 const { computeSongsSeenForShows, computeDebutDetails } = require('../utils/attendance');
 const { computeFunStats } = require('../utils/funStats');
 const { redactProfile } = require('../utils/privacy');
+const { computeSetlistIndex } = require('../utils/setlistIndex');
 
 // "Today" for past-vs-upcoming show classification, from the viewer's own
 // browser (query param/body field, computed there via local y/m/d — see
@@ -313,137 +314,59 @@ router.get('/stats', async (req, res) => {
         console.log(`[Stats] Found ${attendedShows?.length || 0} attended shows`);
         const attendedShowIds = attendedShows.map(us => us.show_id);
 
-        const songsSeen = await computeSongsSeenForShows(attendedShowIds);
+        // songsSeen, the shared setlist index, and the full song catalog are
+        // independent of each other — fetch/compute them together rather than
+        // one after another. The index used to be re-derived here from scratch
+        // (a full, uncached setlist_songs scan, same again for "songs not seen"
+        // below) on every single request; it's now a shared cache, see
+        // utils/setlistIndex.js's own comment for the measured cost this was.
+        console.log('[Stats] Fetching songs seen, setlist index, and song catalog...');
+        const [songsSeen, index, allSongsResult] = await Promise.all([
+            computeSongsSeenForShows(attendedShowIds),
+            computeSetlistIndex(),
+            supabase.from('songs').select('id, title, is_original, is_sunday_valley, original_artist'),
+        ]);
 
-        // Get all songs that have been played at least once (not orphan songs)
-        // Need to paginate to get all records since we have 5000+ setlist_songs
-        console.log('[Stats] Fetching all played songs...');
-        let allPlayedSongsData = [];
-        let page = 0;
-        const pageSize = 1000;
-        let hasMore = true;
-
-        while (hasMore) {
-            console.log(`[Stats] Fetching played songs page ${page + 1}...`);
-            const { data: playedSongsData, error: playedSongsError } = await supabase
-                .from('setlist_songs')
-                .select(`
-                    song_id,
-                    songs!setlist_songs_song_id_fkey!inner (
-                        id,
-                        title,
-                        is_original,
-                        is_sunday_valley,
-                        original_artist
-                    )
-                `)
-                .not('performance_type', 'in', '(dj,soundcheck)')
-                .order('id')
-                .range(page * pageSize, (page + 1) * pageSize - 1);
-
-            if (playedSongsError) {
-                console.error('[Stats] Error fetching played songs:', playedSongsError);
-                return res.status(500).json({ error: 'Failed to fetch statistics' });
-            }
-
-            if (playedSongsData && playedSongsData.length > 0) {
-                allPlayedSongsData = allPlayedSongsData.concat(playedSongsData);
-                console.log(`[Stats] Page ${page + 1}: ${playedSongsData.length} records, total: ${allPlayedSongsData.length}`);
-                page++;
-                hasMore = playedSongsData.length === pageSize;
-            } else {
-                hasMore = false;
-            }
+        if (allSongsResult.error) {
+            console.error('[Stats] Error fetching songs:', allSongsResult.error);
+            return res.status(500).json({ error: 'Failed to fetch statistics' });
         }
-        console.log(`[Stats] Total played songs records fetched: ${allPlayedSongsData.length}`);
 
-        // Get unique songs that have been played
-        const uniquePlayedSongs = new Map();
-        allPlayedSongsData.forEach(ps => {
-            if (ps.songs && !uniquePlayedSongs.has(ps.song_id)) {
-                uniquePlayedSongs.set(ps.song_id, ps.songs);
-            }
-        });
-        const allPlayedSongs = Array.from(uniquePlayedSongs.values()).sort((a, b) =>
-            a.title.localeCompare(b.title)
-        );
+        // Every song that's been played at least once, per the shared index.
+        const allPlayedSongs = (allSongsResult.data || [])
+            .filter(song => index.showIdsBySong.has(song.id))
+            .sort((a, b) => a.title.localeCompare(b.title));
 
         // Calculate songs not seen (played songs that user hasn't seen)
         const seenSongIds = new Set(songsSeen.map(s => s.id));
         const songsNotSeenBasic = allPlayedSongs.filter(song => !seenSongIds.has(song.id));
 
-        // Get the most recent show for each song not seen (optimized - single query)
+        // Most recent show for each song not seen — the index already knows
+        // which show that was (lastPlayedShowIdBySong), so this only needs one
+        // batched fetch of the (usually far fewer than songsNotSeenBasic.length,
+        // since many songs share the same most-recently-played show) distinct
+        // shows actually needed, not a second full setlist_songs scan.
         let songsNotSeenWithShow = [];
 
         if (songsNotSeenBasic.length > 0) {
-            const notSeenSongIds = songsNotSeenBasic.map(s => s.id);
+            const neededShowIds = [...new Set(
+                songsNotSeenBasic.map(s => index.lastPlayedShowIdBySong.get(s.id)).filter(Boolean)
+            )];
 
-            // Get all setlist_songs for songs not seen with show info (with pagination)
-            let allNotSeenSetlistData = [];
-            let rangeStart = 0;
-            const PAGE_SIZE = 1000;
-            let hasMore = true;
+            const { data: neededShows, error: neededShowsError } = await supabase
+                .from('shows')
+                .select('id, show_date, artist_name, venues ( name, city, state_country )')
+                .in('id', neededShowIds);
 
-            while (hasMore) {
-                const rangeEnd = rangeStart + PAGE_SIZE - 1;
-
-                const { data: pageData, error: notSeenError, count } = await supabase
-                    .from('setlist_songs')
-                    .select(`
-                        song_id,
-                        show_id,
-                        performance_type,
-                        shows!inner (
-                            id,
-                            show_date,
-                            artist_name,
-                            venues (
-                                name,
-                                city,
-                                state_country
-                            )
-                        )
-                    `, { count: 'exact' })
-                    .in('song_id', notSeenSongIds)
-                    .not('performance_type', 'in', '(dj,soundcheck)')
-                    .order('shows(show_date)', { ascending: false })
-                    .order('id')
-                    .range(rangeStart, rangeEnd);
-
-                if (notSeenError) {
-                    console.error('Error fetching not seen shows page:', notSeenError);
-                    break;
-                }
-
-                if (pageData && pageData.length > 0) {
-                    allNotSeenSetlistData = allNotSeenSetlistData.concat(pageData);
-                    rangeStart += PAGE_SIZE;
-
-                    if (pageData.length < PAGE_SIZE || allNotSeenSetlistData.length >= count) {
-                        hasMore = false;
-                    }
-                } else {
-                    hasMore = false;
-                }
+            if (neededShowsError) {
+                console.error('[Stats] Error fetching most-recent shows for not-seen songs:', neededShowsError);
             }
 
-            const notSeenSetlistData = allNotSeenSetlistData;
-
-            // Group by song_id and get the most recent show for each
-            const songToMostRecentShow = new Map();
-            if (notSeenSetlistData) {
-                notSeenSetlistData.forEach(item => {
-                    if (!songToMostRecentShow.has(item.song_id)) {
-                        songToMostRecentShow.set(item.song_id, item.shows);
-                    }
-                });
-            }
-
-            // Combine song data with most recent show
-            songsNotSeenWithShow = songsNotSeenBasic.map(song => ({
-                ...song,
-                mostRecentShow: songToMostRecentShow.get(song.id) || null
-            }));
+            const showById = new Map((neededShows || []).map(s => [s.id, s]));
+            songsNotSeenWithShow = songsNotSeenBasic.map(song => {
+                const showId = index.lastPlayedShowIdBySong.get(song.id);
+                return { ...song, mostRecentShow: (showId && showById.get(showId)) || null };
+            });
         }
 
         // Past shows (full objects, not just ids) — a future show marked "attending"

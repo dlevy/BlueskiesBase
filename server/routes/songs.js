@@ -3,6 +3,7 @@ const router = express.Router();
 const { supabase } = require('../config/supabase');
 const { computeGlobalSongStats } = require('../utils/songStats');
 const { getSongsCache, setSongsCache, invalidateSongsCache } = require('../utils/songsCache');
+const { computeSetlistIndex } = require('../utils/setlistIndex');
 const { requireAdmin, requireEditorOrAdmin } = require('../middleware/requireRole');
 
 /**
@@ -35,59 +36,15 @@ router.get('/', async (req, res) => {
             songs = songsWithAlbums || [];
         }
 
-        // Get performance counts for each song (count unique shows)
-        const songIds = songs.map(s => s.id);
-
-        // Fetch ALL setlist_songs entries using batch fetching to avoid 1000-row limit
-        let allSetlistSongs = [];
-        let from = 0;
-        const batchSize = 1000;
-        let hasMore = true;
-
-        while (hasMore) {
-            const { data: batch, error: batchError } = await supabase
-                .from('setlist_songs')
-                .select('song_id, show_id, performance_type, shows(show_date)')
-                .in('song_id', songIds)
-                .not('performance_type', 'in', '(dj,soundcheck)')
-                .order('id')
-                .range(from, from + batchSize - 1);
-
-            if (batchError) {
-                console.error('Error fetching setlist songs batch:', batchError);
-                break;
-            }
-
-            if (batch && batch.length > 0) {
-                allSetlistSongs = allSetlistSongs.concat(batch);
-                hasMore = batch.length === batchSize;
-                from += batchSize;
-            } else {
-                hasMore = false;
-            }
-        }
-
-        // Count unique shows per song, and track the most recent show each was played at
-        const performanceCounts = {};
-        const lastPlayed = {}; // song_id -> { show_id, show_date }
-        if (allSetlistSongs.length > 0) {
-            allSetlistSongs.forEach(entry => {
-                if (!performanceCounts[entry.song_id]) {
-                    performanceCounts[entry.song_id] = new Set();
-                }
-                performanceCounts[entry.song_id].add(entry.show_id);
-
-                const showDate = entry.shows?.show_date;
-                if (showDate && (!lastPlayed[entry.song_id] || showDate > lastPlayed[entry.song_id].show_date)) {
-                    lastPlayed[entry.song_id] = { show_id: entry.show_id, show_date: showDate };
-                }
-            });
-        }
+        // Performance counts + most-recent-show per song, from the shared
+        // cached index (see utils/setlistIndex.js) instead of this route
+        // re-scanning every setlist_songs row itself on every cache miss.
+        const index = await computeSetlistIndex();
 
         // One batch fetch of full show info for just the distinct "last played"
         // shows needed (many songs share the same most recent show), shaped to
         // match what client/src/utils/showSlug.js's buildShowPath() expects.
-        const lastPlayedShowIds = [...new Set(Object.values(lastPlayed).map(lp => lp.show_id))];
+        const lastPlayedShowIds = [...new Set(songs.map(s => index.lastPlayedShowIdBySong.get(s.id)).filter(Boolean))];
         let lastPlayedShowById = {};
         if (lastPlayedShowIds.length > 0) {
             const { data: lastPlayedShows, error: lastPlayedError } = await supabase
@@ -102,11 +59,14 @@ router.get('/', async (req, res) => {
         }
 
         // Add performance_count and last_played_show to each song
-        const songsWithCounts = songs.map(song => ({
-            ...song,
-            performance_count: performanceCounts[song.id] ? performanceCounts[song.id].size : 0,
-            last_played_show: lastPlayed[song.id] ? (lastPlayedShowById[lastPlayed[song.id].show_id] || null) : null,
-        }));
+        const songsWithCounts = songs.map(song => {
+            const showId = index.lastPlayedShowIdBySong.get(song.id);
+            return {
+                ...song,
+                performance_count: index.showIdsBySong.get(song.id)?.size || 0,
+                last_played_show: (showId && lastPlayedShowById[showId]) || null,
+            };
+        });
 
         const responseBody = { songs: songsWithCounts };
         setSongsCache(responseBody);
