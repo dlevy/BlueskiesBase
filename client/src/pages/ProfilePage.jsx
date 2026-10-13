@@ -9,7 +9,6 @@ import MainNavTabs from '../components/MainNavTabs';
 import ShowMapShare from '../components/ShowMapShare';
 import Avatar from '../components/Avatar';
 import ExpressInterestForm from '../components/ExpressInterestForm';
-import FactCard from '../components/FactCard';
 import AchievementsPanel from '../components/AchievementsPanel';
 import { getHighestBadge } from '../utils/badges';
 
@@ -178,6 +177,38 @@ function PosterCollectionCard({ entry, isOwnProfile }) {
     );
 }
 
+// A wanted-poster entry is guaranteed a poster image to show (want creation
+// requires an official poster to already exist for the show) except for a
+// handful of legacy entries predating that rule, which render a muted
+// placeholder instead of a broken <img>.
+function PosterWantedCard({ entry }) {
+    return (
+        <Link to={buildShowPath(entry.show)} className="block rounded-xl border border-white/5 bg-white/5 overflow-hidden hover:border-white/20 transition-all">
+            <div className="relative aspect-[2/3] bg-black/20 flex items-center justify-center">
+                {entry.posterUrl ? (
+                    <img src={entry.posterUrl} alt={entry.show.artist_name} className="w-full h-full object-cover" />
+                ) : (
+                    <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>No artwork yet</PText>
+                )}
+                {entry.variant && entry.variant !== 'any' && (
+                    <span
+                        className="absolute top-1.5 right-1.5 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded"
+                        style={{ background: 'rgba(192,132,252,0.85)', color: '#1a0b2e' }}
+                    >
+                        {entry.variant}
+                    </span>
+                )}
+            </div>
+            <div className="p-2">
+                <PText size="xs" weight="semi-bold" ellipsis>{entry.show.artist_name}</PText>
+                <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }} ellipsis>
+                    {formatPosterDate(entry.show.show_date)}{entry.show.venues ? ` · ${entry.show.venues.name}` : ''}
+                </PText>
+            </div>
+        </Link>
+    );
+}
+
 // For plain YYYY-MM-DD show dates — constructed from local y/m/d parts rather than
 // passed straight to `new Date()`, which would parse the bare date as UTC midnight
 // and can display as the previous day in negative-UTC-offset timezones.
@@ -327,144 +358,90 @@ export default function ProfilePage() {
                         {profile.bio}
                     </PText>
                 )}
+
+                {(profile.favoriteShow || profile.favoriteVenue) && (
+                    <PText size="xx-small" color="contrast-medium" className="mt-4 block">
+                        {profile.favoriteShow && (
+                            <span>
+                                <span style={{ color: 'var(--p-color-contrast-low)' }}>Favorite show: </span>
+                                <Link to={buildShowPath(profile.favoriteShow)} className="text-amber-400 hover:opacity-80 transition-opacity">
+                                    {formatDate(profile.favoriteShow.show_date)}
+                                </Link>
+                            </span>
+                        )}
+                        {profile.favoriteShow && profile.favoriteVenue && (
+                            <span style={{ color: 'var(--p-color-contrast-low)' }}> | </span>
+                        )}
+                        {profile.favoriteVenue && (
+                            <span>
+                                <span style={{ color: 'var(--p-color-contrast-low)' }}>Favorite venue: </span>
+                                {profile.favoriteVenue.name}
+                            </span>
+                        )}
+                    </PText>
+                )}
             </div>
 
             {/* Achievements — public for any profile, so members can see each other's */}
             <AchievementsPanel showCount={profile.totalShowsAttended} contributionCount={profile.contributionCount ?? 0} />
 
-            {/* Stats */}
-            <div className="space-y-4">
-                <div className="flex items-center justify-between gap-2">
-                    <PHeading size="md" tag="h2">By the Numbers</PHeading>
-                    {isOwnProfile && (
-                        <Link to="/?tab=myshows" className="text-xs font-medium text-amber-400 hover:opacity-80 transition-opacity shrink-0">
-                            View full stats →
-                        </Link>
-                    )}
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                    <FactCard compact label="Shows Attended" value={profile.totalShowsAttended} />
-                    {profile.firstShow && (
-                        <FactCard compact label="First Show" value={formatDate(profile.firstShow.show_date)} />
-                    )}
-                    {profile.favoriteShow && (
-                        <FactCard
-                            compact
-                            label="Favorite Show"
-                            value={profile.favoriteShow.artist_name}
-                            sub={`${formatDate(profile.favoriteShow.show_date)}${profile.favoriteShow.venues ? ' · ' + profile.favoriteShow.venues.name : ''}`}
-                        />
-                    )}
-                    {profile.favoriteVenue && (
-                        <FactCard compact label="Favorite Venue" value={profile.favoriteVenue.name} sub={profile.favoriteVenue.city} />
-                    )}
-                    {profile.uniqueCities > 0 && (
-                        <FactCard compact label="Cities Visited" value={`${profile.uniqueCities} cities`} />
-                    )}
-                </div>
-            </div>
-
             {/* Debuts witnessed — the actual songs + dates, not just a count */}
-            {(profile.liveDebuts?.length > 0 || profile.tourDebuts?.length > 0) && (
-                <div className="space-y-4">
-                    <PHeading size="md" tag="h2">Debuts Witnessed</PHeading>
-                    {/* Two columns only when both sections have entries — one column
-                        (full width) otherwise, so a single section doesn't leave a
-                        blank gap where the other column would have been. */}
-                    <div className={`grid grid-cols-1 gap-4 ${profile.liveDebuts?.length > 0 && profile.tourDebuts?.length > 0 ? 'md:grid-cols-2' : ''}`}>
-                        {profile.liveDebuts?.length > 0 && (
-                            <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-5">
-                                <PText size="xs" weight="semi-bold" className="uppercase tracking-wide mb-3" style={{ color: '#34d399' }}>
-                                    Live Debuts ({profile.liveDebuts.length})
-                                </PText>
-                                <ul className="space-y-1">
-                                    {profile.liveDebuts.map((d, i) => {
-                                        const content = (
-                                            <>
-                                                <PText size="small" ellipsis>{d.title || 'Unknown song'}</PText>
-                                                {d.showDate && (
-                                                    <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }} className="shrink-0 whitespace-nowrap">
-                                                        {formatDate(d.showDate)}
-                                                    </PText>
-                                                )}
-                                            </>
-                                        );
-                                        return (
-                                            <li key={`${d.songId}-${i}`}>
-                                                {d.show ? (
-                                                    <Link to={buildShowPath(d.show)} className="flex items-center justify-between gap-3 py-1 px-2 -mx-2 rounded-lg hover:bg-white/5 transition-colors">
-                                                        {content}
-                                                    </Link>
-                                                ) : (
-                                                    <div className="flex items-center justify-between gap-3 py-1">{content}</div>
-                                                )}
-                                            </li>
-                                        );
-                                    })}
-                                </ul>
-                            </div>
-                        )}
-                        {profile.tourDebuts?.length > 0 && (
-                            <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-5">
-                                <PText size="xs" weight="semi-bold" className="uppercase tracking-wide mb-3" style={{ color: '#22d3ee' }}>
-                                    Tour Debuts ({profile.tourDebuts.length})
-                                </PText>
-                                <ul className="space-y-1">
-                                    {profile.tourDebuts.map((d, i) => {
-                                        const content = (
-                                            <>
-                                                <PText size="small" ellipsis>{d.title || 'Unknown song'}</PText>
-                                                {d.showDate && (
-                                                    <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }} className="shrink-0 whitespace-nowrap">
-                                                        {formatDate(d.showDate)}
-                                                    </PText>
-                                                )}
-                                            </>
-                                        );
-                                        return (
-                                            <li key={`${d.songId}-${i}`}>
-                                                {d.show ? (
-                                                    <Link to={buildShowPath(d.show)} className="flex items-center justify-between gap-3 py-1 px-2 -mx-2 rounded-lg hover:bg-white/5 transition-colors">
-                                                        {content}
-                                                    </Link>
-                                                ) : (
-                                                    <div className="flex items-center justify-between gap-3 py-1">{content}</div>
-                                                )}
-                                            </li>
-                                        );
-                                    })}
-                                </ul>
-                            </div>
-                        )}
-                    </div>
+            {profile.liveDebuts?.length > 0 && (
+                <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-5">
+                    <PHeading size="lg" tag="h2">Debuts Witnessed</PHeading>
+                    <ul className="mt-3 space-y-1">
+                        {profile.liveDebuts.map((d, i) => {
+                            const content = (
+                                <>
+                                    <PText size="small" ellipsis>{d.title || 'Unknown song'}</PText>
+                                    {d.showDate && (
+                                        <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }} className="shrink-0 whitespace-nowrap">
+                                            {formatDate(d.showDate)}
+                                        </PText>
+                                    )}
+                                </>
+                            );
+                            return (
+                                <li key={`${d.songId}-${i}`}>
+                                    {d.show ? (
+                                        <Link to={buildShowPath(d.show)} className="flex items-center justify-between gap-3 py-1 px-2 -mx-2 rounded-lg hover:bg-white/5 transition-colors">
+                                            {content}
+                                        </Link>
+                                    ) : (
+                                        <div className="flex items-center justify-between gap-3 py-1">{content}</div>
+                                    )}
+                                </li>
+                            );
+                        })}
+                    </ul>
                 </div>
             )}
 
-            {/* Map + Shows Attended, side-by-side as one "Shows" view — only present if
-                this user opted in to sharing attendance */}
+            {/* Show map — full width, only present if this user opted in to sharing attendance */}
             {profile.attendedShows && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
-                    <ShowMapShare pastShows={profile.attendedShows} upcomingShows={profile.upcomingShows || []} title={`${displayLabel}'s Show Map`} />
+                <ShowMapShare pastShows={profile.attendedShows} upcomingShows={profile.upcomingShows || []} title={`${displayLabel}'s Show Map`} />
+            )}
 
-                    <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6">
-                        <PHeading size="lg" tag="h2">Shows Attended</PHeading>
-                        <div className="mt-4 space-y-2">
-                            {profile.attendedShows.map(show => (
-                                <Link
-                                    key={show.id}
-                                    to={buildShowPath(show)}
-                                    className="block rounded-xl border border-white/5 bg-white/5 p-4 hover:bg-white/10 hover:border-white/20 transition-all"
-                                >
-                                    <PText weight="semi-bold">{formatDate(show.show_date)}</PText>
-                                    <PText size="sm" color="contrast-medium">{show.artist_name}</PText>
-                                    {show.venues && (
-                                        <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>
-                                            {show.venues.name} · {show.venues.city}, {show.venues.state_country}
-                                        </PText>
-                                    )}
-                                </Link>
-                            ))}
-                        </div>
+            {/* Shows attended — full width, below the map */}
+            {profile.attendedShows && (
+                <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6">
+                    <PHeading size="lg" tag="h2">Shows Attended</PHeading>
+                    <div className="mt-4 space-y-2">
+                        {profile.attendedShows.map(show => (
+                            <Link
+                                key={show.id}
+                                to={buildShowPath(show)}
+                                className="block rounded-xl border border-white/5 bg-white/5 p-4 hover:bg-white/10 hover:border-white/20 transition-all"
+                            >
+                                <PText weight="semi-bold">{formatDate(show.show_date)}</PText>
+                                <PText size="sm" color="contrast-medium">{show.artist_name}</PText>
+                                {show.venues && (
+                                    <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>
+                                        {show.venues.name} · {show.venues.city}, {show.venues.state_country}
+                                    </PText>
+                                )}
+                            </Link>
+                        ))}
                     </div>
                 </div>
             )}
@@ -489,31 +466,11 @@ export default function ProfilePage() {
                     <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }} className="mt-1 block">
                         Looking to find a poster for these shows
                     </PText>
-                    <ul className="mt-4 space-y-1">
+                    <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                         {profile.postersWanted.map(entry => (
-                            <li key={entry.id}>
-                                <Link
-                                    to={buildShowPath(entry.show)}
-                                    className="flex items-center justify-between gap-3 py-2 px-2 -mx-2 rounded-lg hover:bg-white/5 transition-colors"
-                                >
-                                    <div className="min-w-0">
-                                        <PText size="small" weight="semi-bold" ellipsis>{entry.show.artist_name}</PText>
-                                        <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>
-                                            {formatDate(entry.show.show_date)}{entry.show.venues ? ` · ${entry.show.venues.name}` : ''}
-                                        </PText>
-                                    </div>
-                                    {entry.variant && entry.variant !== 'any' && (
-                                        <span
-                                            className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full shrink-0"
-                                            style={{ background: 'rgba(192,132,252,0.15)', color: '#c084fc' }}
-                                        >
-                                            {entry.variant}
-                                        </span>
-                                    )}
-                                </Link>
-                            </li>
+                            <PosterWantedCard key={entry.id} entry={entry} />
                         ))}
-                    </ul>
+                    </div>
                 </div>
             )}
         </div>

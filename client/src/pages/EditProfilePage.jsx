@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { PHeading, PText, PButton, PInlineNotification } from '@porsche-design-system/components-react';
 import { useAuth } from '../contexts/AuthContext';
 import {
-    updateMyProfile, uploadAvatar, getUserStats, getShows,
+    updateMyProfile, uploadAvatar, getUserStats,
     getAllPosters, getMyPosterCollection, addToPosterCollection, removeFromPosterCollection,
     getMyPosterWants, addPosterWant, removePosterWant,
 } from '../services/api';
@@ -99,7 +99,6 @@ export default function EditProfilePage() {
     const [selectedPosterId, setSelectedPosterId] = useState('');
     const [posterError, setPosterError] = useState('');
 
-    const [allShows, setAllShows] = useState([]);
     const [myWants, setMyWants] = useState([]);
     const [selectedWantShowId, setSelectedWantShowId] = useState('');
     const [selectedWantVariant, setSelectedWantVariant] = useState('any');
@@ -199,16 +198,23 @@ export default function EditProfilePage() {
 
     useEffect(() => {
         if (!user) return;
-        getShows(1, 1000)
-            .then(data => setAllShows(data.shows || []))
-            .catch(err => console.error('[EditProfilePage] Error loading shows:', err));
         loadPosterWants();
     }, [user]);
 
     // A show can only be wanted once (server enforces this too) — regardless of
     // variant, since the variant preference lives on that one entry.
     const wantedShowIds = new Set(myWants.map(w => w.shows?.id));
-    const availableShowsForWant = allShows
+    // A want can only be flagged for a show that already has an official poster
+    // (server enforces this too), so the picker is built from the shows already
+    // linked to a poster rather than every show — a poster can link to more than
+    // one show (linkedShows, from a whole-tour-leg poster), so dedupe across those.
+    const showsWithPosters = new Map();
+    allPosters.forEach(p => {
+        (p.linkedShows || (p.shows ? [p.shows] : [])).forEach(s => {
+            if (s?.id && !showsWithPosters.has(s.id)) showsWithPosters.set(s.id, s);
+        });
+    });
+    const availableShowsForWant = [...showsWithPosters.values()]
         .filter(s => !wantedShowIds.has(s.id))
         .sort((a, b) => b.show_date.localeCompare(a.show_date));
 
@@ -516,10 +522,12 @@ export default function EditProfilePage() {
                 </div>
             </div>
 
-            {/* Posters Wanted — a wishlist, separate from the collection above.
-                Any show can be picked, not just ones attended — the point is
-                acquiring a poster you don't have, which has nothing to do with
-                whether you were there. */}
+            {/* Posters Wanted — a wishlist, separate from the collection above. Any
+                show can be picked, not just ones attended — the point is acquiring
+                a poster you don't have, which has nothing to do with whether you
+                were there. Limited to shows that already have an official poster
+                (server enforces this too), so there's always real art to show for
+                it on the public profile. */}
             <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 space-y-4">
                 <div>
                     <PHeading size="lg" tag="h2">Posters I'm Looking For</PHeading>

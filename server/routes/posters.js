@@ -1044,6 +1044,18 @@ router.post('/wants', authenticate, async (req, res) => {
             return res.status(404).json({ error: 'Show not found' });
         }
 
+        // A want can only be flagged for a show that already has an official
+        // poster — guarantees the public profile always has a real image to show.
+        const { data: posterLink } = await supabaseAdmin
+            .from('poster_show_links')
+            .select('show_id')
+            .eq('show_id', showId)
+            .limit(1)
+            .maybeSingle();
+        if (!posterLink) {
+            return res.status(400).json({ error: "This show doesn't have an official poster yet" });
+        }
+
         const { data, error } = await supabaseAdmin
             .from('user_poster_wants')
             .upsert(

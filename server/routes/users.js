@@ -792,13 +792,43 @@ router.get('/profile/:username', async (req, res) => {
             `)
             .eq('user_id', profile.id);
 
+        const wantedShowIds = [...new Set((wantRows || []).filter(row => row.shows).map(row => row.shows.id))];
+
+        // A want can only be created for a show that already has an official
+        // poster (enforced in POST /api/posters/wants), so this resolves a real
+        // image for virtually every entry — picked to match the wanted variant
+        // when possible, falling back to any available poster for that show.
+        // Legacy wants predating that rule may still have no poster at all.
+        const postersByShowId = new Map();
+        if (wantedShowIds.length > 0) {
+            const { data: linkRows } = await supabase
+                .from('poster_show_links')
+                .select('show_id, user_posters ( poster_url, is_foil )')
+                .in('show_id', wantedShowIds);
+            (linkRows || []).forEach(row => {
+                if (!row.user_posters) return;
+                if (!postersByShowId.has(row.show_id)) postersByShowId.set(row.show_id, []);
+                postersByShowId.get(row.show_id).push(row.user_posters);
+            });
+        }
+
         const postersWanted = (wantRows || [])
             .filter(row => row.shows)
-            .map(row => ({
-                id: row.id,
-                variant: row.variant,
-                show: row.shows,
-            }))
+            .map(row => {
+                const candidates = postersByShowId.get(row.shows.id) || [];
+                const match = row.variant === 'foil'
+                    ? candidates.find(p => p.is_foil)
+                    : row.variant === 'regular'
+                        ? candidates.find(p => !p.is_foil)
+                        : null;
+                const poster = match || candidates[0];
+                return {
+                    id: row.id,
+                    variant: row.variant,
+                    show: row.shows,
+                    posterUrl: poster?.poster_url,
+                };
+            })
             .sort((a, b) => b.show.show_date.localeCompare(a.show.show_date));
 
         // Community contribution count — powers the Community achievement track,
