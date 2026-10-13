@@ -9,7 +9,7 @@ export const BADGES = [
     },
     {
         id: 'long-white-line',
-        threshold: 5,
+        threshold: 3,
         emoji: '🛣️',
         name: 'Long White Line',
         song: 'Long White Line',
@@ -17,7 +17,7 @@ export const BADGES = [
     },
     {
         id: 'between-the-lines',
-        threshold: 10,
+        threshold: 5,
         emoji: '🎸',
         name: 'Between the Lines',
         song: 'Keep It Between the Lines',
@@ -25,7 +25,7 @@ export const BADGES = [
     },
     {
         id: 'old-king-coal',
-        threshold: 25,
+        threshold: 10,
         emoji: '⛏️',
         name: 'Old King Coal',
         song: 'Old King Coal',
@@ -33,7 +33,7 @@ export const BADGES = [
     },
     {
         id: 'turtles',
-        threshold: 50,
+        threshold: 15,
         emoji: '🐢',
         name: 'Turtles All the Way Down',
         song: 'Turtles All the Way Down',
@@ -41,7 +41,7 @@ export const BADGES = [
     },
     {
         id: 'brace-for-impact',
-        threshold: 75,
+        threshold: 20,
         emoji: '💥',
         name: 'Brace for Impact',
         song: 'Brace for Impact (Live a Little)',
@@ -49,7 +49,7 @@ export const BADGES = [
     },
     {
         id: 'crown',
-        threshold: 100,
+        threshold: 30,
         emoji: '👑',
         name: 'You Can Have the Crown',
         song: 'You Can Have the Crown',
@@ -85,8 +85,8 @@ export const COMMUNITY_TIERS = [
     {
         id: 'regular',
         threshold: 5,
-        emoji: '🔧',
-        name: 'Regular',
+        emoji: '🤝',
+        name: 'Helping Hand',
         desc: 'A steady hand around here',
     },
     {

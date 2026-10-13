@@ -6,7 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import MainNavTabs from '../components/MainNavTabs';
 import SEO from '../components/SEO';
 import Avatar from '../components/Avatar';
-import { getHighestBadge } from '../utils/badges';
+import { getHighestBadge, getHighestCommunityTier } from '../utils/badges';
 
 // Same badge look as ProfilePage.jsx's role badges, kept minimal here since a
 // directory card only needs a compact indicator, not the full badge treatment.
@@ -15,21 +15,33 @@ const ROLE_RANK = { admin: 0, editor: 1 };
 
 const nameOf = (m) => (m.displayName || m.username || '').toLowerCase();
 
+// For full ISO timestamps (e.g. profiles.created_at) — these already carry an
+// explicit UTC offset, so no manual y/m/d reconstruction is needed here.
+function formatDateTime(isoString) {
+    return new Date(isoString).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
 function MemberCard({ member }) {
     const name = member.displayName || member.username;
     const roleLabel = ROLE_LABEL[member.role];
     const attendanceBadge = getHighestBadge(member.showsAttended);
+    const communityBadge = getHighestCommunityTier(member.contributionCount);
 
     return (
         <Link
             to={`/profile/${member.username}`}
-            className="flex flex-col items-center text-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-4 hover:border-amber-500/30 hover:-translate-y-0.5 transition-all"
+            className="flex flex-col items-start text-left gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-4 hover:border-amber-500/30 hover:-translate-y-0.5 transition-all"
         >
-            <Avatar url={member.avatarUrl} name={name} size="lg" badge={attendanceBadge} />
+            <Avatar url={member.avatarUrl} name={name} size="lg" badge={attendanceBadge} communityBadge={communityBadge} />
             <div className="min-w-0 w-full">
                 <PText weight="semi-bold" ellipsis>{name}</PText>
                 {member.location && (
                     <PText size="xs" color="contrast-medium" ellipsis>{member.location}</PText>
+                )}
+                {member.memberSince && (
+                    <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }} ellipsis>
+                        Member since {formatDateTime(member.memberSince)}
+                    </PText>
                 )}
                 {roleLabel && (
                     <span

@@ -22,6 +22,27 @@ function resolveTodayStr(candidate) {
         : new Date().toISOString().slice(0, 10);
 }
 
+// Tallies one table's rows per user_id into a shared counts object — paginated
+// since any of these can exceed PostgREST's 1000-row default as the community
+// grows. Used by GET /directory to compute each member's community-contribution
+// count (utils/badges.js's COMMUNITY_TIERS) across all four content tables at
+// once, the same way GET /stats and GET /profile/:username already do for a
+// single user.
+async function tallyUserIdCounts(table, counts) {
+    for (let rangeStart = 0; ;) {
+        const { data: page, error } = await supabase
+            .from(table)
+            .select('user_id')
+            .range(rangeStart, rangeStart + 999);
+        if (error) throw new Error(`Failed to fetch ${table}: ` + error.message);
+        (page || []).forEach(row => {
+            if (row.user_id) counts[row.user_id] = (counts[row.user_id] || 0) + 1;
+        });
+        if (!page || page.length < 1000) break;
+        rangeStart += 1000;
+    }
+}
+
 const AVATARS_BUCKET = 'avatars';
 
 const uploadAvatarFile = multer({
@@ -481,7 +502,7 @@ router.get('/directory', async (req, res) => {
 
         const { data, error } = await supabase
             .from('profiles')
-            .select('id, username, display_name, location, avatar_url, role, hide_from_directory')
+            .select('id, username, display_name, location, avatar_url, role, hide_from_directory, created_at')
             .order('username', { ascending: true });
 
         if (error) {
@@ -515,6 +536,17 @@ router.get('/directory', async (req, res) => {
             rangeStart += 1000;
         }
 
+        // Community-contribution count per member, so the client can compute
+        // each member's highest community tier (utils/badges.js) the same way
+        // GET /profile/:username's contributionCount does.
+        const contributionCounts = {};
+        await Promise.all([
+            tallyUserIdCounts('user_notes', contributionCounts),
+            tallyUserIdCounts('setlist_submissions', contributionCounts),
+            tallyUserIdCounts('user_photos', contributionCounts),
+            tallyUserIdCounts('user_posters', contributionCounts),
+        ]);
+
         const members = (data || [])
             .filter(p => p.username && !p.hide_from_directory)
             .map(p => ({
@@ -525,6 +557,8 @@ router.get('/directory', async (req, res) => {
                 avatarUrl: p.avatar_url || null,
                 role: p.role || 'member',
                 showsAttended: attendedCounts[p.id] || 0,
+                contributionCount: contributionCounts[p.id] || 0,
+                memberSince: p.created_at,
             }));
 
         res.json({ members });

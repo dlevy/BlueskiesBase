@@ -54,6 +54,14 @@ function TierRow({ title, tiers, count, highest, next, unit }) {
                                         ★
                                     </span>
                                 )}
+                                {isEarned && !isHighest && (
+                                    <span
+                                        className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full flex items-center justify-center"
+                                        style={{ background: '#22c55e', fontSize: 9, color: '#07150c' }}
+                                    >
+                                        ✓
+                                    </span>
+                                )}
                             </div>
                             <span
                                 className="text-center leading-tight"
@@ -74,8 +82,8 @@ function TierRow({ title, tiers, count, highest, next, unit }) {
             {highest && next && (
                 <div className="space-y-1">
                     <div className="flex justify-between text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>
-                        <span>{highest.emoji} {highest.name}</span>
-                        <span>{next.threshold - count} more to unlock {next.emoji} {next.name}</span>
+                        <span>{highest.name}</span>
+                        <span>{next.threshold - count} more to unlock the next badge</span>
                     </div>
                     <div className="rounded-full h-1.5 overflow-hidden" style={{ background: 'rgba(255,255,255,0.07)' }}>
                         <div

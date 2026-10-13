@@ -86,6 +86,7 @@ export default function SetlistSubmissionSection({ showId, thanksRows = [], onTh
     const [mySubmissionId, setMySubmissionId] = useState(null);
     const [mySongs, setMySongs] = useState([]); // [{ id, song_id, title, merged_into_setlist }]
     const [myNote, setMyNote] = useState('');
+    const [showNoteField, setShowNoteField] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [saving, setSaving] = useState(false);
 
@@ -322,13 +323,19 @@ export default function SetlistSubmissionSection({ showId, thanksRows = [], onTh
                                 placeholder="Type a song title, press Enter to add…"
                             />
 
-                            <textarea
-                                value={myNote}
-                                onChange={(e) => setMyNote(e.target.value)}
-                                placeholder={'Optional note — e.g. "pretty sure I\'m missing a couple from the encore"'}
-                                className={textareaClass}
-                                rows="2"
-                            />
+                            {showNoteField || myNote ? (
+                                <textarea
+                                    value={myNote}
+                                    onChange={(e) => setMyNote(e.target.value)}
+                                    placeholder={'Optional note — e.g. "pretty sure I\'m missing a couple from the encore"'}
+                                    className={textareaClass}
+                                    rows="2"
+                                />
+                            ) : (
+                                <button type="button" className={btnSecondary} style={{ color: 'var(--p-color-contrast-medium)' }} onClick={() => setShowNoteField(true)}>
+                                    + Add optional note
+                                </button>
+                            )}
 
                             <div className="flex gap-2">
                                 <button className={btnPrimary} disabled={saving} onClick={handleSave}>

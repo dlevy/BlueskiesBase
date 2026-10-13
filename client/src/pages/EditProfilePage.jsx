@@ -368,9 +368,9 @@ export default function EditProfilePage() {
             <form onSubmit={handleSubmit} className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 space-y-5">
                 <div className="flex items-center gap-4">
                     {avatarPreview ? (
-                        <img src={avatarPreview} alt="Avatar preview" className="w-16 h-16 rounded-full object-cover border border-white/10" />
+                        <img src={avatarPreview} alt="Avatar preview" className="w-16 h-16 rounded-full object-cover" style={{ boxShadow: '0 0 0 1px rgba(255,255,255,0.25)' }} />
                     ) : (
-                        <div className="w-16 h-16 rounded-full border border-white/10 flex items-center justify-center text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>
+                        <div className="w-16 h-16 rounded-full flex items-center justify-center text-xs" style={{ color: 'var(--p-color-contrast-low)', boxShadow: '0 0 0 1px rgba(255,255,255,0.25)' }}>
                             No photo
                         </div>
                     )}
