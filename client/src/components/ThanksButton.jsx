@@ -5,13 +5,14 @@ import { addThanks, removeThanks } from '../services/api';
 
 function HeartIcon({ filled }) {
     return (
-        <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={filled ? 0 : 2}>
+        <svg className="w-[18px] h-[18px] shrink-0" viewBox="0 0 24 24" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={filled ? 0 : 2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 21s-6.716-4.35-9.428-8.272C.814 9.953 1.5 6.5 4.5 5.1 7 3.93 9.5 5 12 8c2.5-3 5-4.07 7.5-2.9 3 1.4 3.686 4.853 1.928 7.628C18.716 16.65 12 21 12 21z" />
         </svg>
     );
 }
 
 function namesLabel(names) {
+    if (names.length === 0) return '';
     if (names.length === 1) return `Thanked by ${names[0]}`;
     if (names.length === 2) return `Thanked by ${names[0]} and ${names[1]}`;
     if (names.length === 3) return `Thanked by ${names[0]}, ${names[1]} and ${names[2]}`;
@@ -72,17 +73,15 @@ export default function ThanksButton({ contentType, contentId, count, thankedByM
                 onClick={interactive ? handleClick : undefined}
                 disabled={!interactive || pending}
                 aria-pressed={thankedByMe}
+                aria-label={thankedByMe ? 'Thanked' : 'Thanks'}
                 title={!interactive ? namesLabel(thankedByNames) || undefined : undefined}
-                className={`inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full border text-xs font-medium transition-all disabled:opacity-100 ${
+                className={`inline-flex items-center gap-1 transition-all disabled:opacity-100 ${
                     interactive ? 'cursor-pointer hover:brightness-110' : 'cursor-default'
                 }`}
-                style={thankedByMe
-                    ? { color: '#f59e0b', borderColor: 'rgba(245,158,11,0.45)', background: 'rgba(245,158,11,0.12)' }
-                    : { color: 'var(--p-color-contrast-medium)', borderColor: 'rgba(255,255,255,0.18)', background: 'rgba(255,255,255,0.04)' }}
+                style={{ color: thankedByMe ? '#f59e0b' : 'var(--p-color-contrast-medium)' }}
             >
                 <HeartIcon filled={thankedByMe} />
-                {thankedByMe ? 'Thanked' : 'Thanks'}
-                {count > 0 && <span className="opacity-80">· {count}</span>}
+                {count > 0 && <span className="text-xs">{count}</span>}
             </button>
             <NamesTooltip names={thankedByNames} />
         </span>

@@ -304,22 +304,19 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
 
     return (
         <div className="space-y-3">
-            <PText size="xs" weight="semi-bold" className="uppercase tracking-wide" style={{ color: isFoil ? '#c084fc' : 'var(--p-color-contrast-medium)' }}>
-                {label}
-            </PText>
+            <div className="flex items-center justify-between gap-2">
+                <PText size="xs" weight="semi-bold" className="uppercase tracking-wide" style={{ color: isFoil ? '#c084fc' : 'var(--p-color-contrast-medium)' }}>
+                    {label}
+                </PText>
+                {canUpload && !showUploadForm && (
+                    <PButtonPure size="x-small" icon="upload" hideLabel onClick={openUploadForm}>
+                        {poster ? `Replace ${label}` : `Upload ${label}`}
+                    </PButtonPure>
+                )}
+            </div>
 
             {error && (
                 <PInlineNotification heading="Error" description={error} state="error" dismissButton={false} />
-            )}
-
-            {canUpload && !showUploadForm && (
-                <button
-                    className={btnSecondary}
-                    style={{ color: 'var(--p-color-contrast-medium)' }}
-                    onClick={openUploadForm}
-                >
-                    {poster ? `Replace ${label}` : `Upload ${label}`}
-                </button>
             )}
 
             {showUploadForm && (

@@ -87,22 +87,22 @@ export default function PhotosSection({ showId, thanksRows = [], onThanksChanged
 
     return (
         <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 space-y-4">
-            <PHeading size="lg" tag="h2">Photos</PHeading>
+            <div className="flex items-center justify-between gap-2">
+                <PHeading size="lg" tag="h2">Photos</PHeading>
+                {user && !showUploadForm && (
+                    <button
+                        className={btnSecondary}
+                        style={{ color: 'var(--p-color-contrast-medium)' }}
+                        onClick={() => setShowUploadForm(true)}
+                    >
+                        Upload Photo
+                    </button>
+                )}
+            </div>
             <PDivider />
 
             {error && (
                 <PInlineNotification heading="Error" description={error} state="error" dismissButton={false} />
-            )}
-
-            {/* Upload trigger — left-aligned, shown when form is closed */}
-            {user && !showUploadForm && (
-                <button
-                    className={btnSecondary}
-                    style={{ color: 'var(--p-color-contrast-medium)' }}
-                    onClick={() => setShowUploadForm(true)}
-                >
-                    Upload Photo
-                </button>
             )}
 
             {/* Upload Form */}
@@ -159,17 +159,12 @@ export default function PhotosSection({ showId, thanksRows = [], onThanksChanged
                         </div>
                     </div>
 
-                    <div className="flex items-start justify-between gap-3">
-                        <div>
-                            {photos[currentPhotoIndex].caption && (
-                                <PText size="sm">{photos[currentPhotoIndex].caption}</PText>
-                            )}
-                            <PText size="2xs" style={{ color: 'var(--p-color-contrast-low)' }}>
-                                Uploaded by {photos[currentPhotoIndex].profiles?.username
-                                    ? <Link to={`/profile/${photos[currentPhotoIndex].profiles.username}`} className="hover:underline">{photos[currentPhotoIndex].profiles.display_name || photos[currentPhotoIndex].profiles.username}</Link>
-                                    : 'Anonymous'} · {new Date(photos[currentPhotoIndex].created_at).toLocaleDateString()}
-                            </PText>
-                            <div className="mt-1">
+                    <div className="space-y-2">
+                        {photos[currentPhotoIndex].caption && (
+                            <PText size="sm" align="center">{photos[currentPhotoIndex].caption}</PText>
+                        )}
+                        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                            <div className="justify-self-start">
                                 <ThanksButton
                                     contentType="photo"
                                     contentId={currentPhoto.id}
@@ -180,12 +175,19 @@ export default function PhotosSection({ showId, thanksRows = [], onThanksChanged
                                     onToggled={onThanksChanged}
                                 />
                             </div>
+                            <span className="justify-self-center text-center text-[11px]" style={{ color: 'var(--p-color-contrast-low)' }}>
+                                Uploaded by {photos[currentPhotoIndex].profiles?.username
+                                    ? <Link to={`/profile/${photos[currentPhotoIndex].profiles.username}`} className="hover:underline">{photos[currentPhotoIndex].profiles.display_name || photos[currentPhotoIndex].profiles.username}</Link>
+                                    : 'Anonymous'}
+                            </span>
+                            <div className="justify-self-end">
+                                {(isEditorOrAdmin || (user && photos[currentPhotoIndex].user_id === user.id)) && (
+                                    <PButtonPure size="x-small" icon="delete" hideLabel onClick={() => handleDelete(photos[currentPhotoIndex].id)}>
+                                        Delete
+                                    </PButtonPure>
+                                )}
+                            </div>
                         </div>
-                        {(isEditorOrAdmin || (user && photos[currentPhotoIndex].user_id === user.id)) && (
-                            <PButtonPure size="x-small" icon="delete" onClick={() => handleDelete(photos[currentPhotoIndex].id)}>
-                                Delete
-                            </PButtonPure>
-                        )}
                     </div>
 
                     {photos.length > 1 && (

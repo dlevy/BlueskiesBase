@@ -180,17 +180,18 @@ export default function CommentsSection({ showId, thanksRows = [], onThanksChang
 
     return (
         <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 space-y-4">
-            <PHeading size="lg" tag="h2">Comments</PHeading>
+            <div className="flex items-center justify-between gap-2">
+                <PHeading size="lg" tag="h2">Comments</PHeading>
+                {user && !showAddForm && (
+                    <button className={btnPrimary} onClick={handleAddClick}>
+                        Add Comment
+                    </button>
+                )}
+            </div>
             <PDivider />
 
             {error && (
                 <PInlineNotification heading="Error" description={error} state="error" dismissButton={false} />
-            )}
-
-            {user && !showAddForm && (
-                <button className={btnPrimary} onClick={handleAddClick}>
-                    Add Comment
-                </button>
             )}
 
             {user && showAddForm && (
