@@ -83,7 +83,7 @@ export default function TourStatsPage() {
         let cancelled = false;
         (async () => {
             try {
-                const [list, defaultTour, geo] = await Promise.all([fetchTourList(), fetchDefaultTourName(), fetchGeographyOptions()]);
+                const [list, defaultTour] = await Promise.all([fetchTourList(), fetchDefaultTourName()]);
                 if (cancelled) return;
                 // Fall back to the most recent listed tour if the "current" tour got
                 // filtered out of the list (fewer than MIN_TOUR_SHOWS shows). Computed
@@ -91,7 +91,6 @@ export default function TourStatsPage() {
                 const validDefault = list.some(t => t.tourName === defaultTour) ? defaultTour : null;
                 setSelectedTour(validDefault || list[0]?.tourName || '');
                 setTours([...list, { tourName: ALL_SHOWS }]);
-                setGeoOptions(geo);
             } catch (err) {
                 console.error('[TourStatsPage] Error loading tour list:', err);
                 if (!cancelled) setError('Failed to load tours');
@@ -101,6 +100,21 @@ export default function TourStatsPage() {
         })();
         return () => { cancelled = true; };
     }, []);
+
+    // State/Country dropdown options are scoped to whichever tour is selected
+    // (so e.g. picking "Mutiny for the Masses" only offers the states/countries
+    // that tour actually played) — reload them whenever the tour changes, and
+    // clear any filter that might no longer be valid for the new option list.
+    useEffect(() => {
+        if (!selectedTour) return;
+        let cancelled = false;
+        fetchGeographyOptions(selectedTour === ALL_SHOWS ? undefined : selectedTour)
+            .then(geo => { if (!cancelled) setGeoOptions(geo); })
+            .catch(err => console.error('[TourStatsPage] Error loading geography options:', err));
+        setStateFilter('');
+        setCountryFilter('');
+        return () => { cancelled = true; };
+    }, [selectedTour]);
 
     // Load song counts whenever the selected tour or geography filter changes.
     useEffect(() => {

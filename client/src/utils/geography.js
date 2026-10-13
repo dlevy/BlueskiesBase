@@ -69,24 +69,45 @@ export function getStateName(state_country) {
     return null;
 }
 
-// Distinct State/Country filter options, derived from every venue's
-// state_country value — paginated the same way fetchTourList pages through
-// shows, since venues can exceed PostgREST's 1000-row default too.
-export async function fetchGeographyOptions() {
-    let rows = [];
-    for (let rangeStart = 0; ;) {
-        const { data: page, error } = await supabase
-            .from('venues')
-            .select('state_country')
-            .order('id')
-            .range(rangeStart, rangeStart + 999);
-        if (error || !page?.length) break;
-        rows = rows.concat(page);
-        if (page.length < 1000) break;
-        rangeStart += 1000;
+// Distinct State/Country filter options. With no `tourName`, derived from
+// every venue's state_country value (paginated the same way fetchTourList
+// pages through shows, since venues can exceed PostgREST's 1000-row default
+// too) — used for the sitewide Search filters. With a `tourName`, scoped to
+// just that tour's shows instead, so e.g. Tour Stats' State/Country dropdowns
+// only list places that tour actually played.
+export async function fetchGeographyOptions(tourName) {
+    let raw;
+    if (tourName) {
+        let rows = [];
+        for (let rangeStart = 0; ;) {
+            const { data: page, error } = await supabase
+                .from('shows')
+                .select('venues ( state_country )')
+                .eq('tour_name', tourName)
+                .order('id')
+                .range(rangeStart, rangeStart + 999);
+            if (error || !page?.length) break;
+            rows = rows.concat(page);
+            if (page.length < 1000) break;
+            rangeStart += 1000;
+        }
+        raw = rows.map(r => r.venues?.state_country).filter(Boolean);
+    } else {
+        let rows = [];
+        for (let rangeStart = 0; ;) {
+            const { data: page, error } = await supabase
+                .from('venues')
+                .select('state_country')
+                .order('id')
+                .range(rangeStart, rangeStart + 999);
+            if (error || !page?.length) break;
+            rows = rows.concat(page);
+            if (page.length < 1000) break;
+            rangeStart += 1000;
+        }
+        raw = rows.map(r => r.state_country).filter(Boolean);
     }
 
-    const raw = rows.map(r => r.state_country).filter(Boolean);
     const states = [...new Set(raw.map(getStateName).filter(Boolean))].sort((a, b) => a.localeCompare(b));
     const countries = [...new Set(raw.map(getCountry).filter(Boolean))].sort((a, b) => a.localeCompare(b));
     return { states, countries };
