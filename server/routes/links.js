@@ -171,7 +171,7 @@ router.get('/', async (req, res) => {
  */
 router.post('/', requireEditorOrAdmin, async (req, res) => {
     try {
-        const { category_id, member_id, title, url, description, sort_order } = req.body;
+        const { category_id, member_id, title, url, description, sort_order, nofollow } = req.body;
 
         if (!title || !title.trim()) {
             return res.status(400).json({ error: 'Link title is required' });
@@ -189,6 +189,7 @@ router.post('/', requireEditorOrAdmin, async (req, res) => {
                 url: url.trim(),
                 description: description || null,
                 sort_order: sort_order ?? 0,
+                nofollow: Boolean(nofollow),
             }])
             .select(LINK_SELECT)
             .single();
@@ -212,7 +213,7 @@ router.post('/', requireEditorOrAdmin, async (req, res) => {
 router.put('/:id', requireEditorOrAdmin, async (req, res) => {
     try {
         const { id } = req.params;
-        const { category_id, member_id, title, url, description, sort_order } = req.body;
+        const { category_id, member_id, title, url, description, sort_order, nofollow } = req.body;
 
         const updates = {};
         if (category_id !== undefined) updates.category_id = category_id || null;
@@ -221,6 +222,7 @@ router.put('/:id', requireEditorOrAdmin, async (req, res) => {
         if (url !== undefined) updates.url = url.trim();
         if (description !== undefined) updates.description = description || null;
         if (sort_order !== undefined) updates.sort_order = sort_order;
+        if (nofollow !== undefined) updates.nofollow = Boolean(nofollow);
         updates.updated_at = new Date().toISOString();
 
         const { data: link, error } = await supabase

@@ -40,7 +40,12 @@ function LinkCard({ link }) {
     return (
         <div className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 hover:border-amber-500/30 hover:bg-white/[0.05] transition-all">
             {/* Its own <a>, not nested inside the member <Link> below */}
-            <a href={link.url} target="_blank" rel="noopener noreferrer" className="flex items-start justify-between gap-2">
+            <a
+                href={link.url}
+                target="_blank"
+                rel={link.nofollow ? 'noopener noreferrer nofollow' : 'noopener noreferrer'}
+                className="flex items-start justify-between gap-2"
+            >
                 <div className="min-w-0">
                     <PText size="small" weight="semi-bold" ellipsis>{link.title}</PText>
                     {link.description && (

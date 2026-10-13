@@ -15,6 +15,7 @@ export default function LinkForm({ link, categories, onClose }) {
         description: '',
         category_id: '',
         member_id: '',
+        nofollow: false,
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -37,6 +38,7 @@ export default function LinkForm({ link, categories, onClose }) {
                 description: link.description || '',
                 category_id: link.category_id || '',
                 member_id: link.member_id || '',
+                nofollow: link.nofollow || false,
             });
         }
     }, [link]);
@@ -48,8 +50,8 @@ export default function LinkForm({ link, categories, onClose }) {
         : members;
 
     const handleChange = (e) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
+        const { name, value, type, checked } = e.target;
+        setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
     };
 
     const handleSubmit = async (e) => {
@@ -175,6 +177,18 @@ export default function LinkForm({ link, categories, onClose }) {
                         placeholder="Optional short blurb shown under the link…"
                         className={inputClass + ' resize-none'} />
                 </div>
+
+                <label className="flex items-start gap-2 cursor-pointer">
+                    <input type="checkbox" name="nofollow" checked={formData.nofollow}
+                        onChange={handleChange} className="w-4 h-4 mt-0.5" />
+                    <span>
+                        <PText size="small" weight="semi-bold">No-follow link</PText>
+                        <PText size="x-small" color="contrast-medium" className="block">
+                            Tells search engines not to follow this link or pass it ranking credit — use for
+                            sponsored/paid or otherwise untrusted outbound links.
+                        </PText>
+                    </span>
+                </label>
 
                 <div className="flex gap-3 pt-4 border-t border-white/10">
                     <PButton type="submit" loading={loading}>
