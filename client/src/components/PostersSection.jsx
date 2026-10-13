@@ -1,10 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
 import { PHeading, PText, PButtonPure, PInlineNotification, PDivider } from '@porsche-design-system/components-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getShowPoster, uploadPoster, updatePosterDetails, deletePoster, getPosterShows, linkPosterToRange, unlinkPosterShow } from '../services/api';
 import { toDatetimeLocalValue } from '../utils/datetimeLocal';
-import ThanksButton from './ThanksButton';
 import Lightbox from 'yet-another-react-lightbox';
 import 'yet-another-react-lightbox/styles.css';
 
@@ -27,8 +25,9 @@ function formatDropDateTime(isoString) {
 // Posters gallery. Lives inline on the poster it applies to rather than as a
 // separate admin page — the natural place to reach for it is the show whose
 // poster this already is.
+// Mounted/unmounted by the parent's "Manage tour poster links" icon button —
+// always loads on mount rather than tracking its own open/closed state.
 function PosterLinkManager({ poster, showDate }) {
-    const [open, setOpen] = useState(false);
     const [linkedShows, setLinkedShows] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -52,8 +51,8 @@ function PosterLinkManager({ poster, showDate }) {
     }, [poster.id]);
 
     useEffect(() => {
-        if (open && linkedShows === null) loadLinkedShows();
-    }, [open, linkedShows, loadLinkedShows]);
+        if (linkedShows === null) loadLinkedShows();
+    }, [linkedShows, loadLinkedShows]);
 
     const handleApply = async () => {
         if (!startDate || !endDate) return;
@@ -85,88 +84,80 @@ function PosterLinkManager({ poster, showDate }) {
     };
 
     return (
-        <div className="pt-2">
-            <PButtonPure size="x-small" icon={open ? 'arrow-up' : 'arrow-down'} onClick={() => setOpen(o => !o)}>
-                {open ? 'Hide' : 'Manage'} tour poster links
-            </PButtonPure>
+        <div className="mt-2 rounded-xl border border-white/10 bg-white/5 p-3 space-y-3">
+            {error && <PInlineNotification heading="Error" description={error} state="error" dismissButton={false} />}
 
-            {open && (
-                <div className="mt-2 rounded-xl border border-white/10 bg-white/5 p-3 space-y-3">
-                    {error && <PInlineNotification heading="Error" description={error} state="error" dismissButton={false} />}
-
-                    {loading ? (
-                        <PText size="xs" color="contrast-medium">Loading linked shows…</PText>
-                    ) : (
-                        <div className="space-y-1">
-                            <PText size="xs" weight="semi-bold" color="contrast-medium">
-                                Linked to {linkedShows?.length ?? 0} show{linkedShows?.length === 1 ? '' : 's'}
-                            </PText>
-                            <div className="max-h-32 overflow-y-auto space-y-1">
-                                {(linkedShows || []).map(s => (
-                                    <div key={s.id} className="flex items-center justify-between gap-2 text-xs">
-                                        <span style={{ color: 'var(--p-color-contrast-medium)' }}>
-                                            {formatShortDate(s.show_date)}
-                                            {s.venues && <span style={{ color: 'var(--p-color-contrast-low)' }}> — {s.venues.city}</span>}
-                                        </span>
-                                        {(linkedShows?.length || 0) > 1 && (
-                                            <button
-                                                type="button"
-                                                onClick={() => handleUnlink(s.id)}
-                                                className="shrink-0 hover:opacity-80 transition-opacity"
-                                                style={{ color: 'var(--p-color-error)' }}
-                                            >
-                                                Unlink
-                                            </button>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    <PDivider />
-
-                    <div className="space-y-2">
-                        <PText size="xs" weight="semi-bold" color="contrast-medium">
-                            Link to more shows by date range
-                        </PText>
-                        <div className="flex flex-wrap items-end gap-2">
-                            <div>
-                                <label className="block text-[10px] mb-1" style={{ color: 'var(--p-color-contrast-low)' }}>Start</label>
-                                <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
-                                    className="rounded-lg border border-white/10 bg-white/5 py-1.5 px-2 text-xs" />
-                            </div>
-                            <div>
-                                <label className="block text-[10px] mb-1" style={{ color: 'var(--p-color-contrast-low)' }}>End</label>
-                                <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
-                                    className="rounded-lg border border-white/10 bg-white/5 py-1.5 px-2 text-xs" />
-                            </div>
-                            <button
-                                type="button"
-                                disabled={applying || !startDate || !endDate}
-                                onClick={handleApply}
-                                className="h-[30px] px-3 rounded-lg text-xs font-medium border border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/18 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {applying ? 'Applying…' : 'Apply'}
-                            </button>
-                        </div>
-                        <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>
-                            Matches every show by this artist in that date range that doesn't already have its own poster.
-                        </PText>
-
-                        {result && (
-                            <div className="text-xs space-y-0.5" style={{ color: 'var(--p-color-contrast-medium)' }}>
-                                <p>Linked {result.linked.length} show{result.linked.length === 1 ? '' : 's'}.</p>
-                                {result.skipped.length > 0 && (
-                                    <p style={{ color: 'var(--p-color-contrast-low)' }}>
-                                        Skipped {result.skipped.length} (already ha{result.skipped.length === 1 ? 's' : 've'} a different poster): {result.skipped.map(s => formatShortDate(s.show_date)).join(', ')}
-                                    </p>
+            {loading ? (
+                <PText size="xs" color="contrast-medium">Loading linked shows…</PText>
+            ) : (
+                <div className="space-y-1">
+                    <PText size="xs" weight="semi-bold" color="contrast-medium">
+                        Linked to {linkedShows?.length ?? 0} show{linkedShows?.length === 1 ? '' : 's'}
+                    </PText>
+                    <div className="max-h-32 overflow-y-auto space-y-1">
+                        {(linkedShows || []).map(s => (
+                            <div key={s.id} className="flex items-center justify-between gap-2 text-xs">
+                                <span style={{ color: 'var(--p-color-contrast-medium)' }}>
+                                    {formatShortDate(s.show_date)}
+                                    {s.venues && <span style={{ color: 'var(--p-color-contrast-low)' }}> — {s.venues.city}</span>}
+                                </span>
+                                {(linkedShows?.length || 0) > 1 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => handleUnlink(s.id)}
+                                        className="shrink-0 hover:opacity-80 transition-opacity"
+                                        style={{ color: 'var(--p-color-error)' }}
+                                    >
+                                        Unlink
+                                    </button>
                                 )}
                             </div>
-                        )}
+                        ))}
                     </div>
                 </div>
             )}
+
+            <PDivider />
+
+            <div className="space-y-2">
+                <PText size="xs" weight="semi-bold" color="contrast-medium">
+                    Link to more shows by date range
+                </PText>
+                <div className="flex flex-wrap items-end gap-2">
+                    <div>
+                        <label className="block text-[10px] mb-1" style={{ color: 'var(--p-color-contrast-low)' }}>Start</label>
+                        <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
+                            className="rounded-lg border border-white/10 bg-white/5 py-1.5 px-2 text-xs" />
+                    </div>
+                    <div>
+                        <label className="block text-[10px] mb-1" style={{ color: 'var(--p-color-contrast-low)' }}>End</label>
+                        <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
+                            className="rounded-lg border border-white/10 bg-white/5 py-1.5 px-2 text-xs" />
+                    </div>
+                    <button
+                        type="button"
+                        disabled={applying || !startDate || !endDate}
+                        onClick={handleApply}
+                        className="h-[30px] px-3 rounded-lg text-xs font-medium border border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/18 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {applying ? 'Applying…' : 'Apply'}
+                    </button>
+                </div>
+                <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>
+                    Matches every show by this artist in that date range that doesn't already have its own poster.
+                </PText>
+
+                {result && (
+                    <div className="text-xs space-y-0.5" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                        <p>Linked {result.linked.length} show{result.linked.length === 1 ? '' : 's'}.</p>
+                        {result.skipped.length > 0 && (
+                            <p style={{ color: 'var(--p-color-contrast-low)' }}>
+                                Skipped {result.skipped.length} (already ha{result.skipped.length === 1 ? 's' : 've'} a different poster): {result.skipped.map(s => formatShortDate(s.show_date)).join(', ')}
+                            </p>
+                        )}
+                    </div>
+                )}
+            </div>
         </div>
     );
 }
@@ -190,7 +181,7 @@ function Spinner() {
 // supported concept (every additional upload is always a fresh one), so the
 // upload/replace affordance is disabled for those and adding more happens via
 // the separate "+ Add Additional Poster" form instead.
-function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, isEditorOrAdmin, onImageClick, onChanged, thanksRows = [], onThanksChanged, additional = false, onMove, canMoveUp, canMoveDown }) {
+function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, isEditorOrAdmin, onImageClick, onChanged, additional = false, onMove, canMoveUp, canMoveDown }) {
     const [uploading, setUploading] = useState(false);
     const [error, setError] = useState(null);
     const [selectedFile, setSelectedFile] = useState(null);
@@ -199,6 +190,7 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
     const [uploadArtistUrl, setUploadArtistUrl] = useState('');
     const [showUploadForm, setShowUploadForm] = useState(false);
     const [editingCredit, setEditingCredit] = useState(false);
+    const [showLinkManager, setShowLinkManager] = useState(false);
     const [editCaption, setEditCaption] = useState('');
     const [editArtistName, setEditArtistName] = useState('');
     const [editArtistUrl, setEditArtistUrl] = useState('');
@@ -213,7 +205,6 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
     // both help moderate a show's media alongside admins.
     const canUpload = !additional && user && (!poster || poster.user_id === user.id || isAdmin);
     const canDelete = user && poster && (poster.user_id === user.id || isEditorOrAdmin);
-    const posterThanks = poster ? thanksRows.filter(t => t.contentType === 'poster' && t.contentId === poster.id) : [];
 
     const openUploadForm = () => {
         setShowUploadForm(true);
@@ -398,17 +389,48 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
 
                     {poster.caption && <PText size="sm" color="contrast-medium" align="center">{poster.caption}</PText>}
 
-                    {poster.poster_artist_name && (
-                        <PText size="xs" align="center" style={{ color: 'var(--p-color-contrast-low)' }}>
-                            Poster art by{' '}
-                            {poster.poster_artist_url ? (
-                                <a href={poster.poster_artist_url} target="_blank" rel="noopener noreferrer" className="font-semibold text-amber-400 hover:underline">
-                                    {poster.poster_artist_name}
-                                </a>
-                            ) : (
-                                <span className="font-semibold" style={{ color: 'var(--p-color-contrast-medium)' }}>{poster.poster_artist_name}</span>
-                            )}
-                        </PText>
+                    {(poster.poster_artist_name || onMove || isEditorOrAdmin || canDelete) && (
+                        <div className="flex items-center justify-between gap-2">
+                            <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>
+                                {poster.poster_artist_name && (
+                                    <>
+                                        Poster art by{' '}
+                                        {poster.poster_artist_url ? (
+                                            <a href={poster.poster_artist_url} target="_blank" rel="noopener noreferrer" className="font-semibold text-amber-400 hover:underline">
+                                                {poster.poster_artist_name}
+                                            </a>
+                                        ) : (
+                                            <span className="font-semibold" style={{ color: 'var(--p-color-contrast-medium)' }}>{poster.poster_artist_name}</span>
+                                        )}
+                                    </>
+                                )}
+                            </PText>
+                            <div className="flex items-center gap-1 shrink-0">
+                                {onMove && (
+                                    <>
+                                        <PButtonPure size="x-small" icon="arrow-up" hideLabel disabled={!canMoveUp} onClick={() => onMove('up')}>Move up</PButtonPure>
+                                        <PButtonPure size="x-small" icon="arrow-down" hideLabel disabled={!canMoveDown} onClick={() => onMove('down')}>Move down</PButtonPure>
+                                    </>
+                                )}
+                                {isEditorOrAdmin && !editingCredit && (
+                                    <PButtonPure size="x-small" icon="edit" hideLabel onClick={openCreditEditor}>Edit details</PButtonPure>
+                                )}
+                                {canDelete && (
+                                    <PButtonPure size="x-small" icon="delete" hideLabel onClick={handleDelete}>Delete</PButtonPure>
+                                )}
+                                {isEditorOrAdmin && (
+                                    <PButtonPure
+                                        size="x-small"
+                                        icon="configurate"
+                                        hideLabel
+                                        active={showLinkManager}
+                                        onClick={() => setShowLinkManager(o => !o)}
+                                    >
+                                        Manage tour poster links
+                                    </PButtonPure>
+                                )}
+                            </div>
+                        </div>
                     )}
 
                     {poster.drop_at && (
@@ -424,39 +446,6 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
                             )}
                         </PText>
                     )}
-
-                    <div className="flex items-center justify-between pt-3 border-t border-white/5">
-                        <div className="space-y-1">
-                            <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>
-                                Uploaded by {poster.profiles?.username
-                                    ? <Link to={`/profile/${poster.profiles.username}`} className="hover:underline">{poster.profiles.display_name || poster.profiles.username}</Link>
-                                    : 'Unknown'}
-                            </PText>
-                            <ThanksButton
-                                contentType="poster"
-                                contentId={poster.id}
-                                count={posterThanks.length}
-                                thankedByMe={!!user && posterThanks.some(t => t.thankedBy === user.id)}
-                                thankedByNames={posterThanks.map(t => t.thankedByName)}
-                                isOwnContent={!!user && poster.user_id === user.id}
-                                onToggled={onThanksChanged}
-                            />
-                        </div>
-                        <div className="flex items-center gap-2">
-                            {onMove && (
-                                <>
-                                    <PButtonPure size="x-small" icon="arrow-up" disabled={!canMoveUp} onClick={() => onMove('up')}>Move up</PButtonPure>
-                                    <PButtonPure size="x-small" icon="arrow-down" disabled={!canMoveDown} onClick={() => onMove('down')}>Move down</PButtonPure>
-                                </>
-                            )}
-                            {isEditorOrAdmin && !editingCredit && (
-                                <PButtonPure size="x-small" icon="edit" onClick={openCreditEditor}>Edit details</PButtonPure>
-                            )}
-                            {canDelete && (
-                                <PButtonPure size="x-small" icon="delete" onClick={handleDelete}>Delete</PButtonPure>
-                            )}
-                        </div>
-                    </div>
 
                     {editingCredit && (
                         <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2">
@@ -511,7 +500,7 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
                         </div>
                     )}
 
-                    {isEditorOrAdmin && <PosterLinkManager poster={poster} showDate={showDate} />}
+                    {isEditorOrAdmin && showLinkManager && <PosterLinkManager poster={poster} showDate={showDate} />}
                 </div>
             ) : (
                 <div className="text-center py-8 space-y-2">
@@ -633,7 +622,7 @@ function AddAdditionalPosterForm({ showId, onChanged, isEditorOrAdmin }) {
     );
 }
 
-export default function PostersSection({ showId, showDate, thanksRows = [], onThanksChanged }) {
+export default function PostersSection({ showId, showDate }) {
     const { user, isAdmin, isEditorOrAdmin } = useAuth();
     const [posters, setPosters] = useState([]);
     const [lightboxIndex, setLightboxIndex] = useState(-1);
@@ -699,8 +688,6 @@ export default function PostersSection({ showId, showDate, thanksRows = [], onTh
                     isEditorOrAdmin={isEditorOrAdmin}
                     onImageClick={() => setLightboxIndex(posters.indexOf(regularPoster))}
                     onChanged={loadPosters}
-                    thanksRows={thanksRows}
-                    onThanksChanged={onThanksChanged}
                 />
                 <PosterSlot
                     label="Foil Poster"
@@ -713,8 +700,6 @@ export default function PostersSection({ showId, showDate, thanksRows = [], onTh
                     isEditorOrAdmin={isEditorOrAdmin}
                     onImageClick={() => setLightboxIndex(posters.indexOf(foilPoster))}
                     onChanged={loadPosters}
-                    thanksRows={thanksRows}
-                    onThanksChanged={onThanksChanged}
                 />
             </div>
 
@@ -738,8 +723,6 @@ export default function PostersSection({ showId, showDate, thanksRows = [], onTh
                                 isEditorOrAdmin={isEditorOrAdmin}
                                 onImageClick={() => setLightboxIndex(posters.indexOf(poster))}
                                 onChanged={loadPosters}
-                                thanksRows={thanksRows}
-                                onThanksChanged={onThanksChanged}
                                 onMove={isEditorOrAdmin ? (direction) => handleMoveAdditionalPoster(poster.id, direction) : null}
                                 canMoveUp={index > 0}
                                 canMoveDown={index < additionalPosters.length - 1}

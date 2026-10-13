@@ -836,7 +836,7 @@ export default function ShowDetailPage() {
             )}
 
             <PhotosSection showId={show.id} thanksRows={thanksRows} onThanksChanged={loadThanks} />
-            <PostersSection showId={show.id} showDate={show.show_date} thanksRows={thanksRows} onThanksChanged={loadThanks} />
+            <PostersSection showId={show.id} showDate={show.show_date} />
 
             {/* Videos & Links */}
             {show.links?.length > 0 && (
