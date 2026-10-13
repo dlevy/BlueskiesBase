@@ -6,6 +6,21 @@ const { computeSongsSeenForShows, computeDebutDetails } = require('../utils/atte
 const { computeFunStats } = require('../utils/funStats');
 const { redactProfile } = require('../utils/privacy');
 
+// "Today" for past-vs-upcoming show classification, from the viewer's own
+// browser (query param/body field, computed there via local y/m/d — see
+// client/src/utils/today.js) rather than the server's own UTC clock. The
+// server has no timezone of its own that's "correct" for every visitor, and
+// `new Date().toISOString().slice(0, 10)` (UTC) wrongly starts treating a
+// show dated tomorrow as "today or past" once UTC crosses midnight — i.e.
+// for the whole evening in any negative-UTC-offset timezone (all of North
+// America). Falls back to the server's UTC date only when no caller-supplied
+// value is present (e.g. an older cached client, or a non-browser caller).
+function resolveTodayStr(candidate) {
+    return typeof candidate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(candidate)
+        ? candidate
+        : new Date().toISOString().slice(0, 10);
+}
+
 const AVATARS_BUCKET = 'avatars';
 
 const uploadAvatarFile = multer({
@@ -434,7 +449,7 @@ router.get('/stats', async (req, res) => {
         // Past shows (full objects, not just ids) — a future show marked "attending"
         // has no setlist yet, so debuts/fun-facts are scoped to shows that already
         // happened, same "only past shows" intent as before.
-        const todayStr = new Date().toISOString().slice(0, 10);
+        const todayStr = resolveTodayStr(req.query.today);
         const pastShows = attendedShows
             .map(us => us.shows)
             .filter(s => s?.show_date && s.show_date <= todayStr);
@@ -557,7 +572,7 @@ router.get('/directory', async (req, res) => {
         // not ones they're just marked attending in the future. Paginated
         // since user_shows can exceed PostgREST's 1000-row default as the
         // community grows (same pattern as GET /community-stats).
-        const todayStr = new Date().toISOString().slice(0, 10);
+        const todayStr = resolveTodayStr(req.query.today);
         const attendedCounts = {};
         for (let rangeStart = 0; ;) {
             const { data: page, error: pageError } = await supabase
@@ -716,7 +731,7 @@ router.get('/profile/:username', async (req, res) => {
             return res.status(500).json({ error: 'Failed to fetch profile stats' });
         }
 
-        const todayStr = new Date().toISOString().slice(0, 10);
+        const todayStr = resolveTodayStr(req.query.today);
         const allAttendedShows = (attendedShows || []).map(us => us.shows).filter(Boolean);
         const pastShows = allAttendedShows.filter(s => s.show_date && s.show_date <= todayStr);
         const upcomingShows = allAttendedShows.filter(s => s.show_date && s.show_date > todayStr);
@@ -947,7 +962,7 @@ router.put('/profile', async (req, res) => {
 
         // Favorite show/venue must come from the user's own past attended shows.
         if (favoriteShowId !== undefined || favoriteVenueId !== undefined) {
-            const todayStr = new Date().toISOString().slice(0, 10);
+            const todayStr = resolveTodayStr(req.body.today);
             const { data: attended, error: attendedError } = await supabase
                 .from('user_shows')
                 .select('shows ( id, show_date, venue_id )')

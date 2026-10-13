@@ -1,6 +1,7 @@
 // API service for making calls to the backend
 import { supabase } from './supabase';
 import { trackEvent } from '../utils/analytics';
+import { getLocalDateString } from '../utils/today';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -999,7 +1000,7 @@ export const getUserStats = async () => {
     const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
     try {
-        const response = await fetchWithAuth(`${API_BASE_URL}/api/users/stats`, {
+        const response = await fetchWithAuth(`${API_BASE_URL}/api/users/stats?today=${getLocalDateString()}`, {
             headers: {
                 'Authorization': `Bearer ${token}`,
             },
@@ -1039,7 +1040,7 @@ export const getMemberDirectory = async () => {
         throw new Error('Not authenticated');
     }
 
-    const response = await fetchWithAuth(`${API_BASE_URL}/api/users/directory`, {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/users/directory?today=${getLocalDateString()}`, {
         headers: {
             'Authorization': `Bearer ${token}`,
         },
@@ -1086,7 +1087,7 @@ export const getMemberSocialLinks = async () => {
  * callers can render a "not found" state without a try/catch.
  */
 export const getPublicProfile = async (username) => {
-    const response = await fetch(`${API_BASE_URL}/api/users/profile/${encodeURIComponent(username)}`);
+    const response = await fetch(`${API_BASE_URL}/api/users/profile/${encodeURIComponent(username)}?today=${getLocalDateString()}`);
     if (!response.ok) {
         if (response.status === 404) return null;
         throw new Error('Failed to fetch profile');
@@ -1107,7 +1108,7 @@ export const updateMyProfile = async (updates) => {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify(updates),
+        body: JSON.stringify({ ...updates, today: getLocalDateString() }),
     });
     if (!response.ok) {
         const error = await response.json().catch(() => ({}));

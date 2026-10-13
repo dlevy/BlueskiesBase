@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { PHeading, PText, PButton, PInlineNotification } from '@porsche-design-system/components-react';
 import { useAuth } from '../contexts/AuthContext';
+import { getLocalDateString } from '../utils/today';
 import {
     updateMyProfile, uploadAvatar, getUserStats,
     getAllPosters, getMyPosterCollection, addToPosterCollection, removeFromPosterCollection,
@@ -141,7 +142,7 @@ export default function EditProfilePage() {
         if (!user) return;
         getUserStats()
             .then(data => {
-                const todayStr = new Date().toISOString().slice(0, 10);
+                const todayStr = getLocalDateString();
                 const past = (data.attendedShows || [])
                     .filter(s => s?.show_date && s.show_date <= todayStr)
                     .sort((a, b) => b.show_date.localeCompare(a.show_date));

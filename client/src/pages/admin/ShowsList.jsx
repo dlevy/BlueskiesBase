@@ -6,6 +6,7 @@ import { buildShowPath } from '../../utils/showSlug';
 import { supabase } from '../../services/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { getLiveCoverTitles, getSundayValleyTitles } from '../../utils/coverSongs';
+import { getLocalDateString } from '../../utils/today';
 
 const selectClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-transparent";
 
@@ -18,10 +19,10 @@ const hasActiveFilters = (f) => f.year || f.month || f.song || f.hasNotes || f.h
 const RECENT_DAYS = 14;
 function getRecentRange() {
     const today = new Date();
-    const todayStr = today.toISOString().slice(0, 10);
+    const todayStr = getLocalDateString(today);
     const from = new Date(today);
     from.setDate(from.getDate() - RECENT_DAYS);
-    return { dateFrom: from.toISOString().slice(0, 10), dateTo: todayStr };
+    return { dateFrom: getLocalDateString(from), dateTo: todayStr };
 }
 
 export default function ShowsList() {

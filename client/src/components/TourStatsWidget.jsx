@@ -4,6 +4,7 @@ import { PSpinner } from '@porsche-design-system/components-react';
 import { supabase } from '../services/supabase';
 import { getShowDebutsBatch } from '../services/api';
 import { fetchTourSongCounts } from '../utils/tourSongCounts';
+import { getLocalDateString } from '../utils/today';
 
 const LIVE_DEBUT_COLOR = '#34d399';
 const TOUR_DEBUT_COLOR = '#22d3ee';
@@ -50,7 +51,7 @@ export default function TourStatsWidget() {
 
         const load = async () => {
             try {
-                const todayStr = new Date().toISOString().slice(0, 10);
+                const todayStr = getLocalDateString();
 
                 const { data: recent, error: recentError } = await supabase
                     .from('shows')

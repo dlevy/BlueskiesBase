@@ -1,5 +1,6 @@
 import { supabase } from '../services/supabase';
 import { getStateName, getCountry } from './geography';
+import { getLocalDateString } from './today';
 
 // Sentinel tourName for "every show, regardless of tour" — also doubles as
 // its own dropdown label. A real tour literally named this isn't a realistic
@@ -10,7 +11,7 @@ export const ALL_SHOWS = 'All Shows';
 // definition used by the homepage widget, so the dedicated tour stats page defaults
 // to the same tour it links out from.
 export async function fetchDefaultTourName() {
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = getLocalDateString();
     const { data } = await supabase
         .from('shows')
         .select('tour_name')
@@ -66,7 +67,7 @@ export async function fetchTourList({ minShows = MIN_TOUR_SHOWS } = {}) {
 // equivalent tour-rarity computation (GET /api/shows/:id/tour-rarity) — neither is
 // an actual live performance, so neither should count here either.
 export async function fetchTourSongCounts(tourName, { stateFilter, countryFilter } = {}) {
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = getLocalDateString();
 
     // venues included for the Tour Map (ShowMapShare, same shape it already
     // reads off a user's attended/upcoming shows) — otherwise unused here.
