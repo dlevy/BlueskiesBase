@@ -4,42 +4,9 @@ import { getGlobalSongStats, getSongs, getCommunityStats } from '../services/api
 import { supabase } from '../services/supabase';
 import { useCountUp } from '../hooks/useCountUp';
 import { fetchTourList } from '../utils/tourSongCounts';
+import { getCountry } from '../utils/geography';
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-
-const US_STATE_CODES = new Set([
-    'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA',
-    'HI','ID','IL','IN','IA','KS','KY','LA','ME','MD',
-    'MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ',
-    'NM','NY','NC','ND','OH','OK','OR','PA','RI','SC',
-    'SD','TN','TX','UT','VT','VA','WA','WV','WI','WY','DC','PR',
-]);
-const US_STATE_NAMES = new Set([
-    'Alabama','Alaska','Arizona','Arkansas','California','Colorado','Connecticut',
-    'Delaware','Florida','Georgia','Hawaii','Idaho','Illinois','Indiana','Iowa',
-    'Kansas','Kentucky','Louisiana','Maine','Maryland','Massachusetts','Michigan',
-    'Minnesota','Mississippi','Missouri','Montana','Nebraska','Nevada',
-    'New Hampshire','New Jersey','New Mexico','New York','North Carolina',
-    'North Dakota','Ohio','Oklahoma','Oregon','Pennsylvania','Rhode Island',
-    'South Carolina','South Dakota','Tennessee','Texas','Utah','Vermont',
-    'Virginia','Washington','West Virginia','Wisconsin','Wyoming',
-    'District of Columbia',
-]);
-const UK_REGIONS = new Set(['UK','England','Scotland','Wales','Northern Ireland']);
-
-function getCountry(state_country) {
-    if (!state_country) return null;
-    const sc = state_country.trim();
-    if (sc.endsWith(', United States'))  return 'USA';
-    if (US_STATE_CODES.has(sc))          return 'USA';
-    if (US_STATE_NAMES.has(sc))          return 'USA';
-    if (sc === 'UK' || UK_REGIONS.has(sc) || sc.endsWith(', United Kingdom')) return 'UK';
-    if (sc === 'Ireland' || sc.endsWith(', Ireland')) return 'Ireland';
-    if (sc === 'Canada' || sc.includes(', Canada'))   return 'Canada';
-    // "Oslo, Norway" / "Hamburg, Germany" / "Ontario, Canada" etc.
-    if (sc.includes(',')) return sc.split(',').pop().trim();
-    return sc;
-}
 
 function FactCard({ label, value, sub }) {
     return (

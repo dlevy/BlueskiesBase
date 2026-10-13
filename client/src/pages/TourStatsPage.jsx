@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PHeading, PText, PButtonPure, PSpinner, PInlineNotification } from '@porsche-design-system/components-react';
-import { fetchTourList, fetchDefaultTourName, fetchTourSongCounts } from '../utils/tourSongCounts';
+import { fetchTourList, fetchDefaultTourName, fetchTourSongCounts, ALL_SHOWS } from '../utils/tourSongCounts';
+import { fetchGeographyOptions } from '../utils/geography';
 import SEO from '../components/SEO';
 import ShowMapShare from '../components/ShowMapShare';
 
@@ -67,6 +68,9 @@ export default function TourStatsPage() {
     const navigate = useNavigate();
     const [tours, setTours] = useState([]);
     const [selectedTour, setSelectedTour] = useState('');
+    const [geoOptions, setGeoOptions] = useState({ states: [], countries: [] });
+    const [stateFilter, setStateFilter] = useState('');
+    const [countryFilter, setCountryFilter] = useState('');
     const [tourData, setTourData] = useState(null);
     const [loadingTours, setLoadingTours] = useState(true);
     const [loadingSongs, setLoadingSongs] = useState(false);
@@ -79,13 +83,15 @@ export default function TourStatsPage() {
         let cancelled = false;
         (async () => {
             try {
-                const [list, defaultTour] = await Promise.all([fetchTourList(), fetchDefaultTourName()]);
+                const [list, defaultTour, geo] = await Promise.all([fetchTourList(), fetchDefaultTourName(), fetchGeographyOptions()]);
                 if (cancelled) return;
-                setTours(list);
                 // Fall back to the most recent listed tour if the "current" tour got
-                // filtered out of the list (fewer than MIN_TOUR_SHOWS shows).
+                // filtered out of the list (fewer than MIN_TOUR_SHOWS shows). Computed
+                // before "All Shows" is appended, so it's never picked as the default.
                 const validDefault = list.some(t => t.tourName === defaultTour) ? defaultTour : null;
                 setSelectedTour(validDefault || list[0]?.tourName || '');
+                setTours([...list, { tourName: ALL_SHOWS }]);
+                setGeoOptions(geo);
             } catch (err) {
                 console.error('[TourStatsPage] Error loading tour list:', err);
                 if (!cancelled) setError('Failed to load tours');
@@ -96,7 +102,7 @@ export default function TourStatsPage() {
         return () => { cancelled = true; };
     }, []);
 
-    // Load song counts whenever the selected tour changes.
+    // Load song counts whenever the selected tour or geography filter changes.
     useEffect(() => {
         if (!selectedTour) return;
         let cancelled = false;
@@ -104,7 +110,7 @@ export default function TourStatsPage() {
         setError(null);
         setShowAllOpeners(false);
         setShowAllClosers(false);
-        fetchTourSongCounts(selectedTour)
+        fetchTourSongCounts(selectedTour, { stateFilter: stateFilter || undefined, countryFilter: countryFilter || undefined })
             .then(data => { if (!cancelled) setTourData(data); })
             .catch(err => {
                 console.error('[TourStatsPage] Error loading tour song counts:', err);
@@ -112,7 +118,7 @@ export default function TourStatsPage() {
             })
             .finally(() => { if (!cancelled) setLoadingSongs(false); });
         return () => { cancelled = true; };
-    }, [selectedTour]);
+    }, [selectedTour, stateFilter, countryFilter]);
 
     const maxCount = tourData?.songCounts?.[0]?.count || 0;
 
@@ -138,21 +144,59 @@ export default function TourStatsPage() {
                 <PInlineNotification heading="Error" description={error} state="error" dismissButton={false} />
             ) : (
                 <>
-                    <div>
-                        <label htmlFor="tour-select" className="block text-xs font-medium mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>
-                            Tour
-                        </label>
-                        <select
-                            id="tour-select"
-                            value={selectedTour}
-                            onChange={(e) => setSelectedTour(e.target.value)}
-                            className={selectClass}
-                            style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}
-                        >
-                            {tours.map(t => (
-                                <option key={t.tourName} value={t.tourName}>{t.tourName}</option>
-                            ))}
-                        </select>
+                    <div className="flex flex-wrap gap-3">
+                        <div>
+                            <label htmlFor="tour-select" className="block text-xs font-medium mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                                Tour
+                            </label>
+                            <select
+                                id="tour-select"
+                                value={selectedTour}
+                                onChange={(e) => setSelectedTour(e.target.value)}
+                                className={selectClass}
+                                style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}
+                            >
+                                {tours.map(t => (
+                                    <option key={t.tourName} value={t.tourName}>{t.tourName}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label htmlFor="state-select" className="block text-xs font-medium mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                                State
+                            </label>
+                            <select
+                                id="state-select"
+                                value={stateFilter}
+                                onChange={(e) => setStateFilter(e.target.value)}
+                                className={selectClass}
+                                style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}
+                            >
+                                <option value="">All States</option>
+                                {geoOptions.states.map(s => (
+                                    <option key={s} value={s}>{s}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label htmlFor="country-select" className="block text-xs font-medium mb-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                                Country
+                            </label>
+                            <select
+                                id="country-select"
+                                value={countryFilter}
+                                onChange={(e) => setCountryFilter(e.target.value)}
+                                className={selectClass}
+                                style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}
+                            >
+                                <option value="">All Countries</option>
+                                {geoOptions.countries.map(c => (
+                                    <option key={c} value={c}>{c}</option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
 
                     <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 md:p-10">
@@ -161,7 +205,9 @@ export default function TourStatsPage() {
                         ) : error ? (
                             <PInlineNotification heading="Error" description={error} state="error" dismissButton={false} />
                         ) : !tourData || tourData.songCounts.length === 0 ? (
-                            <PText color="contrast-medium">No songs played yet on this tour.</PText>
+                            <PText color="contrast-medium">
+                                {stateFilter || countryFilter ? 'No shows match the selected filters.' : 'No songs played yet on this tour.'}
+                            </PText>
                         ) : (
                             <>
                                 <div className="flex items-baseline justify-between mb-1">

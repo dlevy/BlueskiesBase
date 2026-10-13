@@ -1,4 +1,10 @@
 import { supabase } from '../services/supabase';
+import { getStateName, getCountry } from './geography';
+
+// Sentinel tourName for "every show, regardless of tour" — also doubles as
+// its own dropdown label. A real tour literally named this isn't a realistic
+// collision risk for this catalog.
+export const ALL_SHOWS = 'All Shows';
 
 // The tour of the most recent show that's actually happened — same "current tour"
 // definition used by the homepage widget, so the dedicated tour stats page defaults
@@ -59,19 +65,47 @@ export async function fetchTourList({ minShows = MIN_TOUR_SHOWS } = {}) {
 // Excludes performance_type='dj'/'soundcheck' rows, same treatment as the server's
 // equivalent tour-rarity computation (GET /api/shows/:id/tour-rarity) — neither is
 // an actual live performance, so neither should count here either.
-export async function fetchTourSongCounts(tourName) {
+export async function fetchTourSongCounts(tourName, { stateFilter, countryFilter } = {}) {
     const todayStr = new Date().toISOString().slice(0, 10);
 
     // venues included for the Tour Map (ShowMapShare, same shape it already
     // reads off a user's attended/upcoming shows) — otherwise unused here.
-    const { data: tourShows, error: tourError } = await supabase
-        .from('shows')
-        .select('id, show_date, venues ( id, name, city, state_country, latitude, longitude )')
-        .eq('tour_name', tourName)
-        .order('show_date')
-        .order('id');
+    const selectCols = 'id, show_date, venues ( id, name, city, state_country, latitude, longitude )';
+    let tourShows;
+    if (tourName === ALL_SHOWS) {
+        // No tour_name filter at all — includes one-off/benefit shows that
+        // have no tour_name too. Paginated since this can exceed PostgREST's
+        // 1000-row default, unlike a single tour's show list.
+        let rows = [];
+        for (let rangeStart = 0; ;) {
+            const { data: page, error } = await supabase
+                .from('shows')
+                .select(selectCols)
+                .order('show_date')
+                .order('id')
+                .range(rangeStart, rangeStart + 999);
+            if (error || !page?.length) break;
+            rows = rows.concat(page);
+            if (page.length < 1000) break;
+            rangeStart += 1000;
+        }
+        tourShows = rows;
+    } else {
+        const { data, error: tourError } = await supabase
+            .from('shows')
+            .select(selectCols)
+            .eq('tour_name', tourName)
+            .order('show_date')
+            .order('id');
+        if (tourError) return null;
+        tourShows = data;
+    }
 
-    if (tourError || !tourShows?.length) return null;
+    if (!tourShows?.length) return null;
+
+    if (stateFilter) tourShows = tourShows.filter(s => getStateName(s.venues?.state_country) === stateFilter);
+    if (countryFilter) tourShows = tourShows.filter(s => getCountry(s.venues?.state_country) === countryFilter);
+    if (!tourShows.length) return null;
 
     const played = tourShows.filter(s => s.show_date <= todayStr);
     const upcoming = tourShows.filter(s => s.show_date > todayStr);
