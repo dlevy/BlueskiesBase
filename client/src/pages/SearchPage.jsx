@@ -16,6 +16,7 @@ import SetlistPreview from '../components/SetlistPreview';
 import MainNavTabs from '../components/MainNavTabs';
 import { orderSetlistSongs } from '../utils/setlist';
 import { getLiveCoverTitles, getSundayValleyTitles } from '../utils/coverSongs';
+import { fetchGeographyOptions } from '../utils/geography';
 import SEO from '../components/SEO';
 
 const selectClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-transparent";
@@ -46,7 +47,7 @@ export default function SearchPage() {
     const activeTab = urlParams.get('tab') || 'search';
 
     const [searchParams, setSearchParams] = useState({
-        year: '', month: '', song: '', source: '',
+        year: '', month: '', song: '', source: '', state: '', country: '',
         hasNotes: false, hasPhotos: false, hasPoster: false
     });
     const [results, setResults] = useState([]);
@@ -70,6 +71,13 @@ export default function SearchPage() {
     const [sundayValleySongs, setSundayValleySongs] = useState([]);
     const [totalShows, setTotalShows] = useState(0);
     const [filterPanelOpen, setFilterPanelOpen] = useState(false);
+    const [geoOptions, setGeoOptions] = useState({ states: [], countries: [] });
+
+    useEffect(() => {
+        fetchGeographyOptions()
+            .then(setGeoOptions)
+            .catch(err => console.error('[SearchPage] Error fetching geography options:', err));
+    }, []);
 
     useEffect(() => {
         const fetchDropdownOptions = async () => {
@@ -247,7 +255,7 @@ export default function SearchPage() {
     useEffect(() => { setFilteredResults(results); }, [results]);
 
     const hasActiveFilters = (p) =>
-        p.year || p.month || p.song || p.source ||
+        p.year || p.month || p.song || p.source || p.state || p.country ||
         p.hasNotes || p.hasPhotos || p.hasPoster;
 
     const handleAttendanceToggle = async (showId, e) => {
@@ -294,13 +302,15 @@ export default function SearchPage() {
         const year = urlParams.get('year') || '';
         const month = urlParams.get('month') || '';
         const source = urlParams.get('source') || '';
+        const state = urlParams.get('state') || '';
+        const country = urlParams.get('country') || '';
         const hasNotes = urlParams.get('hasNotes') === 'true';
         const hasPhotos = urlParams.get('hasPhotos') === 'true';
         const hasPoster = urlParams.get('hasPoster') === 'true';
 
-        if (!song && !year && !month && !source && !hasNotes && !hasPhotos && !hasPoster) return;
+        if (!song && !year && !month && !source && !state && !country && !hasNotes && !hasPhotos && !hasPoster) return;
 
-        const initParams = { year, month, song, source, hasNotes, hasPhotos, hasPoster };
+        const initParams = { year, month, song, source, state, country, hasNotes, hasPhotos, hasPoster };
         setSearchParams(initParams);
         performSearch(initParams);
         // Intentionally only ever hydrates from the URL once, on first load.
@@ -336,7 +346,7 @@ export default function SearchPage() {
     };
 
     const clearAllFilters = () => {
-        const newParams = { year: '', month: '', song: '', source: '', hasNotes: false, hasPhotos: false, hasPoster: false };
+        const newParams = { year: '', month: '', song: '', source: '', state: '', country: '', hasNotes: false, hasPhotos: false, hasPoster: false };
         setSearchParams(newParams);
         setResults([]);
     };
@@ -356,6 +366,8 @@ export default function SearchPage() {
         if (searchParams.month) filters.push({ name: 'month', label: 'Month', value: new Date(2000, searchParams.month - 1).toLocaleString('default', { month: 'long' }) });
         if (searchParams.song) filters.push({ name: 'song', label: 'Song', value: searchParams.song });
         if (searchParams.source) filters.push({ name: 'source', label: 'Source', value: searchParams.source });
+        if (searchParams.state) filters.push({ name: 'state', label: 'State', value: searchParams.state });
+        if (searchParams.country) filters.push({ name: 'country', label: 'Country', value: searchParams.country });
         if (searchParams.hasNotes) filters.push({ name: 'hasNotes', label: 'Has Comments', value: 'Yes' });
         if (searchParams.hasPhotos) filters.push({ name: 'hasPhotos', label: 'Has Photos', value: 'Yes' });
         if (searchParams.hasPoster) filters.push({ name: 'hasPoster', label: 'Has Poster', value: 'Yes' });
@@ -516,6 +528,33 @@ export default function SearchPage() {
                                                 <option value="">Select a Sunday Valley song…</option>
                                                 {sundayValleySongs.map(title => (
                                                     <option key={title} value={title}>{title}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Location */}
+                                <div className="mb-4">
+                                    <label className="block text-xs font-semibold mb-2" style={{ color: 'var(--p-color-contrast-medium)' }}>FILTER BY LOCATION</label>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="block text-xs mb-1" style={{ color: 'var(--p-color-contrast-low)' }}>State</label>
+                                            <select name="state" value={searchParams.state} onChange={handleInputChange} className={selectClass}
+                                                style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
+                                                <option value="">All States</option>
+                                                {geoOptions.states.map(s => (
+                                                    <option key={s} value={s}>{s}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs mb-1" style={{ color: 'var(--p-color-contrast-low)' }}>Country</label>
+                                            <select name="country" value={searchParams.country} onChange={handleInputChange} className={selectClass}
+                                                style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
+                                                <option value="">All Countries</option>
+                                                {geoOptions.countries.map(c => (
+                                                    <option key={c} value={c}>{c}</option>
                                                 ))}
                                             </select>
                                         </div>

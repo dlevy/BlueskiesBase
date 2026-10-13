@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { supabase } = require('../config/supabase');
+const { getStateName, getCountry } = require('../utils/geography');
 
 /**
  * GET /api/search/shows
@@ -11,7 +12,8 @@ const { supabase } = require('../config/supabase');
  *   - day: Filter by day (1-31)
  *   - venue: Filter by venue name (partial match)
  *   - city: Filter by city (partial match)
- *   - state: Filter by state/country (partial match)
+ *   - state: Filter by US state (exact canonical match — see utils/geography)
+ *   - country: Filter by country (exact canonical match — see utils/geography)
  *   - song: Filter by song title (shows containing this song)
  *   - source: Filter by source type (AUD, SBD, VIDEO, etc.)
  *   - hasNotes: Filter by shows with user notes (true/false)
@@ -20,7 +22,7 @@ const { supabase } = require('../config/supabase');
  */
 router.get('/shows', async (req, res) => {
     try {
-        const { year, month, day, venue, city, state, song, source, hasNotes, hasPhotos, hasPoster } = req.query;
+        const { year, month, day, venue, city, state, country, song, source, hasNotes, hasPhotos, hasPoster } = req.query;
 
         // Handle content-based filters (hasNotes, hasPhotos, hasPoster)
         // These require querying the user_notes, user_photos, user_posters tables first
@@ -198,9 +200,11 @@ router.get('/shows', async (req, res) => {
         }
 
         if (state && filteredShows) {
-            filteredShows = filteredShows.filter(show =>
-                show.venues?.state_country.toLowerCase().includes(state.toLowerCase())
-            );
+            filteredShows = filteredShows.filter(show => getStateName(show.venues?.state_country) === state);
+        }
+
+        if (country && filteredShows) {
+            filteredShows = filteredShows.filter(show => getCountry(show.venues?.state_country) === country);
         }
 
         // If searching by song, we need to join with setlist_songs
