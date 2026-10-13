@@ -705,9 +705,6 @@ export default function PostersSection({ showId, showDate }) {
 
             {additionalPosters.length > 0 && (
                 <div className="space-y-4 pt-2 border-t border-white/5">
-                    <PText size="xs" weight="semi-bold" className="uppercase tracking-wide" style={{ color: 'var(--p-color-contrast-medium)' }}>
-                        Additional Posters
-                    </PText>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {additionalPosters.map((poster, index) => (
                             <PosterSlot
