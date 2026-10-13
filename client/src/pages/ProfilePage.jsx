@@ -425,7 +425,14 @@ export default function ProfilePage() {
             {/* Shows attended — full width, below the map */}
             {profile.attendedShows && (
                 <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6">
-                    <PHeading size="lg" tag="h2">Shows Attended</PHeading>
+                    <div className="flex items-center justify-between gap-2">
+                        <PHeading size="lg" tag="h2">Shows Attended</PHeading>
+                        {isOwnProfile && (
+                            <Link to="/?tab=myshows" className="text-xs font-medium text-amber-400 hover:opacity-80 transition-opacity shrink-0">
+                                View more stats →
+                            </Link>
+                        )}
+                    </div>
                     <div className="mt-4 space-y-2">
                         {profile.attendedShows.map(show => (
                             <Link

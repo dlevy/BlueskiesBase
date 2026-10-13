@@ -218,6 +218,28 @@ export default function EditProfilePage() {
         .filter(s => !wantedShowIds.has(s.id))
         .sort((a, b) => b.show_date.localeCompare(a.show_date));
 
+    // Thumbnail for each wanted show, same source as the picker above — picked
+    // to match the wanted variant when possible, falling back to whatever's
+    // available (a want can predate a variant actually existing, e.g. foil
+    // wanted but only regular exists so far).
+    const postersByShowId = new Map();
+    allPosters.forEach(p => {
+        (p.linkedShows || (p.shows ? [p.shows] : [])).forEach(s => {
+            if (!s?.id) return;
+            if (!postersByShowId.has(s.id)) postersByShowId.set(s.id, []);
+            postersByShowId.get(s.id).push(p);
+        });
+    });
+    const posterForWant = (entry) => {
+        const candidates = postersByShowId.get(entry.shows?.id) || [];
+        const match = entry.variant === 'foil'
+            ? candidates.find(p => p.is_foil)
+            : entry.variant === 'regular'
+                ? candidates.find(p => !p.is_foil)
+                : null;
+        return match || candidates[0];
+    };
+
     const handleAddWant = async () => {
         if (!selectedWantShowId) return;
         setWantError('');
@@ -542,8 +564,12 @@ export default function EditProfilePage() {
                     <div className="space-y-2">
                         {myWants.map(entry => {
                             const show = entry.shows;
+                            const poster = posterForWant(entry);
                             return (
                                 <div key={entry.id} className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/5 p-3">
+                                    {poster?.poster_url && (
+                                        <img src={poster.poster_url} alt="" className="w-12 h-16 object-cover rounded shrink-0 border border-white/10" />
+                                    )}
                                     <div className="min-w-0 flex-1">
                                         {show ? (
                                             <>
