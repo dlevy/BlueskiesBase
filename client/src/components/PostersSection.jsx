@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { PHeading, PText, PButtonPure, PInlineNotification, PDivider } from '@porsche-design-system/components-react';
 import { useAuth } from '../contexts/AuthContext';
-import { getShowPoster, uploadPoster, updatePosterDetails, deletePoster, getPosterShows, linkPosterToRange, unlinkPosterShow } from '../services/api';
+import { getShowPoster, uploadPoster, updatePosterDetails, deletePoster, getPosterShows, linkPosterToRange, unlinkPosterShow, getMyPosterCollection, addToPosterCollection, removeFromPosterCollection, getMyPosterWants, addPosterWant, removePosterWant } from '../services/api';
 import { toDatetimeLocalValue } from '../utils/datetimeLocal';
 import Lightbox from 'yet-another-react-lightbox';
 import 'yet-another-react-lightbox/styles.css';
@@ -17,6 +17,16 @@ function formatDropDateTime(isoString) {
     return new Date(isoString).toLocaleString('en-US', {
         month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short',
     });
+}
+
+// Same want/variant semantics as the Posters gallery page (client/src/pages/PostersPage.jsx) —
+// one want row per show (unique on user_id+show_id), so it only counts as "wanted" for THIS
+// poster if the stored variant actually matches it (or is 'any').
+function posterWantVariant(poster) {
+    return poster.is_foil ? 'foil' : 'regular';
+}
+function isPosterWanted(entry, poster) {
+    return Boolean(entry && (entry.variant === 'any' || entry.variant === posterWantVariant(poster)));
 }
 
 // Editor/admin-only tool for linking a single poster image to a whole run of
@@ -181,7 +191,7 @@ function Spinner() {
 // supported concept (every additional upload is always a fresh one), so the
 // upload/replace affordance is disabled for those and adding more happens via
 // the separate "+ Add Additional Poster" form instead.
-function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, isEditorOrAdmin, onImageClick, onChanged, additional = false, onMove, canMoveUp, canMoveDown }) {
+function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, isEditorOrAdmin, onImageClick, onChanged, additional = false, onMove, canMoveUp, canMoveDown, isOwned, onToggleCollection, isWanted, onToggleWant }) {
     const [uploading, setUploading] = useState(false);
     const [error, setError] = useState(null);
     const [selectedFile, setSelectedFile] = useState(null);
@@ -386,7 +396,7 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
 
                     {poster.caption && <PText size="sm" color="contrast-medium" align="center">{poster.caption}</PText>}
 
-                    {(poster.poster_artist_name || onMove || isEditorOrAdmin || canDelete) && (
+                    {(poster.poster_artist_name || onMove || isEditorOrAdmin || canDelete || onToggleCollection || onToggleWant) && (
                         <div className="flex items-center justify-between gap-2">
                             <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>
                                 {poster.poster_artist_name && (
@@ -403,17 +413,45 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
                                 )}
                             </PText>
                             <div className="flex items-center gap-1 shrink-0">
+                                {onToggleCollection && (
+                                    <span style={isOwned ? { color: '#fbbf24' } : undefined}>
+                                        <PButtonPure
+                                            size="x-small"
+                                            icon={isOwned ? 'bookmark-filled' : 'bookmark'}
+                                            hideLabel
+                                            color={isOwned ? 'inherit' : 'primary'}
+                                            title={isOwned ? 'Remove from my collection' : 'Add to my collection'}
+                                            onClick={onToggleCollection}
+                                        >
+                                            {isOwned ? 'Remove from my collection' : 'Add to my collection'}
+                                        </PButtonPure>
+                                    </span>
+                                )}
+                                {onToggleWant && (
+                                    <span style={isWanted ? { color: '#c084fc' } : undefined}>
+                                        <PButtonPure
+                                            size="x-small"
+                                            icon="flag"
+                                            hideLabel
+                                            color={isWanted ? 'inherit' : 'primary'}
+                                            title={isWanted ? 'Remove from my wanted list' : 'Add to my wanted list'}
+                                            onClick={onToggleWant}
+                                        >
+                                            {isWanted ? 'Remove from my wanted list' : 'Add to my wanted list'}
+                                        </PButtonPure>
+                                    </span>
+                                )}
                                 {onMove && (
                                     <>
-                                        <PButtonPure size="x-small" icon="arrow-up" hideLabel disabled={!canMoveUp} onClick={() => onMove('up')}>Move up</PButtonPure>
-                                        <PButtonPure size="x-small" icon="arrow-down" hideLabel disabled={!canMoveDown} onClick={() => onMove('down')}>Move down</PButtonPure>
+                                        <PButtonPure size="x-small" icon="arrow-up" hideLabel title="Move up" disabled={!canMoveUp} onClick={() => onMove('up')}>Move up</PButtonPure>
+                                        <PButtonPure size="x-small" icon="arrow-down" hideLabel title="Move down" disabled={!canMoveDown} onClick={() => onMove('down')}>Move down</PButtonPure>
                                     </>
                                 )}
                                 {isEditorOrAdmin && !editingCredit && (
-                                    <PButtonPure size="x-small" icon="edit" hideLabel onClick={openCreditEditor}>Edit details</PButtonPure>
+                                    <PButtonPure size="x-small" icon="edit" hideLabel title="Edit details" onClick={openCreditEditor}>Edit details</PButtonPure>
                                 )}
                                 {canDelete && (
-                                    <PButtonPure size="x-small" icon="delete" hideLabel onClick={handleDelete}>Delete</PButtonPure>
+                                    <PButtonPure size="x-small" icon="delete" hideLabel title="Delete" onClick={handleDelete}>Delete</PButtonPure>
                                 )}
                                 {isEditorOrAdmin && (
                                     <PButtonPure
@@ -421,6 +459,7 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
                                         icon="configurate"
                                         hideLabel
                                         active={showLinkManager}
+                                        title="Manage tour poster links"
                                         onClick={() => setShowLinkManager(o => !o)}
                                     >
                                         Manage tour poster links
@@ -624,6 +663,8 @@ export default function PostersSection({ showId, showDate }) {
     const [posters, setPosters] = useState([]);
     const [lightboxIndex, setLightboxIndex] = useState(-1);
     const [error, setError] = useState(null);
+    const [myCollection, setMyCollection] = useState([]);
+    const [myWant, setMyWant] = useState(null); // this show's want entry, or null
 
     const loadPosters = useCallback(async () => {
         try {
@@ -636,6 +677,68 @@ export default function PostersSection({ showId, showDate }) {
     }, [showId]);
 
     useEffect(() => { loadPosters(); }, [loadPosters]);
+
+    // So each poster can show "already in my collection" and toggle it right
+    // here, same data/actions as the Posters gallery page's CollectionButton
+    // (client/src/pages/PostersPage.jsx), just scoped to this one show.
+    useEffect(() => {
+        if (!user) { setMyCollection([]); return; }
+        let cancelled = false;
+        getMyPosterCollection()
+            .then(data => { if (!cancelled) setMyCollection(data.collection || []); })
+            .catch(err => console.error('Error loading my poster collection:', err));
+        return () => { cancelled = true; };
+    }, [user]);
+
+    const collectionEntryByPosterId = new Map(
+        myCollection.filter(entry => entry.user_posters?.id).map(entry => [entry.user_posters.id, entry])
+    );
+
+    const handleToggleCollection = async (posterId) => {
+        const existing = collectionEntryByPosterId.get(posterId);
+        try {
+            if (existing) {
+                await removeFromPosterCollection(existing.id);
+                setMyCollection(prev => prev.filter(e => e.id !== existing.id));
+            } else {
+                const created = await addToPosterCollection(posterId);
+                setMyCollection(prev => [...prev, { id: created.id, user_posters: { id: posterId } }]);
+            }
+        } catch (err) {
+            console.error('Error updating poster collection:', err);
+            setError(err.message || 'Failed to update your collection');
+        }
+    };
+
+    // Same want/variant data+actions as the Posters gallery page's WantButton,
+    // just scoped to this one show (only one want row can exist per show).
+    useEffect(() => {
+        if (!user) { setMyWant(null); return; }
+        let cancelled = false;
+        getMyPosterWants()
+            .then(data => {
+                if (cancelled) return;
+                setMyWant((data.wants || []).find(w => w.shows?.id === showId) || null);
+            })
+            .catch(err => console.error('Error loading my poster wants:', err));
+        return () => { cancelled = true; };
+    }, [user, showId]);
+
+    const handleToggleWant = async (variant) => {
+        const matches = myWant && (myWant.variant === 'any' || myWant.variant === variant);
+        try {
+            if (matches) {
+                await removePosterWant(myWant.id);
+                setMyWant(null);
+            } else {
+                const created = await addPosterWant(showId, variant);
+                setMyWant({ id: created.id, variant: created.variant, shows: { id: showId } });
+            }
+        } catch (err) {
+            console.error('Error updating poster want:', err);
+            setError(err.message || 'Failed to update your wanted list');
+        }
+    };
 
     const regularPoster = posters.find(p => !p.is_foil && p.is_primary) || null;
     const foilPoster = posters.find(p => p.is_foil && p.is_primary) || null;
@@ -685,6 +788,10 @@ export default function PostersSection({ showId, showDate }) {
                     isEditorOrAdmin={isEditorOrAdmin}
                     onImageClick={() => setLightboxIndex(posters.indexOf(regularPoster))}
                     onChanged={loadPosters}
+                    isOwned={regularPoster && collectionEntryByPosterId.has(regularPoster.id)}
+                    onToggleCollection={regularPoster && user ? () => handleToggleCollection(regularPoster.id) : null}
+                    isWanted={regularPoster && isPosterWanted(myWant, regularPoster)}
+                    onToggleWant={regularPoster && user ? () => handleToggleWant(posterWantVariant(regularPoster)) : null}
                 />
                 <PosterSlot
                     label="Foil Poster"
@@ -697,6 +804,10 @@ export default function PostersSection({ showId, showDate }) {
                     isEditorOrAdmin={isEditorOrAdmin}
                     onImageClick={() => setLightboxIndex(posters.indexOf(foilPoster))}
                     onChanged={loadPosters}
+                    isOwned={foilPoster && collectionEntryByPosterId.has(foilPoster.id)}
+                    onToggleCollection={foilPoster && user ? () => handleToggleCollection(foilPoster.id) : null}
+                    isWanted={foilPoster && isPosterWanted(myWant, foilPoster)}
+                    onToggleWant={foilPoster && user ? () => handleToggleWant(posterWantVariant(foilPoster)) : null}
                 />
             </div>
 
@@ -720,6 +831,10 @@ export default function PostersSection({ showId, showDate }) {
                                 onMove={isEditorOrAdmin ? (direction) => handleMoveAdditionalPoster(poster.id, direction) : null}
                                 canMoveUp={index > 0}
                                 canMoveDown={index < additionalPosters.length - 1}
+                                isOwned={collectionEntryByPosterId.has(poster.id)}
+                                onToggleCollection={user ? () => handleToggleCollection(poster.id) : null}
+                                isWanted={isPosterWanted(myWant, poster)}
+                                onToggleWant={user ? () => handleToggleWant(posterWantVariant(poster)) : null}
                             />
                         ))}
                     </div>
