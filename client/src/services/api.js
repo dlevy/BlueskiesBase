@@ -2239,7 +2239,7 @@ export const getAnalyticsSummary = async ({ from, to, last24h = false, includeSt
  * the user who triggered it. Admin only (stricter than getAnalyticsSummary
  * — this names real people, not just aggregate counts).
  */
-export const getAnalyticsEvents = async ({ from, to, last24h = false, includeStaff = false, eventType, page = 1, limit = 50 } = {}) => {
+export const getAnalyticsEvents = async ({ from, to, last24h = false, includeStaff = false, eventType, user, page = 1, limit = 50 } = {}) => {
     const token = await getAuthToken();
     if (!token) throw new Error('Not authenticated');
 
@@ -2252,6 +2252,7 @@ export const getAnalyticsEvents = async ({ from, to, last24h = false, includeSta
     }
     if (includeStaff) params.set('includeStaff', 'true');
     if (eventType) params.set('eventType', eventType);
+    if (user) params.set('user', user);
     params.set('page', page);
     params.set('limit', limit);
 

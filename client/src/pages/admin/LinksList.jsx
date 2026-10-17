@@ -194,6 +194,15 @@ export default function LinksList() {
 
     if (initialLoading) return <div className="flex justify-center items-center py-12"><PSpinner size="medium" /></div>;
     if (error) return <PInlineNotification heading="Error" description={error} state="error" dismissButton={false} />;
+
+    if (!isAdmin) {
+        return (
+            <PText color="contrast-medium">
+                Links management is restricted to full admins.
+            </PText>
+        );
+    }
+
     if (showForm) return <LinkForm link={editingLink} categories={categories} onClose={handleFormClose} />;
 
     return (

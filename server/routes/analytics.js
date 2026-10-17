@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { supabase } = require('../config/supabase');
-const { requireAdmin, requireEditorOrAdmin, loadRequesterOptional } = require('../middleware/requireRole');
+const { requireAdmin, loadRequesterOptional } = require('../middleware/requireRole');
 
 const VALID_EVENT_TYPES = ['pageview', 'feature'];
 
@@ -80,12 +80,12 @@ router.post('/event', async (req, res) => {
 
 /**
  * GET /api/analytics/summary
- * Editor/admin only. Query params:
+ * Admin only. Query params:
  *   from, to          — YYYY-MM-DD, inclusive date range (defaults to the last 30 days)
  *   last24h           — 'true' for a precise rolling 24-hour window instead (overrides from/to)
  *   includeStaff      — 'true' to include admin/editor-tagged rows (default: excluded)
  */
-router.get('/summary', requireEditorOrAdmin, async (req, res) => {
+router.get('/summary', requireAdmin, async (req, res) => {
     try {
         const includeStaff = req.query.includeStaff === 'true';
         const { from, to, fromInclusive, toExclusive, granularity } = resolveRange(req);
@@ -167,6 +167,8 @@ router.get('/summary', requireEditorOrAdmin, async (req, res) => {
  *   last24h           — 'true' for a precise rolling 24-hour window instead (overrides from/to)
  *   includeStaff      — 'true' to include admin/editor-tagged rows (default: excluded)
  *   eventType         — 'pageview' | 'feature' (default: both)
+ *   user              — free-text match against the triggering user's
+ *                        username/display name (default: no filter)
  *   page, limit        — pagination (limit capped at 200, default 50)
  */
 router.get('/events', requireAdmin, async (req, res) => {
@@ -177,6 +179,28 @@ router.get('/events', requireAdmin, async (req, res) => {
         const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
         const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 200);
         const offset = (page - 1) * limit;
+
+        // Resolved up front rather than filtering on the embedded profiles(...)
+        // relation directly — PostgREST can't filter an outer query by an
+        // embedded resource's columns, so this needs its own lookup first.
+        // Comma is PostgREST's .or() condition separator, so strip it from the
+        // search term rather than let it corrupt the filter expression below.
+        const userSearch = (req.query.user || '').trim().replace(/,/g, '');
+        let matchingUserIds = null;
+        if (userSearch) {
+            const { data: matches, error: matchError } = await supabase
+                .from('profiles')
+                .select('id')
+                .or(`username.ilike.%${userSearch}%,display_name.ilike.%${userSearch}%`);
+            if (matchError) {
+                console.error('[GET /analytics/events] Error resolving user search:', matchError);
+                return res.status(500).json({ error: 'Failed to load events' });
+            }
+            matchingUserIds = (matches || []).map(p => p.id);
+            if (matchingUserIds.length === 0) {
+                return res.json({ events: [], pagination: { page, limit, total: 0, totalPages: 0 } });
+            }
+        }
 
         let query = supabase
             .from('analytics_events')
@@ -193,6 +217,9 @@ router.get('/events', requireAdmin, async (req, res) => {
         }
         if (!includeStaff) {
             query = query.or('user_role.is.null,user_role.eq.member');
+        }
+        if (matchingUserIds) {
+            query = query.in('user_id', matchingUserIds);
         }
 
         const { data, error, count } = await query.range(offset, offset + limit - 1);

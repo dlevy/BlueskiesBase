@@ -70,18 +70,26 @@ function RankedList({ title, rows, emptyText, formatLabel }) {
 // consistent with whatever the rest of the page is currently showing.
 function AuditLog({ from, to, last24h, includeStaff }) {
     const [eventType, setEventType] = useState('feature');
+    const [userSearchInput, setUserSearchInput] = useState('');
+    const [userSearch, setUserSearch] = useState('');
     const [page, setPage] = useState(1);
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    useEffect(() => { setPage(1); }, [from, to, last24h, includeStaff, eventType]);
+    // Debounced so typing a name doesn't fire a request per keystroke.
+    useEffect(() => {
+        const t = setTimeout(() => setUserSearch(userSearchInput.trim()), 300);
+        return () => clearTimeout(t);
+    }, [userSearchInput]);
+
+    useEffect(() => { setPage(1); }, [from, to, last24h, includeStaff, eventType, userSearch]);
 
     useEffect(() => {
         let cancelled = false;
         setLoading(true);
         setError(null);
-        getAnalyticsEvents({ from, to, last24h, includeStaff, eventType: eventType || undefined, page, limit: 50 })
+        getAnalyticsEvents({ from, to, last24h, includeStaff, eventType: eventType || undefined, user: userSearch || undefined, page, limit: 50 })
             .then(result => { if (!cancelled) setData(result); })
             .catch(err => {
                 console.error('[AuditLog] Error loading events:', err);
@@ -89,28 +97,38 @@ function AuditLog({ from, to, last24h, includeStaff }) {
             })
             .finally(() => { if (!cancelled) setLoading(false); });
         return () => { cancelled = true; };
-    }, [from, to, last24h, includeStaff, eventType, page]);
+    }, [from, to, last24h, includeStaff, eventType, userSearch, page]);
 
     return (
         <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-5">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
                 <h3 className="font-display font-bold text-sm" style={{ color: 'var(--p-color-primary)' }}>Audit Log</h3>
-                <div className="flex gap-1.5">
-                    {EVENT_TYPE_OPTIONS.map(opt => (
-                        <button
-                            key={opt.value}
-                            type="button"
-                            onClick={() => setEventType(opt.value)}
-                            className={`text-xs px-2.5 py-1 rounded-lg border transition-all ${
-                                eventType === opt.value
-                                    ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
-                                    : 'border-white/10 hover:border-white/25'
-                            }`}
-                            style={eventType !== opt.value ? { color: 'var(--p-color-contrast-medium)' } : undefined}
-                        >
-                            {opt.label}
-                        </button>
-                    ))}
+                <div className="flex flex-wrap items-center gap-2">
+                    <input
+                        type="text"
+                        value={userSearchInput}
+                        onChange={e => setUserSearchInput(e.target.value)}
+                        placeholder="Search by user…"
+                        className="rounded-lg border border-white/10 bg-white/5 py-1 px-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500/40 placeholder:text-gray-500"
+                        style={{ color: 'var(--p-color-primary)' }}
+                    />
+                    <div className="flex gap-1.5">
+                        {EVENT_TYPE_OPTIONS.map(opt => (
+                            <button
+                                key={opt.value}
+                                type="button"
+                                onClick={() => setEventType(opt.value)}
+                                className={`text-xs px-2.5 py-1 rounded-lg border transition-all ${
+                                    eventType === opt.value
+                                        ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
+                                        : 'border-white/10 hover:border-white/25'
+                                }`}
+                                style={eventType !== opt.value ? { color: 'var(--p-color-contrast-medium)' } : undefined}
+                            >
+                                {opt.label}
+                            </button>
+                        ))}
+                    </div>
                 </div>
             </div>
 
@@ -123,7 +141,9 @@ function AuditLog({ from, to, last24h, includeStaff }) {
                     <PSpinner size="small" aria={{ 'aria-label': 'Loading audit log' }} />
                 </div>
             ) : data && data.events.length === 0 ? (
-                <PText size="small" color="contrast-medium">No events logged in this range.</PText>
+                <PText size="small" color="contrast-medium">
+                    {userSearch ? `No events match "${userSearch}" in this range.` : 'No events logged in this range.'}
+                </PText>
             ) : data && (
                 <>
                     <div className="overflow-x-auto">
@@ -202,6 +222,7 @@ export default function AnalyticsPage() {
     const rangeTo = range.last24h ? undefined : todayStr();
 
     const load = useCallback(async () => {
+        if (!isAdmin) { setLoading(false); return; }
         setLoading(true);
         setError(null);
         try {
@@ -213,9 +234,17 @@ export default function AnalyticsPage() {
         } finally {
             setLoading(false);
         }
-    }, [rangeFrom, rangeTo, range.last24h, includeStaff]);
+    }, [isAdmin, rangeFrom, rangeTo, range.last24h, includeStaff]);
 
     useEffect(() => { load(); }, [load]);
+
+    if (!isAdmin) {
+        return (
+            <PText color="contrast-medium">
+                Analytics is restricted to full admins.
+            </PText>
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -312,9 +341,7 @@ export default function AnalyticsPage() {
                         <RankedList title="Feature Usage" rows={summary.topFeatures} emptyText="No feature events logged yet." />
                     </div>
 
-                    {isAdmin && (
-                        <AuditLog from={rangeFrom} to={rangeTo} last24h={range.last24h} includeStaff={includeStaff} />
-                    )}
+                    <AuditLog from={rangeFrom} to={rangeTo} last24h={range.last24h} includeStaff={includeStaff} />
                 </>
             )}
         </div>

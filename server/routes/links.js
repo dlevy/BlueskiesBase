@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { supabase } = require('../config/supabase');
-const { requireAdmin, requireEditorOrAdmin } = require('../middleware/requireRole');
+const { requireAdmin } = require('../middleware/requireRole');
 
 // Shared select — embeds both the category and the optional associated
 // member account (shown as "by @username" on the public page).
@@ -41,7 +41,7 @@ router.get('/categories', async (req, res) => {
  * Create a new category (editor or admin). Appends to the end of the display
  * order — the admin UI reorders afterward via PUT.
  */
-router.post('/categories', requireEditorOrAdmin, async (req, res) => {
+router.post('/categories', requireAdmin, async (req, res) => {
     try {
         const { name } = req.body;
 
@@ -80,7 +80,7 @@ router.post('/categories', requireEditorOrAdmin, async (req, res) => {
  * PUT /api/links/categories/:id
  * Update a category's name and/or sort_order (editor or admin).
  */
-router.put('/categories/:id', requireEditorOrAdmin, async (req, res) => {
+router.put('/categories/:id', requireAdmin, async (req, res) => {
     try {
         const { id } = req.params;
         const { name, sort_order } = req.body;
@@ -169,7 +169,7 @@ router.get('/', async (req, res) => {
  * POST /api/links
  * Create a new link (editor or admin).
  */
-router.post('/', requireEditorOrAdmin, async (req, res) => {
+router.post('/', requireAdmin, async (req, res) => {
     try {
         const { category_id, member_id, title, url, description, sort_order, nofollow } = req.body;
 
@@ -210,7 +210,7 @@ router.post('/', requireEditorOrAdmin, async (req, res) => {
  * PUT /api/links/:id
  * Update a link (editor or admin).
  */
-router.put('/:id', requireEditorOrAdmin, async (req, res) => {
+router.put('/:id', requireAdmin, async (req, res) => {
     try {
         const { id } = req.params;
         const { category_id, member_id, title, url, description, sort_order, nofollow } = req.body;

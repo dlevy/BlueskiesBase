@@ -56,14 +56,15 @@ export default function AdminLayout() {
                             { to: '/admin/shows', label: 'Shows' },
                             { to: '/admin/songs', label: 'Songs' },
                             { to: '/admin/albums', label: 'Albums' },
-                            { to: '/admin/links', label: 'Links' },
                             { to: '/admin/tours', label: 'Tours' },
                             { to: '/admin/venues', label: 'Venues' },
                             { to: '/admin/band-members', label: 'Band Members' },
                             { to: '/admin/setlist-submissions', label: 'Setlist Submissions' },
-                            { to: '/admin/analytics', label: 'Analytics' },
-                            // Full admins only — user management (including deleting
-                            // accounts) is intentionally out of reach for editors.
+                            // Full admins only — user management, site settings, the
+                            // link directory, and analytics are intentionally out of
+                            // reach for editors.
+                            ...(isAdmin ? [{ to: '/admin/links', label: 'Links' }] : []),
+                            ...(isAdmin ? [{ to: '/admin/analytics', label: 'Analytics' }] : []),
                             ...(isAdmin ? [{ to: '/admin/users', label: 'Users' }] : []),
                             ...(isAdmin ? [{ to: '/admin/settings', label: 'Site Settings' }] : []),
                         ].map(({ to, label }) => (

@@ -6,13 +6,13 @@ const cards = [
     { to: '/admin/shows', label: 'Shows', description: 'Manage concert shows, setlists, and performance details' },
     { to: '/admin/songs', label: 'Songs', description: 'Manage song catalog and track performance history' },
     { to: '/admin/albums', label: 'Albums', description: 'Manage album catalog and tracklists' },
-    { to: '/admin/links', label: 'Links', description: 'Manage categorized links shown on the public Links page' },
     { to: '/admin/tours', label: 'Tours', description: 'Manage tours and assign a default Instagram post style' },
     { to: '/admin/venues', label: 'Venues', description: 'Manage venue information and locations' },
     { to: '/admin/band-members', label: 'Band Members', description: 'Manage band members, their roles, and gear' },
     { to: '/admin/setlist-submissions', label: 'Setlist Submissions', description: 'Review community setlist corrections and accept them into the official setlist' },
-    { to: '/admin/analytics', label: 'Analytics', description: 'Page views and feature usage, with your own admin/editor visits excluded by default' },
     // Full admins only — matches the same gating on the nav bar in AdminLayout.
+    { to: '/admin/links', label: 'Links', description: 'Manage categorized links shown on the public Links page', adminOnly: true },
+    { to: '/admin/analytics', label: 'Analytics', description: 'Page views and feature usage, with your own admin/editor visits excluded by default', adminOnly: true },
     { to: '/admin/users', label: 'Users', description: 'View user signups, confirmation status, and resend activation emails', adminOnly: true },
     { to: '/admin/settings', label: 'Site Settings', description: 'Edit the header title/subtitle shown on every page', adminOnly: true },
 ];
