@@ -45,6 +45,7 @@ export default function BandMemberForm({ member, onClose }) {
 
     const [gearForm, setGearForm] = useState(null); // null = hidden; blankGearForm shape when open
     const [savingGear, setSavingGear] = useState(false);
+    const [reorderingGear, setReorderingGear] = useState(false);
 
     useEffect(() => {
         setTenureRows((savedMember?.band_member_tenures || []).map(t => ({
@@ -201,6 +202,45 @@ export default function BandMemberForm({ member, onClose }) {
         }
     };
 
+    // PUT /band-members/gear/:gearId is a full-replace route (it requires
+    // category etc., not a partial update), so a reorder has to resend each
+    // swapped item's existing fields alongside its new sort_order — same
+    // "swap two neighbors' order values" idiom as BandMembersList.jsx's own
+    // member reorder, just with a fuller payload per item.
+    const gearPayloadFrom = (gear) => ({
+        category: gear.category,
+        make: gear.make,
+        model: gear.model,
+        year: gear.year,
+        notes: gear.notes,
+        start_date: gear.start_date,
+        end_date: gear.end_date,
+        links: gear.links,
+    });
+
+    const moveGear = async (gear, direction) => {
+        const items = savedMember.gear_items || [];
+        const index = items.findIndex(g => g.id === gear.id);
+        const swapIndex = index + direction;
+        if (index === -1 || swapIndex < 0 || swapIndex >= items.length) return;
+        const neighbor = items[swapIndex];
+
+        setReorderingGear(true);
+        setError(null);
+        try {
+            await Promise.all([
+                updateGearItem(gear.id, { ...gearPayloadFrom(gear), sort_order: neighbor.sort_order }),
+                updateGearItem(neighbor.id, { ...gearPayloadFrom(neighbor), sort_order: gear.sort_order }),
+            ]);
+            await refreshMember();
+        } catch (err) {
+            console.error('Error reordering gear:', err);
+            setError(err.message || 'Failed to reorder gear');
+        } finally {
+            setReorderingGear(false);
+        }
+    };
+
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
@@ -332,7 +372,7 @@ export default function BandMemberForm({ member, onClose }) {
 
                     {(savedMember.gear_items || []).length > 0 && (
                         <div className="space-y-2">
-                            {savedMember.gear_items.map(gear => (
+                            {savedMember.gear_items.map((gear, index) => (
                                 <div key={gear.id} className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/5 p-3">
                                     <div className="flex items-center gap-3 min-w-0">
                                         {gear.photo_url ? (
@@ -350,6 +390,12 @@ export default function BandMemberForm({ member, onClose }) {
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-3 shrink-0">
+                                        <div className="flex items-center gap-1">
+                                            <button type="button" disabled={reorderingGear || index === 0} onClick={() => moveGear(gear, -1)}
+                                                className="text-xs px-1.5 disabled:opacity-30" style={{ color: 'var(--p-color-contrast-medium)' }}>↑</button>
+                                            <button type="button" disabled={reorderingGear || index === savedMember.gear_items.length - 1} onClick={() => moveGear(gear, 1)}
+                                                className="text-xs px-1.5 disabled:opacity-30" style={{ color: 'var(--p-color-contrast-medium)' }}>↓</button>
+                                        </div>
                                         <button type="button" onClick={() => openEditGear(gear)} className="text-xs" style={{ color: 'var(--p-color-info)' }}>Edit</button>
                                         <button type="button" onClick={() => handleDeleteGear(gear.id)} className="text-xs" style={{ color: 'var(--p-color-error)' }}>Delete</button>
                                     </div>

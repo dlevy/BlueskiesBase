@@ -2144,7 +2144,7 @@ export const replaceBandMemberTenures = async (id, tenures) => {
 /**
  * gear: { category, make?, model?, year?, notes?, start_date?, end_date?, photoFile? }
  */
-const gearFormData = ({ category, make, model, year, notes, start_date, end_date, links, photoFile }) => {
+const gearFormData = ({ category, make, model, year, notes, start_date, end_date, links, photoFile, sort_order }) => {
     const formData = new FormData();
     formData.append('category', category);
     if (make) formData.append('make', make);
@@ -2155,6 +2155,7 @@ const gearFormData = ({ category, make, model, year, notes, start_date, end_date
     if (end_date) formData.append('end_date', end_date);
     if (links) formData.append('links', JSON.stringify(links));
     if (photoFile) formData.append('photo', photoFile);
+    if (sort_order !== undefined) formData.append('sort_order', sort_order);
     return formData;
 };
 

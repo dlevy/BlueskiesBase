@@ -75,9 +75,10 @@ router.get('/', async (req, res) => {
             .select(`
                 id, name, photo_url, bio, roles, links, sort_order, created_at,
                 band_member_tenures ( id, start_year, end_year ),
-                gear_items ( id, category, make, model, year, notes, photo_url, links, start_date, end_date )
+                gear_items ( id, category, make, model, year, notes, photo_url, links, start_date, end_date, sort_order )
             `)
-            .order('sort_order');
+            .order('sort_order')
+            .order('sort_order', { foreignTable: 'gear_items' });
 
         if (error) {
             console.error('[GET /band-members] Error:', error);
@@ -102,9 +103,10 @@ router.get('/:id', async (req, res) => {
             .select(`
                 id, name, photo_url, bio, roles, links, sort_order, created_at,
                 band_member_tenures ( id, start_year, end_year ),
-                gear_items ( id, category, make, model, year, notes, photo_url, links, start_date, end_date )
+                gear_items ( id, category, make, model, year, notes, photo_url, links, start_date, end_date, sort_order )
             `)
             .eq('id', req.params.id)
+            .order('sort_order', { foreignTable: 'gear_items' })
             .single();
 
         if (error || !member) {
@@ -423,7 +425,7 @@ router.post('/:id/gear', requireEditorOrAdmin, uploadPhoto.single('photo'), asyn
 router.put('/gear/:gearId', requireEditorOrAdmin, uploadPhoto.single('photo'), async (req, res) => {
     try {
         const { gearId } = req.params;
-        const { category, make, model, year, notes, start_date, end_date, links } = req.body;
+        const { category, make, model, year, notes, start_date, end_date, links, sort_order } = req.body;
 
         if (!VALID_CATEGORIES.includes(category)) {
             return res.status(400).json({ error: `category must be one of: ${VALID_CATEGORIES.join(', ')}` });
@@ -449,6 +451,14 @@ router.put('/gear/:gearId', requireEditorOrAdmin, uploadPhoto.single('photo'), a
             start_date: start_date || null,
             end_date: end_date || null,
         };
+
+        if (sort_order !== undefined) {
+            const parsedOrder = parseInt(sort_order, 10);
+            if (isNaN(parsedOrder)) {
+                return res.status(400).json({ error: 'sort_order must be a number' });
+            }
+            update.sort_order = parsedOrder;
+        }
 
         if (req.file) {
             const { data: existing } = await supabaseAdmin.from('gear_items').select('photo_url').eq('id', gearId).single();
