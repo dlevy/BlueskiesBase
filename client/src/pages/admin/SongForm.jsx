@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { PHeading, PText, PButton, PButtonPure, PInlineNotification } from '@porsche-design-system/components-react';
 import { createSong, updateSong, deleteSong, getAlbums } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
+import { trackEvent } from '../../utils/analytics';
 
 const inputClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--p-color-info)] focus:border-transparent placeholder:text-gray-500";
 const selectClass = "w-full rounded-lg border border-white/10 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--p-color-info)] focus:border-transparent";
@@ -86,8 +87,10 @@ export default function SongForm({ song, onClose }) {
         try {
             if (song) {
                 await updateSong(song.id, formData);
+                trackEvent('song_updated', formData.title);
             } else {
                 await createSong(formData);
+                trackEvent('song_created', formData.title);
             }
             onClose();
         } catch (err) {
@@ -103,6 +106,7 @@ export default function SongForm({ song, onClose }) {
         setError(null);
         try {
             await deleteSong(song.id);
+            trackEvent('song_deleted', song.title);
             onClose();
         } catch (err) {
             console.error('Error deleting song:', err);

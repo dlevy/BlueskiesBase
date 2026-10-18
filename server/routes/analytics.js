@@ -52,11 +52,11 @@ function resolveRange(req) {
  * Public — logs one pageview or feature-usage event. Never rejects on a
  * missing/invalid auth token (see loadRequesterOptional) — the event still
  * gets logged, just as a guest, since a flaky token shouldn't lose data.
- * Body: { eventType, eventName, path, sessionId, referrer? }
+ * Body: { eventType, eventName, path, sessionId, referrer?, metadata? }
  */
 router.post('/event', async (req, res) => {
     try {
-        const { eventType, eventName, path, sessionId, referrer } = req.body;
+        const { eventType, eventName, path, sessionId, referrer, metadata } = req.body;
 
         if (!VALID_EVENT_TYPES.includes(eventType)) {
             return res.status(400).json({ error: `eventType must be one of: ${VALID_EVENT_TYPES.join(', ')}` });
@@ -78,6 +78,7 @@ router.post('/event', async (req, res) => {
             user_role: role || null,
             session_id: sessionId,
             referrer: referrer || null,
+            metadata: typeof metadata === 'string' ? metadata.slice(0, 500) : null,
         });
 
         if (error) {
@@ -185,7 +186,11 @@ router.get('/summary', requireAdmin, async (req, res) => {
  * Query params:
  *   from, to          — YYYY-MM-DD, inclusive date range (defaults to the last 30 days)
  *   last24h           — 'true' for a precise rolling 24-hour window instead (overrides from/to)
- *   includeStaff      — 'true' to include admin/editor-tagged rows (default: excluded)
+ *   includeStaff      — 'true' to include admin/editor-tagged rows alongside
+ *                        member/guest ones (default: excluded). Ignored when
+ *                        role=staff is also set.
+ *   role              — 'staff' to show ONLY admin/editor-tagged rows
+ *                        (default: no role restriction beyond includeStaff)
  *   eventType         — 'pageview' | 'feature' (default: both)
  *   user              — free-text match against the triggering user's
  *                        username/display name (default: no filter)
@@ -194,6 +199,7 @@ router.get('/summary', requireAdmin, async (req, res) => {
 router.get('/events', requireAdmin, async (req, res) => {
     try {
         const includeStaff = req.query.includeStaff === 'true';
+        const staffOnly = req.query.role === 'staff';
         const { fromInclusive, toExclusive } = resolveRange(req);
 
         const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
@@ -227,7 +233,7 @@ router.get('/events', requireAdmin, async (req, res) => {
             // user_id references profiles directly, so PostgREST can embed it
             // without the two-query workaround other routes need for tables
             // that reference auth.users instead.
-            .select('id, event_type, event_name, path, user_role, session_id, created_at, profiles(username, display_name)', { count: 'exact' })
+            .select('id, event_type, event_name, path, user_role, session_id, created_at, metadata, profiles(username, display_name)', { count: 'exact' })
             .gte('created_at', fromInclusive)
             .lt('created_at', toExclusive)
             .order('created_at', { ascending: false });
@@ -235,7 +241,9 @@ router.get('/events', requireAdmin, async (req, res) => {
         if (VALID_EVENT_TYPES.includes(req.query.eventType)) {
             query = query.eq('event_type', req.query.eventType);
         }
-        if (!includeStaff) {
+        if (staffOnly) {
+            query = query.in('user_role', ['admin', 'editor']);
+        } else if (!includeStaff) {
             query = query.or('user_role.is.null,user_role.eq.member');
         }
         if (matchingUserIds) {
@@ -261,6 +269,7 @@ router.get('/events', requireAdmin, async (req, res) => {
                 userName: r.profiles?.display_name || r.profiles?.username || null,
                 sessionId: r.session_id,
                 createdAt: r.created_at,
+                metadata: r.metadata,
             })),
             pagination: { page, limit, total: count || 0, totalPages: Math.ceil((count || 0) / limit) },
         });

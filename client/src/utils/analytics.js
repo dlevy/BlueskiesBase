@@ -61,6 +61,11 @@ export function trackPageview() {
     send('pageview', window.location.pathname);
 }
 
-export function trackEvent(eventName) {
-    send('feature', eventName);
+// `metadata` is an optional short human-readable description of what the
+// event acted on (e.g. a show/song/album title) — used by the admin/curator
+// content-mutation events so the audit log says what was touched, not just
+// that something was. Omitted entirely for the existing public feature
+// events, which don't need it.
+export function trackEvent(eventName, metadata) {
+    send('feature', eventName, metadata ? { metadata } : undefined);
 }

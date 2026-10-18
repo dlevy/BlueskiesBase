@@ -71,6 +71,7 @@ function RankedList({ title, rows, emptyText, formatLabel }) {
 // consistent with whatever the rest of the page is currently showing.
 function AuditLog({ from, to, last24h, includeStaff }) {
     const [eventType, setEventType] = useState('feature');
+    const [staffOnly, setStaffOnly] = useState(false);
     const [userSearchInput, setUserSearchInput] = useState('');
     const [userSearch, setUserSearch] = useState('');
     const [page, setPage] = useState(1);
@@ -84,13 +85,19 @@ function AuditLog({ from, to, last24h, includeStaff }) {
         return () => clearTimeout(t);
     }, [userSearchInput]);
 
-    useEffect(() => { setPage(1); }, [from, to, last24h, includeStaff, eventType, userSearch]);
+    useEffect(() => { setPage(1); }, [from, to, last24h, includeStaff, staffOnly, eventType, userSearch]);
 
     useEffect(() => {
         let cancelled = false;
         setLoading(true);
         setError(null);
-        getAnalyticsEvents({ from, to, last24h, includeStaff, eventType: eventType || undefined, user: userSearch || undefined, page, limit: 50 })
+        getAnalyticsEvents({
+            from, to, last24h, includeStaff,
+            role: staffOnly ? 'staff' : undefined,
+            eventType: eventType || undefined,
+            user: userSearch || undefined,
+            page, limit: 50,
+        })
             .then(result => { if (!cancelled) setData(result); })
             .catch(err => {
                 console.error('[AuditLog] Error loading events:', err);
@@ -98,7 +105,7 @@ function AuditLog({ from, to, last24h, includeStaff }) {
             })
             .finally(() => { if (!cancelled) setLoading(false); });
         return () => { cancelled = true; };
-    }, [from, to, last24h, includeStaff, eventType, userSearch, page]);
+    }, [from, to, last24h, includeStaff, staffOnly, eventType, userSearch, page]);
 
     return (
         <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-5">
@@ -113,6 +120,19 @@ function AuditLog({ from, to, last24h, includeStaff }) {
                         className="rounded-lg border border-white/10 bg-white/5 py-1 px-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500/40 placeholder:text-gray-500"
                         style={{ color: 'var(--p-color-primary)' }}
                     />
+                    <button
+                        type="button"
+                        onClick={() => setStaffOnly(v => !v)}
+                        title="Show only activity by admins and curators"
+                        className={`text-xs px-2.5 py-1 rounded-lg border transition-all ${
+                            staffOnly
+                                ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
+                                : 'border-white/10 hover:border-white/25'
+                        }`}
+                        style={!staffOnly ? { color: 'var(--p-color-contrast-medium)' } : undefined}
+                    >
+                        Admins & Curators only
+                    </button>
                     <div className="flex gap-1.5">
                         {EVENT_TYPE_OPTIONS.map(opt => (
                             <button
@@ -171,8 +191,15 @@ function AuditLog({ from, to, last24h, includeStaff }) {
                                                 </span>
                                             )}
                                         </td>
-                                        <td className="py-2 pr-3 font-mono text-xs whitespace-nowrap" style={{ color: ev.eventType === 'feature' ? '#fbbf24' : 'var(--p-color-contrast-medium)' }}>
-                                            {ev.eventName}
+                                        <td className="py-2 pr-3 whitespace-nowrap">
+                                            <span className="font-mono text-xs" style={{ color: ev.eventType === 'feature' ? '#fbbf24' : 'var(--p-color-contrast-medium)' }}>
+                                                {ev.eventName}
+                                            </span>
+                                            {ev.metadata && (
+                                                <span className="block text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>
+                                                    {ev.metadata}
+                                                </span>
+                                            )}
                                         </td>
                                         <td className="py-2 truncate max-w-[220px]" style={{ color: 'var(--p-color-contrast-low)' }} title={ev.path || ''}>
                                             {ev.path || '—'}

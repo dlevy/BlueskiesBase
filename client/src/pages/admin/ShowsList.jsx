@@ -7,6 +7,7 @@ import { supabase } from '../../services/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { getLiveCoverTitles, getSundayValleyTitles } from '../../utils/coverSongs';
 import { getLocalDateString } from '../../utils/today';
+import { trackEvent } from '../../utils/analytics';
 
 const selectClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-transparent";
 
@@ -153,10 +154,11 @@ export default function ShowsList() {
         filters.hasPoster && { name: 'hasPoster', label: 'Has Poster', value: 'Yes' },
     ].filter(Boolean);
 
-    const handleDelete = async (id, showDate, artistName) => {
+    const handleDelete = async (show, showDate, artistName) => {
         if (!confirm(`Are you sure you want to delete the show on ${showDate} by ${artistName}?`)) return;
         try {
-            await deleteShow(id);
+            await deleteShow(show.id);
+            trackEvent('show_deleted', [artistName, show.venues?.name, showDate].filter(Boolean).join(' — '));
             fetchShows();
         } catch (err) {
             console.error('Error deleting show:', err);
@@ -433,7 +435,7 @@ export default function ShowsList() {
                                             </Link>
                                             {isAdmin && (
                                                 <PButtonPure size="x-small"
-                                                    onClick={() => handleDelete(show.id, formatDate(show.show_date), show.artist_name)}
+                                                    onClick={() => handleDelete(show, formatDate(show.show_date), show.artist_name)}
                                                     style={{ color: 'var(--p-color-error)' }}>
                                                     Delete
                                                 </PButtonPure>

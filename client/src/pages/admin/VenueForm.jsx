@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { PHeading, PText, PButton, PButtonPure, PInlineNotification } from '@porsche-design-system/components-react';
 import { createVenue, updateVenue, deleteVenue } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
+import { trackEvent } from '../../utils/analytics';
 
 const inputClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--p-color-info)] focus:border-transparent placeholder:text-gray-500";
 const labelClass = "block text-xs font-medium mb-1.5";
@@ -39,10 +40,13 @@ export default function VenueForm({ venue, onClose }) {
         setLoading(true);
         setError(null);
         try {
+            const label = [formData.name, [formData.city, formData.state_country].filter(Boolean).join(', ')].filter(Boolean).join(' — ');
             if (venue) {
                 await updateVenue(venue.id, formData);
+                trackEvent('venue_updated', label);
             } else {
                 await createVenue(formData);
+                trackEvent('venue_created', label);
             }
             onClose();
         } catch (err) {
@@ -58,6 +62,7 @@ export default function VenueForm({ venue, onClose }) {
         setError(null);
         try {
             await deleteVenue(venue.id);
+            trackEvent('venue_deleted', [venue.name, [venue.city, venue.state_country].filter(Boolean).join(', ')].filter(Boolean).join(' — '));
             onClose();
         } catch (err) {
             console.error('Error deleting venue:', err);

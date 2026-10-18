@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { PHeading, PText, PButton, PButtonPure, PInlineNotification, PSpinner } from '@porsche-design-system/components-react';
 import { createAlbum, updateAlbum, deleteAlbum, getSongs, getAlbumSongs, addSongToAlbum, removeSongFromAlbum, reorderAlbumSongs } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
+import { trackEvent } from '../../utils/analytics';
 
 const inputClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--p-color-info)] focus:border-transparent placeholder:text-gray-500";
 const selectClass = "w-full rounded-lg border border-white/10 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--p-color-info)] focus:border-transparent";
@@ -172,10 +173,13 @@ export default function AlbumForm({ album, onClose }) {
         setLoading(true);
         setError(null);
         try {
+            const label = [formData.title, formData.artist_name].filter(Boolean).join(' — ');
             if (album) {
                 await updateAlbum(album.id, formData);
+                trackEvent('album_updated', label);
             } else {
                 await createAlbum(formData);
+                trackEvent('album_created', label);
             }
             onClose();
         } catch (err) {
@@ -191,6 +195,7 @@ export default function AlbumForm({ album, onClose }) {
         setError(null);
         try {
             await deleteAlbum(album.id);
+            trackEvent('album_deleted', album.title);
             onClose();
         } catch (err) {
             console.error('Error deleting album:', err);

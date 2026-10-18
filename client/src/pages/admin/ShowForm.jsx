@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { PHeading, PText, PButton, PButtonPure, PInlineNotification, PSpinner } from '@porsche-design-system/components-react';
 import { getShowById, createShow, updateShow, deleteShow, getVenues, updateSetlist, createVenue, getBands, createBand } from '../../services/api';
@@ -6,6 +6,13 @@ import { fetchTourList } from '../../utils/tourSongCounts';
 import { buildShowPath } from '../../utils/showSlug';
 import SetlistEditor from '../../components/SetlistEditor';
 import { useAuth } from '../../contexts/AuthContext';
+import { trackEvent } from '../../utils/analytics';
+
+function formatShowDate(dateStr) {
+    if (!dateStr) return '';
+    const [y, m, d] = dateStr.split('-');
+    return new Date(Number(y), Number(m) - 1, Number(d)).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
 
 const NEW_TOUR_VALUE = '__new__';
 
@@ -40,9 +47,21 @@ export default function ShowForm() {
     // function, so a new reference on every ShowForm render — e.g. from typing in the
     // Notes field — would re-run hydration on every keystroke and stomp any in-progress
     // setlist edits.
+    //
+    // The very first call is always the hydration call (converting whatever setlist
+    // already existed into this flat shape) — captured once into a ref as the baseline
+    // to diff against at save time, so a save that only changed an unrelated field (e.g.
+    // Notes) doesn't log a false "setlist updated" audit event. Refs, not state, so this
+    // stays side-effect-free for handleSetlistChange's own stable identity above.
+    const baselineSetlistRef = useRef(null);
+    const hasCapturedBaselineRef = useRef(false);
     const handleSetlistChange = useCallback((data) => {
         setSetlistData(data);
         setSetlistReady(true);
+        if (!hasCapturedBaselineRef.current) {
+            hasCapturedBaselineRef.current = true;
+            baselineSetlistRef.current = data;
+        }
     }, []);
     const [showVenueForm, setShowVenueForm] = useState(false);
     const [venueFormData, setVenueFormData] = useState({ name: '', city: '', state_country: '', address: '' });
@@ -196,7 +215,10 @@ export default function ShowForm() {
     const handleDelete = async () => {
         if (!confirm(`Permanently delete this show? This cannot be undone.`)) return;
         try {
+            const venue = venues.find(v => v.id === formData.venue_id);
+            const label = [formData.artist_name, venue?.name, formatShowDate(formData.show_date)].filter(Boolean).join(' — ');
             await deleteShow(id);
+            trackEvent('show_deleted', label);
             navigate('/admin/shows');
         } catch (err) {
             console.error('Error deleting show:', err);
@@ -219,20 +241,30 @@ export default function ShowForm() {
 
         setSaving(true);
         try {
+            const venue = venues.find(v => v.id === formData.venue_id);
+            const label = [formData.artist_name, venue?.name, formatShowDate(formData.show_date)].filter(Boolean).join(' — ');
+
             let showId = id;
             if (isEdit) {
                 await updateShow(id, formData);
+                trackEvent('show_updated', label);
             } else {
                 const newShow = await createShow(formData);
                 showId = newShow.id;
+                trackEvent('show_created', label);
             }
             if (setlistData.length > 0 || isEdit) {
                 await updateSetlist(showId, setlistData);
+                // Only a genuine edit path has a hydrated baseline to diff against —
+                // skip for a brand-new show, where the initial setlist is already
+                // covered by the show_created event above.
+                if (isEdit && JSON.stringify(setlistData) !== JSON.stringify(baselineSetlistRef.current)) {
+                    trackEvent('setlist_updated', label);
+                }
             }
 
             // Land on the public show page rather than back on the admin list —
             // saving is usually immediately followed by checking how it looks live.
-            const venue = venues.find(v => v.id === formData.venue_id);
             const path = venue
                 ? buildShowPath({ artist_name: formData.artist_name, show_date: formData.show_date, venues: venue })
                 : null;

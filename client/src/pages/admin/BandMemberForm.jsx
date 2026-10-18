@@ -6,6 +6,7 @@ import {
 } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import LinksEditor from '../../components/LinksEditor';
+import { trackEvent } from '../../utils/analytics';
 
 const inputClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--p-color-info)] focus:border-transparent placeholder:text-gray-500";
 const labelClass = "block text-xs font-medium mb-1.5";
@@ -79,9 +80,11 @@ export default function BandMemberForm({ member, onClose }) {
             if (savedMember) {
                 const { member: updated } = await updateBandMember(savedMember.id, { name: formData.name, bio: formData.bio, roles, links });
                 setSavedMember(prev => ({ ...prev, ...updated }));
+                trackEvent('band_member_updated', formData.name);
             } else {
                 const { member: created } = await createBandMember({ name: formData.name, bio: formData.bio, roles, links });
                 setSavedMember(created);
+                trackEvent('band_member_created', formData.name);
             }
         } catch (err) {
             console.error('Error saving band member:', err);
@@ -96,6 +99,7 @@ export default function BandMemberForm({ member, onClose }) {
         setError(null);
         try {
             await deleteBandMember(savedMember.id);
+            trackEvent('band_member_deleted', savedMember.name);
             onClose();
         } catch (err) {
             console.error('Error deleting band member:', err);
@@ -175,10 +179,14 @@ export default function BandMemberForm({ member, onClose }) {
                 links: gearForm.links,
                 photoFile: gearForm.photoFile,
             };
+            const gearLabel = [gearForm.year, gearForm.make, gearForm.model].filter(Boolean).join(' ') || CATEGORY_LABELS[gearForm.category];
+            const label = `${gearLabel} — ${savedMember.name}`;
             if (gearForm.editingGearId) {
                 await updateGearItem(gearForm.editingGearId, payload);
+                trackEvent('gear_item_updated', label);
             } else {
                 await createGearItem(savedMember.id, payload);
+                trackEvent('gear_item_created', label);
             }
             setGearForm(null);
             await refreshMember();
@@ -194,7 +202,10 @@ export default function BandMemberForm({ member, onClose }) {
         if (!confirm('Delete this gear item?')) return;
         setError(null);
         try {
+            const gear = (savedMember.gear_items || []).find(g => g.id === gearId);
+            const gearLabel = gear ? ([gear.year, gear.make, gear.model].filter(Boolean).join(' ') || CATEGORY_LABELS[gear.category]) : 'gear item';
             await deleteGearItem(gearId);
+            trackEvent('gear_item_deleted', `${gearLabel} — ${savedMember.name}`);
             await refreshMember();
         } catch (err) {
             console.error('Error deleting gear item:', err);
