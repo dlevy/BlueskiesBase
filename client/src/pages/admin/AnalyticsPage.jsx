@@ -6,7 +6,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { getLocalDateString } from '../../utils/today';
 
 const RANGE_OPTIONS = [
-    { label: '24 hours', last24h: true },
+    { label: '1 hour', hours: 1 },
+    { label: '24 hours', hours: 24 },
     { label: '7 days', days: 7 },
     { label: '30 days', days: 30 },
     { label: '90 days', days: 90 },
@@ -69,7 +70,7 @@ function RankedList({ title, rows, emptyText, formatLabel }) {
 // backing route's own admin-only gate, server/routes/analytics.js).
 // Reuses the parent's date range + includeStaff filters so the log stays
 // consistent with whatever the rest of the page is currently showing.
-function AuditLog({ from, to, last24h, includeStaff }) {
+function AuditLog({ from, to, hours, includeStaff }) {
     const [eventType, setEventType] = useState('feature');
     // '' = no extra role restriction (respects includeStaff above), otherwise
     // 'staff' (admins + curators), 'admin', or 'editor' — mutually exclusive.
@@ -87,14 +88,14 @@ function AuditLog({ from, to, last24h, includeStaff }) {
         return () => clearTimeout(t);
     }, [userSearchInput]);
 
-    useEffect(() => { setPage(1); }, [from, to, last24h, includeStaff, roleFilter, eventType, userSearch]);
+    useEffect(() => { setPage(1); }, [from, to, hours, includeStaff, roleFilter, eventType, userSearch]);
 
     useEffect(() => {
         let cancelled = false;
         setLoading(true);
         setError(null);
         getAnalyticsEvents({
-            from, to, last24h, includeStaff,
+            from, to, hours, includeStaff,
             role: roleFilter || undefined,
             eventType: eventType || undefined,
             user: userSearch || undefined,
@@ -107,7 +108,7 @@ function AuditLog({ from, to, last24h, includeStaff }) {
             })
             .finally(() => { if (!cancelled) setLoading(false); });
         return () => { cancelled = true; };
-    }, [from, to, last24h, includeStaff, roleFilter, eventType, userSearch, page]);
+    }, [from, to, hours, includeStaff, roleFilter, eventType, userSearch, page]);
 
     return (
         <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-5">
@@ -251,21 +252,21 @@ function AuditLog({ from, to, last24h, includeStaff }) {
 
 export default function AnalyticsPage() {
     const { isAdmin } = useAuth();
-    const [range, setRange] = useState(RANGE_OPTIONS[2]); // '30 days', the historical default
+    const [range, setRange] = useState(RANGE_OPTIONS[1]); // '24 hours', the default view
     const [includeStaff, setIncludeStaff] = useState(false);
     const [summary, setSummary] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    const rangeFrom = range.last24h ? undefined : isoDateDaysAgo(range.days);
-    const rangeTo = range.last24h ? undefined : todayStr();
+    const rangeFrom = range.hours ? undefined : isoDateDaysAgo(range.days);
+    const rangeTo = range.hours ? undefined : todayStr();
 
     const load = useCallback(async () => {
         if (!isAdmin) { setLoading(false); return; }
         setLoading(true);
         setError(null);
         try {
-            const data = await getAnalyticsSummary({ from: rangeFrom, to: rangeTo, last24h: range.last24h, includeStaff });
+            const data = await getAnalyticsSummary({ from: rangeFrom, to: rangeTo, hours: range.hours, includeStaff });
             setSummary(data);
         } catch (err) {
             console.error('[AnalyticsPage] Error loading analytics:', err);
@@ -273,7 +274,7 @@ export default function AnalyticsPage() {
         } finally {
             setLoading(false);
         }
-    }, [isAdmin, rangeFrom, rangeTo, range.last24h, includeStaff]);
+    }, [isAdmin, rangeFrom, rangeTo, range.hours, includeStaff]);
 
     useEffect(() => { load(); }, [load]);
 
@@ -380,7 +381,7 @@ export default function AnalyticsPage() {
                         <RankedList title="Feature Usage" rows={summary.topFeatures} emptyText="No feature events logged yet." />
                     </div>
 
-                    <AuditLog from={rangeFrom} to={rangeTo} last24h={range.last24h} includeStaff={includeStaff} />
+                    <AuditLog from={rangeFrom} to={rangeTo} hours={range.hours} includeStaff={includeStaff} />
                 </>
             )}
         </div>

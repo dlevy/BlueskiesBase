@@ -2211,13 +2211,13 @@ export const deleteGearItem = async (gearId) => {
  * range. Editor/admin only. `includeStaff` opts back into admin/editor-
  * tagged rows, which are excluded by default.
  */
-export const getAnalyticsSummary = async ({ from, to, last24h = false, includeStaff = false } = {}) => {
+export const getAnalyticsSummary = async ({ from, to, hours, includeStaff = false } = {}) => {
     const token = await getAuthToken();
     if (!token) throw new Error('Not authenticated');
 
     const params = new URLSearchParams();
-    if (last24h) {
-        params.set('last24h', 'true');
+    if (hours) {
+        params.set('hours', hours);
     } else {
         if (from) params.set('from', from);
         if (to) params.set('to', to);
@@ -2242,13 +2242,13 @@ export const getAnalyticsSummary = async ({ from, to, last24h = false, includeSt
  * the user who triggered it. Admin only (stricter than getAnalyticsSummary
  * — this names real people, not just aggregate counts).
  */
-export const getAnalyticsEvents = async ({ from, to, last24h = false, includeStaff = false, role, eventType, user, page = 1, limit = 50 } = {}) => {
+export const getAnalyticsEvents = async ({ from, to, hours, includeStaff = false, role, eventType, user, page = 1, limit = 50 } = {}) => {
     const token = await getAuthToken();
     if (!token) throw new Error('Not authenticated');
 
     const params = new URLSearchParams();
-    if (last24h) {
-        params.set('last24h', 'true');
+    if (hours) {
+        params.set('hours', hours);
     } else {
         if (from) params.set('from', from);
         if (to) params.set('to', to);

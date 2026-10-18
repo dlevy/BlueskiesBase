@@ -5,23 +5,24 @@ const { requireAdmin, loadRequesterOptional } = require('../middleware/requireRo
 
 const VALID_EVENT_TYPES = ['pageview', 'feature'];
 
-// Shared by /summary and /events. `last24h=true` is a genuinely precise
-// rolling 24-hour window (now minus 24h) — distinct from the day-bucketed
+// Shared by /summary and /events. `hours=N` is a genuinely precise rolling
+// N-hour window (now minus N hours) — distinct from the day-bucketed
 // from/to range the 7/30/90-day buttons use, where from/to are calendar
 // dates in the VIEWER's own timezone (not UTC — tzOffsetMinutes is
 // `Date.prototype.getTimezoneOffset()` from the browser, e.g. +420 for
 // PDT), so "today" boundaries line up with the viewer's own midnight
 // instead of flipping over a few hours early/late depending where they are
 // relative to UTC. That rounding is harmless at 7+ day granularity, but
-// reusing it for a "last 24 hours" option would silently span up to 48
+// reusing it for a "last N hours" option would silently span up to N+24
 // hours depending on time of day, so that mode stays a precise instant
 // window instead.
 function resolveRange(req) {
     const tzOffsetMinutes = parseInt(req.query.tzOffsetMinutes, 10) || 0;
 
-    if (req.query.last24h === 'true') {
+    const hours = parseInt(req.query.hours, 10);
+    if (hours > 0) {
         const toExclusive = new Date();
-        const fromInclusive = new Date(toExclusive.getTime() - 24 * 60 * 60 * 1000);
+        const fromInclusive = new Date(toExclusive.getTime() - hours * 60 * 60 * 1000);
         return {
             from: fromInclusive.toISOString(),
             to: toExclusive.toISOString(),
@@ -97,7 +98,7 @@ router.post('/event', async (req, res) => {
  * GET /api/analytics/summary
  * Admin only. Query params:
  *   from, to          — YYYY-MM-DD, inclusive date range (defaults to the last 30 days)
- *   last24h           — 'true' for a precise rolling 24-hour window instead (overrides from/to)
+ *   hours             — e.g. 1 or 24, a precise rolling N-hour window instead (overrides from/to)
  *   includeStaff      — 'true' to include admin/editor-tagged rows (default: excluded)
  */
 router.get('/summary', requireAdmin, async (req, res) => {
@@ -185,7 +186,7 @@ router.get('/summary', requireAdmin, async (req, res) => {
  * events, each resolved to the user who triggered it.
  * Query params:
  *   from, to          — YYYY-MM-DD, inclusive date range (defaults to the last 30 days)
- *   last24h           — 'true' for a precise rolling 24-hour window instead (overrides from/to)
+ *   hours             — e.g. 1 or 24, a precise rolling N-hour window instead (overrides from/to)
  *   includeStaff      — 'true' to include admin/editor-tagged rows alongside
  *                        member/guest ones (default: excluded). Ignored when
  *                        role is also set.
