@@ -188,8 +188,9 @@ router.get('/summary', requireAdmin, async (req, res) => {
  *   last24h           — 'true' for a precise rolling 24-hour window instead (overrides from/to)
  *   includeStaff      — 'true' to include admin/editor-tagged rows alongside
  *                        member/guest ones (default: excluded). Ignored when
- *                        role=staff is also set.
- *   role              — 'staff' to show ONLY admin/editor-tagged rows
+ *                        role is also set.
+ *   role              — 'staff' to show ONLY admin/editor-tagged rows,
+ *                        'admin' or 'editor' to show ONLY that one role
  *                        (default: no role restriction beyond includeStaff)
  *   eventType         — 'pageview' | 'feature' (default: both)
  *   user              — free-text match against the triggering user's
@@ -200,6 +201,7 @@ router.get('/events', requireAdmin, async (req, res) => {
     try {
         const includeStaff = req.query.includeStaff === 'true';
         const staffOnly = req.query.role === 'staff';
+        const roleOnly = ['admin', 'editor'].includes(req.query.role) ? req.query.role : null;
         const { fromInclusive, toExclusive } = resolveRange(req);
 
         const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
@@ -241,7 +243,9 @@ router.get('/events', requireAdmin, async (req, res) => {
         if (VALID_EVENT_TYPES.includes(req.query.eventType)) {
             query = query.eq('event_type', req.query.eventType);
         }
-        if (staffOnly) {
+        if (roleOnly) {
+            query = query.eq('user_role', roleOnly);
+        } else if (staffOnly) {
             query = query.in('user_role', ['admin', 'editor']);
         } else if (!includeStaff) {
             query = query.or('user_role.is.null,user_role.eq.member');

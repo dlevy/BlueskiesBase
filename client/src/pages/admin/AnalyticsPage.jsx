@@ -71,7 +71,9 @@ function RankedList({ title, rows, emptyText, formatLabel }) {
 // consistent with whatever the rest of the page is currently showing.
 function AuditLog({ from, to, last24h, includeStaff }) {
     const [eventType, setEventType] = useState('feature');
-    const [staffOnly, setStaffOnly] = useState(false);
+    // '' = no extra role restriction (respects includeStaff above), otherwise
+    // 'staff' (admins + curators), 'admin', or 'editor' — mutually exclusive.
+    const [roleFilter, setRoleFilter] = useState('');
     const [userSearchInput, setUserSearchInput] = useState('');
     const [userSearch, setUserSearch] = useState('');
     const [page, setPage] = useState(1);
@@ -85,7 +87,7 @@ function AuditLog({ from, to, last24h, includeStaff }) {
         return () => clearTimeout(t);
     }, [userSearchInput]);
 
-    useEffect(() => { setPage(1); }, [from, to, last24h, includeStaff, staffOnly, eventType, userSearch]);
+    useEffect(() => { setPage(1); }, [from, to, last24h, includeStaff, roleFilter, eventType, userSearch]);
 
     useEffect(() => {
         let cancelled = false;
@@ -93,7 +95,7 @@ function AuditLog({ from, to, last24h, includeStaff }) {
         setError(null);
         getAnalyticsEvents({
             from, to, last24h, includeStaff,
-            role: staffOnly ? 'staff' : undefined,
+            role: roleFilter || undefined,
             eventType: eventType || undefined,
             user: userSearch || undefined,
             page, limit: 50,
@@ -105,7 +107,7 @@ function AuditLog({ from, to, last24h, includeStaff }) {
             })
             .finally(() => { if (!cancelled) setLoading(false); });
         return () => { cancelled = true; };
-    }, [from, to, last24h, includeStaff, staffOnly, eventType, userSearch, page]);
+    }, [from, to, last24h, includeStaff, roleFilter, eventType, userSearch, page]);
 
     return (
         <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-5">
@@ -120,19 +122,28 @@ function AuditLog({ from, to, last24h, includeStaff }) {
                         className="rounded-lg border border-white/10 bg-white/5 py-1 px-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500/40 placeholder:text-gray-500"
                         style={{ color: 'var(--p-color-primary)' }}
                     />
-                    <button
-                        type="button"
-                        onClick={() => setStaffOnly(v => !v)}
-                        title="Show only activity by admins and curators"
-                        className={`text-xs px-2.5 py-1 rounded-lg border transition-all ${
-                            staffOnly
-                                ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
-                                : 'border-white/10 hover:border-white/25'
-                        }`}
-                        style={!staffOnly ? { color: 'var(--p-color-contrast-medium)' } : undefined}
-                    >
-                        Admins & Curators only
-                    </button>
+                    <div className="flex gap-1.5">
+                        {[
+                            { value: 'staff', label: 'Admins & Curators', title: 'Show only activity by admins and curators' },
+                            { value: 'admin', label: 'Admins only', title: 'Show only activity by admins' },
+                            { value: 'editor', label: 'Curators only', title: 'Show only activity by curators' },
+                        ].map(opt => (
+                            <button
+                                key={opt.value}
+                                type="button"
+                                onClick={() => setRoleFilter(v => v === opt.value ? '' : opt.value)}
+                                title={opt.title}
+                                className={`text-xs px-2.5 py-1 rounded-lg border transition-all ${
+                                    roleFilter === opt.value
+                                        ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
+                                        : 'border-white/10 hover:border-white/25'
+                                }`}
+                                style={roleFilter !== opt.value ? { color: 'var(--p-color-contrast-medium)' } : undefined}
+                            >
+                                {opt.label}
+                            </button>
+                        ))}
+                    </div>
                     <div className="flex gap-1.5">
                         {EVENT_TYPE_OPTIONS.map(opt => (
                             <button
