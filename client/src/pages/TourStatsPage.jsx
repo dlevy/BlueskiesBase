@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { PHeading, PText, PButtonPure, PSpinner, PInlineNotification } from '@porsche-design-system/components-react';
 import { fetchTourList, fetchDefaultTourName, fetchTourSongCounts, ALL_SHOWS } from '../utils/tourSongCounts';
 import { fetchGeographyOptions } from '../utils/geography';
+import { buildShowPath } from '../utils/showSlug';
 import SEO from '../components/SEO';
 import ShowMapShare from '../components/ShowMapShare';
 
@@ -233,6 +234,35 @@ export default function TourStatsPage() {
                                     {' '}&middot; {tourData.songCounts.length} song{tourData.songCounts.length !== 1 ? 's' : ''} played
                                     {tourData.avgSongsPerShow > 0 && <> &middot; {tourData.avgSongsPerShow.toFixed(1)} songs/show avg</>}
                                 </PText>
+
+                                {tourData.liveDebuts.length > 0 && (
+                                    <div className="mt-5 mb-6 rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
+                                        <PHeading size="small" tag="h3" className="mb-1">
+                                            Live Debuts ({tourData.liveDebuts.length})
+                                        </PHeading>
+                                        <PText size="x-small" color="contrast-medium" className="mb-3 block">
+                                            Songs played live for the very first time during this tour
+                                        </PText>
+                                        <div className="space-y-2">
+                                            {tourData.liveDebuts.map(d => (
+                                                <div key={d.songId} className="flex items-center justify-between gap-3">
+                                                    <span className="inline-flex items-center gap-1.5 text-xs truncate" style={{ color: 'var(--p-color-primary)' }}>
+                                                        <span className={`w-2 h-2 rounded-sm inline-block shrink-0 ${d.isOriginal === false ? 'bg-blue-400/70' : 'bg-amber-400/80'}`} />
+                                                        {d.title}
+                                                    </span>
+                                                    <Link
+                                                        to={buildShowPath({ artist_name: d.artistName, show_date: d.showDate, venues: d.venue })}
+                                                        className="text-xs text-right shrink-0 hover:underline"
+                                                        style={{ color: 'var(--p-color-contrast-medium)' }}
+                                                    >
+                                                        {formatDate(d.showDate)}
+                                                        {d.venue?.city && <> &middot; {d.venue.city}{d.venue.state_country ? `, ${d.venue.state_country}` : ''}</>}
+                                                    </Link>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
 
                                 <PHeading size="small" tag="h3" className="mb-3">Songs Played</PHeading>
 

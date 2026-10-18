@@ -70,8 +70,9 @@ export async function fetchTourSongCounts(tourName, { stateFilter, countryFilter
     const todayStr = getLocalDateString();
 
     // venues included for the Tour Map (ShowMapShare, same shape it already
-    // reads off a user's attended/upcoming shows) — otherwise unused here.
-    const selectCols = 'id, show_date, venues ( id, name, city, state_country, latitude, longitude )';
+    // reads off a user's attended/upcoming shows); artist_name only needed
+    // for linking a Live Debut entry to its actual show page.
+    const selectCols = 'id, show_date, artist_name, venues ( id, name, city, state_country, latitude, longitude )';
     let tourShows;
     if (tourName === ALL_SHOWS) {
         // No tour_name filter at all — includes one-off/benefit shows that
@@ -113,7 +114,7 @@ export async function fetchTourSongCounts(tourName, { stateFilter, countryFilter
     const playedIds = played.map(s => s.id);
 
     if (playedIds.length === 0) {
-        return { totalShows: tourShows.length, playedShows: 0, firstDate: tourShows[0].show_date, lastDate: tourShows[tourShows.length - 1].show_date, playedIds: [], songCounts: [], openingSongs: [], closingSongs: [], pastShows: played, upcomingShows: upcoming };
+        return { totalShows: tourShows.length, playedShows: 0, firstDate: tourShows[0].show_date, lastDate: tourShows[tourShows.length - 1].show_date, playedIds: [], songCounts: [], openingSongs: [], closingSongs: [], liveDebuts: [], pastShows: played, upcomingShows: upcoming };
     }
 
     let rows = [];
@@ -162,10 +163,61 @@ export async function fetchTourSongCounts(tourName, { stateFilter, countryFilter
             (songIdsByShow[r.show_id] ||= new Set()).add(r.song_id);
             (showSetsBySongId[r.song_id] ||= new Set()).add(r.show_id);
             if (!songMetaById[r.song_id]) {
-                songMetaById[r.song_id] = { isOriginal: r.songs?.is_original, albumSongs: r.songs?.album_songs || [] };
+                songMetaById[r.song_id] = { title, isOriginal: r.songs?.is_original, albumSongs: r.songs?.album_songs || [] };
             }
         }
     });
+
+    // Live debuts: songs whose live debut — the earliest setlist_songs
+    // performance date of all time, never songs.created_at — landed on one
+    // of this (filtered) tour's played shows. Needs each song's true
+    // earliest date across its ENTIRE performance history, not just this
+    // tour, so a song that first appeared on an earlier tour never gets
+    // mislabeled as debuting here. Same "earliest date" definition and
+    // dj/soundcheck exclusion as server/utils/setlistIndex.js's
+    // globalEarliestBySong, just computed client-side since this page has
+    // no server route of its own to share that cache with.
+    const scopedSongIds = [...new Set(rows.map(r => r.song_id).filter(id => id != null))];
+    let debutRows = [];
+    for (let rangeStart = 0; scopedSongIds.length > 0; ) {
+        const { data: page, error } = await supabase
+            .from('setlist_songs')
+            .select('song_id, shows ( show_date )')
+            .in('song_id', scopedSongIds)
+            .not('performance_type', 'in', '(dj,soundcheck)')
+            .order('id')
+            .range(rangeStart, rangeStart + 999);
+        if (error || !page?.length) break;
+        debutRows = debutRows.concat(page);
+        if (page.length < 1000) break;
+        rangeStart += 1000;
+    }
+    const globalEarliestBySong = {};
+    debutRows.forEach(r => {
+        const date = r.shows?.show_date;
+        if (!date || r.song_id == null) return;
+        if (!globalEarliestBySong[r.song_id] || date < globalEarliestBySong[r.song_id]) {
+            globalEarliestBySong[r.song_id] = date;
+        }
+    });
+    const showById = {};
+    played.forEach(s => { showById[s.id] = s; });
+    const liveDebuts = [];
+    scopedSongIds.forEach(songId => {
+        const meta = songMetaById[songId];
+        const earliest = globalEarliestBySong[songId];
+        const showIdsHere = showSetsBySongId[songId];
+        if (!meta || !earliest || !showIdsHere) return;
+        const debutShowId = [...showIdsHere].find(showId => showById[showId]?.show_date === earliest);
+        if (debutShowId == null) return;
+        liveDebuts.push({
+            songId, title: meta.title, isOriginal: meta.isOriginal,
+            showId: debutShowId, showDate: earliest,
+            artistName: showById[debutShowId].artist_name,
+            venue: showById[debutShowId].venues || null,
+        });
+    });
+    liveDebuts.sort((a, b) => a.showDate.localeCompare(b.showDate) || a.title.localeCompare(b.title));
 
     // Opener/closer: the earliest/latest performed song per show, ordered
     // set1 < set2 < set3 < encore and by song_order within a set — not just
@@ -260,6 +312,7 @@ export async function fetchTourSongCounts(tourName, { stateFilter, countryFilter
         songCounts,
         openingSongs,
         closingSongs,
+        liveDebuts,
         avgSongsPerShow,
         albumBreakdown,
         otherOriginals,
