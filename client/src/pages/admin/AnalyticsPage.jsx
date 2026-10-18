@@ -3,6 +3,7 @@ import { PHeading, PText, PSpinner, PInlineNotification } from '@porsche-design-
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { getAnalyticsSummary, getAnalyticsEvents } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
+import { getLocalDateString } from '../../utils/today';
 
 const RANGE_OPTIONS = [
     { label: '24 hours', last24h: true },
@@ -18,11 +19,11 @@ const EVENT_TYPE_OPTIONS = [
 ];
 
 function isoDateDaysAgo(days) {
-    return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    return getLocalDateString(new Date(Date.now() - days * 24 * 60 * 60 * 1000));
 }
 
 function todayStr() {
-    return new Date().toISOString().slice(0, 10);
+    return getLocalDateString();
 }
 
 function formatShortDate(dateStr) {

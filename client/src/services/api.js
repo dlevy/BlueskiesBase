@@ -2223,6 +2223,9 @@ export const getAnalyticsSummary = async ({ from, to, last24h = false, includeSt
         if (to) params.set('to', to);
     }
     if (includeStaff) params.set('includeStaff', 'true');
+    // So the server can bucket "day" ranges by the viewer's own calendar day
+    // instead of UTC — see server/routes/analytics.js's resolveRange.
+    params.set('tzOffsetMinutes', new Date().getTimezoneOffset());
 
     const response = await fetchWithAuth(`${API_BASE_URL}/api/analytics/summary?${params}`, {
         headers: { 'Authorization': `Bearer ${token}` },
@@ -2253,6 +2256,7 @@ export const getAnalyticsEvents = async ({ from, to, last24h = false, includeSta
     if (includeStaff) params.set('includeStaff', 'true');
     if (eventType) params.set('eventType', eventType);
     if (user) params.set('user', user);
+    params.set('tzOffsetMinutes', new Date().getTimezoneOffset());
     params.set('page', page);
     params.set('limit', limit);
 

@@ -8,10 +8,17 @@ const VALID_EVENT_TYPES = ['pageview', 'feature'];
 // Shared by /summary and /events. `last24h=true` is a genuinely precise
 // rolling 24-hour window (now minus 24h) — distinct from the day-bucketed
 // from/to range the 7/30/90-day buttons use, where from/to are calendar
-// dates and the actual boundary gets rounded out to whole UTC days. That
-// rounding is harmless at 7+ day granularity, but reusing it for a "last 24
-// hours" option would silently span up to 48 hours depending on time of day.
+// dates in the VIEWER's own timezone (not UTC — tzOffsetMinutes is
+// `Date.prototype.getTimezoneOffset()` from the browser, e.g. +420 for
+// PDT), so "today" boundaries line up with the viewer's own midnight
+// instead of flipping over a few hours early/late depending where they are
+// relative to UTC. That rounding is harmless at 7+ day granularity, but
+// reusing it for a "last 24 hours" option would silently span up to 48
+// hours depending on time of day, so that mode stays a precise instant
+// window instead.
 function resolveRange(req) {
+    const tzOffsetMinutes = parseInt(req.query.tzOffsetMinutes, 10) || 0;
+
     if (req.query.last24h === 'true') {
         const toExclusive = new Date();
         const fromInclusive = new Date(toExclusive.getTime() - 24 * 60 * 60 * 1000);
@@ -21,16 +28,23 @@ function resolveRange(req) {
             fromInclusive: fromInclusive.toISOString(),
             toExclusive: toExclusive.toISOString(),
             granularity: 'hour',
+            tzOffsetMinutes: 0,
         };
     }
 
-    const to = req.query.to || new Date().toISOString().slice(0, 10);
-    const from = req.query.from || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    // These query-param from/to values represent the viewer's local calendar
+    // dates (computed via getLocalDateString client-side), not UTC ones.
+    const localToday = new Date(Date.now() - tzOffsetMinutes * 60 * 1000).toISOString().slice(0, 10);
+    const localThirtyAgo = new Date(Date.now() - tzOffsetMinutes * 60 * 1000 - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const to = req.query.to || localToday;
+    const from = req.query.from || localThirtyAgo;
     // Range end is exclusive of the next day so `to` itself is fully included
-    // regardless of time-of-day the events were logged at.
-    const toExclusive = new Date(new Date(to + 'T00:00:00Z').getTime() + 24 * 60 * 60 * 1000).toISOString();
-    const fromInclusive = new Date(from + 'T00:00:00Z').toISOString();
-    return { from, to, fromInclusive, toExclusive, granularity: 'day' };
+    // regardless of time-of-day the events were logged at — "the next day"
+    // meaning the viewer's own local midnight, shifted back into UTC by
+    // tzOffsetMinutes (local midnight = UTC midnight + tzOffsetMinutes).
+    const toExclusive = new Date(new Date(to + 'T00:00:00Z').getTime() + 24 * 60 * 60 * 1000 + tzOffsetMinutes * 60 * 1000).toISOString();
+    const fromInclusive = new Date(new Date(from + 'T00:00:00Z').getTime() + tzOffsetMinutes * 60 * 1000).toISOString();
+    return { from, to, fromInclusive, toExclusive, granularity: 'day', tzOffsetMinutes };
 }
 
 /**
@@ -88,7 +102,7 @@ router.post('/event', async (req, res) => {
 router.get('/summary', requireAdmin, async (req, res) => {
     try {
         const includeStaff = req.query.includeStaff === 'true';
-        const { from, to, fromInclusive, toExclusive, granularity } = resolveRange(req);
+        const { from, to, fromInclusive, toExclusive, granularity, tzOffsetMinutes } = resolveRange(req);
 
         let query = supabase
             .from('analytics_events')
@@ -121,10 +135,16 @@ router.get('/summary', requireAdmin, async (req, res) => {
         const uniqueSessions = new Set(rows.map(r => r.session_id)).size;
 
         // Hour buckets for the 24-hour view (a day-bucketed chart would be
-        // just 1-2 bars), day buckets otherwise.
+        // just 1-2 bars; an hour bucket is an unambiguous UTC instant anyway,
+        // relabeled to the viewer's local hour client-side for display), day
+        // buckets otherwise — shifted by tzOffsetMinutes so a page view in
+        // the viewer's own evening doesn't land on "tomorrow" just because
+        // it's already past midnight UTC.
         const dailyCounts = {};
         pageviews.forEach(r => {
-            const bucket = granularity === 'hour' ? r.created_at.slice(0, 13) + ':00:00Z' : r.created_at.slice(0, 10);
+            const bucket = granularity === 'hour'
+                ? r.created_at.slice(0, 13) + ':00:00Z'
+                : new Date(new Date(r.created_at).getTime() - tzOffsetMinutes * 60 * 1000).toISOString().slice(0, 10);
             dailyCounts[bucket] = (dailyCounts[bucket] || 0) + 1;
         });
         const dailyPageviews = Object.entries(dailyCounts)
