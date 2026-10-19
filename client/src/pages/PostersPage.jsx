@@ -433,6 +433,10 @@ export default function PostersPage() {
                 <h1 className="font-display font-bold text-2xl" style={{ color: 'var(--p-color-primary)' }}>
                     Posters
                 </h1>
+                <p className="text-sm mt-1" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                    Fan-to-fan poster collecting and trading. Build your JBS collection, list posters for trade.
+                    No subscription, no commission. Selling? Cost plus shipping, period. No scalper bullshit.
+                </p>
             </div>
 
             {upcomingDrops.length > 0 && (
