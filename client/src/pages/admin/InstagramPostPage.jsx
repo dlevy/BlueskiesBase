@@ -19,6 +19,7 @@ export default function InstagramPostPage() {
     const [error, setError] = useState(null);
 
     const [styleKey, setStyleKey] = useState(DEFAULT_STYLE_KEY);
+    const [postType, setPostType] = useState('setlist');
     const [liveDebutSongIds, setLiveDebutSongIds] = useState(new Set());
     const [tourDebutSongIds, setTourDebutSongIds] = useState(new Set());
     const [photos, setPhotos] = useState([]);
@@ -74,7 +75,8 @@ export default function InstagramPostPage() {
     const handleDownload = () => {
         const datePart = show.show_date;
         const artistPart = show.artist_name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-        download(`${datePart}-${artistPart}-setlist.png`);
+        const suffix = postType === 'onThisDay' ? 'on-this-day' : 'setlist';
+        download(`${datePart}-${artistPart}-${suffix}.png`);
     };
 
     if (loading) {
@@ -106,6 +108,37 @@ export default function InstagramPostPage() {
             <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6">
                 {/* Controls */}
                 <div className="space-y-5 rounded-2xl border border-white/10 p-5" style={{ background: 'var(--p-color-surface)' }}>
+                    <div>
+                        <label className="block text-xs font-medium uppercase tracking-wide mb-2" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                            Post Type
+                        </label>
+                        <div className="flex gap-1.5">
+                            {[
+                                { value: 'setlist', label: 'Setlist' },
+                                { value: 'onThisDay', label: 'On This Day' },
+                            ].map(opt => (
+                                <button
+                                    key={opt.value}
+                                    type="button"
+                                    onClick={() => setPostType(opt.value)}
+                                    className={`flex-1 text-sm px-3 py-2 rounded-lg border transition-all ${
+                                        postType === opt.value
+                                            ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
+                                            : 'border-white/10 hover:border-white/25 hover:bg-white/5'
+                                    }`}
+                                    style={postType !== opt.value ? { color: 'var(--p-color-contrast-medium)' } : undefined}
+                                >
+                                    {opt.label}
+                                </button>
+                            ))}
+                        </div>
+                        {postType === 'onThisDay' && (
+                            <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }} className="mt-2 block">
+                                Adds an "On This Day" badge with the years-ago count — pick this for a show whose date matches today's month/day in a past year.
+                            </PText>
+                        )}
+                    </div>
+
                     <div>
                         <label className="block text-xs font-medium uppercase tracking-wide mb-2" style={{ color: 'var(--p-color-contrast-medium)' }}>
                             Background
@@ -248,6 +281,7 @@ export default function InstagramPostPage() {
                                     ref={graphicRef}
                                     show={show}
                                     styleKey={styleKey}
+                                    postType={postType}
                                     liveDebutSongIds={liveDebutSongIds}
                                     tourDebutSongIds={tourDebutSongIds}
                                     backgroundMode={backgroundMode}

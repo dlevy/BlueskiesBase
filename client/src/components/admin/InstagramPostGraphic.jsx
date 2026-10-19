@@ -9,6 +9,12 @@ function formatLongDate(dateString) {
     });
 }
 
+// Calendar-year difference, not a 365-day diff — matches how "on this day"
+// features elsewhere (and fans themselves) talk about anniversaries.
+function yearsAgo(dateString) {
+    return new Date().getFullYear() - Number(dateString.slice(0, 4));
+}
+
 const SET_KEYS = ['set1', 'set2', 'set3', 'encore'];
 
 // Instagram's recommended safe zone for a 3:4 feed post — content is kept
@@ -28,6 +34,13 @@ const BOTTOM_PADDING = 180;
 // from this estimate, not measured from the real rendered header/footer.
 const HEADER_FOOTER_CONTENT = 485;
 const MAX_SONG_FONT = 34;
+
+// Extra vertical space the "On This Day" badge row adds above the normal
+// header content — folded into the HEADER_FOOTER_CONTENT estimate when that
+// post type is active, so the setlist's font-size math still accounts for
+// the real amount of space left, instead of overflowing/clipping by however
+// tall this row ends up being.
+const TIME_MACHINE_BADGE_HEIGHT = 76;
 
 // Must match the actual rendered layout below (gap between the two columns,
 // gap within a song row) — the width-fitting math needs the real pixel
@@ -162,7 +175,7 @@ function splitIntoColumns(numberedSongs, columns) {
 // html-to-image. Layout is identical across styles/tours — only colors change —
 // so a new tour style never requires touching this component.
 const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({
-    show, styleKey, liveDebutSongIds, tourDebutSongIds, backgroundMode = 'style', backgroundImageUrl,
+    show, styleKey, liveDebutSongIds, tourDebutSongIds, backgroundMode = 'style', backgroundImageUrl, postType = 'setlist',
 }, ref) {
     const style = getStyleByKey(styleKey);
     const useImageBackground = (backgroundMode === 'poster' || backgroundMode === 'photo') && !!backgroundImageUrl;
@@ -186,7 +199,9 @@ const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({
     const songs = SET_KEYS.flatMap(key => show.setlist?.[key] || []);
     const numberedSongs = assignSetlistDisplayNumbers(songs);
 
-    const availableHeight = POST_HEIGHT - SIDE_PADDING - BOTTOM_PADDING - HEADER_FOOTER_CONTENT;
+    const isOnThisDay = postType === 'onThisDay';
+    const onThisDayYears = isOnThisDay ? yearsAgo(show.show_date) : null;
+    const availableHeight = POST_HEIGHT - SIDE_PADDING - BOTTOM_PADDING - HEADER_FOOTER_CONTENT - (isOnThisDay ? TIME_MACHINE_BADGE_HEIGHT : 0);
     const columnWidth = (POST_WIDTH - SIDE_PADDING * 2 - COLUMN_GAP) / 2;
     const { columns, songFontSize } = pickSongLayout(numberedSongs, availableHeight, columnWidth, liveDebutSongIds, tourDebutSongIds);
     const venueLine = show.venues
@@ -237,6 +252,26 @@ const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({
             }}>
                 {/* Header */}
                 <div style={{ flexShrink: 0 }}>
+                    {isOnThisDay && (
+                        <div style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 10,
+                            padding: '9px 20px', marginBottom: 24,
+                            border: `2px dashed ${palette.accent}`, borderRadius: 999,
+                            color: palette.accent,
+                        }}>
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={palette.accent} strokeWidth="2">
+                                <path d="M6 2h12M6 22h12M7 2c0 6 10 6 10 10S7 16 7 22M17 2c0 6-10 6-10 10s10 4 10 10" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                            <span style={{ fontSize: 24, fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase' }}>
+                                On This Day
+                            </span>
+                            {onThisDayYears > 0 && (
+                                <span style={{ fontSize: 24, fontWeight: 800 }}>
+                                    &middot; {onThisDayYears} {onThisDayYears === 1 ? 'Year' : 'Years'} Ago
+                                </span>
+                            )}
+                        </div>
+                    )}
                     {show.tour_name && (
                         <div style={{
                             fontSize: 26, fontWeight: 700, letterSpacing: 3, textTransform: 'uppercase',
