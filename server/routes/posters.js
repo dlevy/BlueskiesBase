@@ -1020,6 +1020,86 @@ router.get('/wants', authenticate, async (req, res) => {
 });
 
 /**
+ * GET /api/posters/wants/summary
+ * Public, no auth required — aggregate "most wanted" posters across every
+ * user's wishlist, ranked by want count. Only counts (not who wants what)
+ * are exposed; individual users' want lists stay private to themselves
+ * (see GET /wants above).
+ */
+router.get('/wants/summary', async (req, res) => {
+    try {
+        let wantRows = [];
+        for (let rangeStart = 0; ; ) {
+            const { data: page, error } = await supabaseAdmin
+                .from('user_poster_wants')
+                .select('show_id')
+                .order('id')
+                .range(rangeStart, rangeStart + 999);
+            if (error) {
+                console.error('Error fetching poster wants summary:', error);
+                return res.status(500).json({ error: 'Failed to fetch wanted posters' });
+            }
+            wantRows = wantRows.concat(page || []);
+            if (!page || page.length < 1000) break;
+            rangeStart += 1000;
+        }
+
+        const countByShow = {};
+        wantRows.forEach(r => { countByShow[r.show_id] = (countByShow[r.show_id] || 0) + 1; });
+        const showIds = Object.keys(countByShow);
+        if (showIds.length === 0) return res.json({ shows: [] });
+
+        const { data: shows, error: showsError } = await supabaseAdmin
+            .from('shows')
+            .select('id, show_date, artist_name, tour_name, venues ( name, city, state_country )')
+            .in('id', showIds);
+        if (showsError) {
+            console.error('Error fetching shows for wants summary:', showsError);
+            return res.status(500).json({ error: 'Failed to fetch wanted posters' });
+        }
+
+        // Representative poster image per show, picked with the same
+        // regular-primary-first tiebreak as every other poster display on
+        // the site (comparePosterDisplayOrder above).
+        const { data: linkRows, error: linkError } = await supabaseAdmin
+            .from('poster_show_links')
+            .select('show_id, user_posters ( poster_url, thumbnail_url, is_foil, is_primary, display_order, created_at )')
+            .in('show_id', showIds);
+        if (linkError) {
+            console.error('Error fetching posters for wants summary:', linkError);
+            return res.status(500).json({ error: 'Failed to fetch wanted posters' });
+        }
+        const postersByShow = new Map();
+        (linkRows || []).forEach(row => {
+            if (!row.user_posters) return;
+            if (!postersByShow.has(row.show_id)) postersByShow.set(row.show_id, []);
+            postersByShow.get(row.show_id).push(row.user_posters);
+        });
+
+        const result = (shows || []).map(show => {
+            const posters = [...(postersByShow.get(show.id) || [])].sort(comparePosterDisplayOrder);
+            const representative = posters[0] || null;
+            return {
+                id: show.id,
+                show_date: show.show_date,
+                artist_name: show.artist_name,
+                tour_name: show.tour_name,
+                venues: show.venues || null,
+                want_count: countByShow[show.id],
+                poster_url: representative?.poster_url || null,
+                thumbnail_url: representative?.thumbnail_url || null,
+                is_foil: representative?.is_foil || false,
+            };
+        }).sort((a, b) => b.want_count - a.want_count || a.show_date.localeCompare(b.show_date));
+
+        res.json({ shows: result });
+    } catch (error) {
+        console.error('Error in GET /api/posters/wants/summary:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
  * POST /api/posters/wants
  * Add a show to the logged-in user's wanted-posters list.
  * Body: { showId, variant } — variant is 'any' | 'regular' | 'foil', defaults to 'any'.

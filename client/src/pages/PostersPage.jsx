@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { PSpinner, PText } from '@porsche-design-system/components-react';
-import { getAllPosters, getPostersForTrade, getMyPosterCollection, addToPosterCollection, removeFromPosterCollection, getMyPosterWants, addPosterWant, removePosterWant } from '../services/api';
+import { getAllPosters, getPostersForTrade, getWantedPostersSummary, getMyPosterCollection, addToPosterCollection, removeFromPosterCollection, getMyPosterWants, addPosterWant, removePosterWant } from '../services/api';
 import { buildShowPath } from '../utils/showSlug';
 import { useAuth } from '../contexts/AuthContext';
 import MainNavTabs from '../components/MainNavTabs';
@@ -294,6 +294,56 @@ function ForTradeTile({ listing }) {
     );
 }
 
+// Public aggregate demand — count only, never who wants it (see GET
+// /api/posters/wants/summary). `item` fields are returned flat (not nested
+// under a `show` key, unlike ForTradeTile's `listing.show`), so the show
+// object buildShowPath needs is assembled here.
+function MostWantedTile({ item }) {
+    const show = { artist_name: item.artist_name, show_date: item.show_date, venues: item.venues };
+    return (
+        <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
+            <Link to={buildShowPath(show)} className="relative shrink-0">
+                {(item.thumbnail_url || item.poster_url) ? (
+                    <img
+                        src={item.thumbnail_url || item.poster_url}
+                        alt={`${item.artist_name} poster`}
+                        loading="lazy"
+                        className="w-12 h-16 object-cover rounded-lg"
+                    />
+                ) : (
+                    <div className="w-12 h-16 rounded-lg bg-white/5" />
+                )}
+                {item.is_foil && (
+                    <span
+                        className="absolute -top-1 -right-1 text-[9px] font-bold uppercase tracking-wide px-1 py-0.5 rounded"
+                        style={{ background: 'rgba(192,132,252,0.85)', color: '#1a0b2e' }}
+                    >
+                        Foil
+                    </span>
+                )}
+            </Link>
+            <div className="min-w-0 flex-1">
+                <Link to={buildShowPath(show)} className="hover:underline">
+                    <p className="text-xs font-semibold truncate" style={{ color: 'var(--p-color-primary)' }}>
+                        {item.artist_name} — {formatDate(item.show_date)}
+                    </p>
+                </Link>
+                {item.venues?.city && (
+                    <p className="text-xs truncate" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                        {item.venues.city}{item.venues.state_country ? `, ${item.venues.state_country}` : ''}
+                    </p>
+                )}
+            </div>
+            <div
+                className="shrink-0 text-xs font-bold px-2 py-1 rounded-full whitespace-nowrap"
+                style={{ background: 'rgba(192,132,252,0.12)', color: '#c084fc' }}
+            >
+                {item.want_count} want{item.want_count !== 1 ? 's' : ''} this
+            </div>
+        </div>
+    );
+}
+
 export default function PostersPage() {
     const { user } = useAuth();
     const [posters, setPosters] = useState([]);
@@ -301,6 +351,10 @@ export default function PostersPage() {
     const [error, setError] = useState(null);
     const [lightboxIndex, setLightboxIndex] = useState(-1);
     const [forTradeListings, setForTradeListings] = useState([]);
+    // Public aggregate "most wanted" ranking — loaded for every visitor,
+    // logged in or not, since it exposes only counts, never individual
+    // users' want lists.
+    const [mostWanted, setMostWanted] = useState([]);
     // The logged-in viewer's own collection, for the quick add/remove button
     // on each tile — a second, lighter-weight way into the same collection
     // EditProfilePage already manages in full (poster picker, foil/edition,
@@ -334,6 +388,12 @@ export default function PostersPage() {
                 if (!cancelled) setForTradeListings(data.listings || []);
             })
             .catch(err => console.error('[PostersPage] Error loading for-trade listings:', err));
+
+        getWantedPostersSummary()
+            .then(data => {
+                if (!cancelled) setMostWanted(data.shows || []);
+            })
+            .catch(err => console.error('[PostersPage] Error loading most-wanted posters:', err));
 
         return () => { cancelled = true; };
     }, []);
@@ -458,6 +518,30 @@ export default function PostersPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                         {upcomingDrops.map(poster => (
                             <UpcomingDropTile key={poster.id} poster={poster} />
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {mostWanted.length > 0 && (
+                <div className="mb-6">
+                    <div className="flex items-center gap-2 mb-1">
+                        <span className="font-display font-semibold text-sm" style={{ color: 'var(--p-color-primary)' }}>
+                            Most Wanted
+                        </span>
+                        <span
+                            className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                            style={{ background: 'rgba(192,132,252,0.12)', color: '#c084fc' }}
+                        >
+                            {mostWanted.length}
+                        </span>
+                    </div>
+                    <p className="text-xs mb-3" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                        Posters members have flagged on their wishlist, ranked by how many people want one.
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {mostWanted.map(item => (
+                            <MostWantedTile key={item.id} item={item} />
                         ))}
                     </div>
                 </div>

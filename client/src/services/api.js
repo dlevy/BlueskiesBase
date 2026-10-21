@@ -1849,6 +1849,17 @@ export const getMyPosterWants = async () => {
 };
 
 /**
+ * Public aggregate "most wanted" posters, ranked by want count across every
+ * user's wishlist. No auth required — only counts are exposed, not who
+ * wants what.
+ */
+export const getWantedPostersSummary = async () => {
+    const response = await fetch(`${API_BASE_URL}/api/posters/wants/summary`);
+    if (!response.ok) throw new Error('Failed to fetch most-wanted posters');
+    return response.json();
+};
+
+/**
  * Add a show to the logged-in user's wanted-posters list.
  * variant is 'any' | 'regular' | 'foil', defaults to 'any'.
  */
