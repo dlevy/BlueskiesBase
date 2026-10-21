@@ -1022,9 +1022,12 @@ router.get('/wants', authenticate, async (req, res) => {
 /**
  * GET /api/posters/wants/summary
  * Public, no auth required — aggregate "most wanted" posters across every
- * user's wishlist, ranked by want count. Only counts (not who wants what)
- * are exposed; individual users' want lists stay private to themselves
- * (see GET /wants above).
+ * user's wishlist, ranked by want count, with the list of members who want
+ * it (name redacted to "Private" for an account with hide_from_directory
+ * set, same as every other public "who did this" list on the site — see
+ * utils/privacy.js). A show with no poster actually uploaded yet is left
+ * out entirely — there's nothing here for anyone to trade for, so it
+ * doesn't belong in a "most wanted" ranking.
  */
 router.get('/wants/summary', async (req, res) => {
     try {
@@ -1032,7 +1035,7 @@ router.get('/wants/summary', async (req, res) => {
         for (let rangeStart = 0; ; ) {
             const { data: page, error } = await supabaseAdmin
                 .from('user_poster_wants')
-                .select('show_id')
+                .select('show_id, user_id')
                 .order('id')
                 .range(rangeStart, rangeStart + 999);
             if (error) {
@@ -1044,9 +1047,12 @@ router.get('/wants/summary', async (req, res) => {
             rangeStart += 1000;
         }
 
-        const countByShow = {};
-        wantRows.forEach(r => { countByShow[r.show_id] = (countByShow[r.show_id] || 0) + 1; });
-        const showIds = Object.keys(countByShow);
+        const userIdsByShow = new Map();
+        wantRows.forEach(r => {
+            if (!userIdsByShow.has(r.show_id)) userIdsByShow.set(r.show_id, []);
+            userIdsByShow.get(r.show_id).push(r.user_id);
+        });
+        const showIds = [...userIdsByShow.keys()];
         if (showIds.length === 0) return res.json({ shows: [] });
 
         const { data: shows, error: showsError } = await supabaseAdmin
@@ -1076,21 +1082,45 @@ router.get('/wants/summary', async (req, res) => {
             postersByShow.get(row.show_id).push(row.user_posters);
         });
 
-        const result = (shows || []).map(show => {
-            const posters = [...(postersByShow.get(show.id) || [])].sort(comparePosterDisplayOrder);
-            const representative = posters[0] || null;
-            return {
-                id: show.id,
-                show_date: show.show_date,
-                artist_name: show.artist_name,
-                tour_name: show.tour_name,
-                venues: show.venues || null,
-                want_count: countByShow[show.id],
-                poster_url: representative?.poster_url || null,
-                thumbnail_url: representative?.thumbnail_url || null,
-                is_foil: representative?.is_foil || false,
-            };
-        }).sort((a, b) => b.want_count - a.want_count || a.show_date.localeCompare(b.show_date));
+        // user_poster_wants.user_id references auth.users, not public.profiles
+        // directly, so it can't be embedded via a single select — same reason
+        // GET / above resolves poster owners as a second query.
+        const wanterIds = [...new Set(wantRows.map(r => r.user_id))];
+        const { data: wanterProfiles, error: profilesError } = await supabaseAdmin
+            .from('profiles')
+            .select('id, username, display_name, hide_from_directory')
+            .in('id', wanterIds.length > 0 ? wanterIds : ['00000000-0000-0000-0000-000000000000']);
+        if (profilesError) {
+            console.error('Error fetching wanter profiles for wants summary:', profilesError);
+            return res.status(500).json({ error: 'Failed to fetch wanted posters' });
+        }
+        const profileById = {};
+        (wanterProfiles || []).forEach(p => { profileById[p.id] = p; });
+
+        const result = (shows || [])
+            .map(show => {
+                const posters = [...(postersByShow.get(show.id) || [])].sort(comparePosterDisplayOrder);
+                const representative = posters[0] || null;
+                if (!representative) return null; // no poster uploaded yet — not tradeable, so excluded
+                const wanters = (userIdsByShow.get(show.id) || [])
+                    .map(userId => redactProfile(profileById[userId]))
+                    .filter(Boolean)
+                    .sort((a, b) => (a.display_name || '').localeCompare(b.display_name || ''));
+                return {
+                    id: show.id,
+                    show_date: show.show_date,
+                    artist_name: show.artist_name,
+                    tour_name: show.tour_name,
+                    venues: show.venues || null,
+                    want_count: wanters.length,
+                    wanters,
+                    poster_url: representative.poster_url || null,
+                    thumbnail_url: representative.thumbnail_url || null,
+                    is_foil: representative.is_foil || false,
+                };
+            })
+            .filter(Boolean)
+            .sort((a, b) => b.want_count - a.want_count || a.show_date.localeCompare(b.show_date));
 
         res.json({ shows: result });
     } catch (error) {

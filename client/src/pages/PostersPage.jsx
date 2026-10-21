@@ -294,25 +294,25 @@ function ForTradeTile({ listing }) {
     );
 }
 
-// Public aggregate demand — count only, never who wants it (see GET
-// /api/posters/wants/summary). `item` fields are returned flat (not nested
-// under a `show` key, unlike ForTradeTile's `listing.show`), so the show
-// object buildShowPath needs is assembled here.
+// Public aggregate demand — counts plus the actual members who want it (see
+// GET /api/posters/wants/summary). The server already excludes any show with
+// no poster uploaded yet, so unlike ForTradeTile there's no placeholder-image
+// fallback to handle here. A hidden account (hide_from_directory) comes back
+// redacted to a non-linking "Private" entry, same as every other public
+// "who did this" list on the site. `item` fields are returned flat (not
+// nested under a `show` key, unlike ForTradeTile's `listing.show`), so the
+// show object buildShowPath needs is assembled here.
 function MostWantedTile({ item }) {
     const show = { artist_name: item.artist_name, show_date: item.show_date, venues: item.venues };
     return (
-        <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
+        <div className="flex items-start gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-3">
             <Link to={buildShowPath(show)} className="relative shrink-0">
-                {(item.thumbnail_url || item.poster_url) ? (
-                    <img
-                        src={item.thumbnail_url || item.poster_url}
-                        alt={`${item.artist_name} poster`}
-                        loading="lazy"
-                        className="w-12 h-16 object-cover rounded-lg"
-                    />
-                ) : (
-                    <div className="w-12 h-16 rounded-lg bg-white/5" />
-                )}
+                <img
+                    src={item.thumbnail_url || item.poster_url}
+                    alt={`${item.artist_name} poster`}
+                    loading="lazy"
+                    className="w-14 h-20 object-cover rounded-lg"
+                />
                 {item.is_foil && (
                     <span
                         className="absolute -top-1 -right-1 text-[9px] font-bold uppercase tracking-wide px-1 py-0.5 rounded"
@@ -322,23 +322,40 @@ function MostWantedTile({ item }) {
                     </span>
                 )}
             </Link>
-            <div className="min-w-0 flex-1">
-                <Link to={buildShowPath(show)} className="hover:underline">
-                    <p className="text-xs font-semibold truncate" style={{ color: 'var(--p-color-primary)' }}>
-                        {item.artist_name} — {formatDate(item.show_date)}
-                    </p>
-                </Link>
+            <div className="min-w-0 flex-1 space-y-0.5">
+                <div className="flex items-start justify-between gap-2">
+                    <Link to={buildShowPath(show)} className="hover:underline min-w-0">
+                        <p className="text-xs font-semibold truncate" style={{ color: 'var(--p-color-primary)' }}>
+                            {item.artist_name} — {formatDate(item.show_date)}
+                        </p>
+                    </Link>
+                    <span
+                        className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap"
+                        style={{ background: 'rgba(192,132,252,0.12)', color: '#c084fc' }}
+                    >
+                        {item.want_count}
+                    </span>
+                </div>
                 {item.venues?.city && (
                     <p className="text-xs truncate" style={{ color: 'var(--p-color-contrast-medium)' }}>
                         {item.venues.city}{item.venues.state_country ? `, ${item.venues.state_country}` : ''}
                     </p>
                 )}
-            </div>
-            <div
-                className="shrink-0 text-xs font-bold px-2 py-1 rounded-full whitespace-nowrap"
-                style={{ background: 'rgba(192,132,252,0.12)', color: '#c084fc' }}
-            >
-                {item.want_count} want{item.want_count !== 1 ? 's' : ''} this
+                <p className="text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>
+                    Wanted by{' '}
+                    {item.wanters.map((wanter, i) => (
+                        <span key={wanter.id || i}>
+                            {wanter.username ? (
+                                <Link to={`/profile/${wanter.username}`} className="hover:underline" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                                    {wanter.display_name || wanter.username}
+                                </Link>
+                            ) : (
+                                <span>{wanter.display_name || 'Private'}</span>
+                            )}
+                            {i < item.wanters.length - 1 ? ', ' : ''}
+                        </span>
+                    ))}
+                </p>
             </div>
         </div>
     );
@@ -351,10 +368,13 @@ export default function PostersPage() {
     const [error, setError] = useState(null);
     const [lightboxIndex, setLightboxIndex] = useState(-1);
     const [forTradeListings, setForTradeListings] = useState([]);
-    // Public aggregate "most wanted" ranking — loaded for every visitor,
-    // logged in or not, since it exposes only counts, never individual
-    // users' want lists.
+    // Public aggregate "most wanted" ranking, including the members who
+    // want each one — loaded for every visitor, logged in or not, same as
+    // every other public "who did this" list on the site.
     const [mostWanted, setMostWanted] = useState([]);
+    // Which tab of the page is showing — 'wanted' is kept off the default
+    // view so it doesn't compete for space with the archive grid below.
+    const [activeTab, setActiveTab] = useState('archive');
     // The logged-in viewer's own collection, for the quick add/remove button
     // on each tile — a second, lighter-weight way into the same collection
     // EditProfilePage already manages in full (poster picker, foil/edition,
@@ -499,6 +519,47 @@ export default function PostersPage() {
                 </p>
             </div>
 
+            <div className="flex gap-2 mb-6">
+                {[
+                    { value: 'archive', label: 'Posters' },
+                    { value: 'wanted', label: `Most Wanted${mostWanted.length > 0 ? ` (${mostWanted.length})` : ''}` },
+                ].map(tab => (
+                    <button
+                        key={tab.value}
+                        type="button"
+                        onClick={() => setActiveTab(tab.value)}
+                        className={`text-sm px-4 py-2 rounded-lg border transition-all ${
+                            activeTab === tab.value
+                                ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
+                                : 'border-white/10 hover:border-white/25 hover:bg-white/5'
+                        }`}
+                        style={activeTab !== tab.value ? { color: 'var(--p-color-contrast-medium)' } : undefined}
+                    >
+                        {tab.label}
+                    </button>
+                ))}
+            </div>
+
+            {activeTab === 'wanted' && (
+                <div className="mb-6">
+                    <p className="text-xs mb-3" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                        Posters members have flagged on their wishlist, ranked by how many people want one.
+                    </p>
+                    {mostWanted.length === 0 ? (
+                        <PText color="contrast-medium" align="center" className="py-16">
+                            No posters wanted yet.
+                        </PText>
+                    ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                            {mostWanted.map(item => (
+                                <MostWantedTile key={item.id} item={item} />
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {activeTab === 'archive' && <>
             {upcomingDrops.length > 0 && (
                 <div className="mb-6">
                     <div className="flex items-center gap-2 mb-3">
@@ -518,30 +579,6 @@ export default function PostersPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                         {upcomingDrops.map(poster => (
                             <UpcomingDropTile key={poster.id} poster={poster} />
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {mostWanted.length > 0 && (
-                <div className="mb-6">
-                    <div className="flex items-center gap-2 mb-1">
-                        <span className="font-display font-semibold text-sm" style={{ color: 'var(--p-color-primary)' }}>
-                            Most Wanted
-                        </span>
-                        <span
-                            className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
-                            style={{ background: 'rgba(192,132,252,0.12)', color: '#c084fc' }}
-                        >
-                            {mostWanted.length}
-                        </span>
-                    </div>
-                    <p className="text-xs mb-3" style={{ color: 'var(--p-color-contrast-medium)' }}>
-                        Posters members have flagged on their wishlist, ranked by how many people want one.
-                    </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {mostWanted.map(item => (
-                            <MostWantedTile key={item.id} item={item} />
                         ))}
                     </div>
                 </div>
@@ -611,6 +648,7 @@ export default function PostersPage() {
                     ))}
                 </div>
             )}
+            </>}
 
             <Lightbox
                 open={lightboxIndex >= 0}
