@@ -23,7 +23,8 @@ export default function UpcomingShowsPage() {
                 .from('shows')
                 .select('id, show_date, artist_name, tour_name, venues(name, city, state_country)')
                 .gte('show_date', todayStr)
-                .order('show_date', { ascending: true });
+                .order('show_date', { ascending: true })
+                .order('day_order', { ascending: true });
 
             if (cancelled) return;
             if (fetchError) {

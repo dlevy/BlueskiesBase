@@ -84,6 +84,7 @@ export default function ShowForm() {
         source_types: [],
         opened_for_id: '',
         links: [],
+        day_order: 0,
     });
 
     const sourceTypeOptions = ['SBD', 'AUD', 'Matrix', 'FM', 'Video'];
@@ -133,6 +134,7 @@ export default function ShowForm() {
                 source_types:  show.source_types   || [],
                 opened_for_id: show.opened_for_id  || '',
                 links:         show.links          || [],
+                day_order:     show.day_order      ?? 0,
             });
             setInitialSetlist(show.setlist || {});
             setTourInputMode('select');
@@ -304,6 +306,15 @@ export default function ShowForm() {
                         </label>
                         <input type="date" name="show_date" value={formData.show_date}
                             onChange={handleChange} required className={inputClass} />
+
+                        <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)', marginTop: '0.75rem' }}>
+                            Order on this date
+                        </label>
+                        <input type="number" name="day_order" value={formData.day_order}
+                            onChange={handleChange} className={inputClass} style={{ maxWidth: '100px' }} />
+                        <PText size="x-small" color="contrast-medium" className="mt-1 block">
+                            Only matters if another show shares this exact date (e.g. an official show and its afterparty) — lower numbers come first. Leave at 0 otherwise.
+                        </PText>
                     </div>
 
                     <div>

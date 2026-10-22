@@ -123,7 +123,8 @@ router.get('/shows', async (req, res) => {
                 venues (id, name, city, state_country, address),
                 opened_for:bands!shows_opened_for_id_fkey(id, name)
             `)
-            .order('show_date', { ascending: false });
+            .order('show_date', { ascending: false })
+            .order('day_order', { ascending: true });
 
         // If we have content-filtered show IDs, apply them
         if (contentFilteredShowIds !== null) {

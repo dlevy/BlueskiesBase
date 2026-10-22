@@ -26,6 +26,7 @@ export default function UpcomingShowsWidget() {
                 .select('id, show_date, artist_name, tour_name, venues(name, city, state_country)')
                 .gt('show_date', todayStr)
                 .order('show_date', { ascending: true })
+                .order('day_order', { ascending: true })
                 .limit(3);
 
             if (!error) setUpcoming(data || []);

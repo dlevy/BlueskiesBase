@@ -51,7 +51,8 @@ router.get('/:id', async (req, res) => {
             .from('shows')
             .select('*')
             .eq('venue_id', id)
-            .order('show_date', { ascending: false });
+            .order('show_date', { ascending: false })
+            .order('day_order', { ascending: true });
 
         if (showsError) {
             console.error('Error fetching shows:', showsError);

@@ -45,6 +45,7 @@ router.get('/', async (req, res) => {
                 )
             `, { count: 'exact' })
             .order('show_date', { ascending: false })
+            .order('day_order', { ascending: true })
             .order('id');
 
         if (dateFrom) query = query.gte('show_date', dateFrom);
@@ -115,7 +116,14 @@ router.get('/lookup', async (req, res) => {
 
 /**
  * GET /api/shows/:id/adjacent
- * Return the previous and next show by date
+ * Return the previous and next show, treating (show_date, day_order, id) as
+ * one ordered sequence rather than comparing show_date alone — a plain
+ * show_date < / > comparison would skip straight over a same-day sibling
+ * (e.g. an official show's afterparty) instead of stepping to it, since
+ * neither one's show_date is actually less/greater than the other's. The
+ * day_order column (see add_show_day_order.sql) is what makes a deliberate
+ * choice possible when two shows share a date; id is the final, arbitrary
+ * but deterministic tiebreak for two shows that also share a day_order.
  */
 router.get('/:id/adjacent', async (req, res) => {
     try {
@@ -123,30 +131,35 @@ router.get('/:id/adjacent', async (req, res) => {
 
         const { data: show, error: showError } = await supabase
             .from('shows')
-            .select('show_date')
+            .select('show_date, day_order')
             .eq('id', id)
             .single();
 
         if (showError || !show) return res.status(404).json({ error: 'Show not found' });
 
-        const [{ data: prev }, { data: next }] = await Promise.all([
+        const { show_date: d, day_order: o } = show;
+        const cols = 'id, show_date, artist_name, venues(city, state_country)';
+
+        const [{ data: prevRows }, { data: nextRows }] = await Promise.all([
             supabase
                 .from('shows')
-                .select('id, show_date, artist_name, venues(city, state_country)')
-                .lt('show_date', show.show_date)
+                .select(cols)
+                .or(`show_date.lt.${d},and(show_date.eq.${d},day_order.lt.${o}),and(show_date.eq.${d},day_order.eq.${o},id.lt.${id})`)
                 .order('show_date', { ascending: false })
-                .limit(1)
-                .maybeSingle(),
+                .order('day_order', { ascending: false })
+                .order('id', { ascending: false })
+                .limit(1),
             supabase
                 .from('shows')
-                .select('id, show_date, artist_name, venues(city, state_country)')
-                .gt('show_date', show.show_date)
+                .select(cols)
+                .or(`show_date.gt.${d},and(show_date.eq.${d},day_order.gt.${o}),and(show_date.eq.${d},day_order.eq.${o},id.gt.${id})`)
                 .order('show_date', { ascending: true })
-                .limit(1)
-                .maybeSingle(),
+                .order('day_order', { ascending: true })
+                .order('id', { ascending: true })
+                .limit(1),
         ]);
 
-        res.json({ prev: prev ?? null, next: next ?? null });
+        res.json({ prev: prevRows?.[0] ?? null, next: nextRows?.[0] ?? null });
 
     } catch (err) {
         console.error('[GET /shows/:id/adjacent] Error:', err);
@@ -458,7 +471,7 @@ router.get('/:id', async (req, res) => {
  */
 router.post('/', requireEditorOrAdmin, async (req, res) => {
     try {
-        const { venue_id, show_date, artist_name, tour_name, notes, source_types, opened_for_id, links } = req.body;
+        const { venue_id, show_date, artist_name, tour_name, notes, source_types, opened_for_id, links, day_order } = req.body;
 
         const { data: show, error } = await supabase
             .from('shows')
@@ -470,6 +483,7 @@ router.post('/', requireEditorOrAdmin, async (req, res) => {
                 notes,
                 source_types,
                 opened_for_id: opened_for_id || null,
+                day_order: parseInt(day_order, 10) || 0,
             }])
             .select()
             .single();
@@ -536,7 +550,7 @@ router.patch('/:id/tour', requireEditorOrAdmin, async (req, res) => {
 router.put('/:id', requireEditorOrAdmin, async (req, res) => {
     try {
         const { id } = req.params;
-        const { venue_id, show_date, artist_name, tour_name, notes, source_types, opened_for_id, links } = req.body;
+        const { venue_id, show_date, artist_name, tour_name, notes, source_types, opened_for_id, links, day_order } = req.body;
 
         const { data: show, error } = await supabase
             .from('shows')
@@ -548,6 +562,7 @@ router.put('/:id', requireEditorOrAdmin, async (req, res) => {
                 notes,
                 source_types,
                 opened_for_id: opened_for_id || null,
+                day_order: parseInt(day_order, 10) || 0,
             })
             .eq('id', id)
             .select()
