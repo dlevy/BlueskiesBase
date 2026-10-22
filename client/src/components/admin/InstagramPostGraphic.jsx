@@ -77,7 +77,7 @@ const IMAGE_OVERLAY_PALETTE = {
 };
 const IMAGE_TEXT_SHADOW = '0 2px 10px rgba(0,0,0,0.85), 0 1px 3px rgba(0,0,0,0.7)';
 
-function DebutTag({ label, color, songFontSize }) {
+function SongTag({ label, color, songFontSize }) {
     return (
         <span style={{
             display: 'inline-flex', alignItems: 'center', flexShrink: 0,
@@ -93,28 +93,55 @@ function DebutTag({ label, color, songFontSize }) {
     );
 }
 
-// The widest a single song's row (number + title + any debut badges) can be
-// at a given font size — a song's row never wraps (see the render below), so
-// if this exceeds the column width the title gets ellipsis-truncated. Badge
-// font size and padding are both proportional to songFontSize (see
-// DebutTag), so their width scales with it too; only the flex gaps between
-// elements are fixed pixel values that don't scale with font size.
-// `position` is null for a jam's return to a song already numbered earlier
-// in the same chain (see assignSetlistDisplayNumbers) — no number is drawn
-// for that row, so it contributes no width here either.
-function measureRowWidth(song, position, fontSize, liveDebutSongIds, tourDebutSongIds) {
-    const numberWidth = position != null ? measureTextWidth(`${position}.`, fontSize, 400) : 0;
-    const titleText = `${song.title}${song.jams_into ? ' →' : ''}`;
-    const titleWidth = measureTextWidth(titleText, fontSize, 400);
-    let width = numberWidth + ROW_GAP + titleWidth;
-
-    const badgeFontSize = Math.max(10, Math.round(fontSize * 0.4));
+// Every tag a song can carry on the public show page's own setlist (see
+// ShowDetailPage.jsx's SongRow) — live/tour debut, rare, tease/partial/DJ'd
+// performance type, cover, and Sunday Valley — all surfaced here too, not
+// just the two debut tags, so the post reflects the same "what's notable
+// about this show" signal the site itself shows. `tourRarity` is the same
+// { total_shows, song_counts } shape GET /shows/:id/tour-rarity returns,
+// optional (a show with no tour_name never fetches it) — Rare is simply
+// skipped when it's not available.
+function getSongTags(song, { liveDebutSongIds, tourDebutSongIds, tourRarity }) {
+    const tags = [];
     const isLiveDebut = song.song_id != null && liveDebutSongIds?.has(song.song_id);
     const isTourDebut = song.song_id != null && tourDebutSongIds?.has(song.song_id);
-    [isLiveDebut && 'Live Debut', isTourDebut && 'Tour Debut'].filter(Boolean).forEach(label => {
-        // DebutTag's own padding is '0.15em 0.5em' — 0.5em each side, 1em top/bottom half.
-        const badgePadding = badgeFontSize; // 0.5em * 2 sides = 1em = badgeFontSize px
-        width += ROW_GAP + measureTextWidth(label, badgeFontSize, 700) + badgePadding;
+    if (isLiveDebut) tags.push({ label: 'Live Debut', color: '#34d399' });
+    if (isTourDebut) tags.push({ label: 'Tour Debut', color: '#22d3ee' });
+    if (tourRarity?.total_shows > 0 && song.song_id != null) {
+        const tourCount = tourRarity.song_counts?.[song.song_id];
+        if (tourCount != null && tourCount / tourRarity.total_shows < 0.15) {
+            tags.push({ label: 'Rare', color: '#c084fc' });
+        }
+    }
+    if (song.performance_type === 'tease') tags.push({ label: 'Tease', color: '#fbbf24' });
+    if (song.performance_type === 'partial') tags.push({ label: 'Partial', color: '#fb923c' });
+    if (song.performance_type === 'dj') tags.push({ label: "DJ'd", color: '#94a3b8' });
+    if (song.is_original === false) tags.push({ label: 'Cover', color: '#60a5fa' });
+    if (song.is_sunday_valley) tags.push({ label: 'Sunday Valley', color: '#2dd4bf' });
+    return tags;
+}
+
+// The widest a single song's row (number + title + any tags) can be at a
+// given font size — a song's row never wraps (see the render below), so if
+// this exceeds the column width the title gets ellipsis-truncated. Tag font
+// size and padding are both proportional to songFontSize (see SongTag), so
+// their width scales with it too; only the flex gaps between elements are
+// fixed pixel values that don't scale with font size.
+// The number column is a fixed width shared by every row (see
+// numberColumnTemplate below) — a row with no number at all (a jam's
+// return, or a tease; see assignSetlistDisplayNumbers) still reserves that
+// same width, left blank, so every title still starts at the same x
+// position instead of a numberless row's title creeping left into the gap.
+function measureRowWidth(song, fontSize, tagContext, numberColumnWidth) {
+    const titleText = `${song.title}${song.jams_into ? ' →' : ''}`;
+    const titleWidth = measureTextWidth(titleText, fontSize, 400);
+    let width = numberColumnWidth + ROW_GAP + titleWidth;
+
+    const tagFontSize = Math.max(10, Math.round(fontSize * 0.4));
+    getSongTags(song, tagContext).forEach(({ label }) => {
+        // SongTag's own padding is '0.15em 0.5em' — 0.5em each side, 1em top/bottom half.
+        const tagPadding = tagFontSize; // 0.5em * 2 sides = 1em = tagFontSize px
+        width += ROW_GAP + measureTextWidth(label, tagFontSize, 700) + tagPadding;
     });
     return width;
 }
@@ -126,7 +153,7 @@ function measureRowWidth(song, position, fontSize, liveDebutSongIds, tourDebutSo
 // off the top/bottom of long setlists, or individual titles to truncate —
 // the row/row-height budget would be exceeded the moment the "readable
 // minimum" size didn't actually fit.
-function pickSongLayout(numberedSongs, availableHeight, columnWidth, liveDebutSongIds, tourDebutSongIds) {
+function pickSongLayout(numberedSongs, availableHeight, columnWidth, tagContext, numberColumnTemplate) {
     const usable = Math.max(availableHeight, 100);
     const columns = 2;
     const rows = Math.max(1, Math.ceil(numberedSongs.length / columns));
@@ -134,15 +161,18 @@ function pickSongLayout(numberedSongs, availableHeight, columnWidth, liveDebutSo
     const heightFontSize = lineHeight / 1.45;
 
     // Binary-search the largest font size at which every song's row still
-    // fits within columnWidth — badge width doesn't scale perfectly linearly
+    // fits within columnWidth — tag width doesn't scale perfectly linearly
     // with font size (Math.max(10, Math.round(...)) floors/rounds it), so a
     // closed-form solve isn't reliable; a quick search is simpler and exact
     // enough at pixel scale.
     let lo = 1;
     let hi = Math.min(heightFontSize, MAX_SONG_FONT);
-    const fits = (fontSize) => numberedSongs.every(({ song, position }) =>
-        measureRowWidth(song, position, fontSize, liveDebutSongIds, tourDebutSongIds) <= columnWidth
-    );
+    const fits = (fontSize) => {
+        const numberColumnWidth = measureTextWidth(numberColumnTemplate, fontSize, 400);
+        return numberedSongs.every(({ song }) =>
+            measureRowWidth(song, fontSize, tagContext, numberColumnWidth) <= columnWidth
+        );
+    };
     if (hi <= lo || fits(hi)) {
         return { columns, songFontSize: Math.max(hi, lo) };
     }
@@ -175,8 +205,9 @@ function splitIntoColumns(numberedSongs, columns) {
 // html-to-image. Layout is identical across styles/tours — only colors change —
 // so a new tour style never requires touching this component.
 const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({
-    show, styleKey, liveDebutSongIds, tourDebutSongIds, backgroundMode = 'style', backgroundImageUrl, postType = 'setlist',
+    show, styleKey, liveDebutSongIds, tourDebutSongIds, tourRarity, backgroundMode = 'style', backgroundImageUrl, postType = 'setlist',
 }, ref) {
+    const tagContext = { liveDebutSongIds, tourDebutSongIds, tourRarity };
     const style = getStyleByKey(styleKey);
     const useImageBackground = (backgroundMode === 'poster' || backgroundMode === 'photo') && !!backgroundImageUrl;
     // An image background never trusts the selected color style for text — an
@@ -198,12 +229,19 @@ const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({
     // known, much more reliable path through that same rasterization step.
     const songs = SET_KEYS.flatMap(key => show.setlist?.[key] || []);
     const numberedSongs = assignSetlistDisplayNumbers(songs);
+    // Widest numeral the number column needs to fit, at this show's actual
+    // highest position — not a per-row width, so every row (numbered or
+    // not) reserves the exact same column width and every title starts at
+    // the same x position, same as the public show page's fixed w-6 slot.
+    const maxPosition = numberedSongs.reduce((max, { position }) => Math.max(max, position || 0), 0);
+    const numberColumnTemplate = `${'9'.repeat(String(maxPosition).length || 1)}.`;
 
     const isOnThisDay = postType === 'onThisDay';
     const onThisDayYears = isOnThisDay ? yearsAgo(show.show_date) : null;
     const availableHeight = POST_HEIGHT - SIDE_PADDING - BOTTOM_PADDING - HEADER_FOOTER_CONTENT - (isOnThisDay ? TIME_MACHINE_BADGE_HEIGHT : 0);
     const columnWidth = (POST_WIDTH - SIDE_PADDING * 2 - COLUMN_GAP) / 2;
-    const { columns, songFontSize } = pickSongLayout(numberedSongs, availableHeight, columnWidth, liveDebutSongIds, tourDebutSongIds);
+    const { columns, songFontSize } = pickSongLayout(numberedSongs, availableHeight, columnWidth, tagContext, numberColumnTemplate);
+    const numberColumnWidth = measureTextWidth(numberColumnTemplate, songFontSize, 400);
     const venueLine = show.venues
         ? `${show.venues.name} — ${show.venues.city}${show.venues.state_country ? ', ' + show.venues.state_country : ''}`
         : null;
@@ -303,8 +341,7 @@ const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({
                         {splitIntoColumns(numberedSongs, columns).map((columnSongs, colIndex) => (
                             <div key={colIndex} style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                                 {columnSongs.map(({ song, position }, i) => {
-                                    const isLiveDebut = song.song_id != null && liveDebutSongIds?.has(song.song_id);
-                                    const isTourDebut = song.song_id != null && tourDebutSongIds?.has(song.song_id);
+                                    const tags = getSongTags(song, tagContext);
                                     return (
                                         <div
                                             key={song.id || i}
@@ -313,16 +350,20 @@ const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({
                                                 display: 'flex', flexWrap: 'nowrap', alignItems: 'center', gap: ROW_GAP,
                                             }}
                                         >
-                                            {position != null && (
-                                                <span style={{ flexShrink: 0, color: palette.muted, fontVariantNumeric: 'tabular-nums' }}>{position}.</span>
-                                            )}
+                                            <span style={{
+                                                flexShrink: 0, width: numberColumnWidth, textAlign: 'right',
+                                                color: palette.muted, fontVariantNumeric: 'tabular-nums',
+                                            }}>
+                                                {position != null ? `${position}.` : ''}
+                                            </span>
                                             <span style={{
                                                 minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                                             }}>
                                                 {song.title}{song.jams_into ? ' →' : ''}
                                             </span>
-                                            {isLiveDebut && <DebutTag label="Live Debut" color="#34d399" songFontSize={songFontSize} />}
-                                            {isTourDebut && <DebutTag label="Tour Debut" color="#22d3ee" songFontSize={songFontSize} />}
+                                            {tags.map(tag => (
+                                                <SongTag key={tag.label} label={tag.label} color={tag.color} songFontSize={songFontSize} />
+                                            ))}
                                         </div>
                                     );
                                 })}

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { PHeading, PText, PButton, PButtonPure, PInlineNotification, PSpinner } from '@porsche-design-system/components-react';
-import { getShowById, getShowDebuts, getShowPhotos, getShowPoster } from '../../services/api';
+import { getShowById, getShowDebuts, getShowPhotos, getShowPoster, getTourRarity } from '../../services/api';
 import { buildShowPath } from '../../utils/showSlug';
 import InstagramPostGraphic from '../../components/admin/InstagramPostGraphic';
 import { POST_STYLES, DEFAULT_STYLE_KEY, POST_WIDTH, POST_HEIGHT } from '../../utils/instagramStyles';
@@ -22,6 +22,7 @@ export default function InstagramPostPage() {
     const [postType, setPostType] = useState('setlist');
     const [liveDebutSongIds, setLiveDebutSongIds] = useState(new Set());
     const [tourDebutSongIds, setTourDebutSongIds] = useState(new Set());
+    const [tourRarity, setTourRarity] = useState(null);
     const [photos, setPhotos] = useState([]);
     const [lightboxIndex, setLightboxIndex] = useState(-1);
     const [posters, setPosters] = useState([]);
@@ -49,6 +50,17 @@ export default function InstagramPostPage() {
             })
             .catch(err => console.error('[InstagramPostPage] Error loading debuts:', err));
     }, [id]);
+
+    // Powers the Rare tag, same definition as the public show page's own
+    // (ShowDetailPage.jsx) — played at fewer than 15% of this tour's shows.
+    // Only fetched once the show itself has loaded and actually has a tour,
+    // same guard ShowDetailPage uses.
+    useEffect(() => {
+        if (!show?.tour_name) return;
+        getTourRarity(id)
+            .then(data => setTourRarity(data))
+            .catch(err => console.error('[InstagramPostPage] Error loading tour rarity:', err));
+    }, [id, show?.tour_name]);
 
     useEffect(() => {
         getShowPhotos(id)
@@ -284,6 +296,7 @@ export default function InstagramPostPage() {
                                     postType={postType}
                                     liveDebutSongIds={liveDebutSongIds}
                                     tourDebutSongIds={tourDebutSongIds}
+                                    tourRarity={tourRarity}
                                     backgroundMode={backgroundMode}
                                     backgroundImageUrl={backgroundImageDataUrl}
                                 />

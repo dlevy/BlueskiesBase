@@ -46,6 +46,7 @@ import AdminUsers from './pages/admin/AdminUsers'
 import SiteSettingsPage from './pages/admin/SiteSettingsPage'
 import SetlistSubmissionsReview from './pages/admin/SetlistSubmissionsReview'
 import InstagramPostPage from './pages/admin/InstagramPostPage'
+import TourStatsPostPage from './pages/admin/TourStatsPostPage'
 import AnalyticsPage from './pages/admin/AnalyticsPage'
 import ArtworkPage from './pages/ArtworkPage'
 import './App.css'
@@ -125,6 +126,7 @@ function App() {
             <Route path="band-members" element={<BandMembersList />} />
             <Route path="tours" element={<ToursList />} />
             <Route path="tours/:tourName" element={<TourEditPage />} />
+            <Route path="tours/:tourName/stats-post" element={<TourStatsPostPage />} />
             <Route path="setlist-submissions" element={<SetlistSubmissionsReview />} />
             <Route path="analytics" element={<AnalyticsPage />} />
             <Route path="users" element={<AdminUsers />} />

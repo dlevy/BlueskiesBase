@@ -129,6 +129,48 @@ router.get('/show/:showId', async (req, res) => {
 });
 
 /**
+ * GET /api/photos/tour/:tourName
+ * Every photo from any show within a tour — for the Tour Stats post's
+ * photo-backdrop picker. Public, no auth required (same as GET / and
+ * GET /show/:showId). Filtered in Postgres via the shows!inner join rather
+ * than pulling every photo and filtering in JS (unlike GET /, which has no
+ * filter and can afford that), since a tour's photo count isn't bounded the
+ * way one show's is.
+ */
+router.get('/tour/:tourName', async (req, res) => {
+    try {
+        const { tourName } = req.params;
+
+        let photos = [];
+        for (let rangeStart = 0; ;) {
+            const { data: page, error } = await supabaseAdmin
+                .from('user_photos')
+                .select(`
+                    id, photo_url, thumbnail_url, caption, display_order, created_at,
+                    shows!inner ( id, show_date, artist_name, tour_name, venues ( name, city, state_country ) )
+                `)
+                .eq('shows.tour_name', tourName)
+                .order('id')
+                .range(rangeStart, rangeStart + 999);
+            if (error) {
+                console.error('Error fetching tour photos:', error);
+                return res.status(500).json({ error: 'Failed to fetch photos' });
+            }
+            photos = photos.concat(page || []);
+            if (!page || page.length < 1000) break;
+            rangeStart += 1000;
+        }
+
+        photos.sort((a, b) => a.shows.show_date.localeCompare(b.shows.show_date) || (a.display_order ?? 0) - (b.display_order ?? 0));
+
+        res.json({ photos });
+    } catch (error) {
+        console.error('Error in GET /api/photos/tour/:tourName:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
  * POST /api/photos/upload
  * Upload a photo for a show
  */

@@ -18,13 +18,20 @@ export function orderSetlistSongs(rows) {
 
 /**
  * Assigns the visible track number to each song in an ordered setlist, with
- * one exception: a jam's return to a song already numbered earlier in the
- * same unbroken chain (e.g. A Good Look -> Life During Wartime -> back into
- * A Good Look) doesn't get a new number — it's the same performance
- * resuming, not a new one — while a song jammed into for the first time
- * still gets the next sequential number like any other song. Numbers never
- * skip: the counter only advances for songs that actually display one.
- * Shared by the show page and the Instagram post graphic so both stay in sync.
+ * two exceptions that don't get a number of their own:
+ *   - a jam's return to a song already numbered earlier in the same
+ *     unbroken chain (e.g. A Good Look -> Life During Wartime -> back into
+ *     A Good Look) — it's the same performance resuming, not a new one —
+ *     while a song jammed into for the first time still gets the next
+ *     sequential number like any other song;
+ *   - a tease (performance_type === 'tease') — a brief musical quote
+ *     interpolated into another song, not performed as its own distinct
+ *     setlist entry, so it doesn't occupy a position either. A `partial`
+ *     performance is NOT included here — that's still its own distinct
+ *     (if abbreviated) setlist entry, just not a full performance.
+ * Numbers never skip: the counter only advances for songs that actually
+ * display one. Shared by the show page and the Instagram post graphic so
+ * both stay in sync.
  */
 export function assignSetlistDisplayNumbers(songs) {
     let counter = 0;
@@ -45,8 +52,10 @@ export function assignSetlistDisplayNumbers(songs) {
             chainSongIds.add(song.song_id);
         }
 
-        if (!isReturnWithinChain) counter++;
+        const skipNumber = isReturnWithinChain || song.performance_type === 'tease';
 
-        return { song, position: isReturnWithinChain ? null : counter };
+        if (!skipNumber) counter++;
+
+        return { song, position: skipNumber ? null : counter };
     });
 }

@@ -7,6 +7,23 @@ import { getLocalDateString } from './today';
 // collision risk for this catalog.
 export const ALL_SHOWS = 'All Shows';
 
+// Every song actually on an album, by title — independent of any tour. Used
+// to find which of an album's tracks got zero plays on a given tour (the
+// Rarest Songs by Album stat's "never played" note): tourSongCounts only
+// ever knows about songs that appear in a tour's setlists, so a track that
+// was never played at all simply never shows up there at all; this is the
+// only way to know it exists and should be called out as absent.
+export async function fetchAlbumTrackTitles(albumTitle) {
+    const { data: album } = await supabase.from('albums').select('id').eq('title', albumTitle).maybeSingle();
+    if (!album) return [];
+    const { data: rows } = await supabase
+        .from('album_songs')
+        .select('track_order, songs(title)')
+        .eq('album_id', album.id)
+        .order('track_order', { ascending: true, nullsFirst: false });
+    return (rows || []).map(r => r.songs?.title).filter(Boolean);
+}
+
 // The tour of the most recent show that's actually happened — same "current tour"
 // definition used by the homepage widget, so the dedicated tour stats page defaults
 // to the same tour it links out from.
@@ -117,7 +134,7 @@ export async function fetchTourSongCounts(tourName, { stateFilter, countryFilter
     const playedIds = played.map(s => s.id);
 
     if (playedIds.length === 0) {
-        return { totalShows: tourShows.length, playedShows: 0, firstDate: tourShows[0].show_date, lastDate: tourShows[tourShows.length - 1].show_date, playedIds: [], songCounts: [], openingSongs: [], closingSongs: [], liveDebuts: [], pastShows: played, upcomingShows: upcoming };
+        return { totalShows: tourShows.length, playedShows: 0, firstDate: tourShows[0].show_date, lastDate: tourShows[tourShows.length - 1].show_date, playedIds: [], songCounts: [], openingSongs: [], closingSongs: [], liveDebuts: [], biggestSetlist: null, albumBreakdown: [], songsByAlbum: {}, otherOriginals: 0, covers: 0, pastShows: played, upcomingShows: upcoming };
     }
 
     let rows = [];
@@ -222,6 +239,20 @@ export async function fetchTourSongCounts(tourName, { stateFilter, countryFilter
     });
     liveDebuts.sort((a, b) => a.showDate.localeCompare(b.showDate) || a.title.localeCompare(b.title));
 
+    // Biggest setlist: the show with the most distinct songs played — a
+    // SONG COUNT, not a time duration (this app has no set-length data
+    // anywhere), so callers must caption this as "most songs," never
+    // "longest show."
+    let biggestSetlist = null;
+    Object.entries(songIdsByShow).forEach(([showId, songIds]) => {
+        const s = showById[showId];
+        if (!s) return;
+        const songCount = songIds.size;
+        if (!biggestSetlist || songCount > biggestSetlist.songCount) {
+            biggestSetlist = { showId, songCount, showDate: s.show_date, artistName: s.artist_name, venue: s.venues || null };
+        }
+    });
+
     // Opener/closer: the earliest/latest performed song per show, ordered
     // set1 < set2 < set3 < encore and by song_order within a set — not just
     // set1/song_order 1, since an incomplete or oddly-logged setlist might
@@ -264,6 +295,10 @@ export async function fetchTourSongCounts(tourName, { stateFilter, countryFilter
             count: shows.size,
             isOriginal: isOriginalByTitle[title],
             isRare: showsWithSetlist > 0 && shows.size / showsWithSetlist < 0.15,
+            // Sorted show dates this title was played on, within this tour's
+            // scope — lets a caller (e.g. the Rarest Songs stat) name the
+            // actual date for a song played only once, not just the count.
+            showDates: [...shows].map(id => showById[id]?.show_date).filter(Boolean).sort(),
         }))
         .sort((a, b) => b.count - a.count || a.title.localeCompare(b.title));
 
@@ -280,9 +315,15 @@ export async function fetchTourSongCounts(tourName, { stateFilter, countryFilter
     // with three songs played once each. Only a song with no album
     // association at all falls through to otherOriginals/covers.
     const albumCounts = new Map();
+    // Per-album song breakdown — same per-song primary-album attribution as
+    // albumCounts just below, grouped the other way (by album, listing its
+    // songs) instead of summed into one total per album. Used by the Song
+    // Count by Album stat, where an admin picks one of these albums and
+    // gets every one of its songs ranked by this tour's play count.
+    const songsByAlbum = {};
     let otherOriginals = 0;
     let covers = 0;
-    Object.entries(songMetaById).forEach(([songId, { isOriginal, albumSongs }]) => {
+    Object.entries(songMetaById).forEach(([songId, { title, isOriginal, albumSongs }]) => {
         const playCount = showSetsBySongId[songId]?.size || 0;
         const assocs = (albumSongs || []).filter(as => as.albums);
         if (assocs.length > 0) {
@@ -295,12 +336,14 @@ export async function fetchTourSongCounts(tourName, { stateFilter, countryFilter
             })[0];
             const albumTitle = primary.albums?.title || 'Other';
             albumCounts.set(albumTitle, (albumCounts.get(albumTitle) || 0) + playCount);
+            (songsByAlbum[albumTitle] ||= []).push({ title, count: playCount });
         } else if (isOriginal === false) {
             covers += playCount;
         } else {
             otherOriginals += playCount;
         }
     });
+    Object.values(songsByAlbum).forEach(list => list.sort((a, b) => b.count - a.count || a.title.localeCompare(b.title)));
     const albumBreakdown = [...albumCounts.entries()]
         .map(([title, count]) => ({ title, count }))
         .sort((a, b) => b.count - a.count);
@@ -316,8 +359,10 @@ export async function fetchTourSongCounts(tourName, { stateFilter, countryFilter
         openingSongs,
         closingSongs,
         liveDebuts,
+        biggestSetlist,
         avgSongsPerShow,
         albumBreakdown,
+        songsByAlbum,
         otherOriginals,
         covers,
         pastShows: played,

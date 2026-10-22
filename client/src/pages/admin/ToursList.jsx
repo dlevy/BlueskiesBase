@@ -111,9 +111,14 @@ export default function ToursList() {
                                         </PText>
                                     </td>
                                     <td className="px-4 py-3 whitespace-nowrap text-right">
-                                        <Link to={`/admin/tours/${encodeURIComponent(t.tourName)}`}>
-                                            <PButtonPure size="x-small">Edit</PButtonPure>
-                                        </Link>
+                                        <div className="flex items-center justify-end gap-3">
+                                            <Link to={`/admin/tours/${encodeURIComponent(t.tourName)}`}>
+                                                <PButtonPure size="x-small">Edit</PButtonPure>
+                                            </Link>
+                                            <Link to={`/admin/tours/${encodeURIComponent(t.tourName)}/stats-post`}>
+                                                <PButtonPure size="x-small">Stats Post</PButtonPure>
+                                            </Link>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}

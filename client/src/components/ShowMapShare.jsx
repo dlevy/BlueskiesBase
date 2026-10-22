@@ -380,6 +380,86 @@ async function buildShareImage({ pins, pastCount, upcomingCount, highestBadge, a
     return canvas.toDataURL('image/png');
 }
 
+// Standalone entry point for embedding this same static map elsewhere (the
+// Tour Stats Instagram post generator) — plain async function instead of
+// the live component's hook-driven state, so it can be called from outside
+// React's render cycle. Duplicates the pin-building the component's own
+// effect does below (venue dedup + stored-coordinate lookup + Nominatim
+// fallback) rather than sharing it, to avoid touching the already-working
+// live map/share flow for this. Returns the same data: URL buildShareImage
+// does, ready to use directly as an image source — no further conversion
+// needed.
+export async function buildTourMapImage({ pastShows, upcomingShows, attendedLabel = 'Played', brandTitle = DEFAULT_BRAND_TITLE, brandSubtitle = DEFAULT_BRAND_SUBTITLE }) {
+    const venueMap = new Map();
+    const add = (show, type) => {
+        if (!show.venues?.city) return;
+        const key = `${show.venues.city}|${show.venues.state_country || ''}`;
+        const ex = venueMap.get(key);
+        if (!ex) {
+            venueMap.set(key, {
+                city: show.venues.city,
+                stateCountry: show.venues.state_country,
+                types: new Set([type]),
+                lat: show.venues.latitude ?? null,
+                lng: show.venues.longitude ?? null,
+                venueIds: new Set(show.venues.id ? [show.venues.id] : []),
+            });
+        } else {
+            ex.types.add(type);
+            if (show.venues.id) ex.venueIds.add(show.venues.id);
+            if (ex.lat == null && show.venues.latitude != null) {
+                ex.lat = show.venues.latitude;
+                ex.lng = show.venues.longitude;
+            }
+        }
+    };
+    (pastShows || []).forEach(s => add(s, 'attended'));
+    (upcomingShows || []).forEach(s => add(s, 'upcoming'));
+
+    const venues = [...venueMap.entries()].map(([, v]) => ({
+        city: v.city,
+        stateCountry: v.stateCountry,
+        pinType: v.types.has('attended') && v.types.has('upcoming') ? 'both'
+               : v.types.has('attended') ? 'attended' : 'upcoming',
+        lat: v.lat,
+        lng: v.lng,
+        venueIds: v.venueIds,
+    }));
+
+    const cache = getGeoCache();
+    const pins = [];
+    let geocodeCount = 0;
+    for (const venue of venues) {
+        if (venue.lat != null && venue.lng != null) {
+            pins.push({ lat: venue.lat, lng: venue.lng, city: venue.city, stateCountry: venue.stateCountry, pinType: venue.pinType });
+            continue;
+        }
+        const key = `${venue.city}|${venue.stateCountry || ''}`;
+        let coords = cache[key];
+        if (!coords) {
+            if (geocodeCount > 0) await new Promise(r => setTimeout(r, 1100));
+            coords = await fetchCoords([venue.city, venue.stateCountry].filter(Boolean).join(', '));
+            if (coords) {
+                cache[key] = coords;
+                saveGeoCache(cache);
+                venue.venueIds.forEach(id => cacheVenueGeocode(id, coords.lat, coords.lng));
+            }
+            geocodeCount++;
+        }
+        if (coords) pins.push({ ...coords, city: venue.city, stateCountry: venue.stateCountry, pinType: venue.pinType });
+    }
+
+    return buildShareImage({
+        pins,
+        pastCount: (pastShows || []).length,
+        upcomingCount: (upcomingShows || []).length,
+        highestBadge: null,
+        attendedLabel,
+        brandTitle,
+        brandSubtitle,
+    });
+}
+
 // ─── Sharing helpers ──────────────────────────────────────────────────────────
 
 async function blobFromDataUrl(dataUrl) {

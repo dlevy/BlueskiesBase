@@ -1423,6 +1423,18 @@ export const getShowPhotos = async (showId) => {
 };
 
 /**
+ * Get every photo from any show within a tour (for the Tour Stats post's
+ * photo-backdrop picker).
+ */
+export const getTourPhotos = async (tourName) => {
+    const response = await fetch(`${API_BASE_URL}/api/photos/tour/${encodeURIComponent(tourName)}`);
+    if (!response.ok) {
+        throw new Error('Failed to fetch tour photos');
+    }
+    return response.json();
+};
+
+/**
  * Upload a photo
  */
 export const uploadPhoto = async (showId, file, caption = '') => {

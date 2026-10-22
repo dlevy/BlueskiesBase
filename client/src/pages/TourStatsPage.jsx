@@ -6,6 +6,7 @@ import { fetchGeographyOptions } from '../utils/geography';
 import { buildShowPath } from '../utils/showSlug';
 import SEO from '../components/SEO';
 import ShowMapShare from '../components/ShowMapShare';
+import { useAuth } from '../contexts/AuthContext';
 
 const selectClass = "w-full sm:w-auto rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-transparent";
 
@@ -67,6 +68,7 @@ function RareTag({ count, total }) {
 
 export default function TourStatsPage() {
     const navigate = useNavigate();
+    const { isEditorOrAdmin } = useAuth();
     const [tours, setTours] = useState([]);
     const [selectedTour, setSelectedTour] = useState('');
     const [geoOptions, setGeoOptions] = useState({ states: [], countries: [] });
@@ -225,8 +227,20 @@ export default function TourStatsPage() {
                             </PText>
                         ) : (
                             <>
-                                <div className="flex items-baseline justify-between mb-1">
+                                <div className="flex flex-wrap items-baseline justify-between gap-2 mb-1">
                                     <PHeading size="large" tag="h2">{selectedTour}</PHeading>
+                                    {isEditorOrAdmin && selectedTour !== ALL_SHOWS && (
+                                        <button
+                                            onClick={() => navigate(`/admin/tours/${encodeURIComponent(selectedTour)}/stats-post`)}
+                                            className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-sm border border-white/15 hover:border-white/25 hover:bg-white/5 transition-all shrink-0"
+                                            style={{ color: 'var(--p-color-contrast-medium)' }}
+                                        >
+                                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14M4 8h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                            </svg>
+                                            IG Post
+                                        </button>
+                                    )}
                                 </div>
                                 <PText size="small" color="contrast-medium" className="mb-1 block">
                                     {tourData.playedShows} of {tourData.totalShows} shows played &middot; {formatDate(tourData.firstDate)}
