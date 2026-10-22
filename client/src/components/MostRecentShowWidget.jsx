@@ -18,7 +18,9 @@ const OTHER_RECENT_SHOWS = 2;
 // content (artist, venue, tour, full setlist preview with debut tags). The only thing
 // that distinguishes "most recent" from "the others" is position in the list, not size
 // or how much information is shown.
-function ShowCard({ show, songs, totalSongs, liveDebutIds, tourDebutIds }) {
+// Exported so TodaysShowWidget can reuse the exact same card rendering
+// inside its own distinctively-styled wrapper, instead of duplicating this.
+export function ShowCard({ show, songs, totalSongs, liveDebutIds, tourDebutIds }) {
     const [y, m, d] = show.show_date.split('-');
     const dateObj = new Date(Number(y), Number(m) - 1, Number(d));
     const monthStr = dateObj.toLocaleString('default', { month: 'short' }).toUpperCase();

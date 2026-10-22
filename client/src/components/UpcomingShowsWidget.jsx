@@ -16,10 +16,13 @@ export default function UpcomingShowsWidget() {
             const dd = String(today.getDate()).padStart(2, '0');
             const todayStr = `${yyyy}-${mm}-${dd}`;
 
+            // Strictly after today — a same-day show has its own dedicated
+            // TodaysShowWidget on the homepage, so it's excluded here to
+            // avoid showing the same show twice.
             const { data, error } = await supabase
                 .from('shows')
                 .select('id, show_date, artist_name, tour_name, venues(name, city, state_country)')
-                .gte('show_date', todayStr)
+                .gt('show_date', todayStr)
                 .order('show_date', { ascending: true })
                 .limit(3);
 
