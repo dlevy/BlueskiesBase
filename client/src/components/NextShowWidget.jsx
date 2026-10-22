@@ -4,21 +4,25 @@ import { getShowDebutsBatch } from '../services/api';
 import { ShowCard } from './MostRecentShowWidget';
 import { orderSetlistSongs } from '../utils/setlist';
 
-// Only ever renders a show whose show_date is literally today — not "most
-// recent" (which excludes today until a setlist's logged, see
-// MostRecentShowWidget) and not "upcoming" (which UpcomingShowsWidget now
-// excludes today from, so the same show isn't shown twice on the homepage).
-export default function TodaysShowWidget() {
+// The single soonest show at or after today — "Tonight's Show" when that's
+// literally today, "Next Show" otherwise (with a days-away note so it's
+// clear why a show that isn't today is still being featured up top). Only
+// a same-day show gets excluded from UpcomingShowsWidget's own list (see
+// its own comment) — a future "Next Show" is deliberately left in both
+// places, since here it's just highlighted, not removed from the list.
+export default function NextShowWidget() {
     const [show, setShow] = useState(null);
     const [songs, setSongs] = useState([]);
     const [totalSongs, setTotalSongs] = useState(0);
     const [debuts, setDebuts] = useState({});
     const [loading, setLoading] = useState(true);
+    const [isTonight, setIsTonight] = useState(false);
+    const [daysAway, setDaysAway] = useState(0);
 
     useEffect(() => {
         let cancelled = false;
 
-        const fetchTodaysShow = async () => {
+        const fetchNextShow = async () => {
             try {
                 const today = new Date();
                 const todayStr = [
@@ -30,7 +34,8 @@ export default function TodaysShowWidget() {
                 const { data: shows, error: showsError } = await supabase
                     .from('shows')
                     .select('id, show_date, artist_name, tour_name, venues(name, city, state_country)')
-                    .eq('show_date', todayStr)
+                    .gte('show_date', todayStr)
+                    .order('show_date', { ascending: true })
                     .order('id')
                     .limit(1);
 
@@ -38,29 +43,37 @@ export default function TodaysShowWidget() {
                     if (!cancelled) setLoading(false);
                     return;
                 }
-                const todaysShow = shows[0];
+                const nextShow = shows[0];
 
                 const { data: setlistRows } = await supabase
                     .from('setlist_songs')
                     .select('show_id, song_id, set_number, song_order, is_encore, songs!setlist_songs_song_id_fkey(title)')
-                    .eq('show_id', todaysShow.id);
+                    .eq('show_id', nextShow.id);
 
                 if (cancelled) return;
-                setShow(todaysShow);
+                setShow(nextShow);
                 setSongs(orderSetlistSongs(setlistRows || []));
                 setTotalSongs((setlistRows || []).length);
+                setIsTonight(nextShow.show_date === todayStr);
+                // Calendar-day difference, not a 24h-based one — "tomorrow" should
+                // read as 1 day away right from midnight, not depend on what time
+                // right now happens to be.
+                const [y, m, d] = nextShow.show_date.split('-').map(Number);
+                const showMidnight = new Date(y, m - 1, d);
+                const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                setDaysAway(Math.round((showMidnight - todayMidnight) / (24 * 60 * 60 * 1000)));
 
-                getShowDebutsBatch([todaysShow.id])
+                getShowDebutsBatch([nextShow.id])
                     .then(data => { if (!cancelled) setDebuts(data); })
-                    .catch(err => console.error('[TodaysShowWidget] debuts fetch failed:', err));
+                    .catch(err => console.error('[NextShowWidget] debuts fetch failed:', err));
             } catch (err) {
-                console.error('[TodaysShowWidget] Error fetching today\'s show:', err);
+                console.error('[NextShowWidget] Error fetching next show:', err);
             } finally {
                 if (!cancelled) setLoading(false);
             }
         };
 
-        fetchTodaysShow();
+        fetchNextShow();
         return () => { cancelled = true; };
     }, []);
 
@@ -70,12 +83,17 @@ export default function TodaysShowWidget() {
         <div className="relative rounded-2xl border-2 border-amber-500/50 bg-gradient-to-br from-amber-500/10 via-[#1a1e26] to-[#1a1e26] p-5 mb-4 shadow-lg shadow-amber-500/10">
             <div className="flex items-center gap-2 mb-4">
                 <span className="relative flex h-2.5 w-2.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                    {isTonight && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />}
                     <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500" />
                 </span>
                 <h2 className="font-display font-bold text-base uppercase tracking-wide" style={{ color: '#fbbf24' }}>
-                    Tonight's Show
+                    {isTonight ? "Tonight's Show" : 'Next Show'}
                 </h2>
+                {!isTonight && (
+                    <span className="text-xs font-medium" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                        {daysAway === 1 ? 'Tomorrow' : `In ${daysAway} days`}
+                    </span>
+                )}
             </div>
 
             <ShowCard

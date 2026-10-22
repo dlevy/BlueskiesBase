@@ -16,9 +16,11 @@ export default function UpcomingShowsWidget() {
             const dd = String(today.getDate()).padStart(2, '0');
             const todayStr = `${yyyy}-${mm}-${dd}`;
 
-            // Strictly after today — a same-day show has its own dedicated
-            // TodaysShowWidget on the homepage, so it's excluded here to
-            // avoid showing the same show twice.
+            // Strictly after today — a same-day show is always the one
+            // NextShowWidget features as "Tonight's Show" at the top of the
+            // homepage, so it's excluded here to avoid showing it twice. A
+            // future show NextShowWidget features as "Next Show" stays in
+            // this list too — it's only highlighted up top, not pulled out.
             const { data, error } = await supabase
                 .from('shows')
                 .select('id, show_date, artist_name, tour_name, venues(name, city, state_country)')

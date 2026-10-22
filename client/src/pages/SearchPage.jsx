@@ -12,7 +12,7 @@ import UserStatsWidget from '../components/UserStatsWidget';
 import TourStatsWidget from '../components/TourStatsWidget';
 import UpcomingShowsWidget from '../components/UpcomingShowsWidget';
 import MostRecentShowWidget from '../components/MostRecentShowWidget';
-import TodaysShowWidget from '../components/TodaysShowWidget';
+import NextShowWidget from '../components/NextShowWidget';
 import SetlistPreview from '../components/SetlistPreview';
 import MainNavTabs from '../components/MainNavTabs';
 import { orderSetlistSongs } from '../utils/setlist';
@@ -597,7 +597,7 @@ export default function SearchPage() {
                     {/* Hero state — shown when no filters are active */}
                     {showHero && (
                         <>
-                            <TodaysShowWidget />
+                            <NextShowWidget />
                             <MostRecentShowWidget />
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                                 <TourStatsWidget />
