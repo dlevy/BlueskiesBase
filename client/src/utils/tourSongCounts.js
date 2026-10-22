@@ -18,7 +18,7 @@ export async function fetchDefaultTourName() {
         .lte('show_date', todayStr)
         .not('tour_name', 'is', null)
         .order('show_date', { ascending: false })
-        .order('day_order', { ascending: true })
+        .order('day_order', { ascending: false })
         .order('id')
         .limit(1);
     return data?.[0]?.tour_name || null;

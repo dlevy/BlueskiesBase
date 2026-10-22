@@ -110,7 +110,7 @@ export default function MostRecentShowWidget() {
                     .select('id, show_date, artist_name, tour_name, venues(name, city, state_country)')
                     .lte('show_date', todayStr)
                     .order('show_date', { ascending: false })
-                    .order('day_order', { ascending: true })
+                    .order('day_order', { ascending: false })
                     .order('id', { ascending: false })
                     .limit(LOOKBACK_SHOWS);
 

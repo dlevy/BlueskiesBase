@@ -58,7 +58,7 @@ export default function TourStatsWidget() {
                     .select('tour_name')
                     .lte('show_date', todayStr)
                     .order('show_date', { ascending: false })
-                    .order('day_order', { ascending: true })
+                    .order('day_order', { ascending: false })
                     .limit(1);
 
                 const tourName = recent?.[0]?.tour_name;

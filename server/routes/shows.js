@@ -45,7 +45,7 @@ router.get('/', async (req, res) => {
                 )
             `, { count: 'exact' })
             .order('show_date', { ascending: false })
-            .order('day_order', { ascending: true })
+            .order('day_order', { ascending: false })
             .order('id');
 
         if (dateFrom) query = query.gte('show_date', dateFrom);

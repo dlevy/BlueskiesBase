@@ -325,6 +325,15 @@ export default function ShowDetailPage() {
     const [adjacent, setAdjacent] = useState({ prev: null, next: null });
     const [thanksRows, setThanksRows] = useState([]);
     const initialLoad = useRef(true);
+    // Which {artist, date, locationSlug} the current `show` state was actually
+    // fetched for — not just whatever show_date happens to be on it. Two shows
+    // sharing a date (e.g. an official show and its same-night afterparty) both
+    // satisfy `show.show_date === date`, so that alone can't tell a genuinely
+    // current show apart from a stale one left over from the previous show's
+    // page while the new fetch is still in flight. Without this, clicking
+    // Next/Prev between two same-day shows raced the canonical-redirect effect
+    // below against the next fetch, bouncing the URL back and forth.
+    const fetchedForRef = useRef(null);
 
     const loadThanks = useCallback(async () => {
         if (!show?.id) return;
@@ -339,6 +348,7 @@ export default function ShowDetailPage() {
     useEffect(() => { loadThanks(); }, [loadThanks]);
 
     useEffect(() => {
+        let cancelled = false;
         const fetchShow = async () => {
             try {
                 if (initialLoad.current) setLoading(true);
@@ -348,22 +358,31 @@ export default function ShowDetailPage() {
                 setLiveDebutSongIds(null);
                 setTourDebutSongIds(null);
                 const data = await getShowBySlug(date, artist, locationSlug);
+                if (cancelled) return;
                 setShow(data);
+                fetchedForRef.current = { artist, date, locationSlug };
             } catch (err) {
+                if (cancelled) return;
                 console.error('Error fetching show:', err);
                 setError('Failed to load show details');
             } finally {
+                if (cancelled) return;
                 setLoading(false);
                 initialLoad.current = false;
             }
         };
         fetchShow();
+        return () => { cancelled = true; };
     }, [artist, date, locationSlug]);
 
     // Redirect to canonical URL if params don't match (e.g. old links).
-    // Guard: skip if show.show_date !== date — means show is stale from previous navigation.
+    // Guard: skip until `show` was actually fetched for the CURRENT params —
+    // comparing show_date alone isn't enough when two shows share a date (see
+    // fetchedForRef above), since a stale same-day show would wrongly pass
+    // that check and redirect back to its own URL mid-navigation.
     useEffect(() => {
-        if (!show || show.show_date !== date) return;
+        const fetchedFor = fetchedForRef.current;
+        if (!show || !fetchedFor || fetchedFor.artist !== artist || fetchedFor.date !== date || fetchedFor.locationSlug !== locationSlug) return;
         const canonical = buildShowPath(show);
         const current = `/show/${artist}/${date}/${locationSlug}`;
         if (current !== canonical) {
@@ -573,7 +592,15 @@ export default function ShowDetailPage() {
                             </svg>
                             <span>
                                 <span className="block text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>Previous Show</span>
-                                <span>{new Date(adjacent.prev.show_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                                <span>
+                                    {new Date(adjacent.prev.show_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                    {/* Same date as the current show — a plain date here would look like
+                                        nothing changed, so name the venue/artist to make it clear it's a
+                                        different show (e.g. a same-night afterparty). */}
+                                    {adjacent.prev.show_date === show.show_date && (adjacent.prev.venues?.city || adjacent.prev.artist_name !== show.artist_name) && (
+                                        <> &middot; {adjacent.prev.artist_name !== show.artist_name ? adjacent.prev.artist_name : adjacent.prev.venues?.city}</>
+                                    )}
+                                </span>
                             </span>
                         </button>
                     ) : <div />}
@@ -585,7 +612,12 @@ export default function ShowDetailPage() {
                         >
                             <span>
                                 <span className="block text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>Next Show</span>
-                                <span>{new Date(adjacent.next.show_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                                <span>
+                                    {new Date(adjacent.next.show_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                    {adjacent.next.show_date === show.show_date && (adjacent.next.venues?.city || adjacent.next.artist_name !== show.artist_name) && (
+                                        <> &middot; {adjacent.next.artist_name !== show.artist_name ? adjacent.next.artist_name : adjacent.next.venues?.city}</>
+                                    )}
+                                </span>
                             </span>
                             <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
