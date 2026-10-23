@@ -1,10 +1,10 @@
-﻿import { useState, useEffect, useCallback, useRef } from 'react';
-import { PHeading, PText, PSpinner, PInlineNotification, PDivider } from '@porsche-design-system/components-react';
-import { getGlobalSongStats, getSongs, getCommunityStats } from '../services/api';
+﻿import { useState, useEffect } from 'react';
+import { PHeading, PText, PDivider } from '@porsche-design-system/components-react';
+import { getSongs, getCommunityStats } from '../services/api';
 import { supabase } from '../services/supabase';
 import { useCountUp } from '../hooks/useCountUp';
-import { fetchTourList } from '../utils/tourSongCounts';
 import { getCountry } from '../utils/geography';
+import TourStatsModule from './TourStatsModule';
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
@@ -29,81 +29,9 @@ function CommunityStatCard({ value, label }) {
 }
 
 export default function SongStatsWidget() {
-    const [stats, setStats] = useState(null);
     const [holyGrails, setHolyGrails] = useState([]);
     const [showStats, setShowStats] = useState(null);
     const [communityStats, setCommunityStats] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-
-    // Song Stats filter — only this section's data (not By the Numbers, not
-    // Community) responds to it. "range" stages start/end in local inputs
-    // behind an Apply button so typing a date doesn't refetch on every
-    // keystroke; "tour" refetches immediately on selection, a single discrete choice.
-    const [filterMode, setFilterMode] = useState('all');
-    const [rangeStart, setRangeStart] = useState('');
-    const [rangeEnd, setRangeEnd] = useState('');
-    const [tourList, setTourList] = useState([]);
-    const [selectedTour, setSelectedTour] = useState('');
-    const [songStatsLoading, setSongStatsLoading] = useState(false);
-    const [songStatsError, setSongStatsError] = useState(null);
-    const [originalsChecked, setOriginalsChecked] = useState(true);
-    const [coversChecked, setCoversChecked] = useState(true);
-
-    // Only the very first load (before any successful fetch) blanks the whole
-    // widget on failure — a later filter-change failure just shows inline
-    // songStatsError near the filter controls, keeping the last-good stats visible.
-    const loadedOnceRef = useRef(false);
-    const loadSongStats = useCallback(async (filterParams = {}) => {
-        try {
-            setSongStatsLoading(true);
-            setSongStatsError(null);
-            const statsData = await getGlobalSongStats(filterParams);
-            setStats(statsData);
-            loadedOnceRef.current = true;
-        } catch (err) {
-            console.error('Error fetching song stats:', err);
-            setSongStatsError(err.message);
-            if (!loadedOnceRef.current) setError(err.message);
-        } finally {
-            setSongStatsLoading(false);
-            setLoading(false);
-        }
-    }, []);
-
-    const handleFilterModeChange = (mode) => {
-        setFilterMode(mode);
-        if (mode === 'all') loadSongStats();
-        else if (mode === 'tour' && selectedTour) loadSongStats({ tour: selectedTour });
-        // 'range': wait for Apply — nothing to refetch yet.
-    };
-
-    const handleTourChange = (e) => {
-        const tour = e.target.value;
-        setSelectedTour(tour);
-        if (tour) loadSongStats({ tour });
-    };
-
-    const handleApplyRange = () => {
-        if (!rangeStart && !rangeEnd) return;
-        loadSongStats({ startDate: rangeStart || undefined, endDate: rangeEnd || undefined });
-    };
-
-    // Can't uncheck the only box still on — would leave both boxes empty with
-    // no way back to "all" except toggling the other one back on first.
-    const toggleOriginals = () => setOriginalsChecked(prev => (prev && !coversChecked) ? prev : !prev);
-    const toggleCovers = () => setCoversChecked(prev => (prev && !originalsChecked) ? prev : !prev);
-
-    const PAGE_SIZE = 5;
-    const [mostPlayedPage, setMostPlayedPage] = useState(0);
-    const [rarestPage, setRarestPage] = useState(0);
-    // The merged list's membership/order changes whenever the filter or the
-    // checkboxes change — reset back to page 1 so a stale page index doesn't
-    // land past the end of a now-shorter list.
-    useEffect(() => {
-        setMostPlayedPage(0);
-        setRarestPage(0);
-    }, [stats, originalsChecked, coversChecked]);
 
     useEffect(() => {
         const fetchShowStats = async () => {
@@ -218,21 +146,10 @@ export default function SongStatsWidget() {
             }
         };
 
-        const fetchTours = async () => {
-            try {
-                setTourList(await fetchTourList({ minShows: 0 }));
-            } catch (err) {
-                console.error('Error fetching tour list:', err);
-                // Tour filter just won't have options — Date Range/All Time still work
-            }
-        };
-
-        loadSongStats();
         fetchShowStats();
         fetchHolyGrails();
         fetchCommunityStats();
-        fetchTours();
-    }, [loadSongStats]);
+    }, []);
 
     const formatDate = (dateString) => {
         // Called with both a plain DATE string (song.lastPlayed, e.g.
@@ -244,113 +161,6 @@ export default function SongStatsWidget() {
         return new Date(year, month - 1, day).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     };
 
-    if (loading) {
-        return (
-            <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-8 flex flex-col items-center gap-4">
-                <PSpinner size="large" aria={{ 'aria-label': 'Loading song statistics' }} />
-                <PText color="contrast-medium">Loading statistics…</PText>
-            </div>
-        );
-    }
-
-    if (error || !stats) {
-        return (
-            <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6">
-                <PInlineNotification heading="Failed to load song stats" description={error || 'Unknown error'} state="error" dismissButton={false} />
-            </div>
-        );
-    }
-
-    // Each category's own top5/rarest (now sized well beyond 5 server-side —
-    // see computeGlobalSongStats's `limit` param) is merged, checkbox-filtered,
-    // and re-sorted here, giving enough rows for pagination beyond page 1.
-    const mergedTop = [
-        ...(originalsChecked ? stats.originals.top5 : []),
-        ...(coversChecked ? stats.covers.top5 : []),
-    ].sort((a, b) => b.playCount - a.playCount);
-    const mergedRarest = [
-        ...(originalsChecked ? stats.originals.rarest : []),
-        ...(coversChecked ? stats.covers.rarest : []),
-    ].sort((a, b) => a.playCount - b.playCount);
-    const filteredUniqueTotal =
-        (originalsChecked ? stats.originals.total : 0) + (coversChecked ? stats.covers.total : 0);
-    // Rarest songs' bars must read as short relative to how much a popular
-    // song gets played, not relative to each other (every rare song's play
-    // count is close to every other rare song's, so scaling a bar to its own
-    // list's max made every bar look nearly full) — anchor both boxes' bars
-    // to the same overall "most played" ceiling.
-    const overallMaxPlays = mergedTop[0]?.playCount || 1;
-
-    const RankedSongBox = ({ title, subtitle, songs, accentColor, page, onPageChange }) => {
-        const totalPages = Math.max(1, Math.ceil(songs.length / PAGE_SIZE));
-        const pageSongs = songs.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
-        return (
-        <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 space-y-6">
-            <div>
-                <PHeading size="lg" tag="h3">{title}</PHeading>
-                {subtitle && <PText size="xs" color="contrast-medium">{subtitle}</PText>}
-                <div className="mt-3"><PDivider /></div>
-            </div>
-
-            {pageSongs.length === 0 ? (
-                <PText color="contrast-medium">No songs match the current filters.</PText>
-            ) : (
-                <ul className="space-y-4">
-                    {pageSongs.map((song, index) => {
-                        const pct = (song.playCount / overallMaxPlays) * 100;
-                        return (
-                            <li key={song.id} className="flex items-start gap-3">
-                                <span className="font-bold text-sm mt-0.5 shrink-0 w-6" style={{ color: accentColor }}>
-                                    #{page * PAGE_SIZE + index + 1}
-                                </span>
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-baseline gap-2 mb-1 flex-wrap">
-                                        <PText weight="semi-bold" ellipsis>{song.title}</PText>
-                                        <PText size="xs" color="contrast-medium" className="whitespace-nowrap shrink-0">
-                                            {song.playCount === 1 ? '1 play' : `${song.playCount} plays`}
-                                        </PText>
-                                        {!song.is_original && (
-                                            <span className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-300 whitespace-nowrap shrink-0">Cover</span>
-                                        )}
-                                        {song.is_sunday_valley && (
-                                            <span className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-teal-500/10 text-teal-300 whitespace-nowrap shrink-0">Sunday Valley</span>
-                                        )}
-                                    </div>
-                                    <div className="h-1 rounded-full overflow-hidden mb-1" style={{ background: 'var(--p-color-contrast-lower)' }}>
-                                        <div
-                                            className="h-full rounded-full transition-all"
-                                            style={{ width: `${pct}%`, background: accentColor }}
-                                        />
-                                    </div>
-                                    {!song.is_original && song.original_artist && (
-                                        <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>{song.original_artist}</PText>
-                                    )}
-                                    {song.lastPlayed && (
-                                        <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>Last: {formatDate(song.lastPlayed)}</PText>
-                                    )}
-                                </div>
-                            </li>
-                        );
-                    })}
-                </ul>
-            )}
-
-            {totalPages > 1 && (
-                <div className="flex items-center justify-center gap-3 pt-1">
-                    <button type="button" disabled={page === 0} onClick={() => onPageChange(page - 1)}
-                        className="text-xs px-2 py-1 rounded disabled:opacity-30" style={{ color: 'var(--p-color-contrast-medium)' }}>
-                        ← Prev
-                    </button>
-                    <PText size="xs" color="contrast-medium">Page {page + 1} of {totalPages}</PText>
-                    <button type="button" disabled={page >= totalPages - 1} onClick={() => onPageChange(page + 1)}
-                        className="text-xs px-2 py-1 rounded disabled:opacity-30" style={{ color: 'var(--p-color-contrast-medium)' }}>
-                        Next →
-                    </button>
-                </div>
-            )}
-        </div>
-        );
-    };
 
     return (
         <div className="space-y-6">
@@ -428,89 +238,13 @@ export default function SongStatsWidget() {
                 </div>
             )}
 
-            {/* Song Stats */}
+            {/* Tour Stats — same module as the standalone /tour-stats page,
+                defaulting to the current/most-recent tour rather than "All
+                Shows": across the whole archive, the Live Debuts list in
+                particular balloons to an unhelpful wall of songs. */}
             <div className="space-y-4">
-                <div className="flex items-center justify-between gap-3 flex-wrap">
-                    <PHeading size="md" tag="h2">Song Stats</PHeading>
-                    <div className="flex items-center gap-2 flex-wrap">
-                        <div className="flex rounded-lg border border-white/10 overflow-hidden text-xs">
-                            {[['all', 'All Time'], ['range', 'Date Range'], ['tour', 'Tour']].map(([mode, label]) => (
-                                <button
-                                    key={mode}
-                                    type="button"
-                                    onClick={() => handleFilterModeChange(mode)}
-                                    className={`px-3 py-1.5 transition-colors ${filterMode === mode ? 'bg-amber-500/20 text-amber-300' : 'hover:bg-white/5'}`}
-                                    style={{ color: filterMode === mode ? undefined : 'var(--p-color-contrast-medium)' }}
-                                >
-                                    {label}
-                                </button>
-                            ))}
-                        </div>
-
-                        {filterMode === 'range' && (
-                            <div className="flex items-center gap-2">
-                                <input type="date" value={rangeStart} onChange={e => setRangeStart(e.target.value)}
-                                    className="rounded-lg border border-white/10 bg-white/5 py-1.5 px-2 text-xs" />
-                                <span className="text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>to</span>
-                                <input type="date" value={rangeEnd} onChange={e => setRangeEnd(e.target.value)}
-                                    className="rounded-lg border border-white/10 bg-white/5 py-1.5 px-2 text-xs" />
-                                <button type="button" onClick={handleApplyRange} disabled={!rangeStart && !rangeEnd}
-                                    className="text-xs px-3 py-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/18 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
-                                    Apply
-                                </button>
-                            </div>
-                        )}
-
-                        {filterMode === 'tour' && (
-                            <select
-                                value={selectedTour}
-                                onChange={handleTourChange}
-                                className="rounded-lg border border-white/10 py-1.5 px-2 text-xs"
-                                style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}
-                            >
-                                <option value="">Select a tour…</option>
-                                {tourList.map(t => (
-                                    <option key={t.tourName} value={t.tourName}>{t.tourName}</option>
-                                ))}
-                            </select>
-                        )}
-                    </div>
-                </div>
-
-                <div className="flex items-center gap-4">
-                    <label className="flex items-center gap-1.5 text-xs cursor-pointer" style={{ color: 'var(--p-color-contrast-medium)' }}>
-                        <input type="checkbox" checked={originalsChecked} onChange={toggleOriginals} />
-                        Originals
-                    </label>
-                    <label className="flex items-center gap-1.5 text-xs cursor-pointer" style={{ color: 'var(--p-color-contrast-medium)' }}>
-                        <input type="checkbox" checked={coversChecked} onChange={toggleCovers} />
-                        Covers
-                    </label>
-                    {songStatsLoading && <PSpinner size="small" aria={{ 'aria-label': 'Updating song stats' }} />}
-                </div>
-
-                {songStatsError && (
-                    <PInlineNotification heading="Error" description={songStatsError} state="error" dismissButton={false} />
-                )}
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <RankedSongBox
-                        title="Most Played"
-                        subtitle={`${filteredUniqueTotal.toLocaleString()} unique songs played live`}
-                        songs={mergedTop}
-                        accentColor="#f59e0b"
-                        page={mostPlayedPage}
-                        onPageChange={setMostPlayedPage}
-                    />
-                    <RankedSongBox
-                        title="Rarest Songs"
-                        subtitle="Least-played, by distinct shows"
-                        songs={mergedRarest}
-                        accentColor="#c084fc"
-                        page={rarestPage}
-                        onPageChange={setRarestPage}
-                    />
-                </div>
+                <PHeading size="md" tag="h2">Tour Stats</PHeading>
+                <TourStatsModule />
             </div>
 
             {/* Holy Grails */}

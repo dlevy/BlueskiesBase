@@ -7,6 +7,31 @@ import { getLocalDateString } from './today';
 // collision risk for this catalog.
 export const ALL_SHOWS = 'All Shows';
 
+// `shows.id`/`setlist_songs.song_id` are UUIDs (~37 chars each with the
+// comma), not short ints — an `.in()` filter listing every show in the
+// archive (687+ and growing) builds a URL well past Supabase's gateway
+// limit and comes back as a silent 400, which the caller's `if (error) break`
+// swallows as "no rows". Exposed by the "All Shows" tour option, whose
+// `.in('show_id', playedIds)` is exactly this case. Splitting the id list
+// into safely-sized chunks (each still paginated past PostgREST's 1000-row
+// cap) avoids the oversized URL regardless of how large the archive gets.
+const IN_CHUNK_SIZE = 100;
+
+async function fetchAllInChunks(buildQuery, ids) {
+    let rows = [];
+    for (let i = 0; i < ids.length; i += IN_CHUNK_SIZE) {
+        const chunk = ids.slice(i, i + IN_CHUNK_SIZE);
+        for (let rangeStart = 0; ;) {
+            const { data: page, error } = await buildQuery(chunk).range(rangeStart, rangeStart + 999);
+            if (error || !page?.length) break;
+            rows = rows.concat(page);
+            if (page.length < 1000) break;
+            rangeStart += 1000;
+        }
+    }
+    return rows;
+}
+
 // Every song actually on an album, by title — independent of any tour. Used
 // to find which of an album's tracks got zero plays on a given tour (the
 // Rarest Songs by Album stat's "never played" note): tourSongCounts only
@@ -137,9 +162,8 @@ export async function fetchTourSongCounts(tourName, { stateFilter, countryFilter
         return { totalShows: tourShows.length, playedShows: 0, firstDate: tourShows[0].show_date, lastDate: tourShows[tourShows.length - 1].show_date, playedIds: [], songCounts: [], openingSongs: [], closingSongs: [], liveDebuts: [], biggestSetlist: null, albumBreakdown: [], songsByAlbum: {}, otherOriginals: 0, covers: 0, pastShows: played, upcomingShows: upcoming };
     }
 
-    let rows = [];
-    for (let rangeStart = 0; ;) {
-        const { data: page, error } = await supabase
+    const rows = await fetchAllInChunks(
+        (chunk) => supabase
             .from('setlist_songs')
             .select(`
                 song_id, show_id, set_number, is_encore, song_order,
@@ -148,15 +172,11 @@ export async function fetchTourSongCounts(tourName, { stateFilter, countryFilter
                     album_songs ( albums ( title, release_date ) )
                 )
             `)
-            .in('show_id', playedIds)
+            .in('show_id', chunk)
             .not('performance_type', 'in', '(dj,soundcheck)')
-            .order('id')
-            .range(rangeStart, rangeStart + 999);
-        if (error || !page?.length) break;
-        rows = rows.concat(page);
-        if (page.length < 1000) break;
-        rangeStart += 1000;
-    }
+            .order('id'),
+        playedIds
+    );
 
     // Distinct shows per song — a song sandwiched (jammed out of and back into)
     // within one show still only counts once for that show.
@@ -198,20 +218,15 @@ export async function fetchTourSongCounts(tourName, { stateFilter, countryFilter
     // globalEarliestBySong, just computed client-side since this page has
     // no server route of its own to share that cache with.
     const scopedSongIds = [...new Set(rows.map(r => r.song_id).filter(id => id != null))];
-    let debutRows = [];
-    for (let rangeStart = 0; scopedSongIds.length > 0; ) {
-        const { data: page, error } = await supabase
+    const debutRows = await fetchAllInChunks(
+        (chunk) => supabase
             .from('setlist_songs')
             .select('song_id, shows ( show_date )')
-            .in('song_id', scopedSongIds)
+            .in('song_id', chunk)
             .not('performance_type', 'in', '(dj,soundcheck)')
-            .order('id')
-            .range(rangeStart, rangeStart + 999);
-        if (error || !page?.length) break;
-        debutRows = debutRows.concat(page);
-        if (page.length < 1000) break;
-        rangeStart += 1000;
-    }
+            .order('id'),
+        scopedSongIds
+    );
     const globalEarliestBySong = {};
     debutRows.forEach(r => {
         const date = r.shows?.show_date;
