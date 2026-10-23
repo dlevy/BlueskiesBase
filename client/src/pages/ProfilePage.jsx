@@ -308,10 +308,16 @@ export default function ProfilePage() {
                             </div>
                             {isOwnProfile && (
                                 <div className="flex items-center gap-2 flex-wrap">
-                                    <Link to="/profile/social-card">
+                                    <Link
+                                        to="/profile/social-card"
+                                        className="inline-flex items-center h-9 px-3 rounded-lg border border-white/15 hover:border-amber-500/40 hover:bg-white/5 transition-all"
+                                    >
                                         <PButtonPure icon="share">Create Social Card</PButtonPure>
                                     </Link>
-                                    <Link to="/profile/edit">
+                                    <Link
+                                        to="/profile/edit"
+                                        className="inline-flex items-center h-9 px-3 rounded-lg border border-white/15 hover:border-amber-500/40 hover:bg-white/5 transition-all"
+                                    >
                                         <PButtonPure icon="edit">Edit Profile</PButtonPure>
                                     </Link>
                                 </div>
