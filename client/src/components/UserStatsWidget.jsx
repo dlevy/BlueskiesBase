@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
-    PHeading, PText, PButton, PSpinner, PInlineNotification
+    PHeading, PText, PButton, PSpinner, PInlineNotification, PTag
 } from '@porsche-design-system/components-react';
 import { useCountUp } from '../hooks/useCountUp';
 import { buildShowPath } from '../utils/showSlug';
@@ -192,6 +192,31 @@ export default function UserStatsWidget() {
                             value={funStats.topVenue.name}
                             sub={`${funStats.topVenue.count} show${funStats.topVenue.count === 1 ? '' : 's'} · ${funStats.topVenue.city}`}
                         />
+                    )}
+                </div>
+            )}
+
+            {/* Rarest Songs Seen — ranked by each song's ALL-TIME global play
+                count (server-computed), not how many times this user personally
+                saw it. Ties at the cutoff are folded into a note rather than
+                arbitrarily dropped. */}
+            {stats.rarestSongsSeen?.length > 0 && (
+                <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-5 space-y-3">
+                    <PText size="xs" style={{ color: 'var(--p-color-contrast-low)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Rarest Songs You've Seen</PText>
+                    <div className="space-y-2">
+                        {stats.rarestSongsSeen.map((song, i) => (
+                            <div key={song.id} className="flex items-center gap-3">
+                                <span className="text-xs w-5 shrink-0 text-right" style={{ color: 'var(--p-color-contrast-medium)' }}>{i + 1}</span>
+                                <PText weight="semi-bold" className="flex-1 truncate">{song.title}</PText>
+                                <PTag color="notification-warning-soft">{song.globalPlayCount}x all-time</PTag>
+                            </div>
+                        ))}
+                    </div>
+                    {stats.rarestSongsSeenTiedNote && (
+                        <PText size="xs" color="contrast-medium">
+                            + {stats.rarestSongsSeenTiedNote.count} more tied at {stats.rarestSongsSeen[stats.rarestSongsSeen.length - 1].globalPlayCount}x
+                            {stats.rarestSongsSeenTiedNote.names ? ` (${stats.rarestSongsSeenTiedNote.names.join(', ')})` : ''}
+                        </PText>
                     )}
                 </div>
             )}

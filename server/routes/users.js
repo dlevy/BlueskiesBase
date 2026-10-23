@@ -401,6 +401,30 @@ router.get('/stats', async (req, res) => {
         const { liveDebuts } = await computeDebutDetails(pastShows, songsSeen);
         const funStats = computeFunStats(pastShows, songsSeen);
 
+        // Rarest songs this user has personally seen live, ranked by each song's
+        // ALL-TIME global play count (index.showIdsBySong, already fetched above) —
+        // not the personal playCount already on songsSeen, which only counts this
+        // user's own attended shows. Ties at the cutoff are folded into a note
+        // rather than arbitrarily dropped, same tie-handling precedent used by the
+        // tour-stats "Rarest Songs" card.
+        const RAREST_SEEN_LIMIT = 5;
+        const songsSeenByRarity = songsSeen
+            .map(song => ({ ...song, globalPlayCount: index.showIdsBySong.get(song.id)?.size || 0 }))
+            .sort((a, b) => a.globalPlayCount - b.globalPlayCount || a.title.localeCompare(b.title));
+
+        const rarestSongsSeen = songsSeenByRarity.slice(0, RAREST_SEEN_LIMIT);
+        let rarestSongsSeenTiedNote = null;
+        if (songsSeenByRarity.length > RAREST_SEEN_LIMIT) {
+            const cutoffCount = rarestSongsSeen[rarestSongsSeen.length - 1].globalPlayCount;
+            const tiedBeyond = songsSeenByRarity.slice(RAREST_SEEN_LIMIT).filter(s => s.globalPlayCount === cutoffCount);
+            if (tiedBeyond.length > 0) {
+                rarestSongsSeenTiedNote = {
+                    count: tiedBeyond.length,
+                    names: tiedBeyond.length <= 5 ? tiedBeyond.map(s => s.title) : null,
+                };
+            }
+        }
+
         // Who else attended/is attending each of this user's own shows — batched into
         // one query here rather than a per-show-row client fetch (same data shape as
         // GET /shows/:id/attendees, grouped by show_id, with the viewer themselves
@@ -460,6 +484,8 @@ router.get('/stats', async (req, res) => {
             totalSongsNotSeen: songsNotSeenWithShow.length,
             liveDebutsWitnessed: liveDebuts.length,
             liveDebuts,
+            rarestSongsSeen,
+            rarestSongsSeenTiedNote,
             attendeesByShow,
             contributionCounts,
             funStats,
