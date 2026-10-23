@@ -249,19 +249,25 @@ export default function SongStatsWidget() {
 
             {/* Holy Grails */}
             {holyGrails.length > 0 && (
-                <div className="rounded-2xl border border-amber-500/20 bg-[#1a1e26] p-6 space-y-5">
+                <div className="rounded-2xl border border-amber-500/20 bg-[#1a1e26] p-5 space-y-4">
                     <div>
                         <PHeading size="lg" tag="h3">Holy Grails</PHeading>
                         <PText size="small" color="contrast-medium">Original songs that have never been played live</PText>
-                        <div className="mt-3"><PDivider /></div>
+                        <div className="mt-2"><PDivider /></div>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-6">
+                    {/* A CSS multi-column flow, not a grid — a grid's row height is
+                        set by the tallest album in that row, so a 1-song album next
+                        to an 8-song one left a large dead gap beneath the short one.
+                        Columns stack each album independently instead, with
+                        break-inside-avoid-column keeping one album's own list from
+                        splitting across columns. */}
+                    <div className="sm:columns-2 lg:columns-3 gap-x-8">
                         {holyGrails.map(album => (
-                            <div key={album.title}>
-                                <PText size="xs" weight="semi-bold" className="uppercase tracking-wide mb-2" style={{ color: '#f59e0b' }}>
+                            <div key={album.title} className="break-inside-avoid-column mb-4">
+                                <PText size="xs" weight="semi-bold" className="uppercase tracking-wide mb-1.5" style={{ color: '#f59e0b' }}>
                                     {album.title}
                                 </PText>
-                                <ul className="space-y-1.5 mt-2">
+                                <ul className="space-y-1">
                                     {album.songs.map(title => (
                                         <li key={title} className="flex items-start gap-2">
                                             <span className="mt-1.5 shrink-0 w-1.5 h-1.5 rounded-full bg-amber-500/50" />

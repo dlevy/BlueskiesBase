@@ -205,7 +205,7 @@ export default function SongForm({ song, onClose }) {
                 <div className="flex justify-between items-center pt-4 border-t border-white/10">
                     <div>
                         {song && isAdmin && (
-                            <PButtonPure onClick={() => setShowDeleteConfirm(true)}
+                            <PButtonPure type="button" onClick={() => setShowDeleteConfirm(true)}
                                 style={{ color: 'var(--p-color-error)' }}>
                                 Delete Song
                             </PButtonPure>
