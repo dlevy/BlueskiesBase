@@ -22,6 +22,7 @@ import UpcomingShowsPage from './pages/UpcomingShowsPage'
 import PastShowsPage from './pages/PastShowsPage'
 import ProfilePage from './pages/ProfilePage'
 import EditProfilePage from './pages/EditProfilePage'
+import SocialCardPage from './pages/SocialCardPage'
 import LoginPage from './pages/LoginPage'
 import MemberLoginPage from './pages/MemberLoginPage'
 import SignupPage from './pages/SignupPage'
@@ -93,6 +94,7 @@ function App() {
                 profile at this URL — acceptable edge case since usernames are
                 currently auto-generated, not user-chosen. */}
             <Route path="profile/edit" element={<EditProfilePage />} />
+            <Route path="profile/social-card" element={<SocialCardPage />} />
             <Route path="profile/:username" element={<ProfilePage />} />
             <Route path="notifications" element={<NotificationsPage />} />
           </Route>

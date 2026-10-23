@@ -307,9 +307,14 @@ export default function ProfilePage() {
                                 {isAdmin && <RoleBadge badge={ADMIN_BADGE} />}
                             </div>
                             {isOwnProfile && (
-                                <Link to="/profile/edit">
-                                    <PButtonPure icon="edit">Edit Profile</PButtonPure>
-                                </Link>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <Link to="/profile/social-card">
+                                        <PButtonPure icon="share">Create Social Card</PButtonPure>
+                                    </Link>
+                                    <Link to="/profile/edit">
+                                        <PButtonPure icon="edit">Edit Profile</PButtonPure>
+                                    </Link>
+                                </div>
                             )}
                         </div>
                         {profile.displayName && (
