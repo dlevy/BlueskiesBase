@@ -4,7 +4,7 @@ import {
     PHeading, PText, PButtonPure, PTag, PSpinner,
     PInlineNotification
 } from '@porsche-design-system/components-react';
-import { getShowBySlug, getTourRarity, getShowDebuts, getAdjacentShows, checkShowAttendance, markShowAttended, unmarkShowAttended, getShowThanks } from '../services/api';
+import { getShowBySlug, getTourRarity, getShowDebuts, getAdjacentShows, checkShowAttendance, markShowAttended, unmarkShowAttended, getShowThanks, getShowPoster, getShowPhotos } from '../services/api';
 import { buildShowPath } from '../utils/showSlug';
 import { assignSetlistDisplayNumbers } from '../utils/setlist';
 import { useAuth } from '../contexts/AuthContext';
@@ -324,6 +324,7 @@ export default function ShowDetailPage() {
     const [tourDebutSongIds, setTourDebutSongIds] = useState(null);
     const [adjacent, setAdjacent] = useState({ prev: null, next: null });
     const [thanksRows, setThanksRows] = useState([]);
+    const [seoImageUrl, setSeoImageUrl] = useState(null);
     const initialLoad = useRef(true);
     // Which {artist, date, locationSlug} the current `show` state was actually
     // fetched for — not just whatever show_date happens to be on it. Two shows
@@ -346,6 +347,30 @@ export default function ShowDetailPage() {
     }, [show?.id]);
 
     useEffect(() => { loadThanks(); }, [loadThanks]);
+
+    // An image for this show's JSON-LD (schema.org MusicEvent.image, which
+    // Google ties to Event rich-result eligibility) — the official poster if
+    // one exists, else the earliest fan photo. Mirrors the same
+    // poster-then-photo fallback server/utils/showMeta.js uses for the
+    // server-side prerendered version of this same page.
+    useEffect(() => {
+        if (!show?.id) { setSeoImageUrl(null); return; }
+        let cancelled = false;
+        getShowPoster(show.id)
+            .then(data => {
+                if (cancelled) return null;
+                const posters = data.posters || [];
+                const primary = posters.find(p => !p.is_foil && p.is_primary) || posters[0] || null;
+                if (primary) { setSeoImageUrl(primary.poster_url); return null; }
+                return getShowPhotos(show.id);
+            })
+            .then(photoData => {
+                if (cancelled || !photoData) return;
+                setSeoImageUrl(photoData.photos?.[0]?.photo_url || null);
+            })
+            .catch(err => console.error('[ShowDetail] SEO image fetch failed:', err));
+        return () => { cancelled = true; };
+    }, [show?.id]);
 
     useEffect(() => {
         let cancelled = false;
@@ -548,7 +573,7 @@ export default function ShowDetailPage() {
     // nests a second `@type: Event` object which Google then validates
     // against the same required-fields rules, and a tour (spanning many
     // dates/venues) can never satisfy a single startDate/location.
-    const jsonLd = {
+    const musicEventJsonLd = {
         '@context': 'https://schema.org',
         '@type': 'MusicEvent',
         name: `${show.artist_name} – ${venueName}`,
@@ -563,6 +588,28 @@ export default function ShowDetailPage() {
             address: { '@type': 'PostalAddress', addressLocality: show.venues?.city, addressRegion: show.venues?.state_country }
         },
         performer: { '@type': 'MusicGroup', name: show.artist_name },
+        ...(seoImageUrl ? { image: seoImageUrl } : {}),
+    };
+
+    // No deep-linkable per-tour URL exists on the public site today (the
+    // Tour Stats page's tour picker is local state, not reflected in the
+    // URL) — the tour breadcrumb item links to the general /tour-stats
+    // page rather than a URL that would actually land on this specific
+    // tour, same loose "category page" pattern many sites use for a
+    // breadcrumb segment that isn't itself a dedicated page per value.
+    const breadcrumbJsonLd = {
+        '@context': 'https://schema.org',
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+            { '@type': 'ListItem', position: 1, name: 'Home', item: `${window.location.origin}/` },
+            ...(show.tour_name ? [{ '@type': 'ListItem', position: 2, name: show.tour_name, item: `${window.location.origin}/tour-stats` }] : []),
+            {
+                '@type': 'ListItem',
+                position: show.tour_name ? 3 : 2,
+                name: seoTitle,
+                item: `${window.location.origin}${buildShowPath(show)}`,
+            },
+        ],
     };
 
     const attendanceLabel = attended
@@ -574,7 +621,7 @@ export default function ShowDetailPage() {
 
     return (
         <div className="px-4 py-8 max-w-4xl mx-auto space-y-6">
-            <SEO title={seoTitle} description={seoDescription} jsonLd={jsonLd} path={buildShowPath(show)} />
+            <SEO title={seoTitle} description={seoDescription} jsonLd={[musicEventJsonLd, breadcrumbJsonLd]} path={buildShowPath(show)} />
 
             <MainNavTabs />
 
