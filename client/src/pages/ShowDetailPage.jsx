@@ -574,7 +574,7 @@ export default function ShowDetailPage() {
 
     return (
         <div className="px-4 py-8 max-w-4xl mx-auto space-y-6">
-            <SEO title={seoTitle} description={seoDescription} jsonLd={jsonLd} />
+            <SEO title={seoTitle} description={seoDescription} jsonLd={jsonLd} path={buildShowPath(show)} />
 
             <MainNavTabs />
 

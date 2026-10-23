@@ -1,18 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { supabaseAdmin } = require('../config/supabase');
-
-const FALLBACK_BASE_URL = 'https://www.skysets.org';
-
-// Google rejects a sitemap whose <loc> host differs from the host it was fetched
-// from, so derive the base URL from the request rather than hardcoding a domain.
-function baseUrlFor(req) {
-    if (process.env.SITE_URL) return process.env.SITE_URL.replace(/\/+$/, '');
-    const host = req.get('x-forwarded-host') || req.get('host');
-    if (!host) return FALLBACK_BASE_URL;
-    const proto = req.get('x-forwarded-proto') || (host.startsWith('localhost') ? 'http' : 'https');
-    return `${proto}://${host}`;
-}
+const { baseUrlFor } = require('../utils/baseUrl');
 
 // Must match client/src/utils/showSlug.js and the slugify in server/routes/shows.js.
 function slugify(str) {
@@ -48,9 +37,11 @@ router.get('/', async (req, res) => {
 
         if (error) throw error;
 
+        // /stats (StatsPage.jsx) requires login and redirects anonymous
+        // visitors to /member-login — not indexable content, so it isn't
+        // listed here (see also its own <SEO> call's noindex robots tag).
         const staticPages = [
             { url: '/', priority: '1.0', changefreq: 'daily' },
-            { url: '/stats', priority: '0.7', changefreq: 'weekly' },
         ];
 
         // Two shows can slug to the same path (same artist, date and city, e.g. a

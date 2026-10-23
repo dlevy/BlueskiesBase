@@ -1,5 +1,6 @@
 const express = require('express');
 const { findShowByPathParams, injectShowHead } = require('../server/utils/showMeta');
+const { baseUrlFor } = require('../server/utils/baseUrl');
 
 const app = express();
 
@@ -32,7 +33,7 @@ app.get('/api/show/:artist/:date/:location', async (req, res) => {
         const html = await indexRes.text();
 
         const show = await findShowByPathParams({ artist, date, location });
-        const body = show ? injectShowHead(html, show) : html;
+        const body = show ? injectShowHead(html, show, baseUrlFor(req)) : html;
 
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
         res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400');

@@ -168,6 +168,7 @@ export default function StatsPage() {
             <SEO
                 title="My Concert Stats"
                 description="Track your personal Sturgill Simpson and Johnny Blue Skies concert history."
+                noindex
             />
 
             <div>

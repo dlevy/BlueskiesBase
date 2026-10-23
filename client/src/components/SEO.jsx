@@ -9,17 +9,37 @@ function setMeta(selector, attr, value) {
     if (el) el.setAttribute(attr, value);
 }
 
-export default function SEO({ title, description, jsonLd }) {
+// A page's canonical URL is always its own clean path — never whatever
+// tracking query string or trailing slash the visitor actually arrived
+// with (e.g. a show URL with "?utm_source=..." or a trailing "/" currently
+// serves identical content with no canonical tag, so Google has no signal
+// which URL is the "real" one). Strips both, but keeps a bare "/" as-is.
+function cleanPath(pathname) {
+    return pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
+}
+
+// `path` lets a page declare its own canonical path explicitly (e.g.
+// ShowDetailPage passes buildShowPath(show) — the show's true canonical
+// URL — rather than whatever raw :artist/:date/:location params the visitor
+// arrived with, same source of truth the server-side prerender in
+// server/utils/showMeta.js uses). Omitted everywhere else, where the
+// current pathname is already the canonical one.
+export default function SEO({ title, description, jsonLd, path, noindex = false }) {
     const fullTitle = title ? `${title} | ${SITE_NAME}` : DEFAULT_TITLE;
     const desc = description || DEFAULT_DESC;
 
     useEffect(() => {
+        const canonicalUrl = `${window.location.origin}${cleanPath(path || window.location.pathname)}`;
+
         document.title = fullTitle;
+        setMeta('meta[name="robots"]', 'content', noindex ? 'noindex, nofollow' : 'index, follow');
         setMeta('meta[name="description"]', 'content', desc);
         setMeta('meta[property="og:title"]', 'content', fullTitle);
         setMeta('meta[property="og:description"]', 'content', desc);
+        setMeta('meta[property="og:url"]', 'content', canonicalUrl);
         setMeta('meta[name="twitter:title"]', 'content', fullTitle);
         setMeta('meta[name="twitter:description"]', 'content', desc);
+        setMeta('link[rel="canonical"]', 'href', canonicalUrl);
 
         const existing = document.getElementById('json-ld-seo');
         if (jsonLd) {
@@ -36,7 +56,7 @@ export default function SEO({ title, description, jsonLd }) {
             const s = document.getElementById('json-ld-seo');
             if (s) s.remove();
         };
-    }, [fullTitle, desc, jsonLd]);
+    }, [fullTitle, desc, jsonLd, path, noindex]);
 
     return null;
 }

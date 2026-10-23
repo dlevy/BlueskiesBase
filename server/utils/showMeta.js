@@ -5,6 +5,16 @@ function slugify(str) {
     return (str || '').toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 }
 
+// Mirrors buildShowPath in client/src/utils/showSlug.js and server/routes/sitemap.js.
+function buildShowPath(show) {
+    const artist = slugify(show.artist_name);
+    const date = show.show_date;
+    const location = [slugify(show.venues?.city), slugify(show.venues?.state_country)]
+        .filter(Boolean)
+        .join('-');
+    return `/show/${artist}/${date}/${location}`;
+}
+
 // Mirrors the matching logic in GET /api/shows/lookup — finds the show behind
 // a /show/:artist/:date/:location URL, for server-side meta tag injection.
 async function findShowByPathParams({ artist, date, location }) {
@@ -79,15 +89,20 @@ function buildShowHead(show) {
     return { title, description, jsonLd };
 }
 
-// Injects title/description/og/twitter/JSON-LD into the built index.html for
-// a single show, so crawlers that don't execute JS (or time out before the
-// client's useEffect-based <SEO> component runs) still see correct Event
-// structured data. Replaces the template's default SEO tags by their known
-// literal content rather than appending duplicates.
-function injectShowHead(html, show) {
+// Injects title/description/canonical/og/twitter/JSON-LD into the built
+// index.html for a single show, so crawlers that don't execute JS (or time
+// out before the client's useEffect-based <SEO> component runs) still see
+// correct Event structured data — and, critically, the show's own canonical
+// URL rather than the static homepage one index.html ships with by default.
+// Replaces the template's default SEO tags by their known literal content
+// rather than appending duplicates. `baseUrl` is this request's own origin
+// (see utils/baseUrl.js) — reused rather than hardcoded so the canonical
+// always matches whatever host actually served the sitemap too.
+function injectShowHead(html, show, baseUrl) {
     const { title, description, jsonLd } = buildShowHead(show);
     const escTitle = escapeHtml(title);
     const escDesc = escapeHtml(description);
+    const canonicalUrl = escapeHtml(baseUrl + buildShowPath(show));
 
     let out = html
         .replace(
@@ -99,12 +114,20 @@ function injectShowHead(html, show) {
             `<meta name="description" content="${escDesc}" />`
         )
         .replace(
+            /<link rel="canonical" href="[^"]*" \/>/,
+            `<link rel="canonical" href="${canonicalUrl}" />`
+        )
+        .replace(
             /<meta property="og:title" content="[^"]*" \/>/,
             `<meta property="og:title" content="${escTitle}" />`
         )
         .replace(
             /<meta property="og:description" content="[^"]*" \/>/,
             `<meta property="og:description" content="${escDesc}" />`
+        )
+        .replace(
+            /<meta property="og:url" content="[^"]*" \/>/,
+            `<meta property="og:url" content="${canonicalUrl}" />`
         )
         .replace(
             /<meta name="twitter:title" content="[^"]*" \/>/,
