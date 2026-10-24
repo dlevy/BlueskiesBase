@@ -288,6 +288,40 @@ export const TOUR_STAT_TYPES = [
         },
     },
     {
+        key: 'makeAmericaEnergy',
+        label: '"Make America Fuk Again" Energy',
+        // A one-off novelty card for this tour's running bit — the
+        // per-performance notes on this specific song name a different
+        // "energy" each night (e.g. "Hunter Biden energy"). Hardcoded to
+        // this one song rather than a general "any song's notes" stat;
+        // see tourSongCounts.js's own comment on makeAmericaEnergyLines.
+        isAvailable(tourData) {
+            return (tourData.makeAmericaEnergyLines?.length || 0) > 0;
+        },
+        compute(tourData) {
+            const lines = tourData.makeAmericaEnergyLines || [];
+            if (lines.length === 0) {
+                return { type: 'list', disabled: true, disabledReason: 'Not played (or no energy logged) this tour' };
+            }
+            // Already sorted most-recent-first by tourSongCounts.js — capped
+            // the same as every other ranked list here, but with a plain
+            // "+N more" note instead of tiedNote's tie-aware one, since
+            // these aren't ranked by a count that could tie.
+            const shown = lines.slice(0, MAX_RANKED_ROWS);
+            const items = shown.map(l => ({
+                label: l.notes,
+                value: `${l.venue?.city ? l.venue.city + ' · ' : ''}${formatDateShort(l.date)}`,
+            }));
+            const remaining = lines.length - shown.length;
+            return {
+                type: 'list',
+                title: '"Make America Fuk Again" Energy',
+                items,
+                subdetail: remaining > 0 ? `+ ${remaining} more earlier this tour` : undefined,
+            };
+        },
+    },
+    {
         key: 'tourSnapshot',
         label: 'Tour Snapshot',
         // Renders with the tour map as its backdrop (see TourStatsPostPage/

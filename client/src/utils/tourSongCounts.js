@@ -159,14 +159,14 @@ export async function fetchTourSongCounts(tourName, { stateFilter, countryFilter
     const playedIds = played.map(s => s.id);
 
     if (playedIds.length === 0) {
-        return { totalShows: tourShows.length, playedShows: 0, firstDate: tourShows[0].show_date, lastDate: tourShows[tourShows.length - 1].show_date, playedIds: [], songCounts: [], openingSongs: [], closingSongs: [], liveDebuts: [], biggestSetlist: null, albumBreakdown: [], songsByAlbum: {}, otherOriginals: 0, covers: 0, pastShows: played, upcomingShows: upcoming };
+        return { totalShows: tourShows.length, playedShows: 0, firstDate: tourShows[0].show_date, lastDate: tourShows[tourShows.length - 1].show_date, playedIds: [], songCounts: [], openingSongs: [], closingSongs: [], liveDebuts: [], biggestSetlist: null, albumBreakdown: [], songsByAlbum: {}, otherOriginals: 0, covers: 0, makeAmericaEnergyLines: [], pastShows: played, upcomingShows: upcoming };
     }
 
     const rows = await fetchAllInChunks(
         (chunk) => supabase
             .from('setlist_songs')
             .select(`
-                song_id, show_id, set_number, is_encore, song_order,
+                song_id, show_id, set_number, is_encore, song_order, notes,
                 songs!setlist_songs_song_id_fkey (
                     title, is_original,
                     album_songs ( albums ( title, release_date ) )
@@ -237,6 +237,19 @@ export async function fetchTourSongCounts(tourName, { stateFilter, countryFilter
     });
     const showById = {};
     played.forEach(s => { showById[s.id] = s; });
+
+    // "Make America Fuk Again" Energy — a running bit on this tour where the
+    // per-performance notes name a different "energy" each night (e.g.
+    // "Hunter Biden energy"). A one-off novelty stat for the Tour Stats IG
+    // generator, not a general "any song's notes" feature — hardcoded to
+    // this specific title rather than parameterized.
+    const ENERGY_SONG_TITLE = 'Make America Fuk Again';
+    const makeAmericaEnergyLines = rows
+        .filter(r => r.songs?.title === ENERGY_SONG_TITLE && r.notes)
+        .map(r => ({ date: showById[r.show_id]?.show_date, venue: showById[r.show_id]?.venues || null, notes: r.notes }))
+        .filter(l => l.date)
+        .sort((a, b) => b.date.localeCompare(a.date));
+
     const liveDebuts = [];
     scopedSongIds.forEach(songId => {
         const meta = songMetaById[songId];
@@ -380,6 +393,7 @@ export async function fetchTourSongCounts(tourName, { stateFilter, countryFilter
         songsByAlbum,
         otherOriginals,
         covers,
+        makeAmericaEnergyLines,
         pastShows: played,
         upcomingShows: upcoming,
     };
