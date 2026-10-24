@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../services/supabase';
-import { getShowDebutsBatch, getShowPoster } from '../services/api';
+import { getShowDebutsBatch } from '../services/api';
 import { ShowCard } from './MostRecentShowWidget';
 import { orderSetlistSongs } from '../utils/setlist';
 
@@ -15,7 +15,6 @@ export default function NextShowWidget() {
     const [songs, setSongs] = useState([]);
     const [totalSongs, setTotalSongs] = useState(0);
     const [debuts, setDebuts] = useState({});
-    const [posterUrl, setPosterUrl] = useState(null);
     const [loading, setLoading] = useState(true);
     const [isTonight, setIsTonight] = useState(false);
     const [daysAway, setDaysAway] = useState(0);
@@ -68,17 +67,6 @@ export default function NextShowWidget() {
                 getShowDebutsBatch([nextShow.id])
                     .then(data => { if (!cancelled) setDebuts(data); })
                     .catch(err => console.error('[NextShowWidget] debuts fetch failed:', err));
-
-                // EXPERIMENTAL: the show's own poster, for a faded background
-                // behind its date — see ShowCard. May be reverted.
-                getShowPoster(nextShow.id)
-                    .then(data => {
-                        if (cancelled) return;
-                        const posters = data.posters || [];
-                        const regular = posters.find(p => !p.is_foil && p.is_primary) || posters[0] || null;
-                        if (regular) setPosterUrl(regular.poster_url);
-                    })
-                    .catch(err => console.error('[NextShowWidget] poster fetch failed:', err));
             } catch (err) {
                 console.error('[NextShowWidget] Error fetching next show:', err);
             } finally {
@@ -115,7 +103,6 @@ export default function NextShowWidget() {
                 totalSongs={totalSongs}
                 liveDebutIds={new Set(debuts[show.id]?.live_debut_song_ids || [])}
                 tourDebutIds={new Set(debuts[show.id]?.tour_debut_song_ids || [])}
-                posterUrl={posterUrl}
             />
         </div>
     );

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { PSpinner } from '@porsche-design-system/components-react';
 import { supabase } from '../services/supabase';
-import { getShowDebutsBatch, getShowPoster } from '../services/api';
+import { getShowDebutsBatch } from '../services/api';
 import { buildShowPath } from '../utils/showSlug';
 import SetlistPreview from './SetlistPreview';
 import { orderSetlistSongs } from '../utils/setlist';
@@ -20,7 +20,7 @@ const OTHER_RECENT_SHOWS = 2;
 // or how much information is shown.
 // Exported so NextShowWidget can reuse the exact same card rendering
 // inside its own distinctively-styled wrapper, instead of duplicating this.
-export function ShowCard({ show, songs, totalSongs, liveDebutIds, tourDebutIds, posterUrl }) {
+export function ShowCard({ show, songs, totalSongs, liveDebutIds, tourDebutIds }) {
     const [y, m, d] = show.show_date.split('-');
     const dateObj = new Date(Number(y), Number(m) - 1, Number(d));
     const monthStr = dateObj.toLocaleString('default', { month: 'short' }).toUpperCase();
@@ -31,20 +31,14 @@ export function ShowCard({ show, songs, totalSongs, liveDebutIds, tourDebutIds, 
             to={buildShowPath(show)}
             className="flex rounded-xl border border-white/5 bg-white/[0.03] hover:border-amber-500/20 hover:bg-white/[0.06] hover:-translate-y-px hover:shadow-lg hover:shadow-black/20 transition-all duration-150 overflow-hidden group"
         >
-            {/* EXPERIMENTAL: the show's own poster, faded behind the date —
-                trying this out per request, may be reverted. */}
-            <div className="relative shrink-0 flex flex-col items-center justify-center w-16 sm:w-20 py-4 bg-white/[0.02] border-r border-white/5 overflow-hidden">
-                {posterUrl && (
-                    <img src={posterUrl} alt="" className="absolute inset-0 w-full h-full object-cover opacity-30" />
-                )}
-                <div className="absolute inset-0 bg-[#1a1e26]/55" />
-                <span className="relative z-10 font-display font-bold text-2xl sm:text-3xl leading-none text-amber-400">
+            <div className="shrink-0 flex flex-col items-center justify-center w-16 sm:w-20 py-4 bg-white/[0.02] border-r border-white/5">
+                <span className="font-display font-bold text-2xl sm:text-3xl leading-none text-amber-400">
                     {dayNum}
                 </span>
-                <span className="relative z-10 text-[10px] uppercase tracking-widest mt-1" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                <span className="text-[10px] uppercase tracking-widest mt-1" style={{ color: 'var(--p-color-contrast-medium)' }}>
                     {monthStr}
                 </span>
-                <span className="relative z-10 text-[10px] mt-0.5" style={{ color: 'var(--p-color-contrast-low)' }}>
+                <span className="text-[10px] mt-0.5" style={{ color: 'var(--p-color-contrast-low)' }}>
                     {y}
                 </span>
             </div>
@@ -97,7 +91,6 @@ export default function MostRecentShowWidget() {
     const [displayShows, setDisplayShows] = useState([]);
     const [songsByShow, setSongsByShow] = useState({});
     const [debutsByShow, setDebutsByShow] = useState({});
-    const [posterUrlByShow, setPosterUrlByShow] = useState({});
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -163,20 +156,6 @@ export default function MostRecentShowWidget() {
                         setDebutsByShow(data);
                     })
                     .catch(err => console.error('[MostRecentShowWidget] debuts fetch failed:', err));
-
-                // EXPERIMENTAL: each show's own poster, for a faded background
-                // behind its date — see ShowCard. May be reverted.
-                Promise.all(shown.map(s => getShowPoster(s.id).then(data => [s.id, data.posters || []])))
-                    .then(entries => {
-                        if (cancelled) return;
-                        const map = {};
-                        entries.forEach(([showId, posters]) => {
-                            const regular = posters.find(p => !p.is_foil && p.is_primary) || posters[0] || null;
-                            if (regular) map[showId] = regular.poster_url;
-                        });
-                        setPosterUrlByShow(map);
-                    })
-                    .catch(err => console.error('[MostRecentShowWidget] poster fetch failed:', err));
             } catch (err) {
                 console.error('[MostRecentShowWidget] Error fetching most recent show:', err);
             } finally {
@@ -222,7 +201,6 @@ export default function MostRecentShowWidget() {
                         totalSongs={songsByShow[show.id]?.total || 0}
                         liveDebutIds={new Set(debutsByShow[show.id]?.live_debut_song_ids || [])}
                         tourDebutIds={new Set(debutsByShow[show.id]?.tour_debut_song_ids || [])}
-                        posterUrl={posterUrlByShow[show.id]}
                     />
                 ))}
             </div>
