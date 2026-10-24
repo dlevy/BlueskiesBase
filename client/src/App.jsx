@@ -50,6 +50,11 @@ import InstagramPostPage from './pages/admin/InstagramPostPage'
 import TourStatsPostPage from './pages/admin/TourStatsPostPage'
 import AnalyticsPage from './pages/admin/AnalyticsPage'
 import ArtworkPage from './pages/ArtworkPage'
+import FaqPage from './pages/FaqPage'
+import HowToUsePage from './pages/HowToUsePage'
+import AboutPage from './pages/AboutPage'
+import PrivacyPage from './pages/PrivacyPage'
+import TermsPage from './pages/TermsPage'
 import './App.css'
 
 // Fires on every route change (pathname or query string), covering both the
@@ -88,6 +93,11 @@ function App() {
             <Route path="tour-stats" element={<TourStatsPage />} />
             <Route path="upcoming-shows" element={<UpcomingShowsPage />} />
             <Route path="past-shows" element={<PastShowsPage />} />
+            <Route path="faq" element={<FaqPage />} />
+            <Route path="how-to-use" element={<HowToUsePage />} />
+            <Route path="about" element={<AboutPage />} />
+            <Route path="privacy" element={<PrivacyPage />} />
+            <Route path="terms" element={<TermsPage />} />
             {/* Static "edit" segment ranks above the dynamic :username in React
                 Router's matcher regardless of declaration order, so a user whose
                 username happened to be literally "edit" would have an unreachable
@@ -284,45 +294,35 @@ function PublicLayout() {
       {/* Footer — full-bleed */}
       <footer style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
         <div className="max-w-6xl mx-auto px-4 md:px-6 py-6 flex flex-col gap-3">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-            <span className="font-display font-semibold text-sm" style={{ color: 'var(--p-color-contrast-low)' }}>
-              SkySets.org
-            </span>
-            <div className="flex items-center gap-4">
-              <span className="text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>
-                A fan archive. Not affiliated with Sturgill Simpson.
-              </span>
+          <div className="flex flex-wrap items-center justify-center gap-4">
+            {[
+              ['/links', 'Links'],
+              ['/band', 'Band'],
+              ['/discography', 'Discography'],
+              ['/faq', 'FAQ'],
+              ['/how-to-use', 'How to Use'],
+              ['/about', 'About'],
+              ['/privacy', 'Privacy'],
+              ['/terms', 'Terms'],
+            ].map(([to, label]) => (
               <Link
-                to="/links"
+                key={to}
+                to={to}
                 className="text-xs hover:opacity-80 transition-opacity"
                 style={{ color: 'var(--p-color-info)' }}
               >
-                Links
+                {label}
               </Link>
+            ))}
+            {isEditorOrAdmin && (
               <Link
-                to="/band"
+                to="/admin"
                 className="text-xs hover:opacity-80 transition-opacity"
                 style={{ color: 'var(--p-color-info)' }}
               >
-                Band
+                Admin
               </Link>
-              <Link
-                to="/discography"
-                className="text-xs hover:opacity-80 transition-opacity"
-                style={{ color: 'var(--p-color-info)' }}
-              >
-                Discography
-              </Link>
-              {isEditorOrAdmin && (
-                <Link
-                  to="/admin"
-                  className="text-xs hover:opacity-80 transition-opacity"
-                  style={{ color: 'var(--p-color-info)' }}
-                >
-                  Admin
-                </Link>
-              )}
-            </div>
+            )}
           </div>
           {footerLinks.length > 0 && (
             <div className="flex flex-col items-center gap-y-1">

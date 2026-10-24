@@ -42,6 +42,11 @@ router.get('/', async (req, res) => {
         // listed here (see also its own <SEO> call's noindex robots tag).
         const staticPages = [
             { url: '/', priority: '1.0', changefreq: 'daily' },
+            { url: '/faq', priority: '0.5', changefreq: 'monthly' },
+            { url: '/how-to-use', priority: '0.5', changefreq: 'monthly' },
+            { url: '/about', priority: '0.5', changefreq: 'monthly' },
+            { url: '/privacy', priority: '0.3', changefreq: 'yearly' },
+            { url: '/terms', priority: '0.3', changefreq: 'yearly' },
         ];
 
         // Two shows can slug to the same path (same artist, date and city, e.g. a
