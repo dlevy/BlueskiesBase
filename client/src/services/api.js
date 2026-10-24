@@ -1070,19 +1070,6 @@ export const getMentionableUsers = async () => {
 };
 
 /**
- * Every member who has added at least one social link (Facebook/Reddit/
- * Instagram/YouTube) to their profile. Public, no auth required — used by the
- * "Member Links" section on /links.
- */
-export const getMemberSocialLinks = async () => {
-    const response = await fetch(`${API_BASE_URL}/api/users/social-links`);
-    if (!response.ok) {
-        throw new Error('Failed to fetch member links');
-    }
-    return response.json();
-};
-
-/**
  * Public profile for a given username. Returns null (not throw) on a 404 so
  * callers can render a "not found" state without a try/catch.
  */

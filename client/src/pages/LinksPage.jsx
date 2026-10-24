@@ -1,70 +1,34 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import { PSpinner, PText, PHeading } from '@porsche-design-system/components-react';
-import { getLinks, getLinkCategories, getMemberSocialLinks } from '../services/api';
+import { getLinks, getLinkCategories } from '../services/api';
 import MainNavTabs from '../components/MainNavTabs';
 import SEO from '../components/SEO';
-import Avatar from '../components/Avatar';
 
-const SOCIAL_PLATFORMS = [
-    { key: 'facebookUrl', label: 'Facebook' },
-    { key: 'redditUrl', label: 'Reddit' },
-    { key: 'instagramUrl', label: 'Instagram' },
-    { key: 'youtubeUrl', label: 'YouTube' },
-];
-
-function MemberLinksCard({ member }) {
-    const name = member.displayName || member.username;
-    const platforms = SOCIAL_PLATFORMS.filter(p => member[p.key]);
-
-    return (
-        <div className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 hover:border-amber-500/30 hover:bg-white/[0.05] transition-all">
-            <Link to={`/profile/${member.username}`} className="flex items-center gap-2 min-w-0 hover:opacity-80 transition-opacity">
-                <Avatar url={member.avatarUrl} name={name} size="sm" />
-                <PText size="small" weight="semi-bold" ellipsis>{name}</PText>
-            </Link>
-            <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5">
-                {platforms.map(p => (
-                    <a key={p.key} href={member[p.key]} target="_blank" rel="noopener noreferrer"
-                        className="text-xs font-medium text-amber-400 hover:opacity-80 transition-opacity">
-                        {p.label} →
-                    </a>
-                ))}
-            </div>
-        </div>
-    );
-}
-
-function LinkCard({ link }) {
+// A plain row, not its own bordered card — the category it lives in already
+// provides one shared card, so every individual link just needs a hover
+// highlight and a hairline divider from its neighbor, not another box of
+// its own. That's what made the page read as a wall of boxes before.
+function LinkRow({ link }) {
     const member = link.member;
     return (
-        <div className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 hover:border-amber-500/30 hover:bg-white/[0.05] transition-all">
-            {/* Its own <a>, not nested inside the member <Link> below */}
+        <div className="flex items-start justify-between gap-3 py-2.5 px-1 rounded-lg hover:bg-white/5 transition-colors">
             <a
                 href={link.url}
                 target="_blank"
                 rel={link.nofollow ? 'noopener noreferrer nofollow' : 'noopener noreferrer'}
-                className="flex items-start justify-between gap-2"
+                className="min-w-0 flex-1"
             >
-                <div className="min-w-0">
-                    <PText size="small" weight="semi-bold" ellipsis>{link.title}</PText>
-                    {link.description && (
-                        <PText size="x-small" color="contrast-medium" className="block mt-0.5">{link.description}</PText>
-                    )}
-                </div>
-                <span className="text-amber-400 shrink-0 text-sm">→</span>
-            </a>
-            {member && (
-                <Link
-                    to={`/profile/${member.username}`}
-                    className="flex items-center gap-1.5 mt-1 hover:opacity-80 transition-opacity"
-                >
-                    <Avatar url={member.avatar_url} name={member.display_name || member.username} size="sm" />
-                    <PText size="xs" color="contrast-medium">
-                        by {member.display_name || member.username}
+                <PText size="small" weight="semi-bold" ellipsis>{link.title}</PText>
+                {link.description && (
+                    <PText size="x-small" color="contrast-medium" className="block mt-0.5">{link.description}</PText>
+                )}
+                {member && (
+                    <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }} className="block mt-0.5">
+                        submitted by {member.display_name || member.username}
                     </PText>
-                </Link>
-            )}
+                )}
+            </a>
+            <span className="text-amber-400 shrink-0 text-sm mt-0.5">→</span>
         </div>
     );
 }
@@ -72,19 +36,17 @@ function LinkCard({ link }) {
 export default function LinksPage() {
     const [categories, setCategories] = useState([]);
     const [links, setLinks] = useState([]);
-    const [memberLinks, setMemberLinks] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
     useEffect(() => {
         let cancelled = false;
 
-        Promise.all([getLinks(), getLinkCategories(), getMemberSocialLinks()])
-            .then(([linksData, categoriesData, memberLinksData]) => {
+        Promise.all([getLinks(), getLinkCategories()])
+            .then(([linksData, categoriesData]) => {
                 if (cancelled) return;
                 setLinks(linksData.links || []);
                 setCategories(categoriesData.categories || []);
-                setMemberLinks(memberLinksData.members || []);
             })
             .catch(err => {
                 console.error('[LinksPage] Error loading links:', err);
@@ -154,34 +116,22 @@ export default function LinksPage() {
                 // shorter categories simply pack in wherever they fit.
                 <div className="columns-1 md:columns-2 gap-6">
                     {sections.map(({ category, links: categoryLinks }) => (
-                        <div key={category.id} className="break-inside-avoid-column mb-6">
-                            <PHeading size="lg" tag="h2" className="mb-2">{category.name}</PHeading>
-                            <div className="space-y-2">
-                                {categoryLinks.map(link => <LinkCard key={link.id} link={link} />)}
+                        <div key={category.id} className="break-inside-avoid-column mb-6 rounded-2xl border border-white/10 bg-[#1a1e26] p-4">
+                            <PHeading size="lg" tag="h2" className="mb-1">{category.name}</PHeading>
+                            <div className="divide-y divide-white/5">
+                                {categoryLinks.map(link => <LinkRow key={link.id} link={link} />)}
                             </div>
                         </div>
                     ))}
 
                     {otherLinks.length > 0 && (
-                        <div className="break-inside-avoid-column mb-6">
-                            <PHeading size="lg" tag="h2" className="mb-2">Other</PHeading>
-                            <div className="space-y-2">
-                                {otherLinks.map(link => <LinkCard key={link.id} link={link} />)}
+                        <div className="break-inside-avoid-column mb-6 rounded-2xl border border-white/10 bg-[#1a1e26] p-4">
+                            <PHeading size="lg" tag="h2" className="mb-1">Other</PHeading>
+                            <div className="divide-y divide-white/5">
+                                {otherLinks.map(link => <LinkRow key={link.id} link={link} />)}
                             </div>
                         </div>
                     )}
-                </div>
-            )}
-
-            {!loading && !error && memberLinks.length > 0 && (
-                <div className="mt-2 pt-6 border-t border-white/10">
-                    <PHeading size="lg" tag="h2" className="mb-1">Member Links</PHeading>
-                    <PText size="small" color="contrast-medium" className="block mb-3">
-                        Social links shared by SkySets.org members on their profiles
-                    </PText>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                        {memberLinks.map(member => <MemberLinksCard key={member.id} member={member} />)}
-                    </div>
                 </div>
             )}
         </div>

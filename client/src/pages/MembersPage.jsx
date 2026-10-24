@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import MainNavTabs from '../components/MainNavTabs';
 import SEO from '../components/SEO';
 import Avatar from '../components/Avatar';
+import SocialLinks from '../components/SocialLinks';
 import { getHighestBadge, getHighestCommunityTier } from '../utils/badges';
 
 // Same badge look as ProfilePage.jsx's role badges, kept minimal here since a
@@ -28,31 +29,39 @@ function MemberCard({ member }) {
     const communityBadge = getHighestCommunityTier(member.contributionCount);
 
     return (
-        <Link
-            to={`/profile/${member.username}`}
-            className="flex flex-col items-start text-left gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-4 hover:border-amber-500/30 hover:-translate-y-0.5 transition-all"
-        >
-            <Avatar url={member.avatarUrl} name={name} size="lg" badge={attendanceBadge} communityBadge={communityBadge} />
-            <div className="min-w-0 w-full">
-                <PText weight="semi-bold" ellipsis>{name}</PText>
-                {member.location && (
-                    <PText size="xs" color="contrast-medium" ellipsis>{member.location}</PText>
-                )}
-                {member.memberSince && (
-                    <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }} ellipsis>
-                        Member since {formatDateTime(member.memberSince)}
-                    </PText>
-                )}
-                {roleLabel && (
-                    <span
-                        className="inline-block mt-1 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full"
-                        style={{ background: 'rgba(245,158,11,0.14)', color: '#fbbf24' }}
-                    >
-                        {roleLabel}
-                    </span>
-                )}
-            </div>
-        </Link>
+        <div className="flex flex-col items-start text-left gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-4 hover:border-amber-500/30 hover:-translate-y-0.5 transition-all">
+            {/* Its own <Link>, not wrapping the social <a> tags below — those
+                need to stay clickable to their own URL, not nested inside
+                (and hijacked by) a link to the profile. */}
+            <Link to={`/profile/${member.username}`} className="flex flex-col items-start gap-2 w-full hover:opacity-90 transition-opacity">
+                <Avatar url={member.avatarUrl} name={name} size="lg" badge={attendanceBadge} communityBadge={communityBadge} />
+                <div className="min-w-0 w-full">
+                    <PText weight="semi-bold" ellipsis>{name}</PText>
+                    {member.location && (
+                        <PText size="xs" color="contrast-medium" ellipsis>{member.location}</PText>
+                    )}
+                    {member.memberSince && (
+                        <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }} ellipsis>
+                            Member since {formatDateTime(member.memberSince)}
+                        </PText>
+                    )}
+                    {roleLabel && (
+                        <span
+                            className="inline-block mt-1 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full"
+                            style={{ background: 'rgba(245,158,11,0.14)', color: '#fbbf24' }}
+                        >
+                            {roleLabel}
+                        </span>
+                    )}
+                </div>
+            </Link>
+            {/* mt-auto pins this to the bottom of the card regardless of how
+                much text sits above it — grid rows stretch every card to
+                match the tallest one, so without this the icon row landed
+                at a different height on every card instead of lining up
+                along one shared bottom edge. */}
+            <SocialLinks source={member} size={18} className="flex items-center gap-3 mt-auto" />
+        </div>
     );
 }
 

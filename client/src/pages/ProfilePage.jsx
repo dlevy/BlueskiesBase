@@ -8,6 +8,7 @@ import SEO from '../components/SEO';
 import MainNavTabs from '../components/MainNavTabs';
 import ShowMapShare from '../components/ShowMapShare';
 import Avatar from '../components/Avatar';
+import SocialLinks from '../components/SocialLinks';
 import ExpressInterestForm from '../components/ExpressInterestForm';
 import AchievementsPanel from '../components/AchievementsPanel';
 import { getHighestBadge } from '../utils/badges';
@@ -333,34 +334,7 @@ export default function ProfilePage() {
                             Member since {formatDateTime(profile.memberSince)}
                         </PText>
 
-                        {(profile.facebookUrl || profile.redditUrl || profile.instagramUrl || profile.youtubeUrl) && (
-                            <div className="flex flex-wrap gap-3 mt-3">
-                                {profile.facebookUrl && (
-                                    <a href={profile.facebookUrl} target="_blank" rel="noopener noreferrer"
-                                        className="text-xs font-medium text-amber-400 hover:opacity-80 transition-opacity">
-                                        Facebook →
-                                    </a>
-                                )}
-                                {profile.redditUrl && (
-                                    <a href={profile.redditUrl} target="_blank" rel="noopener noreferrer"
-                                        className="text-xs font-medium text-amber-400 hover:opacity-80 transition-opacity">
-                                        Reddit →
-                                    </a>
-                                )}
-                                {profile.instagramUrl && (
-                                    <a href={profile.instagramUrl} target="_blank" rel="noopener noreferrer"
-                                        className="text-xs font-medium text-amber-400 hover:opacity-80 transition-opacity">
-                                        Instagram →
-                                    </a>
-                                )}
-                                {profile.youtubeUrl && (
-                                    <a href={profile.youtubeUrl} target="_blank" rel="noopener noreferrer"
-                                        className="text-xs font-medium text-amber-400 hover:opacity-80 transition-opacity">
-                                        YouTube →
-                                    </a>
-                                )}
-                            </div>
-                        )}
+                        <SocialLinks source={profile} className="flex flex-wrap items-center gap-3 mt-3" />
                     </div>
                 </div>
 

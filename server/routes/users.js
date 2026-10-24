@@ -528,7 +528,7 @@ router.get('/directory', async (req, res) => {
 
         const { data, error } = await supabase
             .from('profiles')
-            .select('id, username, display_name, location, avatar_url, role, hide_from_directory, created_at')
+            .select('id, username, display_name, location, avatar_url, role, hide_from_directory, created_at, facebook_url, reddit_url, instagram_url, youtube_url')
             .order('username', { ascending: true });
 
         if (error) {
@@ -585,6 +585,10 @@ router.get('/directory', async (req, res) => {
                 showsAttended: attendedCounts[p.id] || 0,
                 contributionCount: contributionCounts[p.id] || 0,
                 memberSince: p.created_at,
+                ...(p.facebook_url && { facebookUrl: p.facebook_url }),
+                ...(p.reddit_url && { redditUrl: p.reddit_url }),
+                ...(p.instagram_url && { instagramUrl: p.instagram_url }),
+                ...(p.youtube_url && { youtubeUrl: p.youtube_url }),
             }));
 
         res.json({ members });
@@ -629,46 +633,6 @@ router.get('/mentionable', async (req, res) => {
         res.json({ users });
     } catch (err) {
         console.error('[GET /users/mentionable] Error:', err);
-        res.status(500).json({ error: 'Internal server error' });
-    }
-});
-
-/**
- * GET /api/users/social-links
- * Public, no auth required — every member who has added at least one of
- * Facebook/Reddit/Instagram/YouTube to their profile. Powers the "Member
- * Links" section at the bottom of the public /links page, separate from the
- * admin-managed links table.
- */
-router.get('/social-links', async (req, res) => {
-    try {
-        const { data, error } = await supabase
-            .from('profiles')
-            .select('id, username, display_name, avatar_url, facebook_url, reddit_url, instagram_url, youtube_url, hide_from_directory')
-            .or('facebook_url.not.is.null,reddit_url.not.is.null,instagram_url.not.is.null,youtube_url.not.is.null')
-            .order('username', { ascending: true });
-
-        if (error) {
-            console.error('[GET /users/social-links] Error:', error);
-            return res.status(500).json({ error: 'Failed to fetch member links' });
-        }
-
-        const members = (data || [])
-            .filter(p => p.username && !p.hide_from_directory)
-            .map(p => ({
-                id: p.id,
-                username: p.username,
-                displayName: p.display_name || null,
-                avatarUrl: p.avatar_url || null,
-                ...(p.facebook_url && { facebookUrl: p.facebook_url }),
-                ...(p.reddit_url && { redditUrl: p.reddit_url }),
-                ...(p.instagram_url && { instagramUrl: p.instagram_url }),
-                ...(p.youtube_url && { youtubeUrl: p.youtube_url }),
-            }));
-
-        res.json({ members });
-    } catch (err) {
-        console.error('[GET /users/social-links] Error:', err);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
