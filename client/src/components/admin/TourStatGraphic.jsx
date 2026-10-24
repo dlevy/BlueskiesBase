@@ -46,6 +46,24 @@ function textHeadlineFontSize(text) {
     return 52;
 }
 
+// Specific to the 'denseList' stat type (currently just the "Make America
+// Fuk Again" Energy card) — the one stat here that intentionally shows
+// every row instead of capping at 6, since it's a single-line-per-show
+// novelty list rather than a ranked comparison (see that stat's own
+// compute() comment). Columns and font shrink together as the count grows
+// so an ongoing tour's ever-lengthening list keeps fitting the fixed frame.
+function denseListColumns(count) {
+    if (count <= 10) return 1;
+    if (count <= 24) return 2;
+    return 3;
+}
+function denseListFontSize(count) {
+    if (count <= 10) return 30;
+    if (count <= 20) return 26;
+    if (count <= 32) return 22;
+    return 18;
+}
+
 // A small solid-fill tag — same contrast approach InstagramPostGraphic's
 // DebutTag badge already uses (solid color + near-black text, not a
 // color-tinted translucent background), so it reads clearly over any style
@@ -283,6 +301,40 @@ const TourStatGraphic = forwardRef(function TourStatGraphic({
                             )}
                             {statResult.subdetail && (
                                 <div style={{ fontSize: 26, color: palette.muted, marginTop: 4 }}>
+                                    {statResult.subdetail}
+                                </div>
+                            )}
+                        </>
+                    ) : statResult.type === 'denseList' ? (
+                        <>
+                            <div style={{ fontSize: 36, fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase', color: palette.accent }}>
+                                {statResult.title}
+                            </div>
+                            <div style={{
+                                display: 'grid',
+                                gridTemplateColumns: `repeat(${denseListColumns(statResult.items.length)}, 1fr)`,
+                                columnGap: 40, rowGap: 12,
+                                width: '100%', maxWidth: 980,
+                            }}>
+                                {statResult.items.map((item, i) => (
+                                    <div
+                                        key={i}
+                                        style={{
+                                            display: 'flex', alignItems: 'baseline', gap: 10, textAlign: 'left',
+                                            fontSize: denseListFontSize(statResult.items.length),
+                                        }}
+                                    >
+                                        <span style={{ flexShrink: 0, color: palette.muted, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+                                            {item.meta}
+                                        </span>
+                                        <span style={{ color: palette.heading, fontWeight: 700, wordBreak: 'break-word' }}>
+                                            {item.notes}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                            {statResult.subdetail && (
+                                <div style={{ fontSize: 24, color: palette.muted, marginTop: 4 }}>
                                     {statResult.subdetail}
                                 </div>
                             )}

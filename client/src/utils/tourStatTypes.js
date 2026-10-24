@@ -301,23 +301,38 @@ export const TOUR_STAT_TYPES = [
         compute(tourData) {
             const lines = tourData.makeAmericaEnergyLines || [];
             if (lines.length === 0) {
-                return { type: 'list', disabled: true, disabledReason: 'Not played (or no energy logged) this tour' };
+                return { type: 'denseList', disabled: true, disabledReason: 'Not played (or no energy logged) this tour' };
             }
-            // Already sorted most-recent-first by tourSongCounts.js — capped
-            // the same as every other ranked list here, but with a plain
-            // "+N more" note instead of tiedNote's tie-aware one, since
-            // these aren't ranked by a count that could tie.
-            const shown = lines.slice(0, MAX_RANKED_ROWS);
-            const items = shown.map(l => ({
-                label: l.notes,
-                value: `${l.venue?.city ? l.venue.city + ' · ' : ''}${formatDateShort(l.date)}`,
+            // Group identical energy lines together — "Hunter Biden energy"
+            // is the recurring default most nights get, so it collapses
+            // into one row with a show count; a one-off variant keeps its
+            // own row naming the specific date/city it happened, since
+            // that's the more interesting fact for something that only
+            // happened once. Grouping (rather than just capping at 6) is
+            // what makes showing every distinct line fit the card — the
+            // raw per-show list can run past 25 rows over a tour, but the
+            // number of distinct lines stays small since most nights repeat
+            // the default.
+            const groups = new Map();
+            lines.forEach(l => { // lines is already sorted most-recent-first
+                if (!groups.has(l.notes)) groups.set(l.notes, []);
+                groups.get(l.notes).push(l);
+            });
+            const grouped = [...groups.entries()]
+                .map(([notes, occurrences]) => ({ notes, count: occurrences.length, mostRecent: occurrences[0] }))
+                .sort((a, b) => b.count - a.count || b.mostRecent.date.localeCompare(a.mostRecent.date));
+
+            const items = grouped.map(g => ({
+                notes: g.notes,
+                meta: g.count > 1
+                    ? `${g.count} shows`
+                    : `${g.mostRecent.venue?.city ? g.mostRecent.venue.city + ' · ' : ''}${formatDateShort(g.mostRecent.date)}`,
             }));
-            const remaining = lines.length - shown.length;
+
             return {
-                type: 'list',
+                type: 'denseList',
                 title: '"Make America Fuk Again" Energy',
                 items,
-                subdetail: remaining > 0 ? `+ ${remaining} more earlier this tour` : undefined,
             };
         },
     },
