@@ -70,12 +70,27 @@ function PageviewTracker() {
   return null;
 }
 
+// Resets scroll position to the top on every route change — React Router
+// doesn't do this on its own, so navigating via a link (the footer links in
+// particular, reachable from the bottom of a long page) otherwise lands on
+// the new page already scrolled down to wherever the old page left off.
+// Keyed on pathname only, not search params, so an in-page tab switch (e.g.
+// SearchPage's ?tab=) doesn't fight a user's own scrolling.
+function ScrollToTop() {
+  const location = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
+  return null;
+}
+
 function App() {
   return (
     <AuthProvider>
       <Router>
         <AvatarNudgeProvider>
         <PageviewTracker />
+        <ScrollToTop />
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<PublicLayout />}>
@@ -354,6 +369,18 @@ function PublicLayout() {
               ))}
             </div>
           )}
+          <div className="text-center text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>
+            Open source under ISC license. Contributions, issues, and pull requests are welcome.{' '}
+            <a
+              href="https://github.com/dlevy/BlueskiesBase"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:opacity-80 transition-opacity underline underline-offset-2"
+              style={{ color: 'var(--p-color-contrast-medium)' }}
+            >
+              GitHub
+            </a>
+          </div>
         </div>
       </footer>
     </div>
