@@ -37,8 +37,14 @@ export default function UpcomingShowsWidget() {
     }, []);
 
     if (loading) {
+        // min-h approximates the loaded card's typical height (header + up to
+        // 3 show rows) — without it, this collapses to a bare spinner and the
+        // page jumps once real content lands, pushing the footer down with it.
+        // That jump, paired with TourStatsWidget's identical issue right next
+        // to it in the same grid, was the dominant contributor to a reported
+        // 0.391 CLS score.
         return (
-            <div className="flex justify-center py-10">
+            <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-5 min-h-[320px] flex items-center justify-center">
                 <PSpinner size="medium" aria={{ 'aria-label': 'Loading' }} />
             </div>
         );

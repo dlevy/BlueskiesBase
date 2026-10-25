@@ -117,8 +117,12 @@ export default function TourStatsWidget({ tourName }) {
     }, [tourName]);
 
     if (loading) {
+        // min-h approximates the loaded card's typical height (header + debuts
+        // line + two song groups + footer link) — without it, this collapses to
+        // a bare spinner and the page jumps once real content lands. That jump
+        // was the single largest contributor to a reported 0.391 CLS score.
         return (
-            <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-5 flex justify-center">
+            <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-5 min-h-[300px] flex items-center justify-center">
                 <PSpinner size="small" aria={{ 'aria-label': 'Loading tour stats' }} />
             </div>
         );
