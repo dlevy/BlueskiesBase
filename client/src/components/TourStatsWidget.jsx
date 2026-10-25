@@ -64,7 +64,13 @@ export default function TourStatsWidget() {
                 const tourName = recent?.[0]?.tour_name;
                 if (recentError || !tourName) { if (!cancelled) setLoading(false); return; }
 
-                const tourData = await fetchTourSongCounts(tourName);
+                // needsExtras: false — this widget only reads play counts/
+                // dates/playedIds, and gets its debut counts from the
+                // cheaper GET /shows/debuts-batch call below anyway, so the
+                // album join + second debuts-scoped setlist_songs scan
+                // fetchTourSongCounts normally does would be pure waste on
+                // every single homepage load.
+                const tourData = await fetchTourSongCounts(tourName, { needsExtras: false });
                 if (!tourData || tourData.songCounts.length === 0) { if (!cancelled) setLoading(false); return; }
 
                 const { totalShows, playedShows, firstDate, lastDate, playedIds, songCounts } = tourData;

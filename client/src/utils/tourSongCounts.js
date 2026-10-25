@@ -109,7 +109,18 @@ export async function fetchTourList({ minShows = MIN_TOUR_SHOWS } = {}) {
 // Excludes performance_type='dj'/'soundcheck' rows, same treatment as the server's
 // equivalent tour-rarity computation (GET /api/shows/:id/tour-rarity) — neither is
 // an actual live performance, so neither should count here either.
-export async function fetchTourSongCounts(tourName, { stateFilter, countryFilter } = {}) {
+// `needsExtras` (default true, unchanged behavior for every existing caller
+// — the full Tour Stats pages/IG generator all need the complete picture)
+// gates the two most expensive parts of this function: the album_songs join
+// on every row, and a *second* full chunked setlist_songs scan (scoped by
+// song_id) just to compute live debuts. TourStatsWidget — the homepage
+// widget that runs this on every single page load — needs neither: it gets
+// debut counts from the cheap, server-cached GET /shows/debuts-batch
+// instead, and doesn't show an album breakdown at all. Passing
+// needsExtras: false there cuts its Supabase round-trips roughly in half
+// (confirmed via PageSpeed's network-dependency-tree report, which showed
+// this homepage load firing six separate setlist_songs requests).
+export async function fetchTourSongCounts(tourName, { stateFilter, countryFilter, needsExtras = true } = {}) {
     const todayStr = getLocalDateString();
 
     // venues included for the Tour Map (ShowMapShare, same shape it already
@@ -168,8 +179,7 @@ export async function fetchTourSongCounts(tourName, { stateFilter, countryFilter
             .select(`
                 song_id, show_id, set_number, is_encore, song_order, notes,
                 songs!setlist_songs_song_id_fkey (
-                    title, is_original,
-                    album_songs ( albums ( title, release_date ) )
+                    title, is_original${needsExtras ? ',\n                    album_songs ( albums ( title, release_date ) )' : ''}
                 )
             `)
             .in('show_id', chunk)
@@ -217,8 +227,8 @@ export async function fetchTourSongCounts(tourName, { stateFilter, countryFilter
     // dj/soundcheck exclusion as server/utils/setlistIndex.js's
     // globalEarliestBySong, just computed client-side since this page has
     // no server route of its own to share that cache with.
-    const scopedSongIds = [...new Set(rows.map(r => r.song_id).filter(id => id != null))];
-    const debutRows = await fetchAllInChunks(
+    const scopedSongIds = needsExtras ? [...new Set(rows.map(r => r.song_id).filter(id => id != null))] : [];
+    const debutRows = needsExtras ? await fetchAllInChunks(
         (chunk) => supabase
             .from('setlist_songs')
             .select('song_id, shows ( show_date )')
@@ -226,7 +236,7 @@ export async function fetchTourSongCounts(tourName, { stateFilter, countryFilter
             .not('performance_type', 'in', '(dj,soundcheck)')
             .order('id'),
         scopedSongIds
-    );
+    ) : [];
     const globalEarliestBySong = {};
     debutRows.forEach(r => {
         const date = r.shows?.show_date;
@@ -351,26 +361,32 @@ export async function fetchTourSongCounts(tourName, { stateFilter, countryFilter
     const songsByAlbum = {};
     let otherOriginals = 0;
     let covers = 0;
-    Object.entries(songMetaById).forEach(([songId, { title, isOriginal, albumSongs }]) => {
-        const playCount = showSetsBySongId[songId]?.size || 0;
-        const assocs = (albumSongs || []).filter(as => as.albums);
-        if (assocs.length > 0) {
-            const primary = [...assocs].sort((a, b) => {
-                const ra = a.albums?.release_date || '';
-                const rb = b.albums?.release_date || '';
-                if (!ra) return 1;
-                if (!rb) return -1;
-                return ra.localeCompare(rb);
-            })[0];
-            const albumTitle = primary.albums?.title || 'Other';
-            albumCounts.set(albumTitle, (albumCounts.get(albumTitle) || 0) + playCount);
-            (songsByAlbum[albumTitle] ||= []).push({ title, count: playCount });
-        } else if (isOriginal === false) {
-            covers += playCount;
-        } else {
-            otherOriginals += playCount;
-        }
-    });
+    // Skipped along with the album_songs join above when !needsExtras — the
+    // field is absent from every row in that case, so running this would
+    // silently misclassify every song as "no album" instead of just being
+    // pointlessly expensive.
+    if (needsExtras) {
+        Object.entries(songMetaById).forEach(([songId, { title, isOriginal, albumSongs }]) => {
+            const playCount = showSetsBySongId[songId]?.size || 0;
+            const assocs = (albumSongs || []).filter(as => as.albums);
+            if (assocs.length > 0) {
+                const primary = [...assocs].sort((a, b) => {
+                    const ra = a.albums?.release_date || '';
+                    const rb = b.albums?.release_date || '';
+                    if (!ra) return 1;
+                    if (!rb) return -1;
+                    return ra.localeCompare(rb);
+                })[0];
+                const albumTitle = primary.albums?.title || 'Other';
+                albumCounts.set(albumTitle, (albumCounts.get(albumTitle) || 0) + playCount);
+                (songsByAlbum[albumTitle] ||= []).push({ title, count: playCount });
+            } else if (isOriginal === false) {
+                covers += playCount;
+            } else {
+                otherOriginals += playCount;
+            }
+        });
+    }
     Object.values(songsByAlbum).forEach(list => list.sort((a, b) => b.count - a.count || a.title.localeCompare(b.title)));
     const albumBreakdown = [...albumCounts.entries()]
         .map(([title, count]) => ({ title, count }))
