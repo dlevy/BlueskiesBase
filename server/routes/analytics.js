@@ -48,6 +48,69 @@ function resolveRange(req) {
     return { from, to, fromInclusive, toExclusive, granularity: 'day', tzOffsetMinutes };
 }
 
+// Readable traffic-source name for a landing pageview. A utm_source tag wins
+// over the referrer: Instagram tags its outbound links (utm_source=ig) and
+// ChatGPT sends only a tag, no referrer. Otherwise the referrer's host is
+// grouped, since one site arrives under several names (Reddit's Android app
+// reports itself as com.reddit.frontpage, Facebook uses five domains).
+const UTM_SOURCE_NAMES = { ig: 'Instagram', instagram: 'Instagram', fb: 'Facebook', facebook: 'Facebook', reddit: 'Reddit', 'chatgpt.com': 'ChatGPT' };
+const HOST_SOURCES = [
+    [/(^|\.)instagram\.com$/, 'Instagram'],
+    [/(^|\.)(facebook\.com|fb\.com|fb\.me)$|^com\.facebook\./, 'Facebook'],
+    [/(^|\.)reddit\.com$|^redd\.it$|^com\.reddit\./, 'Reddit'],
+    [/^com\.google\.android\.gm$|(^|\.)mail\.google\.com$/, 'Gmail'],
+    [/(^|\.)google\.[a-z.]+$|^com\.google\.android\.googlequicksearchbox$/, 'Google'],
+    [/(^|\.)duckduckgo\.com$/, 'DuckDuckGo'],
+    [/(^|\.)bing\.com$/, 'Bing'],
+    [/(^|\.)yahoo\.com$/, 'Yahoo'],
+    [/(^|\.)ecosia\.org$/, 'Ecosia'],
+    [/^search\.brave\.com$/, 'Brave Search'],
+    [/(^|\.)(chatgpt\.com|openai\.com)$/, 'ChatGPT'],
+    [/(^|\.)perplexity\.ai$/, 'Perplexity'],
+    [/^(x\.com|t\.co|twitter\.com)$/, 'X / Twitter'],
+    [/(^|\.)threads\.(net|com)$/, 'Threads'],
+    [/(^|\.)youtube\.com$|^youtu\.be$/, 'YouTube'],
+    [/(^|\.)setlist\.fm$/, 'setlist.fm'],
+];
+function trafficSource(path, referrer) {
+    const utm = new URLSearchParams((path || '').split('?')[1] || '').get('utm_source');
+    if (utm) return UTM_SOURCE_NAMES[utm.toLowerCase()] || utm;
+    if (!referrer) return 'Direct / unknown';
+    let host;
+    try { host = new URL(referrer).hostname.toLowerCase(); } catch { return 'Other'; }
+    if (/(^|\.)skysets\.org$|^localhost$/.test(host)) return 'Direct / unknown';
+    const match = HOST_SOURCES.find(([re]) => re.test(host));
+    return match ? match[1] : host.replace(/^www\./, '');
+}
+
+// Registrations (accounts created) and activations (email confirmed — which
+// with this app's email link also signs the person in) for a range, read from
+// Supabase's own auth records rather than client-sent events: those are
+// lost to ad blockers and fire again when someone re-submits the signup form
+// for an email that already has an account.
+async function countAccountsInRange(fromInclusive, toExclusive, includeStaff) {
+    const inRange = ts => ts && ts >= fromInclusive && ts < toExclusive;
+    let users = [];
+    for (let page = 1; ; page++) {
+        const { data, error } = await supabase.auth.admin.listUsers({ page, perPage: 1000 });
+        if (error) throw error;
+        users = users.concat(data.users);
+        if (data.users.length < 1000) break;
+    }
+    let registered = users.filter(u => inRange(new Date(u.created_at).toISOString()));
+    let activated = users.filter(u => inRange(u.email_confirmed_at && new Date(u.email_confirmed_at).toISOString()));
+    if (!includeStaff) {
+        const ids = [...new Set([...registered, ...activated].map(u => u.id))];
+        if (ids.length) {
+            const { data: staff } = await supabase.from('profiles').select('id').in('id', ids).in('role', ['admin', 'editor']);
+            const staffIds = new Set((staff || []).map(p => p.id));
+            registered = registered.filter(u => !staffIds.has(u.id));
+            activated = activated.filter(u => !staffIds.has(u.id));
+        }
+    }
+    return { registrations: registered.length, activations: activated.length };
+}
+
 /**
  * POST /api/analytics/event
  * Public — logs one pageview or feature-usage event. Never rejects on a
@@ -108,7 +171,7 @@ router.get('/summary', requireAdmin, async (req, res) => {
 
         let query = supabase
             .from('analytics_events')
-            .select('event_type, event_name, path, session_id, user_role, created_at')
+            .select('event_type, event_name, path, session_id, user_role, created_at, referrer')
             .gte('created_at', fromInclusive)
             .lt('created_at', toExclusive);
 
@@ -163,15 +226,37 @@ router.get('/summary', requireAdmin, async (req, res) => {
 
         const pageRanking = rank(pageviews, r => r.path);
 
+        // First-touch: each visitor (session id) counted once, by their first
+        // pageview in range, so sources sum to uniqueSessions. Every later
+        // pageview in a page load repeats the same referrer, so counting
+        // pageviews would credit a source once per page browsed.
+        const landingBySession = new Map();
+        for (const r of pageviews) {
+            const seen = landingBySession.get(r.session_id);
+            if (!seen || r.created_at < seen.created_at) landingBySession.set(r.session_id, r);
+        }
+        const trafficSources = rank([...landingBySession.values()], r => trafficSource(r.path, r.referrer));
+
+        // Don't fail the whole dashboard if the auth lookup does.
+        let accounts = { registrations: null, activations: null };
+        try {
+            accounts = await countAccountsInRange(fromInclusive, toExclusive, includeStaff);
+        } catch (err) {
+            console.error('[GET /analytics/summary] Account counts failed:', err);
+        }
+
         res.json({
             range: { from, to },
             granularity,
             totalPageviews: pageviews.length,
             uniqueSessions,
+            registrations: accounts.registrations,
+            activations: accounts.activations,
             dailyPageviews,
             topPages: pageRanking.slice(0, 15),
             leastViewedPages: [...pageRanking].reverse().slice(0, 15),
             topFeatures: rank(features, r => r.event_name).slice(0, 15),
+            trafficSources: trafficSources.slice(0, 15),
         });
     } catch (error) {
         console.error('Error in GET /analytics/summary:', error);

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { PSpinner } from '@porsche-design-system/components-react';
 import { getShowDebutsBatch } from '../services/apiCore';
 import { fetchTourSongCounts } from '../utils/tourSongCounts';
+import { trackEvent } from '../utils/analytics';
 
 const LIVE_DEBUT_COLOR = '#34d399';
 const TOUR_DEBUT_COLOR = '#22d3ee';
@@ -132,8 +133,16 @@ export default function TourStatsWidget({ tourName, onReady }) {
 
     if (!stats) return null;
 
+    // Any click in the card, not just the link: this widget costs the homepage
+    // several requests, so we want to know whether people engage with it at
+    // all, including taps on the card body that expect it to be clickable.
+    const handleCardClick = (e) => {
+        // Two names, not one name + metadata, so both show up in Feature Usage.
+        trackEvent(e.target.closest('a') ? 'tour_stats_widget_link_clicked' : 'tour_stats_widget_card_clicked');
+    };
+
     return (
-        <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-5 space-y-4">
+        <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-5 space-y-4" onClick={handleCardClick}>
             <div>
                 <h3 className="font-display font-bold text-base" style={{ color: 'var(--p-color-primary)' }}>
                     Tour Stats

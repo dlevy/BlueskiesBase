@@ -337,6 +337,14 @@ export default function AnalyticsPage() {
                             <div className="font-display font-bold text-3xl text-amber-400">{summary.uniqueSessions}</div>
                             <PText size="xs" color="contrast-medium">Unique Sessions</PText>
                         </div>
+                        <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-5 text-center" title="New accounts created in this range">
+                            <div className="font-display font-bold text-3xl text-amber-400">{summary.registrations ?? '—'}</div>
+                            <PText size="xs" color="contrast-medium">Registrations</PText>
+                        </div>
+                        <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-5 text-center" title="Accounts that confirmed their email (and so signed in) in this range">
+                            <div className="font-display font-bold text-3xl text-amber-400">{summary.activations ?? '—'}</div>
+                            <PText size="xs" color="contrast-medium">Activations</PText>
+                        </div>
                     </div>
 
                     <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-5">
@@ -379,6 +387,7 @@ export default function AnalyticsPage() {
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         <RankedList title="Most Viewed Pages" rows={summary.topPages} emptyText="No page views yet." />
                         <RankedList title="Feature Usage" rows={summary.topFeatures} emptyText="No feature events logged yet." />
+                        <RankedList title="Traffic Sources (visitors, first arrival)" rows={summary.trafficSources || []} emptyText="No visits in this range yet." />
                     </div>
 
                     <AuditLog from={rangeFrom} to={rangeTo} hours={range.hours} includeStaff={includeStaff} />
