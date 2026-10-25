@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { defineConfig, searchForWorkspaceRoot } from 'vite'
 import react from '@vitejs/plugin-react'
 
 function escapeRegExp(str) {
@@ -41,6 +41,11 @@ export default defineConfig({
     sourcemap: true,
   },
   server: {
+    // FaqPage imports ../server/data/faq.json (shared with the server-side
+    // prerender); the dev server otherwise refuses files outside client/.
+    fs: {
+      allow: [searchForWorkspaceRoot(process.cwd()), '../server/data'],
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:3000',

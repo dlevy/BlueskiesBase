@@ -1,5 +1,6 @@
 const express = require('express');
 const { findShowByPathParams, injectShowHead } = require('../server/utils/showMeta');
+const { injectFaqHtml } = require('../server/utils/faqMeta');
 const { baseUrlFor } = require('../server/utils/baseUrl');
 
 const app = express();
@@ -53,6 +54,29 @@ app.get('/api/show/:artist/:date/:location', async (req, res) => {
             res.status(500).send('Internal server error');
         }
     }
+});
+
+// Same idea for /faq: the FAQ text and FAQPage JSON-LD prerendered into the
+// static shell (see server/utils/faqMeta.js). vercel.json routes /faq here.
+app.get('/api/faq', async (req, res) => {
+    const host = req.get('x-forwarded-host') || req.get('host');
+    const proto = req.get('x-forwarded-proto') || 'https';
+    let html;
+    try {
+        html = await (await fetch(`${proto}://${host}/index.html`)).text();
+    } catch (err) {
+        console.error('[GET /faq] Could not fetch index.html:', err);
+        return res.status(500).send('Internal server error');
+    }
+    let body = html;
+    try {
+        body = injectFaqHtml(html, baseUrlFor(req));
+    } catch (err) {
+        console.error('[GET /faq] Prerender error, serving plain shell:', err);
+    }
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400');
+    res.status(200).send(body);
 });
 
 app.use('/api/shows', require('../server/routes/shows'));
