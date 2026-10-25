@@ -124,7 +124,7 @@ function MemberCard({ member }) {
                 </div>
                 {gear.length > 0 && (
                     <button type="button" onClick={() => setExpanded(e => !e)} className="shrink-0 p-1" aria-label={expanded ? 'Collapse gear' : 'Expand gear'}>
-                        <svg className={`w-4 h-4 transition-transform ${expanded ? 'rotate-180' : ''}`}
+                        <svg aria-hidden="true" className={`w-4 h-4 transition-transform ${expanded ? 'rotate-180' : ''}`}
                             viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
                             style={{ color: 'var(--p-color-contrast-medium)' }}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />

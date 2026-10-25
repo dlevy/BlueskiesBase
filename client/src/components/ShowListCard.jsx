@@ -46,7 +46,7 @@ export default function ShowListCard({ show }) {
                 )}
             </div>
 
-            <svg className="w-3.5 h-3.5 shrink-0 opacity-0 group-hover:opacity-30 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg aria-hidden="true" className="w-3.5 h-3.5 shrink-0 opacity-0 group-hover:opacity-30 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
         </Link>

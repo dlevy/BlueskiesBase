@@ -302,8 +302,9 @@ function SetlistSongItem({ song, index, isFirst, isLast, isSoundcheck, onRemove,
                     <button type="button" {...attributes} {...listeners}
                         className="px-1 py-0.5 rounded hover:bg-white/10 transition-colors shrink-0 touch-none"
                         style={{ color: 'var(--p-color-contrast-medium)', cursor: isDragging ? 'grabbing' : 'grab' }}
-                        title="Drag to reorder">
-                        <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor">
+                        title="Drag to reorder"
+                        aria-label="Drag to reorder">
+                        <svg aria-hidden="true" width="10" height="14" viewBox="0 0 10 14" fill="currentColor">
                             <circle cx="2" cy="2" r="1.4" /><circle cx="8" cy="2" r="1.4" />
                             <circle cx="2" cy="7" r="1.4" /><circle cx="8" cy="7" r="1.4" />
                             <circle cx="2" cy="12" r="1.4" /><circle cx="8" cy="12" r="1.4" />

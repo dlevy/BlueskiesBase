@@ -58,8 +58,10 @@ function NugsPaywallIcon() {
             className="inline-flex items-center justify-center w-6 h-6 rounded-full shrink-0"
             style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}
             title="Requires a paid nugs.net subscription or purchase to listen or download"
+            role="img"
+            aria-label="Requires a paid nugs.net subscription or purchase to listen or download"
         >
-            <svg className="w-[15px] h-[15px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+            <svg aria-hidden="true" className="w-[15px] h-[15px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
                 <rect x="5" y="11" width="14" height="9" rx="2" />
                 <path d="M8 11V7a4 4 0 118 0v4" />
             </svg>
@@ -153,7 +155,7 @@ function RareBadge({ count, total, tourName }) {
                 className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded cursor-default"
                 style={{ background: 'rgba(192, 132, 252, 0.12)', color: '#c084fc' }}
             >
-                <svg className="w-2.5 h-2.5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                <svg aria-hidden="true" className="w-2.5 h-2.5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm0 10a1 1 0 011 1v1h1a1 1 0 110 2H6v1a1 1 0 11-2 0v-1H3a1 1 0 110-2h1v-1a1 1 0 011-1zM12 2a1 1 0 01.967.744L14.146 7.2 17.5 9.134a1 1 0 010 1.732l-3.354 1.935-1.18 4.455a1 1 0 01-1.933 0L9.854 12.8 6.5 10.866a1 1 0 010-1.732l3.354-1.935 1.18-4.456A1 1 0 0112 2z" clipRule="evenodd" />
                 </svg>
                 Rare
@@ -184,7 +186,7 @@ function DebutBadge({ label, color, title }) {
             style={{ background: `color-mix(in srgb, ${color} 12%, transparent)`, color }}
             title={title}
         >
-            <svg className="w-2.5 h-2.5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+            <svg aria-hidden="true" className="w-2.5 h-2.5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
                 <path d="M10 2a1 1 0 01.894.553l1.991 3.983 4.396.639a1 1 0 01.554 1.706l-3.182 3.1.751 4.378a1 1 0 01-1.451 1.054L10 15.347l-3.953 2.078a1 1 0 01-1.451-1.054l.751-4.378-3.182-3.1a1 1 0 01.554-1.706l4.396-.639L9.106 2.553A1 1 0 0110 2z" />
             </svg>
             {label}
@@ -218,7 +220,7 @@ function SongRow({ song, position, tourRarity, liveDebutSongIds, tourDebutSongId
                         className="p-1 -m-1 rounded hover:bg-white/10 transition-colors"
                         style={{ color: 'var(--p-color-info)' }}
                     >
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <svg aria-hidden="true" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h10M4 18h7" />
                         </svg>
                     </Link>
@@ -634,7 +636,7 @@ export default function ShowDetailPage() {
                             className="flex items-center gap-2 text-sm transition-opacity hover:opacity-80"
                             style={{ color: 'var(--p-color-contrast-medium)' }}
                         >
-                            <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <svg aria-hidden="true" className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
                             </svg>
                             <span>
@@ -666,7 +668,7 @@ export default function ShowDetailPage() {
                                     )}
                                 </span>
                             </span>
-                            <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <svg aria-hidden="true" className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                             </svg>
                         </button>
@@ -688,7 +690,7 @@ export default function ShowDetailPage() {
                             className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-sm border border-white/15 hover:border-white/25 hover:bg-white/5 transition-all"
                             style={{ color: 'var(--p-color-contrast-medium)' }}
                         >
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <svg aria-hidden="true" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                             </svg>
                             Edit
@@ -700,7 +702,7 @@ export default function ShowDetailPage() {
                             className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-sm border border-white/15 hover:border-white/25 hover:bg-white/5 transition-all"
                             style={{ color: 'var(--p-color-contrast-medium)' }}
                         >
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <svg aria-hidden="true" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14M4 8h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                             </svg>
                             IG
@@ -711,7 +713,7 @@ export default function ShowDetailPage() {
                         className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-sm border border-white/15 hover:border-white/25 hover:bg-white/5 transition-all"
                         style={{ color: 'var(--p-color-contrast-medium)' }}
                     >
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <svg aria-hidden="true" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M4 5h16v14H4V5zm0 10l4.5-4.5 3 3L16 9l4 4" />
                             <circle cx="8.5" cy="8.5" r="1.25" />
                         </svg>
@@ -729,9 +731,9 @@ export default function ShowDetailPage() {
                             style={!attended ? { color: 'var(--p-color-contrast-medium)' } : undefined}
                         >
                             {attendanceLoading ? (
-                                <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                                <svg aria-hidden="true" className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
                             ) : (
-                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>{attended ? <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /> : <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />}</svg>
+                                <svg aria-hidden="true" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>{attended ? <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /> : <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />}</svg>
                             )}
                             {attendanceLabel}
                         </button>

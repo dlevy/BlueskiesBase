@@ -248,7 +248,7 @@ export default function ShowsList() {
                             background: filterPanelOpen ? 'rgba(245,158,11,0.08)' : 'transparent',
                         }}
                     >
-                        <svg
+                        <svg aria-hidden="true"
                             className={`w-3.5 h-3.5 transition-transform duration-200 ${filterPanelOpen ? '' : '-rotate-90'}`}
                             fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
                         >

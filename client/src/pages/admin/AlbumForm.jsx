@@ -10,7 +10,7 @@ const labelClass = "block text-xs font-medium mb-1.5";
 
 function GripIcon() {
     return (
-        <svg width="12" height="16" viewBox="0 0 12 16" fill="currentColor">
+        <svg aria-hidden="true" width="12" height="16" viewBox="0 0 12 16" fill="currentColor">
             <circle cx="3.5" cy="3" r="1.3" /><circle cx="8.5" cy="3" r="1.3" />
             <circle cx="3.5" cy="8" r="1.3" /><circle cx="8.5" cy="8" r="1.3" />
             <circle cx="3.5" cy="13" r="1.3" /><circle cx="8.5" cy="13" r="1.3" />

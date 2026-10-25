@@ -96,7 +96,7 @@ function CategoriesPanel({ categories, isAdmin, onChanged }) {
                 className="w-full flex items-center justify-between px-4 py-3"
             >
                 <PHeading size="sm" tag="h2">Manage Categories</PHeading>
-                <svg
+                <svg aria-hidden="true"
                     className={`w-4 h-4 transition-transform duration-200 ${expanded ? '' : '-rotate-90'}`}
                     fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
                 >

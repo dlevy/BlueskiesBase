@@ -79,7 +79,7 @@ export function ShowCard({ show, songs, totalSongs, liveDebutIds, tourDebutIds }
             </div>
 
             <div className="shrink-0 flex items-center pr-4">
-                <svg className="w-4 h-4 opacity-0 group-hover:opacity-30 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg aria-hidden="true" className="w-4 h-4 opacity-0 group-hover:opacity-30 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
             </div>

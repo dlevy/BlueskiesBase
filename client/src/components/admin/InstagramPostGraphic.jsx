@@ -297,7 +297,7 @@ const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({
                             border: `2px dashed ${palette.accent}`, borderRadius: 999,
                             color: palette.accent,
                         }}>
-                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={palette.accent} strokeWidth="2">
+                            <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={palette.accent} strokeWidth="2">
                                 <path d="M6 2h12M6 22h12M7 2c0 6 10 6 10 10S7 16 7 22M17 2c0 6-10 6-10 10s10 4 10 10" strokeLinecap="round" strokeLinejoin="round" />
                             </svg>
                             <span style={{ fontSize: 24, fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase' }}>

@@ -424,7 +424,7 @@ export default function ShowForm() {
                         className="w-full flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold transition-all"
                         style={{ color: 'var(--p-color-contrast-medium)' }}
                     >
-                        <svg
+                        <svg aria-hidden="true"
                             className={`w-3.5 h-3.5 transition-transform duration-200 ${advancedOpen ? '' : '-rotate-90'}`}
                             fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
                         >

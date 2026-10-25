@@ -506,7 +506,7 @@ export default function SearchPage() {
                                     background: filterPanelOpen ? 'rgba(245,158,11,0.08)' : 'transparent',
                                 }}
                             >
-                                <svg
+                                <svg aria-hidden="true"
                                     className={`w-3.5 h-3.5 transition-transform duration-200 ${filterPanelOpen ? '' : '-rotate-90'}`}
                                     fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
                                 >
@@ -821,6 +821,10 @@ export default function SearchPage() {
                                                             <button
                                                                 onClick={(e) => handleAttendanceToggle(show.id, e)}
                                                                 disabled={isLoading}
+                                                                // The visible label is hidden below sm, which would leave the button unnamed on phones.
+                                                                aria-label={isAttended
+                                                                    ? (isFutureShow ? 'Attending' : 'I Was There')
+                                                                    : (isFutureShow ? 'Going?' : 'Attended?')}
                                                                 className={`inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md text-xs font-semibold border transition-all ${
                                                                     isAttended
                                                                         ? 'bg-amber-500/10 border-amber-500/30 text-amber-300 hover:bg-amber-500/18'
@@ -829,9 +833,9 @@ export default function SearchPage() {
                                                                 style={!isAttended ? { color: 'var(--p-color-contrast-medium)' } : undefined}
                                                             >
                                                                 {isLoading ? (
-                                                                    <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                                                                    <svg aria-hidden="true" className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
                                                                 ) : (
-                                                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>{isAttended ? <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /> : <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />}</svg>
+                                                                    <svg aria-hidden="true" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>{isAttended ? <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /> : <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />}</svg>
                                                                 )}
                                                                 <span className="hidden sm:inline">
                                                                     {isAttended

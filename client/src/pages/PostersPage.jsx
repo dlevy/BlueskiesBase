@@ -111,7 +111,7 @@ function CollectionButton({ isOwned, onToggle }) {
             className="absolute top-1.5 left-1.5 inline-flex items-center justify-center w-6 h-6 rounded-full transition-colors disabled:opacity-50"
             style={{ background: 'rgba(0,0,0,0.7)', color: isOwned ? '#fbbf24' : '#fff' }}
         >
-            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill={isOwned ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2}>
+            <svg aria-hidden="true" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill={isOwned ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 3a1 1 0 00-1 1v16l7-4 7 4V4a1 1 0 00-1-1H6z" />
             </svg>
         </button>
@@ -144,7 +144,7 @@ function WantButton({ isWanted, onToggle }) {
             className="absolute bottom-1.5 right-1.5 inline-flex items-center justify-center w-6 h-6 rounded-full transition-colors disabled:opacity-50"
             style={{ background: 'rgba(0,0,0,0.7)', color: isWanted ? '#c084fc' : '#fff' }}
         >
-            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill={isWanted ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2}>
+            <svg aria-hidden="true" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill={isWanted ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 21V4h13l-3 4 3 4H4" />
             </svg>
         </button>
@@ -188,7 +188,7 @@ function PosterTile({ poster, onImageClick, isOwned, onToggleCollection, isWante
                         style={{ background: 'rgba(0,0,0,0.7)', color: '#fbbf24' }}
                         title={`Owned by ${poster.owners.names.join(', ')}`}
                     >
-                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                        <svg aria-hidden="true" className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
                             <path d="M12 12a4 4 0 100-8 4 4 0 000 8zm0 2c-4.42 0-8 2.24-8 5v1h16v-1c0-2.76-3.58-5-8-5z" />
                         </svg>
                         {poster.owners.count}
