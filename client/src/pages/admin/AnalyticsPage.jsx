@@ -43,6 +43,37 @@ function formatDateTime(isoString) {
     return new Date(isoString).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 
+// Shortens a path to its last two segments (e.g. a show's
+// /show/artist/2026-10-16/the-venue becomes "…/2026-10-16/the-venue") so a
+// long path doesn't dominate the row — the first 1-2 segments are usually
+// just a section name (show/profile/band/etc.) anyway. Query strings are
+// dropped from the label (not the link target) since they don't fit this
+// shortened format. A path with 2 or fewer segments is shown in full, with
+// no leading "…".
+function shortenPath(path) {
+    if (!path) return null;
+    const pathname = path.split('?')[0];
+    const segments = pathname.split('/').filter(Boolean);
+    if (segments.length <= 2) return pathname || '/';
+    return '…/' + segments.slice(-2).join('/');
+}
+
+function PathLink({ path, className, style }) {
+    if (!path) return '—';
+    return (
+        <a
+            href={path}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={path}
+            className={className || 'hover:underline'}
+            style={style}
+        >
+            {shortenPath(path)}
+        </a>
+    );
+}
+
 function RankedList({ title, rows, emptyText, formatLabel }) {
     return (
         <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-5">
@@ -213,8 +244,8 @@ function AuditLog({ from, to, hours, includeStaff }) {
                                                 </span>
                                             )}
                                         </td>
-                                        <td className="py-2 truncate max-w-[220px]" style={{ color: 'var(--p-color-contrast-low)' }} title={ev.path || ''}>
-                                            {ev.path || '—'}
+                                        <td className="py-2 truncate max-w-[220px]" style={{ color: 'var(--p-color-contrast-low)' }}>
+                                            <PathLink path={ev.path} />
                                         </td>
                                     </tr>
                                 ))}
@@ -385,7 +416,12 @@ export default function AnalyticsPage() {
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                        <RankedList title="Most Viewed Pages" rows={summary.topPages} emptyText="No page views yet." />
+                        <RankedList
+                            title="Most Viewed Pages"
+                            rows={summary.topPages}
+                            emptyText="No page views yet."
+                            formatLabel={path => <PathLink path={path} style={{ color: 'var(--p-color-info)' }} />}
+                        />
                         <RankedList title="Feature Usage" rows={summary.topFeatures} emptyText="No feature events logged yet." />
                         <RankedList title="Traffic Sources (visitors, first arrival)" rows={summary.trafficSources || []} emptyText="No visits in this range yet." />
                     </div>

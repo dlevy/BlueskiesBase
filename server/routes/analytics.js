@@ -83,6 +83,23 @@ function trafficSource(path, referrer) {
     return match ? match[1] : host.replace(/^www\./, '');
 }
 
+// Which query params genuinely change what's rendered at a path, vs. ones a
+// link or app added that don't (fbclid, utm_*, and anything else not listed
+// here) — those turn one page into dozens of near-unique "pages" in the
+// ranking below (hundreds of distinct Facebook/Instagram-tagged variants of
+// "/" over a week, most seen once or twice). An allowlist, not a blocklist
+// of known tracking params, since new ones (gclid, igshid, ttclid, ...) show
+// up faster than anyone could list them.
+const CONTENT_QUERY_PARAMS = ['tab', 'statsTab', 'year', 'month', 'song', 'source', 'state', 'country', 'hasNotes', 'hasPhotos', 'hasPoster', 'page', 'v'];
+function normalizePathForRanking(path) {
+    if (!path) return path;
+    const [pathname, query] = path.split('?');
+    if (!query) return pathname;
+    const params = new URLSearchParams(query);
+    const kept = CONTENT_QUERY_PARAMS.filter(k => params.has(k)).sort().map(k => `${k}=${params.get(k)}`);
+    return kept.length ? `${pathname}?${kept.join('&')}` : pathname;
+}
+
 // Registrations (accounts created) and activations (email confirmed — which
 // with this app's email link also signs the person in) for a range, read from
 // Supabase's own auth records rather than client-sent events: those are
@@ -224,7 +241,7 @@ router.get('/summary', requireAdmin, async (req, res) => {
                 .sort((a, b) => b.count - a.count);
         };
 
-        const pageRanking = rank(pageviews, r => r.path);
+        const pageRanking = rank(pageviews, r => normalizePathForRanking(r.path));
 
         // First-touch: each visitor (session id) counted once, by their first
         // pageview in range, so sources sum to uniqueSessions. Every later
