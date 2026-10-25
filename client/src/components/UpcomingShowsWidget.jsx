@@ -4,37 +4,44 @@ import { PSpinner } from '@porsche-design-system/components-react';
 import { supabase } from '../services/supabase';
 import ShowListCard from './ShowListCard';
 
-export default function UpcomingShowsWidget() {
+export default function UpcomingShowsWidget({ onReady }) {
     const [upcoming, setUpcoming] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchData = async () => {
-            const today = new Date();
-            const yyyy = today.getFullYear();
-            const mm = String(today.getMonth() + 1).padStart(2, '0');
-            const dd = String(today.getDate()).padStart(2, '0');
-            const todayStr = `${yyyy}-${mm}-${dd}`;
+            try {
+                const today = new Date();
+                const yyyy = today.getFullYear();
+                const mm = String(today.getMonth() + 1).padStart(2, '0');
+                const dd = String(today.getDate()).padStart(2, '0');
+                const todayStr = `${yyyy}-${mm}-${dd}`;
 
-            // Strictly after today — a same-day show is always the one
-            // NextShowWidget features as "Tonight's Show" at the top of the
-            // homepage, so it's excluded here to avoid showing it twice. A
-            // future show NextShowWidget features as "Next Show" stays in
-            // this list too — it's only highlighted up top, not pulled out.
-            const { data, error } = await supabase
-                .from('shows')
-                .select('id, show_date, artist_name, tour_name, venues(name, city, state_country)')
-                .gt('show_date', todayStr)
-                .order('show_date', { ascending: true })
-                .order('day_order', { ascending: true })
-                .limit(3);
+                // Strictly after today — a same-day show is always the one
+                // NextShowWidget features as "Tonight's Show" at the top of the
+                // homepage, so it's excluded here to avoid showing it twice. A
+                // future show NextShowWidget features as "Next Show" stays in
+                // this list too — it's only highlighted up top, not pulled out.
+                const { data, error } = await supabase
+                    .from('shows')
+                    .select('id, show_date, artist_name, tour_name, venues(name, city, state_country)')
+                    .gt('show_date', todayStr)
+                    .order('show_date', { ascending: true })
+                    .order('day_order', { ascending: true })
+                    .limit(3);
 
-            if (!error) setUpcoming(data || []);
-            setLoading(false);
+                if (!error) setUpcoming(data || []);
+            } catch (err) {
+                console.error('[UpcomingShowsWidget] Error fetching upcoming shows:', err);
+            } finally {
+                setLoading(false);
+            }
         };
 
         fetchData();
     }, []);
+
+    useEffect(() => { if (!loading) onReady?.(); }, [loading]);
 
     if (loading) {
         // min-h approximates the loaded card's typical height (header + up to

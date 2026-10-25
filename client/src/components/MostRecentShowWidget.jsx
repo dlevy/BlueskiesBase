@@ -87,7 +87,7 @@ export function ShowCard({ show, songs, totalSongs, liveDebutIds, tourDebutIds }
     );
 }
 
-export default function MostRecentShowWidget() {
+export default function MostRecentShowWidget({ onReady }) {
     const [displayShows, setDisplayShows] = useState([]);
     const [songsByShow, setSongsByShow] = useState({});
     const [debutsByShow, setDebutsByShow] = useState({});
@@ -166,6 +166,8 @@ export default function MostRecentShowWidget() {
         fetchMostRecent();
         return () => { cancelled = true; };
     }, []);
+
+    useEffect(() => { if (!loading) onReady?.(); }, [loading]);
 
     if (loading) {
         return (

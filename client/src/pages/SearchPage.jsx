@@ -75,8 +75,29 @@ export default function SearchPage() {
     const [sortOrder, setSortOrder] = useState('newest');
 
     const [years, setYears] = useState([]);
+    // Gates the search tab's body: the "Browse by year" card only exists once
+    // years load, and appearing late it pushed the filter bar and hero down.
+    const [yearsLoaded, setYearsLoaded] = useState(false);
     // undefined = not loaded yet, null = loaded but no current tour.
     const [recentTourName, setRecentTourName] = useState(undefined);
+
+    // The four hero widgets each load independently with data-dependent
+    // heights, so revealing them one at a time pushed everything below
+    // down as each finished — the source of the homepage's CLS. They mount
+    // (and fetch) hidden, and the whole section appears at once when all
+    // four report ready. A Set, not a counter, so StrictMode's double-run
+    // effects can't count one widget twice.
+    const [heroReady, setHeroReady] = useState(false);
+    const heroReadyKeys = useRef(new Set());
+    const markHeroReady = (key) => {
+        heroReadyKeys.current.add(key);
+        if (heroReadyKeys.current.size === 4) setHeroReady(true);
+    };
+    // Fallback so a hung request can't leave the section hidden forever.
+    useEffect(() => {
+        const t = setTimeout(() => setHeroReady(true), 5000);
+        return () => clearTimeout(t);
+    }, []);
     const [originalsByAlbum, setOriginalsByAlbum] = useState([]);
     const [coverSongs, setCoverSongs] = useState([]);
     const [sundayValleySongs, setSundayValleySongs] = useState([]);
@@ -121,6 +142,8 @@ export default function SearchPage() {
                 console.error('[SearchPage] Exception fetching years:', err);
                 setError('Failed to load search options. Please refresh the page.');
                 setRecentTourName(null);
+            } finally {
+                setYearsLoaded(true);
             }
         };
         fetchYears();
@@ -439,8 +462,12 @@ export default function SearchPage() {
             <MainNavTabs onHomeClick={handleHomeClick} />
 
             {/* Search Tab */}
+            {activeTab === 'search' && !yearsLoaded && <div className="min-h-screen" />}
+
+            {/* Hidden rather than unmounted, so the hero widgets inside still
+                start fetching immediately instead of waiting on years. */}
             {activeTab === 'search' && (
-                <>
+                <div className={yearsLoaded ? undefined : 'hidden'}>
                     {/* Browse by year — always visible above filters */}
                     {years.length > 0 && (
                         <div className="rounded-2xl border border-white/10 bg-[#1a1e26] px-5 py-4 mb-4">
@@ -647,11 +674,20 @@ export default function SearchPage() {
                     {/* Hero state — shown when no filters are active */}
                     {showHero && (
                         <>
-                            <NextShowWidget />
-                            <MostRecentShowWidget />
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                                <TourStatsWidget tourName={recentTourName} />
-                                <UpcomingShowsWidget />
+                            {/* At least a screen tall, so the footer starts below the
+                                fold and its move when this is replaced isn't counted. */}
+                            {!heroReady && (
+                                <div className="min-h-screen flex justify-center pt-16">
+                                    <PSpinner size="medium" aria={{ 'aria-label': 'Loading' }} />
+                                </div>
+                            )}
+                            <div className={heroReady ? undefined : 'hidden'}>
+                                <NextShowWidget onReady={() => markHeroReady('next')} />
+                                <MostRecentShowWidget onReady={() => markHeroReady('recent')} />
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                    <TourStatsWidget tourName={recentTourName} onReady={() => markHeroReady('tour')} />
+                                    <UpcomingShowsWidget onReady={() => markHeroReady('upcoming')} />
+                                </div>
                             </div>
                         </>
                     )}
@@ -823,7 +859,7 @@ export default function SearchPage() {
                             )}
                         </div>
                     )}
-                </>
+                </div>
             )}
 
             {/* Stats Tab */}

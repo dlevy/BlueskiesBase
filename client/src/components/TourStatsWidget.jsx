@@ -45,7 +45,7 @@ function SongGroup({ label, color, count, playedShows, songs }) {
  * recent" query first, making its data chain one round trip longer than it needed to be.
  * undefined means the parent hasn't resolved it yet; null means it resolved to no tour.
  */
-export default function TourStatsWidget({ tourName }) {
+export default function TourStatsWidget({ tourName, onReady }) {
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
 
@@ -115,6 +115,8 @@ export default function TourStatsWidget({ tourName }) {
         load();
         return () => { cancelled = true; };
     }, [tourName]);
+
+    useEffect(() => { if (!loading) onReady?.(); }, [loading]);
 
     if (loading) {
         // min-h approximates the loaded card's typical height (header + debuts

@@ -10,7 +10,7 @@ import { orderSetlistSongs } from '../utils/setlist';
 // a same-day show gets excluded from UpcomingShowsWidget's own list (see
 // its own comment) — a future "Next Show" is deliberately left in both
 // places, since here it's just highlighted, not removed from the list.
-export default function NextShowWidget() {
+export default function NextShowWidget({ onReady }) {
     const [show, setShow] = useState(null);
     const [songs, setSongs] = useState([]);
     const [totalSongs, setTotalSongs] = useState(0);
@@ -77,6 +77,8 @@ export default function NextShowWidget() {
         fetchNextShow();
         return () => { cancelled = true; };
     }, []);
+
+    useEffect(() => { if (!loading) onReady?.(); }, [loading]);
 
     if (loading || !show) return null;
 
