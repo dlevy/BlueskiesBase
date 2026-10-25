@@ -189,7 +189,9 @@ async function injectShowHead(html, show, baseUrl) {
             `<meta name="twitter:description" content="${escDesc}" />`
         );
 
-    const jsonLdScript = `<script type="application/ld+json">${JSON.stringify(jsonLd)}</script>\n  </head>`;
+    // id matches SEO.jsx's, so once React mounts it updates this tag in place
+    // instead of appending a second copy of the same MusicEvent/BreadcrumbList.
+    const jsonLdScript = `<script id="json-ld-seo" type="application/ld+json">${JSON.stringify(jsonLd).replace(/</g, '\\u003c')}</script>\n  </head>`;
     out = out.replace('</head>', jsonLdScript);
 
     return out;
