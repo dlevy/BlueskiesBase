@@ -1,0 +1,28 @@
+# SkySets.org
+
+> Fan-built setlist archive for Sturgill Simpson and Johnny Blue Skies & The Dark Clouds, covering every show from 2005 to tonight.
+
+SkySets.org tracks setlists, song statistics, tour data, show photos and posters. It's an independent fan project — free, with no ads, subscriptions or paywalls — and isn't affiliated with the artist, their label or management.
+
+## Key pages
+
+- [Home / Search](https://www.skysets.org/): Search and browse every show, filter by year, venue, state or country.
+- [Upcoming Shows](https://www.skysets.org/upcoming-shows): Confirmed future tour dates.
+- [Past Shows](https://www.skysets.org/past-shows): Every show already played, newest first.
+- [Tour Stats](https://www.skysets.org/tour-stats): Song counts, debuts, rarest songs and album breakdowns per tour.
+- [Discography](https://www.skysets.org/discography): Studio albums and their tracklists.
+- [Members Directory](https://www.skysets.org/members): Fans who contribute setlists, photos and corrections.
+- [Links](https://www.skysets.org/links): Official artist links and community resources.
+
+## About
+
+- [About](https://www.skysets.org/about): Who runs the site, where the data comes from, and how to get in touch.
+- [FAQ](https://www.skysets.org/faq): Answers to common questions about the archive.
+- [How to Use](https://www.skysets.org/how-to-use): A guide to searching, filtering and contributing.
+- [Privacy Policy](https://www.skysets.org/privacy): How visitor data is handled.
+- [Terms of Use](https://www.skysets.org/terms): Terms governing use of the site.
+
+## Optional
+
+- [Sitemap](https://www.skysets.org/sitemap.xml): Full list of indexed show pages.
+- [Source code](https://github.com/dlevy/BlueskiesBase): Open source under the ISC license.
