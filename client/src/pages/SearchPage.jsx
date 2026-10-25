@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
     PHeading, PText, PTag, PSpinner, PInlineNotification
@@ -7,8 +7,6 @@ import { buildShowPath } from '../utils/showSlug';
 import { searchShows, checkShowAttendanceBatch, markShowAttended, unmarkShowAttended, checkShowsHaveContent, getBands, getShowDebutsBatch } from '../services/api';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import SongStatsWidget from '../components/SongStatsWidget';
-import UserStatsWidget from '../components/UserStatsWidget';
 import TourStatsWidget from '../components/TourStatsWidget';
 import UpcomingShowsWidget from '../components/UpcomingShowsWidget';
 import MostRecentShowWidget from '../components/MostRecentShowWidget';
@@ -18,7 +16,17 @@ import MainNavTabs from '../components/MainNavTabs';
 import { orderSetlistSongs } from '../utils/setlist';
 import { getLiveCoverTitles, getSundayValleyTitles } from '../utils/coverSongs';
 import { fetchGeographyOptions } from '../utils/geography';
+import { getLocalDateString } from '../utils/today';
 import SEO from '../components/SEO';
+
+// Lazy, not a static import — these only render on the Stats/My Shows tabs
+// (never the default "search" view everyone lands on first), but were
+// shipping in the main bundle regardless. UserStatsWidget in particular
+// pulls in ShowMapShare, and with it Leaflet — PageSpeed flagged ~133KB of
+// unused JS in the main bundle, and these two tab-gated widgets are the
+// single biggest reachable-but-unrendered chunk of it.
+const SongStatsWidget = lazy(() => import('../components/SongStatsWidget'));
+const UserStatsWidget = lazy(() => import('../components/UserStatsWidget'));
 
 const selectClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-transparent";
 
@@ -67,6 +75,8 @@ export default function SearchPage() {
     const [sortOrder, setSortOrder] = useState('newest');
 
     const [years, setYears] = useState([]);
+    // undefined = not loaded yet, null = loaded but no current tour.
+    const [recentTourName, setRecentTourName] = useState(undefined);
     const [originalsByAlbum, setOriginalsByAlbum] = useState([]);
     const [coverSongs, setCoverSongs] = useState([]);
     const [sundayValleySongs, setSundayValleySongs] = useState([]);
@@ -81,19 +91,36 @@ export default function SearchPage() {
     // default homepage view, unlike everything in the collapsed Advanced
     // Filters panel below. Dropped the venues join and `totalShows` (never
     // actually read anywhere) that the old combined query here carried.
+    // tour_name/day_order are included so the most-recent-tour lookup
+    // TourStatsWidget used to run as its own separate round trip can be
+    // derived client-side from this same response instead — PageSpeed's
+    // network-dependency-tree audit flagged that widget's fully sequential
+    // "which tour" -> tour shows -> tour setlist -> debuts-batch chain as
+    // the page's longest critical path; this removes the first hop from it.
     useEffect(() => {
         const fetchYears = async () => {
             try {
                 const { data: showsData, error: showsError } = await supabase
                     .from('shows')
-                    .select('show_date');
-                if (showsError) { setError('Failed to load search options. Please refresh the page.'); return; }
+                    .select('show_date, tour_name, day_order');
+                if (showsError) {
+                    setError('Failed to load search options. Please refresh the page.');
+                    setRecentTourName(null);
+                    return;
+                }
                 if (showsData) {
                     setYears([...new Set(showsData.map(s => parseInt(s.show_date.split('-')[0])))].sort((a, b) => b - a));
+
+                    const todayStr = getLocalDateString();
+                    const past = showsData
+                        .filter(s => s.show_date <= todayStr)
+                        .sort((a, b) => b.show_date.localeCompare(a.show_date) || (b.day_order ?? 0) - (a.day_order ?? 0));
+                    setRecentTourName(past[0]?.tour_name || null);
                 }
             } catch (err) {
                 console.error('[SearchPage] Exception fetching years:', err);
                 setError('Failed to load search options. Please refresh the page.');
+                setRecentTourName(null);
             }
         };
         fetchYears();
@@ -623,7 +650,7 @@ export default function SearchPage() {
                             <NextShowWidget />
                             <MostRecentShowWidget />
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                                <TourStatsWidget />
+                                <TourStatsWidget tourName={recentTourName} />
                                 <UpcomingShowsWidget />
                             </div>
                         </>
@@ -800,10 +827,18 @@ export default function SearchPage() {
             )}
 
             {/* Stats Tab */}
-            {activeTab === 'stats' && <SongStatsWidget />}
+            {activeTab === 'stats' && (
+                <Suspense fallback={<div className="flex justify-center py-16"><PSpinner size="medium" aria={{ 'aria-label': 'Loading stats' }} /></div>}>
+                    <SongStatsWidget />
+                </Suspense>
+            )}
 
             {/* My Shows Tab */}
-            {activeTab === 'myshows' && <UserStatsWidget />}
+            {activeTab === 'myshows' && (
+                <Suspense fallback={<div className="flex justify-center py-16"><PSpinner size="medium" aria={{ 'aria-label': 'Loading your stats' }} /></div>}>
+                    <UserStatsWidget />
+                </Suspense>
+            )}
         </div>
     );
 }

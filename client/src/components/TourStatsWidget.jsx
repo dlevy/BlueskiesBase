@@ -1,10 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { PSpinner } from '@porsche-design-system/components-react';
-import { supabase } from '../services/supabase';
 import { getShowDebutsBatch } from '../services/api';
 import { fetchTourSongCounts } from '../utils/tourSongCounts';
-import { getLocalDateString } from '../utils/today';
 
 const LIVE_DEBUT_COLOR = '#34d399';
 const TOUR_DEBUT_COLOR = '#22d3ee';
@@ -41,29 +39,24 @@ function SongGroup({ label, color, count, playedShows, songs }) {
  * nothing if the most recent show has no tour_name or no setlist data yet to work from —
  * this needs real data to say anything, unlike the other homepage widgets that have a
  * meaningful "nothing yet" state of their own.
+ *
+ * tourName is passed in by SearchPage, derived from the same eager "browse by year" shows
+ * query it already runs — this widget used to run its own separate "which tour is most
+ * recent" query first, making its data chain one round trip longer than it needed to be.
+ * undefined means the parent hasn't resolved it yet; null means it resolved to no tour.
  */
-export default function TourStatsWidget() {
+export default function TourStatsWidget({ tourName }) {
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        if (tourName === undefined) return;
+        if (!tourName) { setLoading(false); return; }
+
         let cancelled = false;
 
         const load = async () => {
             try {
-                const todayStr = getLocalDateString();
-
-                const { data: recent, error: recentError } = await supabase
-                    .from('shows')
-                    .select('tour_name')
-                    .lte('show_date', todayStr)
-                    .order('show_date', { ascending: false })
-                    .order('day_order', { ascending: false })
-                    .limit(1);
-
-                const tourName = recent?.[0]?.tour_name;
-                if (recentError || !tourName) { if (!cancelled) setLoading(false); return; }
-
                 // needsExtras: false — this widget only reads play counts/
                 // dates/playedIds, and gets its debut counts from the
                 // cheaper GET /shows/debuts-batch call below anyway, so the
@@ -112,7 +105,7 @@ export default function TourStatsWidget() {
 
         load();
         return () => { cancelled = true; };
-    }, []);
+    }, [tourName]);
 
     if (loading) {
         return (
