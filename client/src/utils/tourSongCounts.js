@@ -7,14 +7,14 @@ import { getLocalDateString } from './today';
 // collision risk for this catalog.
 export const ALL_SHOWS = 'All Shows';
 
-// `shows.id`/`setlist_songs.song_id` are UUIDs (~37 chars each with the
-// comma), not short ints — an `.in()` filter listing every show in the
-// archive (687+ and growing) builds a URL well past Supabase's gateway
-// limit and comes back as a silent 400, which the caller's `if (error) break`
-// swallows as "no rows". Exposed by the "All Shows" tour option, whose
-// `.in('show_id', playedIds)` is exactly this case. Splitting the id list
-// into safely-sized chunks (each still paginated past PostgREST's 1000-row
-// cap) avoids the oversized URL regardless of how large the archive gets.
+// `setlist_songs.song_id` is a UUID (~37 chars with the comma), not a short
+// int — an `.in()` filter listing every song in the archive builds a URL
+// well past Supabase's gateway limit and comes back as a silent 400, which
+// the caller's `if (error) break` swallows as "no rows". Used below for the
+// debuts-scoped scan (`.in('song_id', chunk)`); the main setlist_songs fetch
+// used to have the same problem via `.in('show_id', playedIds)` under the
+// "All Shows" option, but that's now a join-filtered query (see
+// fetchTourSetlistRows) with no id list in the URL at all.
 const IN_CHUNK_SIZE = 100;
 
 async function fetchAllInChunks(buildQuery, ids) {
@@ -28,6 +28,43 @@ async function fetchAllInChunks(buildQuery, ids) {
             if (page.length < 1000) break;
             rangeStart += 1000;
         }
+    }
+    return rows;
+}
+
+// Every already-played setlist_songs row for a tour (or, with ALL_SHOWS, every
+// already-played row regardless of tour), filtered via a join on shows instead
+// of an `.in('show_id', ids)` list — this only needs tourName/todayStr, so a
+// caller can fire it off at the same time as its own "which shows are in this
+// tour" query instead of waiting for that query's ids first. The two used to be
+// forced sequential for exactly that reason; PageSpeed's network-dependency-tree
+// audit showed that chain (shows query -> setlist query -> debuts-batch) as the
+// single longest critical path on the homepage. Swallows errors as an empty
+// page, same as fetchAllInChunks above, so a caller that `await`s this without
+// handling rejection (because it started the promise before it had anything
+// else to check) never sees an unhandled rejection.
+async function fetchTourSetlistRows(tourName, todayStr, needsExtras) {
+    let rows = [];
+    for (let rangeStart = 0; ;) {
+        let query = supabase
+            .from('setlist_songs')
+            .select(`
+                song_id, show_id, set_number, is_encore, song_order, notes,
+                songs!setlist_songs_song_id_fkey (
+                    title, is_original${needsExtras ? ',\n                    album_songs ( albums ( title, release_date ) )' : ''}
+                ),
+                shows!inner ( show_date )
+            `)
+            .lte('shows.show_date', todayStr)
+            .not('performance_type', 'in', '(dj,soundcheck)')
+            .order('id')
+            .range(rangeStart, rangeStart + 999);
+        if (tourName !== ALL_SHOWS) query = query.eq('shows.tour_name', tourName);
+        const { data: page, error } = await query;
+        if (error || !page?.length) break;
+        rows = rows.concat(page);
+        if (page.length < 1000) break;
+        rangeStart += 1000;
     }
     return rows;
 }
@@ -123,6 +160,12 @@ export async function fetchTourList({ minShows = MIN_TOUR_SHOWS } = {}) {
 export async function fetchTourSongCounts(tourName, { stateFilter, countryFilter, needsExtras = true, onPlayedIds } = {}) {
     const todayStr = getLocalDateString();
 
+    // Fired immediately, in parallel with the shows query below — it only
+    // depends on tourName/todayStr, not on that query's results. Verified
+    // against real data to return byte-identical rows to the old
+    // `.in('show_id', playedIds)` approach it replaces.
+    const setlistRowsPromise = fetchTourSetlistRows(tourName, todayStr, needsExtras);
+
     // venues included for the Tour Map (ShowMapShare, same shape it already
     // reads off a user's attended/upcoming shows); artist_name only needed
     // for linking a Live Debut entry to its actual show page.
@@ -179,20 +222,12 @@ export async function fetchTourSongCounts(tourName, { stateFilter, countryFilter
         return { totalShows: tourShows.length, playedShows: 0, firstDate: tourShows[0].show_date, lastDate: tourShows[tourShows.length - 1].show_date, playedIds: [], songCounts: [], openingSongs: [], closingSongs: [], liveDebuts: [], biggestSetlist: null, albumBreakdown: [], songsByAlbum: {}, otherOriginals: 0, covers: 0, makeAmericaEnergyLines: [], pastShows: played, upcomingShows: upcoming };
     }
 
-    const rows = await fetchAllInChunks(
-        (chunk) => supabase
-            .from('setlist_songs')
-            .select(`
-                song_id, show_id, set_number, is_encore, song_order, notes,
-                songs!setlist_songs_song_id_fkey (
-                    title, is_original${needsExtras ? ',\n                    album_songs ( albums ( title, release_date ) )' : ''}
-                )
-            `)
-            .in('show_id', chunk)
-            .not('performance_type', 'in', '(dj,soundcheck)')
-            .order('id'),
-        playedIds
-    );
+    // Intersected with playedIds rather than trusted as-is: setlistRowsPromise
+    // is already filtered by tourName + show_date, but stateFilter/countryFilter
+    // (applied to tourShows above, after setlistRowsPromise had already started)
+    // can narrow playedIds further than that promise knows about.
+    const playedIdSet = new Set(playedIds);
+    const rows = (await setlistRowsPromise).filter(r => playedIdSet.has(r.show_id));
 
     // Distinct shows per song — a song sandwiched (jammed out of and back into)
     // within one show still only counts once for that show.

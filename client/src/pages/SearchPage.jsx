@@ -650,9 +650,7 @@ export default function SearchPage() {
                             <NextShowWidget />
                             <MostRecentShowWidget />
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                                {/* Temporarily disabled for a PageSpeed A/B test isolating its
-                                    contribution to the homepage's network-dependency-tree latency. */}
-                                {/* <TourStatsWidget tourName={recentTourName} /> */}
+                                <TourStatsWidget tourName={recentTourName} />
                                 <UpcomingShowsWidget />
                             </div>
                         </>
