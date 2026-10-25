@@ -183,11 +183,15 @@ function PublicLayout() {
   const [headerTitle, setHeaderTitle] = useState(DEFAULT_HEADER_TITLE);
   const [headerSubtitle, setHeaderSubtitle] = useState(DEFAULT_HEADER_SUBTITLE);
   const [footerLinks, setFooterLinks] = useState(DEFAULT_FOOTER_LINKS);
-  // null (not DEFAULT_BANNER) while loading — rendering nothing until the
-  // fetch resolves avoids flashing stale/default content before swapping to
-  // whatever's actually configured, unlike header/footer above where the
-  // default already matches the common unconfigured case.
-  const [banner, setBanner] = useState(null);
+  // DEFAULT_BANNER (not null) for the same reason headerTitle/footerLinks
+  // above default to their own common-case values: starting at null meant
+  // the banner rendered with zero height until the settings fetch resolved,
+  // then popped in and pushed every element below it (nav tabs, the whole
+  // homepage) down — the single largest layout-shift contributor measured
+  // in Lighthouse/PageSpeed on this site. The admin-configured banner (if
+  // different from the default) still overwrites this once the fetch
+  // resolves; it just starts from a same-shaped guess instead of nothing.
+  const [banner, setBanner] = useState(DEFAULT_BANNER);
 
   useEffect(() => {
     if (getToken) {
