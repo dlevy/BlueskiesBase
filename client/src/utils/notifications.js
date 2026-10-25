@@ -10,8 +10,17 @@ export const CONTENT_LABEL = {
     setlist: 'setlist',
 };
 
+// notifications.created_at is a Postgres TIMESTAMP (no time zone) holding UTC,
+// which the API returns with no "Z". JS parses an offset-less timestamp as
+// *local* time, so west of UTC every notification landed hours in the future
+// and read "just now" for its first 7-8 hours (then that many hours too new).
+function parseUtcTimestamp(dateString) {
+    return new Date(/(Z|[+-]\d\d:?\d\d)$/i.test(dateString) ? dateString : `${dateString}Z`);
+}
+
 export function timeAgo(dateString) {
-    const seconds = Math.floor((Date.now() - new Date(dateString).getTime()) / 1000);
+    const date = parseUtcTimestamp(dateString);
+    const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
     if (seconds < 60) return 'just now';
     const minutes = Math.floor(seconds / 60);
     if (minutes < 60) return `${minutes}m ago`;
@@ -19,7 +28,7 @@ export function timeAgo(dateString) {
     if (hours < 24) return `${hours}h ago`;
     const days = Math.floor(hours / 24);
     if (days < 30) return `${days}d ago`;
-    return new Date(dateString).toLocaleDateString();
+    return date.toLocaleDateString();
 }
 
 export function notificationText(n) {
