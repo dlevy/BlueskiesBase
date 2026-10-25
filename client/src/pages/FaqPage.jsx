@@ -21,6 +21,21 @@ const faqJsonLd = {
     ),
 };
 
+// An item's optional `links` maps a phrase in its answer to a URL; only the
+// rendering gains an <a>, so the visible text still matches the JSON-LD text.
+function renderAnswer(text, links) {
+    if (!links) return text;
+    const phrases = Object.keys(links);
+    const escaped = phrases.map(p => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    return text.split(new RegExp(`(${escaped.join('|')})`)).map((part, i) =>
+        links[part] ? (
+            <a key={i} href={links[part]} target="_blank" rel="noopener noreferrer" className="underline" style={{ color: 'var(--p-color-info)' }}>
+                {part}
+            </a>
+        ) : part
+    );
+}
+
 export default function FaqPage() {
     return (
         <div className="px-4 pt-2 pb-4 md:pt-3 md:pb-6 max-w-4xl mx-auto">
@@ -45,13 +60,13 @@ export default function FaqPage() {
                             {section.heading}
                         </h2>
                         <div className="space-y-5">
-                            {section.items.map(({ q, a }) => (
+                            {section.items.map(({ q, a, links }) => (
                                 <div key={q}>
                                     <p className="font-semibold text-sm mb-1" style={{ color: 'var(--p-color-primary)' }}>
                                         {q}
                                     </p>
                                     <p className="text-sm" style={{ color: 'var(--p-color-contrast-medium)' }}>
-                                        {a}
+                                        {renderAnswer(a, links)}
                                     </p>
                                 </div>
                             ))}

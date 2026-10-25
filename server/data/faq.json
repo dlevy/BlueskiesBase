@@ -81,7 +81,11 @@
         },
         {
           "q": "Who runs it?",
-          "a": "SkySets.org is run by Daniel Levy, a longtime fan in the Pacific Northwest, and curated with help from Sarah Tabor and members who share setlists, photos and corrections. It was inspired by crowesbase."
+          "a": "SkySets.org is run by Dan, a longtime fan in the Pacific Northwest, and curated with help from Sarah and members who share setlists, photos and corrections. It was inspired by crowesbase."
+        },
+        {
+          "q": "Why use SkySets.org instead of setlist.fm?",
+          "a": "setlist.fm is owned by Live Nation and works as a marketing tool for it. The ticketing industry is a mess, and fans deserve a place where their data is safe and they aren't being marketed to by the giant companies that dominate it. SkySets.org has no ads and never sells your data. You also get a lot more here: photos, posters, lyrics, poster trading, and a real community of fans."
         },
         {
           "q": "Is it free?",
@@ -94,7 +98,10 @@
       "items": [
         {
           "q": "Where do the setlists come from?",
-          "a": "Setlists are compiled from fans at the show, recordings, social media posts, and long-running fan archives like Where the Sweet Melody Falls. Recent shows are usually posted the same night."
+          "a": "Setlists are compiled from fans at the show, recordings, social media posts, and long-running fan archives like Caleb Lewis's Where the Sweet Melody Falls. Recent shows are usually posted the same night.",
+          "links": {
+            "Where the Sweet Melody Falls": "https://wherethesweetmelodyfalls.blogspot.com"
+          }
         },
         {
           "q": "How fast are new shows added?",

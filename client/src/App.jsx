@@ -195,12 +195,13 @@ function App() {
   )
 }
 
-const DEFAULT_HEADER_TITLE = 'Skysets.org - JBS / Sturgill Simpson Media Archive';
-const DEFAULT_HEADER_SUBTITLE = 'Johnny Blue Skies & The Dark Clouds Concert Setlist Archive';
+// These render on every page load until /api/settings returns, so keep them
+// matching the live site settings, or visitors see the old text flash and swap.
+const DEFAULT_HEADER_TITLE = 'SKYSETS.ORG';
+const DEFAULT_HEADER_SUBTITLE = 'A TURTLEHEAD ARCHIVE';
 const DEFAULT_FOOTER_LINKS = [
-  { text: 'Created and maintained by Daniel Levy', url: null },
-  { text: 'Initial setlist import thanks to Setlist.fm', url: 'https://www.setlist.fm' },
-  { text: 'Inspired by crowesbase.com', url: 'https://www.crowesbase.com' },
+  { text: 'Inspired by crowesbase (RIP Boa)', url: null },
+  { text: "Caleb Lewis's Where the Sweet Melody Falls", url: 'https://wherethesweetmelodyfalls.blogspot.com/' },
 ];
 function PublicLayout() {
   const { user, profile, isEditorOrAdmin, signOut, getToken } = useAuth();

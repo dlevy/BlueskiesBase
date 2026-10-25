@@ -35,9 +35,12 @@ export default function AboutPage() {
             </p>
 
             <p className="text-sm mb-8" style={{ color: 'var(--p-color-contrast-medium)' }}>
-                The site is run by Daniel Levy, a fan in the Pacific Northwest, and curated with help from Sarah Tabor, with setlists, photos
+                The site is run by Dan, a fan in the Pacific Northwest, and curated with help from Sarah, with setlists, photos
                 and fixes contributed by members across the country. It takes its cue from crowesbase, the Black Crowes archive, and owes a
-                lot to Where the Sweet Melody Falls.
+                lot to Caleb Lewis's{' '}
+                <a href="https://wherethesweetmelodyfalls.blogspot.com" target="_blank" rel="noopener noreferrer" className="underline" style={{ color: 'var(--p-color-info)' }}>
+                    Where the Sweet Melody Falls
+                </a>.
             </p>
 
             <Section title="What we stand for">
@@ -46,6 +49,15 @@ export default function AboutPage() {
                     <li>Fans over flippers. Poster sales are cost plus shipping. No commission, no scalping.</li>
                     <li>Accuracy. Setlists are checked against fan reports and recordings, and corrections are welcome.</li>
                 </ul>
+            </Section>
+
+            <Section title="Why not setlist.fm?">
+                <p className="text-sm" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                    setlist.fm is owned by Live Nation and doubles as a marketing tool for it. The ticketing business is a mess, and
+                    we'd rather give fans a place where their data is safe and nobody is marketing to them on behalf of the conglomerates
+                    that dominate the industry. And there's a lot more here than setlists: photos, posters, lyrics, poster trading, and a
+                    community of fans who care about this music.
+                </p>
             </Section>
 
             <Section title="Not affiliated">

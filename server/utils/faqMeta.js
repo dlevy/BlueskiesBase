@@ -49,9 +49,13 @@ function injectFaqHtml(html, baseUrl) {
 
     // <noscript>, not prefilled #root: React replaces #root's children on mount,
     // so prefilled content would flash and shift the layout for real visitors.
+    const answerHtml = (a, links) => Object.entries(links || {}).reduce(
+        (html, [phrase, url]) => html.replace(escapeHtml(phrase), `<a href="${escapeHtml(url)}">${escapeHtml(phrase)}</a>`),
+        escapeHtml(a)
+    );
     const body = faq.sections.map(section =>
         `<section><h2>${escapeHtml(section.heading)}</h2>`
-        + section.items.map(({ q, a }) => `<h3>${escapeHtml(q)}</h3><p>${escapeHtml(a)}</p>`).join('')
+        + section.items.map(({ q, a, links }) => `<h3>${escapeHtml(q)}</h3><p>${answerHtml(a, links)}</p>`).join('')
         + '</section>'
     ).join('');
     out = out.replace(
