@@ -70,84 +70,107 @@ export default function SearchPage() {
     const [originalsByAlbum, setOriginalsByAlbum] = useState([]);
     const [coverSongs, setCoverSongs] = useState([]);
     const [sundayValleySongs, setSundayValleySongs] = useState([]);
-    const [totalShows, setTotalShows] = useState(0);
     const [filterPanelOpen, setFilterPanelOpen] = useState(false);
     const [geoOptions, setGeoOptions] = useState({ states: [], countries: [] });
+    // Whether the filter-panel-only data below has been fetched yet — not
+    // just `filterPanelOpen` itself, so closing and reopening the panel
+    // doesn't re-fetch every time.
+    const filterDataLoadedRef = useRef(false);
 
+    // Years-only, eager — "Browse by year" renders immediately on the
+    // default homepage view, unlike everything in the collapsed Advanced
+    // Filters panel below. Dropped the venues join and `totalShows` (never
+    // actually read anywhere) that the old combined query here carried.
     useEffect(() => {
-        fetchGeographyOptions()
-            .then(setGeoOptions)
-            .catch(err => console.error('[SearchPage] Error fetching geography options:', err));
-    }, []);
-
-    useEffect(() => {
-        const fetchDropdownOptions = async () => {
+        const fetchYears = async () => {
             try {
                 const { data: showsData, error: showsError } = await supabase
                     .from('shows')
-                    .select('id, show_date, venue_id, venues!inner(id, name, city)');
-
+                    .select('show_date');
                 if (showsError) { setError('Failed to load search options. Please refresh the page.'); return; }
-
                 if (showsData) {
-                    setTotalShows(showsData.length);
                     setYears([...new Set(showsData.map(s => parseInt(s.show_date.split('-')[0])))].sort((a, b) => b - a));
-
-                    // Fetch all songs directly — avoids passing hundreds of show IDs
-                    // in a URL which exceeds PostgREST's length limit.
-                    const { data: songsData, error: songsError } = await supabase
-                        .from('songs')
-                        .select('id, title, is_original, is_sunday_valley, album_songs(album_id, track_order, albums(id, title, release_date))')
-                        .order('title');
-
-                    if (!songsError && songsData?.length > 0) {
-                        const uniqueSongs = songsData;
-
-                        // Covers — flat alphabetical list, live performances only
-                        // (excludes songs only ever DJ'd between/after sets)
-                        setCoverSongs(await getLiveCoverTitles(uniqueSongs));
-                        setSundayValleySongs(getSundayValleyTitles(uniqueSongs));
-
-                        // Originals (wherever they appear), plus covers that are
-                        // real album tracks — grouped by album via junction table,
-                        // newest album first. A song may appear in multiple albums.
-                        const albumMap = new Map();
-                        uniqueSongs.filter(s => s.is_original === true || (s.album_songs && s.album_songs.length > 0)).forEach(song => {
-                            const assocs = song.album_songs && song.album_songs.length > 0 ? song.album_songs : null;
-                            if (assocs) {
-                                assocs.forEach(as => {
-                                    const key = as.album_id;
-                                    const albumTitle = as.albums?.title || 'Other';
-                                    const releaseDate = as.albums?.release_date || '';
-                                    if (!albumMap.has(key)) albumMap.set(key, { name: albumTitle, releaseDate, songs: [] });
-                                    if (!albumMap.get(key).songs.includes(song.title)) {
-                                        albumMap.get(key).songs.push(song.title);
-                                    }
-                                });
-                            } else {
-                                const key = '__none__';
-                                if (!albumMap.has(key)) albumMap.set(key, { name: 'Other', releaseDate: '', songs: [] });
-                                albumMap.get(key).songs.push(song.title);
-                            }
-                        });
-                        setOriginalsByAlbum(
-                            [...albumMap.values()]
-                                .sort((a, b) => {
-                                    if (!a.releaseDate) return 1;
-                                    if (!b.releaseDate) return -1;
-                                    return b.releaseDate.localeCompare(a.releaseDate);
-                                })
-                                .map(album => ({ ...album, songs: [...album.songs].sort((a, b) => a.localeCompare(b)) }))
-                        );
-                    }
                 }
             } catch (err) {
-                console.error('[SearchPage] Exception fetching dropdown options:', err);
+                console.error('[SearchPage] Exception fetching years:', err);
                 setError('Failed to load search options. Please refresh the page.');
             }
         };
-        fetchDropdownOptions();
+        fetchYears();
     }, []);
+
+    // Geography options + the songs-derived filter lists (originals by
+    // album, covers, Sunday Valley) are ALL only rendered inside the
+    // collapsed-by-default Advanced Filters panel — fetching them eagerly
+    // on every homepage load (as this used to) put a venues query and a
+    // full songs-catalog query (with an album_songs join) on the critical
+    // path for every visitor, the vast majority of whom never open that
+    // panel at all. Deferred until first open instead; the active-filter
+    // chips above the panel read straight off the URL params, not these
+    // lists, so a filter already active via URL still displays correctly
+    // before this has loaded.
+    useEffect(() => {
+        if (!filterPanelOpen || filterDataLoadedRef.current) return;
+        filterDataLoadedRef.current = true;
+
+        fetchGeographyOptions()
+            .then(setGeoOptions)
+            .catch(err => console.error('[SearchPage] Error fetching geography options:', err));
+
+        const fetchSongFilterOptions = async () => {
+            try {
+                // Fetch all songs directly — avoids passing hundreds of show IDs
+                // in a URL which exceeds PostgREST's length limit.
+                const { data: songsData, error: songsError } = await supabase
+                    .from('songs')
+                    .select('id, title, is_original, is_sunday_valley, album_songs(album_id, track_order, albums(id, title, release_date))')
+                    .order('title');
+
+                if (songsError || !songsData?.length) return;
+                const uniqueSongs = songsData;
+
+                // Covers — flat alphabetical list, live performances only
+                // (excludes songs only ever DJ'd between/after sets)
+                setCoverSongs(await getLiveCoverTitles(uniqueSongs));
+                setSundayValleySongs(getSundayValleyTitles(uniqueSongs));
+
+                // Originals (wherever they appear), plus covers that are
+                // real album tracks — grouped by album via junction table,
+                // newest album first. A song may appear in multiple albums.
+                const albumMap = new Map();
+                uniqueSongs.filter(s => s.is_original === true || (s.album_songs && s.album_songs.length > 0)).forEach(song => {
+                    const assocs = song.album_songs && song.album_songs.length > 0 ? song.album_songs : null;
+                    if (assocs) {
+                        assocs.forEach(as => {
+                            const key = as.album_id;
+                            const albumTitle = as.albums?.title || 'Other';
+                            const releaseDate = as.albums?.release_date || '';
+                            if (!albumMap.has(key)) albumMap.set(key, { name: albumTitle, releaseDate, songs: [] });
+                            if (!albumMap.get(key).songs.includes(song.title)) {
+                                albumMap.get(key).songs.push(song.title);
+                            }
+                        });
+                    } else {
+                        const key = '__none__';
+                        if (!albumMap.has(key)) albumMap.set(key, { name: 'Other', releaseDate: '', songs: [] });
+                        albumMap.get(key).songs.push(song.title);
+                    }
+                });
+                setOriginalsByAlbum(
+                    [...albumMap.values()]
+                        .sort((a, b) => {
+                            if (!a.releaseDate) return 1;
+                            if (!b.releaseDate) return -1;
+                            return b.releaseDate.localeCompare(a.releaseDate);
+                        })
+                        .map(album => ({ ...album, songs: [...album.songs].sort((a, b) => a.localeCompare(b)) }))
+                );
+            } catch (err) {
+                console.error('[SearchPage] Exception fetching song filter options:', err);
+            }
+        };
+        fetchSongFilterOptions();
+    }, [filterPanelOpen]);
 
     useEffect(() => {
         const checkAllAttendance = async () => {
