@@ -2,7 +2,8 @@
   "specVersion": "1.0",
   "host": {
     "displayName": "SkySets.org",
-    "domain": "www.skysets.org"
+    "documentationUrl": "https://www.skysets.org/about",
+    "logoUrl": "https://www.skysets.org/logo.png"
   },
   "entries": []
 }
