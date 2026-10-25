@@ -57,16 +57,29 @@ export default function TourStatsWidget({ tourName }) {
 
         const load = async () => {
             try {
+                // Fires as soon as fetchTourSongCounts knows playedIds — in
+                // parallel with its own (potentially large, chunked)
+                // setlist_songs fetch, rather than waiting for that to
+                // finish first. PageSpeed's network-dependency-tree audit
+                // showed this debuts-batch call as the single deepest leaf
+                // in the homepage's critical path; it only ever depended on
+                // playedIds; it never needed anything setlist_songs returns.
+                let debutsPromise = Promise.resolve({});
+                const onPlayedIds = (playedIds) => {
+                    debutsPromise = getShowDebutsBatch(playedIds)
+                        .catch(err => { console.error('[TourStatsWidget] debuts fetch failed:', err); return {}; });
+                };
+
                 // needsExtras: false — this widget only reads play counts/
                 // dates/playedIds, and gets its debut counts from the
-                // cheaper GET /shows/debuts-batch call below anyway, so the
+                // cheaper GET /shows/debuts-batch call above anyway, so the
                 // album join + second debuts-scoped setlist_songs scan
                 // fetchTourSongCounts normally does would be pure waste on
                 // every single homepage load.
-                const tourData = await fetchTourSongCounts(tourName, { needsExtras: false });
+                const tourData = await fetchTourSongCounts(tourName, { needsExtras: false, onPlayedIds });
                 if (!tourData || tourData.songCounts.length === 0) { if (!cancelled) setLoading(false); return; }
 
-                const { totalShows, playedShows, firstDate, lastDate, playedIds, songCounts } = tourData;
+                const { totalShows, playedShows, firstDate, lastDate, songCounts } = tourData;
                 const maxCount = songCounts[0].count;
                 const minCount = songCounts[songCounts.length - 1].count;
                 const mostPlayed = songCounts.filter(s => s.count === maxCount).map(s => s.title).sort((a, b) => a.localeCompare(b));
@@ -75,15 +88,11 @@ export default function TourStatsWidget({ tourName }) {
                 // Live/tour debut totals — same batch computation already verified and
                 // shipped for the show page and list-view previews, just summed here.
                 let liveDebutCount = 0, tourDebutCount = 0;
-                try {
-                    const debutsMap = await getShowDebutsBatch(playedIds);
-                    Object.values(debutsMap).forEach(d => {
-                        liveDebutCount += d.live_debut_song_ids?.length || 0;
-                        tourDebutCount += d.tour_debut_song_ids?.length || 0;
-                    });
-                } catch (err) {
-                    console.error('[TourStatsWidget] debuts fetch failed:', err);
-                }
+                const debutsMap = await debutsPromise;
+                Object.values(debutsMap).forEach(d => {
+                    liveDebutCount += d.live_debut_song_ids?.length || 0;
+                    tourDebutCount += d.tour_debut_song_ids?.length || 0;
+                });
 
                 if (cancelled) return;
                 setStats({

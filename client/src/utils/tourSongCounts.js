@@ -120,7 +120,7 @@ export async function fetchTourList({ minShows = MIN_TOUR_SHOWS } = {}) {
 // needsExtras: false there cuts its Supabase round-trips roughly in half
 // (confirmed via PageSpeed's network-dependency-tree report, which showed
 // this homepage load firing six separate setlist_songs requests).
-export async function fetchTourSongCounts(tourName, { stateFilter, countryFilter, needsExtras = true } = {}) {
+export async function fetchTourSongCounts(tourName, { stateFilter, countryFilter, needsExtras = true, onPlayedIds } = {}) {
     const todayStr = getLocalDateString();
 
     // venues included for the Tour Map (ShowMapShare, same shape it already
@@ -168,6 +168,12 @@ export async function fetchTourSongCounts(tourName, { stateFilter, countryFilter
     const played = tourShows.filter(s => s.show_date <= todayStr);
     const upcoming = tourShows.filter(s => s.show_date > todayStr);
     const playedIds = played.map(s => s.id);
+
+    // Fired as soon as playedIds is known, before the setlist_songs fetch below —
+    // lets a caller (TourStatsWidget) start its own independent debuts-batch
+    // request in parallel with that fetch instead of waiting for this whole
+    // function (and everything it computes from setlist_songs) to resolve first.
+    onPlayedIds?.(playedIds);
 
     if (playedIds.length === 0) {
         return { totalShows: tourShows.length, playedShows: 0, firstDate: tourShows[0].show_date, lastDate: tourShows[tourShows.length - 1].show_date, playedIds: [], songCounts: [], openingSongs: [], closingSongs: [], liveDebuts: [], biggestSetlist: null, albumBreakdown: [], songsByAlbum: {}, otherOriginals: 0, covers: 0, makeAmericaEnergyLines: [], pastShows: played, upcomingShows: upcoming };
