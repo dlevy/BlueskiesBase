@@ -18,19 +18,29 @@
          classic loadCSS pattern: fetch it as a non-blocking "preload", then
          flip its own rel to "stylesheet" once it's actually loaded; the
          <noscript> fallback covers the no-JS case, which the onload trick
-         can't. Already has &display=swap so text isn't invisible while the
-         font itself is still loading either way. -->
+         can't.
+         display=optional (not swap): swap renders in the fallback font
+         immediately and then re-renders in Space Grotesk/Inter once loaded —
+         fine for avoiding invisible text, but that later swap reflows any
+         text whose line-wrap changes between the fallback stack and the
+         real font, which a CLS audit traced to the header logo text and the
+         Tour Stats/Upcoming Shows headings (0.313 of a reported 0.316 CLS
+         score). optional uses the fallback immediately and, if the font
+         isn't ready within a very short window, just keeps using it for
+         this page view instead of swapping later — trading "might render in
+         the fallback font on a slow connection" for "never reflows after
+         first paint." -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       rel="preload"
       as="style"
-      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:ital,wght@0,300;0,400;0,500;0,600;1,400&display=optional"
       crossorigin="anonymous"
       onload="this.onload=null;this.rel='stylesheet'"
     />
     <noscript>
-      <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet" crossorigin="anonymous" />
+      <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:ital,wght@0,300;0,400;0,500;0,600;1,400&display=optional" rel="stylesheet" crossorigin="anonymous" />
     </noscript>
 
     <!-- Open Graph -->
