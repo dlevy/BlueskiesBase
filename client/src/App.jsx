@@ -1,61 +1,85 @@
 import { BrowserRouter as Router, Routes, Route, Link, Outlet, useNavigate, useLocation } from 'react-router-dom'
-import { useState, useEffect } from 'react'
-import { PButtonPure } from '@porsche-design-system/components-react'
+import { useState, useEffect, lazy, Suspense } from 'react'
+import { PButtonPure, PSpinner } from '@porsche-design-system/components-react'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { AvatarNudgeProvider } from './contexts/AvatarNudgeContext'
 import { SiteSettingsProvider } from './contexts/SiteSettingsContext'
 import { setTokenGetter, getSiteSettings } from './services/api'
 import { trackPageview } from './utils/analytics'
 import ProtectedRoute from './components/ProtectedRoute'
-import HomePage from './pages/HomePage'
-import ShowDetailPage from './pages/ShowDetailPage'
-import StatsPage from './pages/StatsPage'
-import PostersPage from './pages/PostersPage'
-import DiscographyPage from './pages/DiscographyPage'
-import BandPage from './pages/BandPage'
-import BandMemberPage from './pages/BandMemberPage'
-import PhotosPage from './pages/PhotosPage'
-import LinksPage from './pages/LinksPage'
-import MembersPage from './pages/MembersPage'
-import TourStatsPage from './pages/TourStatsPage'
-import UpcomingShowsPage from './pages/UpcomingShowsPage'
-import PastShowsPage from './pages/PastShowsPage'
-import ProfilePage from './pages/ProfilePage'
-import EditProfilePage from './pages/EditProfilePage'
-import SocialCardPage from './pages/SocialCardPage'
-import LoginPage from './pages/LoginPage'
-import MemberLoginPage from './pages/MemberLoginPage'
-import SignupPage from './pages/SignupPage'
-import ResetPasswordPage from './pages/ResetPasswordPage'
-import AuthDebugPage from './pages/AuthDebugPage'
 import AnnouncementBanner, { DEFAULT_BANNER } from './components/AnnouncementBanner'
 import Avatar from './components/Avatar'
 import NotificationBell from './components/NotificationBell'
-import NotificationsPage from './pages/NotificationsPage'
-import AdminLayout from './pages/admin/AdminLayout'
-import AdminDashboard from './pages/admin/AdminDashboard'
-import ShowsList from './pages/admin/ShowsList'
-import ShowForm from './pages/admin/ShowForm'
-import SongsList from './pages/admin/SongsList'
-import AlbumsList from './pages/admin/AlbumsList'
-import LinksList from './pages/admin/LinksList'
-import VenuesList from './pages/admin/VenuesList'
-import BandMembersList from './pages/admin/BandMembersList'
-import ToursList from './pages/admin/ToursList'
-import TourEditPage from './pages/admin/TourEditPage'
-import AdminUsers from './pages/admin/AdminUsers'
-import SiteSettingsPage from './pages/admin/SiteSettingsPage'
-import SetlistSubmissionsReview from './pages/admin/SetlistSubmissionsReview'
-import InstagramPostPage from './pages/admin/InstagramPostPage'
-import TourStatsPostPage from './pages/admin/TourStatsPostPage'
-import AnalyticsPage from './pages/admin/AnalyticsPage'
-import ArtworkPage from './pages/ArtworkPage'
-import FaqPage from './pages/FaqPage'
-import HowToUsePage from './pages/HowToUsePage'
-import AboutPage from './pages/AboutPage'
-import PrivacyPage from './pages/PrivacyPage'
-import TermsPage from './pages/TermsPage'
 import './App.css'
+
+// HomePage is the one page component loaded eagerly (bundled into the main
+// chunk) — it's what the overwhelming majority of visits land on first, so
+// loading it eagerly avoids a second, sequential chunk fetch after the main
+// bundle for the single most common case. Every other route (including the
+// entire /admin section, which a casual visitor never touches at all) is
+// lazy — each becomes its own chunk, fetched only when actually navigated
+// to, which is what actually shrinks the bundle PageSpeed flagged as
+// render-blocking/delaying LCP on first load.
+import HomePage from './pages/HomePage'
+const ShowDetailPage = lazy(() => import('./pages/ShowDetailPage'))
+const StatsPage = lazy(() => import('./pages/StatsPage'))
+const PostersPage = lazy(() => import('./pages/PostersPage'))
+const DiscographyPage = lazy(() => import('./pages/DiscographyPage'))
+const BandPage = lazy(() => import('./pages/BandPage'))
+const BandMemberPage = lazy(() => import('./pages/BandMemberPage'))
+const PhotosPage = lazy(() => import('./pages/PhotosPage'))
+const LinksPage = lazy(() => import('./pages/LinksPage'))
+const MembersPage = lazy(() => import('./pages/MembersPage'))
+const TourStatsPage = lazy(() => import('./pages/TourStatsPage'))
+const UpcomingShowsPage = lazy(() => import('./pages/UpcomingShowsPage'))
+const PastShowsPage = lazy(() => import('./pages/PastShowsPage'))
+const ProfilePage = lazy(() => import('./pages/ProfilePage'))
+const EditProfilePage = lazy(() => import('./pages/EditProfilePage'))
+const SocialCardPage = lazy(() => import('./pages/SocialCardPage'))
+const LoginPage = lazy(() => import('./pages/LoginPage'))
+const MemberLoginPage = lazy(() => import('./pages/MemberLoginPage'))
+const SignupPage = lazy(() => import('./pages/SignupPage'))
+const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'))
+const AuthDebugPage = lazy(() => import('./pages/AuthDebugPage'))
+const NotificationsPage = lazy(() => import('./pages/NotificationsPage'))
+const ArtworkPage = lazy(() => import('./pages/ArtworkPage'))
+const FaqPage = lazy(() => import('./pages/FaqPage'))
+const HowToUsePage = lazy(() => import('./pages/HowToUsePage'))
+const AboutPage = lazy(() => import('./pages/AboutPage'))
+const PrivacyPage = lazy(() => import('./pages/PrivacyPage'))
+const TermsPage = lazy(() => import('./pages/TermsPage'))
+
+// The entire admin section — every page below, plus AdminLayout itself —
+// is one of the biggest chunks of this app's code and is never touched by
+// a casual visitor, so all of it is lazy.
+const AdminLayout = lazy(() => import('./pages/admin/AdminLayout'))
+const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'))
+const ShowsList = lazy(() => import('./pages/admin/ShowsList'))
+const ShowForm = lazy(() => import('./pages/admin/ShowForm'))
+const SongsList = lazy(() => import('./pages/admin/SongsList'))
+const AlbumsList = lazy(() => import('./pages/admin/AlbumsList'))
+const LinksList = lazy(() => import('./pages/admin/LinksList'))
+const VenuesList = lazy(() => import('./pages/admin/VenuesList'))
+const BandMembersList = lazy(() => import('./pages/admin/BandMembersList'))
+const ToursList = lazy(() => import('./pages/admin/ToursList'))
+const TourEditPage = lazy(() => import('./pages/admin/TourEditPage'))
+const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'))
+const SiteSettingsPage = lazy(() => import('./pages/admin/SiteSettingsPage'))
+const SetlistSubmissionsReview = lazy(() => import('./pages/admin/SetlistSubmissionsReview'))
+const InstagramPostPage = lazy(() => import('./pages/admin/InstagramPostPage'))
+const TourStatsPostPage = lazy(() => import('./pages/admin/TourStatsPostPage'))
+const AnalyticsPage = lazy(() => import('./pages/admin/AnalyticsPage'))
+
+// Shared fallback for every lazy route above, while its chunk is still
+// being fetched — same spinner treatment already used throughout the app
+// for in-page async loading states.
+function RouteLoadingFallback() {
+  return (
+    <div className="flex justify-center items-center py-24">
+      <PSpinner size="large" aria={{ 'aria-label': 'Loading' }} />
+    </div>
+  );
+}
 
 // Fires on every route change (pathname or query string), covering both the
 // public site and /admin — logged in-the-clear with the visitor's role when
@@ -91,6 +115,7 @@ function App() {
         <AvatarNudgeProvider>
         <PageviewTracker />
         <ScrollToTop />
+        <Suspense fallback={<RouteLoadingFallback />}>
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<PublicLayout />}>
@@ -160,6 +185,7 @@ function App() {
             <Route path="settings" element={<SiteSettingsPage />} />
           </Route>
         </Routes>
+        </Suspense>
         </AvatarNudgeProvider>
       </Router>
     </AuthProvider>
