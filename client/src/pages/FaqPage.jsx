@@ -7,6 +7,72 @@ import SEO from '../components/SEO';
 // array is the only way that can't silently drift out of sync.
 const FAQ_SECTIONS = [
     {
+        heading: 'Going to a show',
+        items: [
+            {
+                q: 'What should I know before going to a Sturgill Simpson or Johnny Blue Skies concert?',
+                a: "If you're on time, you're late. Expect three-plus hours on your feet. Posters are limited and sell out fast, so if you want one, head straight to the merch stand when you get in. Have your tickets ready before you reach the door, expect a security check, and look up the venue's bag policy ahead of time, including whether it allows poster tubes.",
+            },
+            {
+                q: 'What time do Johnny Blue Skies shows start?',
+                a: "Your best bet is to arrive when doors open. The band usually takes the stage right on time, so don't count on a late start.",
+            },
+            {
+                q: 'Should I get a seat or a GA pit ticket?',
+                a: "It's up to you. The GA pit gets you a lot closer to the stage. In larger venues, seats can pick up some echo: at one Seattle show we heard it from our seats, while friends in the GA pit said the sound was great.",
+            },
+            {
+                q: 'How do I get a Sturgill Simpson or Johnny Blue Skies show poster?',
+                a: "Go straight to the merch stand as soon as you're inside. A show usually has 75 or fewer foil posters and 300 to 500 regular ones, and they go quickly. If you miss out, members sometimes list posters for trade here at cost plus shipping.",
+            },
+            {
+                q: 'What are the merch lines like?',
+                a: 'Long. Some items sell out, so go early.',
+            },
+            {
+                q: "Can I drink if I'm in the GA pit?",
+                a: "You can, but it's a pain. Every refill or bathroom run means fighting the crowd to get back to your spot, over and over. Skip it and you won't have to leave at all. Plus the drinks are way overpriced. Trust us.",
+            },
+            {
+                q: 'Do people stand, sit, or dance at the shows?',
+                a: 'You do you, but expect to be standing, and expect the people in front of you to be standing and dancing.',
+            },
+            {
+                q: 'Are the shows loud?',
+                a: 'Yes.',
+            },
+            {
+                q: 'How do I stay comfortable during a long show?',
+                a: "Drink water, and wear shoes you can stand in for three-plus hours. Pace yourself: you can always take more, but you can never take less. Don't be that person.",
+            },
+        ],
+    },
+    {
+        heading: 'The music and the show',
+        items: [
+            {
+                q: 'What is the format of a Johnny Blue Skies concert?',
+                a: 'Usually one long set, with little to no pause between songs.',
+            },
+            {
+                q: 'Is Johnny Blue Skies a jam band?',
+                a: "That's up for interpretation, but it's a band that jams. Songs get extended and flow from one into the next, the same song can sound very different from night to night, and surprise riffs and teases come up often, so keep your ears open.",
+            },
+            {
+                q: 'What is the stage production like?',
+                a: 'Pretty lean: good lighting and some banners.',
+            },
+            {
+                q: "What are Sturgill Simpson's politics?",
+                a: "Listen to the lyrics. It's been pretty obvious for some time, and even more so since the release of Mutiny After Midnight.",
+            },
+            {
+                q: 'Where can I find live recordings of Sturgill Simpson and Johnny Blue Skies?',
+                a: "Soundboard recordings are available with a nugs.net subscription, and there are lots of fan videos on YouTube. Many of those videos are embedded right in the setlists here on SkySets.",
+            },
+        ],
+    },
+    {
         heading: 'About the site',
         items: [
             {
@@ -134,7 +200,7 @@ export default function FaqPage() {
         <div className="px-4 pt-2 pb-4 md:pt-3 md:pb-6 max-w-4xl mx-auto">
             <SEO
                 title="FAQ"
-                description="Answers about SkySets.org, the fan-run setlist archive for Sturgill Simpson and Johnny Blue Skies & The Dark Clouds: accounts, show tracking, posters and corrections."
+                description="Concert tips for Sturgill Simpson and Johnny Blue Skies shows (start times, posters, seats vs. GA pit) plus answers about SkySets.org, the fan-run setlist archive."
                 jsonLd={faqJsonLd}
             />
 
