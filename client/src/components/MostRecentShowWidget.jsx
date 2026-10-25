@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { PSpinner } from '@porsche-design-system/components-react';
 import { supabase } from '../services/supabase';
-import { getShowDebutsBatch } from '../services/api';
+import { getShowDebutsBatch } from '../services/apiCore';
 import { buildShowPath } from '../utils/showSlug';
 import SetlistPreview from './SetlistPreview';
 import { orderSetlistSongs } from '../utils/setlist';

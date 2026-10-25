@@ -4,13 +4,16 @@ import { PButtonPure, PSpinner } from '@porsche-design-system/components-react'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { AvatarNudgeProvider } from './contexts/AvatarNudgeContext'
 import { SiteSettingsProvider } from './contexts/SiteSettingsContext'
-import { setTokenGetter, getSiteSettings } from './services/api'
+import { setTokenGetter, getSiteSettings } from './services/apiCore'
 import { trackPageview } from './utils/analytics'
 import ProtectedRoute from './components/ProtectedRoute'
 import AnnouncementBanner, { DEFAULT_BANNER } from './components/AnnouncementBanner'
 import Avatar from './components/Avatar'
-import NotificationBell from './components/NotificationBell'
 import './App.css'
+
+// Lazy: only signed-in visitors get a bell, so it (and the notification code it
+// pulls in) shouldn't ship in everyone's initial bundle.
+const NotificationBell = lazy(() => import('./components/NotificationBell'))
 
 // HomePage is the one page component loaded eagerly (bundled into the main
 // chunk) — it's what the overwhelming majority of visits land on first, so
@@ -289,7 +292,9 @@ function PublicLayout() {
           <div className="flex items-center gap-2 md:gap-3 shrink-0">
             {user ? (
               <>
-                <NotificationBell />
+                <Suspense fallback={<div className="h-8 w-8" />}>
+                  <NotificationBell />
+                </Suspense>
                 <Link
                   to={profile?.username ? `/profile/${profile.username}` : '/profile/edit'}
                   title="My Profile"

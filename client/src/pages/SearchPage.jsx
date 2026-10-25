@@ -4,7 +4,7 @@ import {
     PHeading, PText, PTag, PSpinner, PInlineNotification
 } from '@porsche-design-system/components-react';
 import { buildShowPath } from '../utils/showSlug';
-import { searchShows, checkShowAttendanceBatch, markShowAttended, unmarkShowAttended, checkShowsHaveContent, getBands, getShowDebutsBatch } from '../services/api';
+import { searchShows, checkShowAttendanceBatch, markShowAttended, unmarkShowAttended, checkShowsHaveContent, getBands, getShowDebutsBatch } from '../services/apiCore';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import TourStatsWidget from '../components/TourStatsWidget';

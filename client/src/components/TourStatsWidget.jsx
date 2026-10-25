@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { PSpinner } from '@porsche-design-system/components-react';
-import { getShowDebutsBatch } from '../services/api';
+import { getShowDebutsBatch } from '../services/apiCore';
 import { fetchTourSongCounts } from '../utils/tourSongCounts';
 
 const LIVE_DEBUT_COLOR = '#34d399';

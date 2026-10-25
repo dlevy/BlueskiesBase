@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../services/supabase';
-import { getShowDebutsBatch } from '../services/api';
+import { getShowDebutsBatch } from '../services/apiCore';
 import { ShowCard } from './MostRecentShowWidget';
 import { orderSetlistSongs } from '../utils/setlist';
 
