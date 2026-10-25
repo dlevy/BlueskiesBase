@@ -318,17 +318,18 @@ async function buildShareImage({ pins, pastCount, upcomingCount, highestBadge, a
 
     // Logo
     const LOGO = 38, LX = 16, LY = MAP_H + (OVERLAY_H - LOGO) / 2;
+    const LOGO_W = logoImg ? Math.round(LOGO * logoImg.naturalWidth / logoImg.naturalHeight) : LOGO;
     if (logoImg) {
         ctx.save();
         ctx.beginPath();
-        if (ctx.roundRect) ctx.roundRect(LX, LY, LOGO, LOGO, 6); else ctx.rect(LX, LY, LOGO, LOGO);
+        if (ctx.roundRect) ctx.roundRect(LX, LY, LOGO_W, LOGO, 6); else ctx.rect(LX, LY, LOGO_W, LOGO);
         ctx.clip();
-        ctx.drawImage(logoImg, LX, LY, LOGO, LOGO);
+        ctx.drawImage(logoImg, LX, LY, LOGO_W, LOGO);
         ctx.restore();
     }
 
     // Site name + tagline
-    const TX = LX + LOGO + 10;
+    const TX = LX + LOGO_W + 10;
     ctx.textAlign = 'left';
     ctx.fillStyle = '#f59e0b';
     ctx.font = '700 16px system-ui, sans-serif';
@@ -817,7 +818,7 @@ export default function ShowMapShare({ pastShows, upcomingShows, title = 'My Sho
                     pointerEvents: 'none',
                 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <img src="/logo.png" alt="" style={{ width: 28, height: 28, borderRadius: 4 }} />
+                        <img src="/logo.png" alt="" width="192" height="150" style={{ width: 'auto', height: 28, borderRadius: 4 }} />
                         <div>
                             <div style={{ color: '#f59e0b', fontWeight: 700, fontSize: 13, lineHeight: 1 }}>{brandTitle}</div>
                             <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10, marginTop: 2 }}>

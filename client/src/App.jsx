@@ -270,7 +270,7 @@ function PublicLayout() {
       >
         <div className="max-w-6xl mx-auto px-4 md:px-6 flex items-center justify-between h-14">
           <Link to="/" className="hover:opacity-80 transition-opacity flex items-center gap-2.5 min-w-0">
-            <img src="/logo.png" alt="" className="h-12 w-12 shrink-0" />
+            <img src="/logo.png" alt="" width="192" height="150" className="h-12 w-auto shrink-0" />
             <div className="flex flex-col items-start min-w-0">
               <span className="font-display font-bold text-lg leading-none" style={{ color: 'var(--p-color-primary)' }}>
                 {headerTitle}

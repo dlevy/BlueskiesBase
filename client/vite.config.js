@@ -35,6 +35,11 @@ function inlineCss() {
 
 export default defineConfig({
   plugins: [react(), inlineCss()],
+  // Public maps are fine: the source is already public on GitHub, and
+  // browsers only fetch .map files when DevTools is open.
+  build: {
+    sourcemap: true,
+  },
   server: {
     proxy: {
       '/api': {
