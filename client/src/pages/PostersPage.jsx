@@ -21,6 +21,16 @@ function posterWantVariant(poster) {
     return poster.is_foil ? 'foil' : 'regular';
 }
 
+// Human-readable description of a poster for the collection/want toggle
+// events below — lets the audit log/analytics show *which* poster was
+// toggled, not just that one was.
+function posterLabel(poster) {
+    if (!poster) return undefined;
+    const show = poster.shows;
+    const parts = [show?.artist_name, show?.show_date, show?.venues?.city].filter(Boolean);
+    return (poster.is_foil ? 'Foil — ' : '') + parts.join(' — ');
+}
+
 // Only one want row exists per show (unique on user_id+show_id), so it only
 // counts as "wanted" for this specific poster if the stored variant actually
 // matches it (or is 'any') — a regular and foil tile for the same show must
@@ -455,12 +465,13 @@ export default function PostersPage() {
 
     const handleToggleCollection = async (posterId) => {
         const existing = collectionEntryByPosterId.get(posterId);
+        const label = posterLabel(posters.find(p => p.id === posterId));
         try {
             if (existing) {
-                await removeFromPosterCollection(existing.id);
+                await removeFromPosterCollection(existing.id, label);
                 setMyCollection(prev => prev.filter(e => e.id !== existing.id));
             } else {
-                const created = await addToPosterCollection(posterId);
+                const created = await addToPosterCollection(posterId, label);
                 setMyCollection(prev => [...prev, { id: created.id, user_posters: { id: posterId } }]);
             }
         } catch (err) {
@@ -486,12 +497,13 @@ export default function PostersPage() {
     const handleToggleWant = async (showId, variant) => {
         const existing = wantEntryByShowId.get(showId);
         const matches = existing && (existing.variant === 'any' || existing.variant === variant);
+        const label = posterLabel(posters.find(p => p.shows?.id === showId));
         try {
             if (matches) {
-                await removePosterWant(existing.id);
+                await removePosterWant(existing.id, label);
                 setMyWants(prev => prev.filter(e => e.id !== existing.id));
             } else {
-                const created = await addPosterWant(showId, variant);
+                const created = await addPosterWant(showId, variant, label);
                 setMyWants(prev => [...prev.filter(e => e.id !== existing?.id), { id: created.id, variant: created.variant, shows: { id: showId } }]);
             }
         } catch (err) {

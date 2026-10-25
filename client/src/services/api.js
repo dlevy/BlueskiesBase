@@ -1475,8 +1475,11 @@ export const getMyPosterCollection = async () => {
  * Add a poster to the logged-in user's collection. Whether it's the foil
  * variant is a property of the poster itself (which posterId you pass), not a
  * separate flag — the regular and foil editions are distinct poster rows.
+ * `label` (poster/show description, built by the caller) is attached so the
+ * add/remove pair below can be told apart by *which* poster in the audit
+ * log/analytics, not just that a toggle fired.
  */
-export const addToPosterCollection = async (posterId) => {
+export const addToPosterCollection = async (posterId, label) => {
     const token = await getAuthToken();
     if (!token) throw new Error('Not authenticated');
 
@@ -1489,14 +1492,17 @@ export const addToPosterCollection = async (posterId) => {
         const error = await response.json().catch(() => ({}));
         throw new Error(error.error || 'Failed to add poster to collection');
     }
-    trackEvent('poster_added_to_collection');
+    trackEvent('poster_added_to_collection', label);
     return response.json();
 };
 
 /**
- * Remove a poster from the logged-in user's collection.
+ * Remove a poster from the logged-in user's collection. Tracked (unlike
+ * before) so the collection toggle button's on/off clicks are both visible —
+ * previously only "added" was logged, so a user rapidly toggling the same
+ * poster on and off looked identical to several different real additions.
  */
-export const removeFromPosterCollection = async (entryId) => {
+export const removeFromPosterCollection = async (entryId, label) => {
     const token = await getAuthToken();
     if (!token) throw new Error('Not authenticated');
 
@@ -1505,6 +1511,7 @@ export const removeFromPosterCollection = async (entryId) => {
         headers: { 'Authorization': `Bearer ${token}` },
     });
     if (!response.ok) throw new Error('Failed to remove poster from collection');
+    trackEvent('poster_removed_from_collection', label);
     return response.json();
 };
 
@@ -1598,7 +1605,7 @@ export const getWantedPostersSummary = async () => {
  * Add a show to the logged-in user's wanted-posters list.
  * variant is 'any' | 'regular' | 'foil', defaults to 'any'.
  */
-export const addPosterWant = async (showId, variant = 'any') => {
+export const addPosterWant = async (showId, variant = 'any', label) => {
     const token = await getAuthToken();
     if (!token) throw new Error('Not authenticated');
 
@@ -1611,14 +1618,16 @@ export const addPosterWant = async (showId, variant = 'any') => {
         const error = await response.json().catch(() => ({}));
         throw new Error(error.error || 'Failed to add to wanted list');
     }
-    trackEvent('poster_want_added');
+    trackEvent('poster_want_added', label);
     return response.json();
 };
 
 /**
- * Remove a show from the logged-in user's wanted-posters list.
+ * Remove a show from the logged-in user's wanted-posters list. Tracked
+ * (unlike before) for the same reason removeFromPosterCollection now is —
+ * only the "add" half of this toggle used to be visible in analytics.
  */
-export const removePosterWant = async (wantId) => {
+export const removePosterWant = async (wantId, label) => {
     const token = await getAuthToken();
     if (!token) throw new Error('Not authenticated');
 
@@ -1627,6 +1636,7 @@ export const removePosterWant = async (wantId) => {
         headers: { 'Authorization': `Bearer ${token}` },
     });
     if (!response.ok) throw new Error('Failed to remove from wanted list');
+    trackEvent('poster_want_removed', label);
     return response.json();
 };
 

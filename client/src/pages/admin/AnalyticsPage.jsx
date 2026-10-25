@@ -43,19 +43,31 @@ function formatDateTime(isoString) {
     return new Date(isoString).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 
+// Same allowlist as server/routes/analytics.js's normalizePathForRanking —
+// query params that actually change what's rendered at a path (the
+// homepage's tab=myshows/tab=stats views, for instance), vs. tracking params
+// a link added (fbclid, utm_*, ...) that don't. Kept in sync by hand since
+// client and server don't share a module here.
+const CONTENT_QUERY_PARAMS = ['tab', 'statsTab', 'year', 'month', 'song', 'source', 'state', 'country', 'hasNotes', 'hasPhotos', 'hasPoster', 'page', 'v'];
+
 // Shortens a path to its last two segments (e.g. a show's
 // /show/artist/2026-10-16/the-venue becomes "…/2026-10-16/the-venue") so a
 // long path doesn't dominate the row — the first 1-2 segments are usually
-// just a section name (show/profile/band/etc.) anyway. Query strings are
-// dropped from the label (not the link target) since they don't fit this
-// shortened format. A path with 2 or fewer segments is shown in full, with
-// no leading "…".
+// just a section name (show/profile/band/etc.) anyway. A path with 2 or
+// fewer segments is shown in full, with no leading "…". Any content query
+// param is kept (sorted, for a stable label) so e.g. "/" and "/?tab=myshows"
+// don't both collapse to the same bare "/" label; everything else (tracking
+// params) is dropped from the label — the link target keeps the full path
+// either way.
 function shortenPath(path) {
     if (!path) return null;
-    const pathname = path.split('?')[0];
+    const [pathname, query] = path.split('?');
     const segments = pathname.split('/').filter(Boolean);
-    if (segments.length <= 2) return pathname || '/';
-    return '…/' + segments.slice(-2).join('/');
+    const shortPathname = segments.length <= 2 ? (pathname || '/') : '…/' + segments.slice(-2).join('/');
+    if (!query) return shortPathname;
+    const params = new URLSearchParams(query);
+    const kept = CONTENT_QUERY_PARAMS.filter(k => params.has(k)).sort().map(k => `${k}=${params.get(k)}`);
+    return kept.length ? `${shortPathname}?${kept.join('&')}` : shortPathname;
 }
 
 function PathLink({ path, className, style }) {
