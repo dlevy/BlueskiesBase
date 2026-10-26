@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { PHeading, PText, PSpinner, PInlineNotification } from '@porsche-design-system/components-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
-import { getAnalyticsSummary, getAnalyticsEvents } from '../../services/api';
+import { getAnalyticsSummary, getAnalyticsEvents, getAnalyticsEventNames } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { getLocalDateString } from '../../utils/today';
 
@@ -118,6 +118,11 @@ function AuditLog({ from, to, hours, includeStaff }) {
     // '' = no extra role restriction (respects includeStaff above), otherwise
     // 'staff' (admins + curators), 'admin', or 'editor' — mutually exclusive.
     const [roleFilter, setRoleFilter] = useState('');
+    // '' = no filter. Options come from the event names actually logged,
+    // loaded once below — not scoped by date range, since a trackEvent()
+    // call's name is fixed in code, not something that varies by range.
+    const [eventNameFilter, setEventNameFilter] = useState('');
+    const [eventNames, setEventNames] = useState([]);
     const [userSearchInput, setUserSearchInput] = useState('');
     const [userSearch, setUserSearch] = useState('');
     const [page, setPage] = useState(1);
@@ -125,13 +130,19 @@ function AuditLog({ from, to, hours, includeStaff }) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
+    useEffect(() => {
+        getAnalyticsEventNames()
+            .then(result => setEventNames(result.eventNames || []))
+            .catch(err => console.error('[AuditLog] Error loading event names:', err));
+    }, []);
+
     // Debounced so typing a name doesn't fire a request per keystroke.
     useEffect(() => {
         const t = setTimeout(() => setUserSearch(userSearchInput.trim()), 300);
         return () => clearTimeout(t);
     }, [userSearchInput]);
 
-    useEffect(() => { setPage(1); }, [from, to, hours, includeStaff, roleFilter, eventType, userSearch]);
+    useEffect(() => { setPage(1); }, [from, to, hours, includeStaff, roleFilter, eventType, eventNameFilter, userSearch]);
 
     useEffect(() => {
         let cancelled = false;
@@ -141,6 +152,7 @@ function AuditLog({ from, to, hours, includeStaff }) {
             from, to, hours, includeStaff,
             role: roleFilter || undefined,
             eventType: eventType || undefined,
+            eventName: eventNameFilter || undefined,
             user: userSearch || undefined,
             page, limit: 50,
         })
@@ -151,7 +163,7 @@ function AuditLog({ from, to, hours, includeStaff }) {
             })
             .finally(() => { if (!cancelled) setLoading(false); });
         return () => { cancelled = true; };
-    }, [from, to, hours, includeStaff, roleFilter, eventType, userSearch, page]);
+    }, [from, to, hours, includeStaff, roleFilter, eventType, eventNameFilter, userSearch, page]);
 
     return (
         <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-5">
@@ -166,6 +178,17 @@ function AuditLog({ from, to, hours, includeStaff }) {
                         className="rounded-lg border border-white/10 bg-white/5 py-1 px-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500/40 placeholder:text-gray-500"
                         style={{ color: 'var(--p-color-primary)' }}
                     />
+                    <select
+                        value={eventNameFilter}
+                        onChange={e => setEventNameFilter(e.target.value)}
+                        className="rounded-lg border border-white/10 bg-white/5 py-1 px-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500/40"
+                        style={{ color: 'var(--p-color-primary)' }}
+                    >
+                        <option value="">All events</option>
+                        {eventNames.map(name => (
+                            <option key={name} value={name}>{name}</option>
+                        ))}
+                    </select>
                     <div className="flex gap-1.5">
                         {[
                             { value: 'staff', label: 'Admins & Curators', title: 'Show only activity by admins and curators' },
@@ -218,7 +241,9 @@ function AuditLog({ from, to, hours, includeStaff }) {
                 </div>
             ) : data && data.events.length === 0 ? (
                 <PText size="small" color="contrast-medium">
-                    {userSearch ? `No events match "${userSearch}" in this range.` : 'No events logged in this range.'}
+                    {userSearch || eventNameFilter
+                        ? `No events match ${[userSearch && `"${userSearch}"`, eventNameFilter].filter(Boolean).join(' / ')} in this range.`
+                        : 'No events logged in this range.'}
                 </PText>
             ) : data && (
                 <>
@@ -437,10 +462,17 @@ export default function AnalyticsPage() {
                         <RankedList title="Feature Usage" rows={summary.topFeatures} emptyText="No feature events logged yet." />
                         <RankedList title="Traffic Sources (visitors, first arrival)" rows={summary.trafficSources || []} emptyText="No visits in this range yet." />
                     </div>
-
-                    <AuditLog from={rangeFrom} to={rangeTo} hours={range.hours} includeStaff={includeStaff} />
                 </>
             )}
+
+            {/* Rendered unconditionally, not nested inside the summary-loading
+                gate above — AuditLog manages its own loading state, and
+                nesting it there meant every range/includeStaff change (which
+                flips the parent's `loading` true then false while the summary
+                refetches) unmounted and remounted it, silently resetting its
+                own filters (user search, role, event type, event name, page)
+                back to their defaults each time. */}
+            <AuditLog from={rangeFrom} to={rangeTo} hours={range.hours} includeStaff={includeStaff} />
         </div>
     );
 }

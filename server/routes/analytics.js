@@ -282,6 +282,40 @@ router.get('/summary', requireAdmin, async (req, res) => {
 });
 
 /**
+ * GET /api/analytics/event-names
+ * Admin only. Every distinct "feature" event_name ever logged, alphabetical
+ * — powers the Audit Log's event filter dropdown. Not date-scoped: an event
+ * name is a fixed, code-defined value (one per trackEvent() call site), not
+ * something that should vary with whatever range the viewer is looking at.
+ * Table is small enough (low thousands of feature rows) that fetching just
+ * this one column and deduping in memory is cheap; same pagination pattern
+ * as /summary above.
+ */
+router.get('/event-names', requireAdmin, async (req, res) => {
+    try {
+        const names = new Set();
+        for (let rangeStart = 0; ;) {
+            const { data: page, error } = await supabase
+                .from('analytics_events')
+                .select('event_name')
+                .eq('event_type', 'feature')
+                .range(rangeStart, rangeStart + 999);
+            if (error) {
+                console.error('[GET /analytics/event-names] Error:', error);
+                return res.status(500).json({ error: 'Failed to load event names' });
+            }
+            page.forEach(r => names.add(r.event_name));
+            if (page.length < 1000) break;
+            rangeStart += 1000;
+        }
+        res.json({ eventNames: [...names].sort() });
+    } catch (error) {
+        console.error('Error in GET /analytics/event-names:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
  * GET /api/analytics/events
  * Admin only (stricter than /summary — this names real people, not just
  * aggregate counts). A paginated, reverse-chronological audit log of raw
@@ -345,6 +379,9 @@ router.get('/events', requireAdmin, async (req, res) => {
 
         if (VALID_EVENT_TYPES.includes(req.query.eventType)) {
             query = query.eq('event_type', req.query.eventType);
+        }
+        if (req.query.eventName) {
+            query = query.eq('event_name', req.query.eventName);
         }
         if (roleOnly) {
             query = query.eq('user_role', roleOnly);

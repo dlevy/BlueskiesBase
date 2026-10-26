@@ -1986,7 +1986,7 @@ export const getAnalyticsSummary = async ({ from, to, hours, includeStaff = fals
  * the user who triggered it. Admin only (stricter than getAnalyticsSummary
  * — this names real people, not just aggregate counts).
  */
-export const getAnalyticsEvents = async ({ from, to, hours, includeStaff = false, role, eventType, user, page = 1, limit = 50 } = {}) => {
+export const getAnalyticsEvents = async ({ from, to, hours, includeStaff = false, role, eventType, eventName, user, page = 1, limit = 50 } = {}) => {
     const token = await getAuthToken();
     if (!token) throw new Error('Not authenticated');
 
@@ -2000,6 +2000,7 @@ export const getAnalyticsEvents = async ({ from, to, hours, includeStaff = false
     if (includeStaff) params.set('includeStaff', 'true');
     if (role) params.set('role', role);
     if (eventType) params.set('eventType', eventType);
+    if (eventName) params.set('eventName', eventName);
     if (user) params.set('user', user);
     params.set('tzOffsetMinutes', new Date().getTimezoneOffset());
     params.set('page', page);
@@ -2011,6 +2012,24 @@ export const getAnalyticsEvents = async ({ from, to, hours, includeStaff = false
     if (!response.ok) {
         const error = await response.json().catch(() => ({}));
         throw new Error(error.error || 'Failed to load the audit log');
+    }
+    return response.json();
+};
+
+/**
+ * Every distinct "feature" event name ever logged — populates the Audit
+ * Log's event filter dropdown.
+ */
+export const getAnalyticsEventNames = async () => {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/analytics/event-names`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to load event names');
     }
     return response.json();
 };
