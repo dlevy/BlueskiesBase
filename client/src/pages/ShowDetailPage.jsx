@@ -889,17 +889,27 @@ export default function ShowDetailPage() {
                                 ].sort((a, b) => b.count - a.count);
                                 const maxCount = Math.max(...bars.map(b => b.count));
                                 return bars.map(({ title, count, isCover }) => (
-                                    <div key={title} className="flex items-center gap-3">
-                                        <span className="text-xs w-40 sm:w-56 shrink-0 truncate text-right" style={{ color: 'var(--p-color-contrast-medium)' }}>
-                                            {title}
-                                        </span>
-                                        <div className="flex-1 h-5 rounded bg-white/5 overflow-hidden">
-                                            <div
-                                                className={`h-full rounded transition-all duration-700 ${isCover ? 'bg-blue-400/70' : 'bg-amber-400/80'}`}
-                                                style={{ width: `${(count / maxCount) * 100}%` }}
-                                            />
+                                    <div key={title}>
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-xs w-40 sm:w-56 shrink-0 truncate text-right" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                                                {title}
+                                            </span>
+                                            <div className="flex-1 h-5 rounded bg-white/5 overflow-hidden">
+                                                <div
+                                                    className={`h-full rounded transition-all duration-700 ${isCover ? 'bg-blue-400/70' : 'bg-amber-400/80'}`}
+                                                    style={{ width: `${(count / maxCount) * 100}%` }}
+                                                />
+                                            </div>
+                                            <span className="text-xs w-4 shrink-0" style={{ color: 'var(--p-color-contrast-medium)' }}>{count}</span>
                                         </div>
-                                        <span className="text-xs w-4 shrink-0" style={{ color: 'var(--p-color-contrast-medium)' }}>{count}</span>
+                                        {isCover && (
+                                            <div className="flex items-center gap-3 mt-1">
+                                                <span className="w-40 sm:w-56 shrink-0" />
+                                                <p className="text-xs italic flex-1" style={{ color: 'var(--p-color-contrast-low)' }}>
+                                                    A cover on an official album counts toward that album, not Covers.
+                                                </p>
+                                            </div>
+                                        )}
                                     </div>
                                 ));
                             })()}
