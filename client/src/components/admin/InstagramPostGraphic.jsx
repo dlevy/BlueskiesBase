@@ -48,6 +48,10 @@ const TIME_MACHINE_BADGE_HEIGHT = 76;
 // way text does.
 const COLUMN_GAP = 56;
 const ROW_GAP = 10;
+// Small breathing room above a wrapped tags line (see pickSongLayout/render
+// below) — folded into the height budget so accounting for it doesn't risk
+// overflowing a setlist with several wrapped rows.
+const TAG_WRAP_GAP = 4;
 const FONT_STACK = "'Inter', ui-sans-serif, system-ui, sans-serif";
 
 // Canvas-based text measurement, reused across calls — lets the layout know
@@ -147,32 +151,46 @@ function measureRowWidth(song, fontSize, tagContext, numberColumnWidth) {
 }
 
 // Always two columns. The font has no minimum floor — it shrinks as far as
-// necessary so every song fits, both vertically (within the available
-// height) and horizontally (no title ellipsis-truncates within its column).
-// A floor here is exactly what used to cause songs to get silently clipped
-// off the top/bottom of long setlists, or individual titles to truncate —
-// the row/row-height budget would be exceeded the moment the "readable
-// minimum" size didn't actually fit.
+// necessary so every song fits vertically, within the available height. No
+// floor here is exactly what used to cause songs to get silently clipped
+// off the top/bottom of long setlists.
+//
+// A song whose title + tags are too wide for the column no longer shrinks
+// the font for every other song to make room — its tags wrap onto their own
+// line below the title instead (see the render below), so this only needs
+// to size for *height*, treating a wrapped song as 2 line-units instead of
+// 1 wherever that happens to land, rather than also sizing for every row's
+// full tagged width like it used to.
 function pickSongLayout(numberedSongs, availableHeight, columnWidth, tagContext, numberColumnTemplate) {
     const usable = Math.max(availableHeight, 100);
     const columns = 2;
     const rows = Math.max(1, Math.ceil(numberedSongs.length / columns));
+    const colSongs = splitIntoColumns(numberedSongs, columns);
+
+    // Optimistic upper bound assuming every row stays on one line — real
+    // required height can only be >= this once any wrapping is accounted
+    // for in `fits` below, so it's a safe starting point for the search.
     const lineHeight = usable / rows;
     const heightFontSize = lineHeight / 1.45;
 
-    // Binary-search the largest font size at which every song's row still
-    // fits within columnWidth — tag width doesn't scale perfectly linearly
-    // with font size (Math.max(10, Math.round(...)) floors/rounds it), so a
-    // closed-form solve isn't reliable; a quick search is simpler and exact
-    // enough at pixel scale.
-    let lo = 1;
-    let hi = Math.min(heightFontSize, MAX_SONG_FONT);
+    // Binary-search the largest font size at which every column's songs —
+    // 2 line-units for one whose tags don't fit inline at that size, 1
+    // otherwise — still fit within the available height. Tag width doesn't
+    // scale perfectly linearly with font size (Math.max(10, Math.round(...))
+    // floors/rounds it), so a closed-form solve isn't reliable; a quick
+    // search is simpler and exact enough at pixel scale.
     const fits = (fontSize) => {
         const numberColumnWidth = measureTextWidth(numberColumnTemplate, fontSize, 400);
-        return numberedSongs.every(({ song }) =>
-            measureRowWidth(song, fontSize, tagContext, numberColumnWidth) <= columnWidth
-        );
+        const perLineHeight = fontSize * 1.45;
+        return colSongs.every(column => {
+            const lineUnits = column.reduce((sum, { song }) =>
+                sum + (measureRowWidth(song, fontSize, tagContext, numberColumnWidth) <= columnWidth ? 1 : 2), 0);
+            const wrappedCount = lineUnits - column.length;
+            return lineUnits * perLineHeight + wrappedCount * TAG_WRAP_GAP <= usable;
+        });
     };
+    let lo = 1;
+    let hi = Math.min(heightFontSize, MAX_SONG_FONT);
     if (hi <= lo || fits(hi)) {
         return { columns, songFontSize: Math.max(hi, lo) };
     }
@@ -342,28 +360,42 @@ const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({
                             <div key={colIndex} style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                                 {columnSongs.map(({ song, position }, i) => {
                                     const tags = getSongTags(song, tagContext);
+                                    // Only this song's tags drop to their own line below the
+                                    // title — not every song's font shrinking to make this one's
+                                    // tags fit inline (see pickSongLayout above, which already
+                                    // sized for whichever songs land here).
+                                    const tagsFitInline = measureRowWidth(song, songFontSize, tagContext, numberColumnWidth) <= columnWidth;
                                     return (
                                         <div
                                             key={song.id || i}
-                                            style={{
-                                                fontSize: songFontSize, lineHeight: 1.45, color: palette.heading,
-                                                display: 'flex', flexWrap: 'nowrap', alignItems: 'center', gap: ROW_GAP,
-                                            }}
+                                            style={{ fontSize: songFontSize, lineHeight: 1.45, color: palette.heading }}
                                         >
-                                            <span style={{
-                                                flexShrink: 0, width: numberColumnWidth, textAlign: 'right',
-                                                color: palette.muted, fontVariantNumeric: 'tabular-nums',
-                                            }}>
-                                                {position != null ? `${position}.` : ''}
-                                            </span>
-                                            <span style={{
-                                                minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                                            }}>
-                                                {song.title}{song.jams_into ? ' →' : ''}
-                                            </span>
-                                            {tags.map(tag => (
-                                                <SongTag key={tag.label} label={tag.label} color={tag.color} songFontSize={songFontSize} />
-                                            ))}
+                                            <div style={{ display: 'flex', flexWrap: 'nowrap', alignItems: 'center', gap: ROW_GAP }}>
+                                                <span style={{
+                                                    flexShrink: 0, width: numberColumnWidth, textAlign: 'right',
+                                                    color: palette.muted, fontVariantNumeric: 'tabular-nums',
+                                                }}>
+                                                    {position != null ? `${position}.` : ''}
+                                                </span>
+                                                <span style={{
+                                                    minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                                }}>
+                                                    {song.title}{song.jams_into ? ' →' : ''}
+                                                </span>
+                                                {tagsFitInline && tags.map(tag => (
+                                                    <SongTag key={tag.label} label={tag.label} color={tag.color} songFontSize={songFontSize} />
+                                                ))}
+                                            </div>
+                                            {!tagsFitInline && tags.length > 0 && (
+                                                <div style={{
+                                                    display: 'flex', flexWrap: 'nowrap', alignItems: 'center', gap: ROW_GAP,
+                                                    marginTop: TAG_WRAP_GAP, paddingLeft: numberColumnWidth + ROW_GAP,
+                                                }}>
+                                                    {tags.map(tag => (
+                                                        <SongTag key={tag.label} label={tag.label} color={tag.color} songFontSize={songFontSize} />
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
                                     );
                                 })}
