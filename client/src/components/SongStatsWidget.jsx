@@ -230,7 +230,7 @@ export default function SongStatsWidget() {
                 <div className="space-y-4">
                     <PHeading size="md" tag="h2">Community</PHeading>
                     <div className="grid grid-cols-3 gap-3">
-                        <CommunityStatCard value={communityStats.members} label="Members" />
+                        <CommunityStatCard value={communityStats.collected} label="Posters in Collections" />
                         <CommunityStatCard value={communityStats.photos} label="Photos Contributed" />
                         <CommunityStatCard value={communityStats.posters} label="Posters Contributed" />
                     </div>

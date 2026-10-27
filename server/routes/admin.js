@@ -5,26 +5,46 @@ const { requireAdmin, requireEditorOrAdmin } = require('../middleware/requireRol
 
 /**
  * GET /api/admin/users
- * List all auth users with signup date and confirmation status
+ * List every auth user with signup date and confirmation status.
+ * supabase.auth.admin.listUsers() is itself paginated (200/page by
+ * default) — this used to fetch only page 1 and silently return just
+ * that, so once the account count passed 200 the admin panel's list (and
+ * its "N total" count) quietly fell further and further behind the real
+ * number. Loops until a page comes back short, same pagination-loop
+ * pattern used elsewhere in this codebase for an unbounded table.
  */
 router.get('/users', requireAdmin, async (req, res) => {
     try {
-        const page = parseInt(req.query.page) || 1;
-        const perPage = parseInt(req.query.per_page) || 200;
-
-        const { data, error } = await supabase.auth.admin.listUsers({ page, perPage });
-        if (error) {
-            console.error('[admin/users] listUsers error:', error);
-            return res.status(500).json({ error: 'Failed to fetch users' });
+        const perPage = 1000;
+        let authUsers = [];
+        for (let page = 1; ; page++) {
+            const { data, error } = await supabase.auth.admin.listUsers({ page, perPage });
+            if (error) {
+                console.error('[admin/users] listUsers error:', error);
+                return res.status(500).json({ error: 'Failed to fetch users' });
+            }
+            authUsers = authUsers.concat(data.users || []);
+            if (!data.users || data.users.length < perPage) break;
         }
-
-        const authUsers = data.users || [];
-        const { data: profiles } = await supabase
-            .from('profiles')
-            .select('id, role, hide_from_directory')
-            .in('id', authUsers.map(u => u.id));
+        // Chunked — a UUID .in() filter listing every user (hundreds and
+        // growing) builds a URL past Supabase's gateway limit and comes back
+        // as a silent 400, same failure mode fixed the same way elsewhere in
+        // this codebase (see tourSongCounts.js's IN_CHUNK_SIZE).
+        const PROFILE_CHUNK_SIZE = 100;
         const profileById = {};
-        (profiles || []).forEach(p => { profileById[p.id] = p; });
+        const userIds = authUsers.map(u => u.id);
+        for (let i = 0; i < userIds.length; i += PROFILE_CHUNK_SIZE) {
+            const chunk = userIds.slice(i, i + PROFILE_CHUNK_SIZE);
+            const { data: profiles, error: profilesError } = await supabase
+                .from('profiles')
+                .select('id, role, hide_from_directory')
+                .in('id', chunk);
+            if (profilesError) {
+                console.error('[admin/users] profiles lookup error:', profilesError);
+                return res.status(500).json({ error: 'Failed to fetch users' });
+            }
+            (profiles || []).forEach(p => { profileById[p.id] = p; });
+        }
 
         const users = authUsers.map(u => ({
             id: u.id,
@@ -37,7 +57,7 @@ router.get('/users', requireAdmin, async (req, res) => {
             hideFromDirectory: profileById[u.id]?.hide_from_directory || false,
         }));
 
-        res.json({ users, total: data.total ?? users.length });
+        res.json({ users, total: users.length });
     } catch (err) {
         console.error('[admin/users] error:', err);
         res.status(500).json({ error: 'Internal server error' });

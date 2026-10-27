@@ -1075,30 +1075,30 @@ router.get('/check-attendance/:showId', async (req, res) => {
 
 /**
  * GET /api/users/community-stats
- * Get site-wide community stats (members, photos, posters contributed).
- * Public — no authentication required
+ * Get site-wide community stats (photos/posters contributed, posters
+ * collected). Public — no authentication required
  */
 router.get('/community-stats', async (req, res) => {
     try {
-        const [membersResult, photosResult, postersResult] = await Promise.all([
-            // Excludes accounts marked private (hide_from_directory), same definition
-            // GET /directory already uses — otherwise this count and the Members page's
-            // count diverge. .not(...'is', true) (rather than .eq(..., false)) so NULL
-            // rows (the common case — most profiles never explicitly set this) still
-            // count as "not hidden", matching the directory route's `!p.hide_from_directory`.
-            supabase.from('profiles').select('*', { count: 'exact', head: true }).not('hide_from_directory', 'is', true),
+        const [photosResult, postersResult, collectedResult] = await Promise.all([
             supabase.from('user_photos').select('*', { count: 'exact', head: true }),
             supabase.from('user_posters').select('*', { count: 'exact', head: true }),
+            // Every poster any user has in their own collection, across all
+            // users — not the same as `posters` above (which is how many
+            // poster images have been uploaded, not how many times one is in
+            // someone's collection). user_poster_wants (wanted, not owned)
+            // is a separate table, so this never needs to filter anything out.
+            supabase.from('user_poster_collection').select('*', { count: 'exact', head: true }),
         ]);
 
-        if (membersResult.error) throw membersResult.error;
         if (photosResult.error) throw photosResult.error;
         if (postersResult.error) throw postersResult.error;
+        if (collectedResult.error) throw collectedResult.error;
 
         res.json({
-            members: membersResult.count || 0,
             photos: photosResult.count || 0,
             posters: postersResult.count || 0,
+            collected: collectedResult.count || 0,
         });
     } catch (error) {
         console.error('[Community Stats] Error:', error);
