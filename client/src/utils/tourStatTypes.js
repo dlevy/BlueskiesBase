@@ -178,11 +178,12 @@ export const TOUR_STAT_TYPES = [
             return {
                 type: 'list',
                 title: 'Album Breakdown',
-                // Capped at 6, not more — the bigger type this card uses to
-                // avoid looking sparse (see TourStatGraphic) needs the room;
-                // most tours only have a handful of meaningfully-sized
-                // album buckets anyway.
-                items: bars.slice(0, 6).map(b => ({
+                // Every bucket, never capped — leaving an album out here
+                // would make the breakdown misleading, not just incomplete.
+                // TourStatGraphic shrinks the row size as this list grows
+                // past the 6 rows every other 'list' stat caps at, so a
+                // long tour's larger breakdown still fits the fixed frame.
+                items: bars.map(b => ({
                     label: shortAlbumTitle(b.title),
                     value: `${totalPlays > 0 ? Math.round((b.count / totalPlays) * 100) : 0}% (${b.count})`,
                 })),

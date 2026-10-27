@@ -52,16 +52,33 @@ function textHeadlineFontSize(text) {
 // novelty list rather than a ranked comparison (see that stat's own
 // compute() comment). Columns and font shrink together as the count grows
 // so an ongoing tour's ever-lengthening list keeps fitting the fixed frame.
+// The 1-column ceiling is deliberately generous (16, not the original 10) —
+// each row's "date/city + a couple-word phrase" content comfortably fits
+// one line at full card width, but wrapped into 2 narrower columns it wraps
+// to 2 lines almost every row instead, which reads as broken, not compact.
 function denseListColumns(count) {
-    if (count <= 10) return 1;
-    if (count <= 24) return 2;
+    if (count <= 16) return 1;
+    if (count <= 34) return 2;
     return 3;
 }
 function denseListFontSize(count) {
     if (count <= 10) return 30;
-    if (count <= 20) return 26;
-    if (count <= 32) return 22;
-    return 18;
+    if (count <= 16) return 24;
+    if (count <= 24) return 22;
+    if (count <= 32) return 19;
+    return 16;
+}
+
+// Specific to the 'list' stat type — every other list-type stat caps at 6
+// rows (MAX_RANKED_ROWS in tourStatTypes.js), so this is a no-op for them;
+// Album Breakdown is the one list stat that shows every row with nothing
+// left out, so it's the one this actually scales down for once a tour has
+// more than 6 meaningfully-sized buckets.
+function listRowStyle(count) {
+    if (count <= 6) return { number: 38, label: 42, tag: 22, padding: 18 };
+    if (count <= 9) return { number: 30, label: 34, tag: 20, padding: 13 };
+    if (count <= 12) return { number: 26, label: 29, tag: 18, padding: 10 };
+    return { number: 22, label: 25, tag: 16, padding: 7 };
 }
 
 // A small solid-fill tag — same contrast approach InstagramPostGraphic's
@@ -267,29 +284,32 @@ const TourStatGraphic = forwardRef(function TourStatGraphic({
                                 {statResult.title}
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', width: '100%', maxWidth: 940 }}>
-                                {statResult.items.map((item, i) => (
-                                    <div
-                                        key={i}
-                                        style={{
-                                            display: 'flex', alignItems: 'center', gap: 20, textAlign: 'left',
-                                            padding: '18px 0',
-                                            borderTop: i > 0 ? `1px solid ${palette.divider}` : 'none',
-                                        }}
-                                    >
-                                        <span style={{
-                                            flexShrink: 0, width: 56, fontSize: 38, fontWeight: 800,
-                                            color: palette.accent, fontVariantNumeric: 'tabular-nums',
-                                        }}>
-                                            {i + 1}
-                                        </span>
-                                        <span style={{ flex: 1, minWidth: 0, fontSize: 42, fontWeight: 700, color: palette.heading, wordBreak: 'break-word' }}>
-                                            {item.label}
-                                        </span>
-                                        <span style={{ flexShrink: 0 }}>
-                                            <Tag accent={`${palette.accent}cc`} fontSize={22} style={{ color: '#0b0e13' }}>{item.value}</Tag>
-                                        </span>
-                                    </div>
-                                ))}
+                                {statResult.items.map((item, i) => {
+                                    const rowStyle = listRowStyle(statResult.items.length);
+                                    return (
+                                        <div
+                                            key={i}
+                                            style={{
+                                                display: 'flex', alignItems: 'center', gap: 20, textAlign: 'left',
+                                                padding: `${rowStyle.padding}px 0`,
+                                                borderTop: i > 0 ? `1px solid ${palette.divider}` : 'none',
+                                            }}
+                                        >
+                                            <span style={{
+                                                flexShrink: 0, width: 56, fontSize: rowStyle.number, fontWeight: 800,
+                                                color: palette.accent, fontVariantNumeric: 'tabular-nums',
+                                            }}>
+                                                {i + 1}
+                                            </span>
+                                            <span style={{ flex: 1, minWidth: 0, fontSize: rowStyle.label, fontWeight: 700, color: palette.heading, wordBreak: 'break-word' }}>
+                                                {item.label}
+                                            </span>
+                                            <span style={{ flexShrink: 0 }}>
+                                                <Tag accent={`${palette.accent}cc`} fontSize={rowStyle.tag} style={{ color: '#0b0e13' }}>{item.value}</Tag>
+                                            </span>
+                                        </div>
+                                    );
+                                })}
                             </div>
                             {statResult.tiedNote && (
                                 <div style={{ width: '100%', maxWidth: 940, textAlign: 'left', paddingTop: 14, borderTop: `1px solid ${palette.divider}` }}>
