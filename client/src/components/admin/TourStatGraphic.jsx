@@ -6,6 +6,16 @@ const BOTTOM_PADDING = 180;
 const FONT_STACK = "'Inter', ui-sans-serif, system-ui, sans-serif";
 const DISPLAY_FONT_STACK = "'Space Grotesk', ui-sans-serif, system-ui, sans-serif";
 
+// Canvas-based text measurement, same approach InstagramPostGraphic.jsx uses
+// for its own per-row fit check — lets the denseList below know a specific
+// row's real rendered width instead of guessing from character count.
+let measureCtx = null;
+function measureTextWidth(text, fontSizePx, fontWeight) {
+    if (!measureCtx) measureCtx = document.createElement('canvas').getContext('2d');
+    measureCtx.font = `${fontWeight} ${fontSizePx}px ${FONT_STACK}`;
+    return measureCtx.measureText(text).width;
+}
+
 // Same fixed high-contrast palette InstagramPostGraphic.jsx uses for a
 // poster/photo background — a color style can't be trusted to read well
 // over an arbitrary image, so image backgrounds always use this instead,
@@ -67,6 +77,26 @@ function denseListFontSize(count) {
     if (count <= 24) return 22;
     if (count <= 32) return 19;
     return 16;
+}
+// Must match the grid's own width/columnGap below.
+const DENSE_LIST_WIDTH = 980;
+const DENSE_LIST_COLUMN_GAP = 40;
+const DENSE_LIST_ROW_GAP = 10;
+function denseListColumnWidth(count) {
+    const columns = denseListColumns(count);
+    return (DENSE_LIST_WIDTH - DENSE_LIST_COLUMN_GAP * (columns - 1)) / columns;
+}
+// Most rows ("Detroit · Oct 10, 2026" + a couple-word phrase) comfortably
+// fit one line; an occasional long quoted note doesn't. Rather than
+// shrinking every row's font to fit that one outlier (which is exactly
+// the setlist-tag problem InstagramPostGraphic.jsx solves the same way),
+// a row that doesn't fit inline drops its notes to their own line below
+// instead — measured with the same real-pixel canvas check that file uses,
+// not a character-count guess.
+function denseListRowFitsInline(item, fontSize, columnWidth) {
+    const metaWidth = measureTextWidth(item.meta, fontSize, 600);
+    const notesWidth = measureTextWidth(item.notes, fontSize, 700);
+    return metaWidth + DENSE_LIST_ROW_GAP + notesWidth <= columnWidth;
 }
 
 // Specific to the 'list' stat type — every other list-type stat caps at 6
@@ -336,22 +366,30 @@ const TourStatGraphic = forwardRef(function TourStatGraphic({
                                 columnGap: 40, rowGap: 12,
                                 width: '100%', maxWidth: 980,
                             }}>
-                                {statResult.items.map((item, i) => (
-                                    <div
-                                        key={i}
-                                        style={{
-                                            display: 'flex', alignItems: 'baseline', gap: 10, textAlign: 'left',
-                                            fontSize: denseListFontSize(statResult.items.length),
-                                        }}
-                                    >
-                                        <span style={{ flexShrink: 0, color: palette.muted, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
-                                            {item.meta}
-                                        </span>
-                                        <span style={{ color: palette.heading, fontWeight: 700, wordBreak: 'break-word' }}>
-                                            {item.notes}
-                                        </span>
-                                    </div>
-                                ))}
+                                {statResult.items.map((item, i) => {
+                                    const fontSize = denseListFontSize(statResult.items.length);
+                                    const columnWidth = denseListColumnWidth(statResult.items.length);
+                                    const fitsInline = denseListRowFitsInline(item, fontSize, columnWidth);
+                                    return (
+                                        <div key={i} style={{ fontSize, textAlign: 'left' }}>
+                                            <div style={{ display: 'flex', alignItems: 'baseline', gap: DENSE_LIST_ROW_GAP, flexWrap: 'nowrap' }}>
+                                                <span style={{ flexShrink: 0, color: palette.muted, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+                                                    {item.meta}
+                                                </span>
+                                                {fitsInline && (
+                                                    <span style={{ color: palette.heading, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                        {item.notes}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {!fitsInline && (
+                                                <div style={{ color: palette.heading, fontWeight: 700, wordBreak: 'break-word', marginTop: 2 }}>
+                                                    {item.notes}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
                             </div>
                             {statResult.subdetail && (
                                 <div style={{ fontSize: 24, color: palette.muted, marginTop: 4 }}>
