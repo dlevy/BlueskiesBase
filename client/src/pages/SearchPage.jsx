@@ -134,7 +134,14 @@ export default function SearchPage() {
 
                     const todayStr = getLocalDateString();
                     const past = showsData
-                        .filter(s => s.show_date <= todayStr)
+                        // A non-tour side event (an afterparty, a one-off) has no
+                        // tour_name — excluded here, not just left to fall through
+                        // "|| null" below, since one of these dated later than the
+                        // actual tour show the same night (higher day_order) would
+                        // otherwise win the sort and should never: the whole point
+                        // of this is to find the tour currently showing on the
+                        // homepage widget, and a blank tour_name can never be that.
+                        .filter(s => s.show_date <= todayStr && s.tour_name)
                         .sort((a, b) => b.show_date.localeCompare(a.show_date) || (b.day_order ?? 0) - (a.day_order ?? 0));
                     setRecentTourName(past[0]?.tour_name || null);
                 }
@@ -266,7 +273,7 @@ export default function SearchPage() {
                     while (hasMore) {
                         const { data: pageData, error, count } = await supabase
                             .from('setlist_songs')
-                            .select('show_id, song_id, id, set_number, song_order, is_encore, songs!setlist_songs_song_id_fkey(id, title, is_original)', { count: 'exact' })
+                            .select('show_id, song_id, id, set_number, song_order, is_encore, performance_type, songs!setlist_songs_song_id_fkey(id, title, is_original)', { count: 'exact' })
                             .in('show_id', batchIds)
                             .order('id')
                             .range(rangeStart, rangeStart + 999);

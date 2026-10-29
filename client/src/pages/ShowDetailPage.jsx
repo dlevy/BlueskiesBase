@@ -117,11 +117,16 @@ function computeSetlistStats(show, tourRarity, liveDebutSongIds, tourDebutSongId
             otherOriginals++;
         }
 
+        // Matches SongRow below: a tease doesn't count as the song being
+        // played, so it shouldn't earn Live Debut, Tour Debut or Rare —
+        // keeps these tile totals consistent with which rows actually show
+        // the badge.
+        const isTease = song.performance_type === 'tease';
         const tourCount = tourRarity?.total_shows > 0 ? tourRarity.song_counts[song.song_id] : undefined;
-        if (tourCount != null && tourCount / tourRarity.total_shows < 0.15) rareCount++;
+        if (!isTease && tourCount != null && tourCount / tourRarity.total_shows < 0.15) rareCount++;
 
-        if (liveDebutSongIds?.has(song.song_id)) liveDebutCount++;
-        if (tourDebutSongIds?.has(song.song_id)) tourDebutCount++;
+        if (!isTease && liveDebutSongIds?.has(song.song_id)) liveDebutCount++;
+        if (!isTease && tourDebutSongIds?.has(song.song_id)) tourDebutCount++;
     });
 
     const albumBreakdown = [...albumCounts.entries()]
@@ -198,12 +203,17 @@ const LiveDebutBadge = () => <DebutBadge label="Live Debut" color="#34d399" titl
 const TourDebutBadge = () => <DebutBadge label="Tour Debut" color="#22d3ee" title="First time this song has been played on this tour" />;
 
 function SongRow({ song, position, tourRarity, liveDebutSongIds, tourDebutSongIds, showPosition = true }) {
+    // A tease doesn't count as the song actually being played — Live Debut,
+    // Tour Debut and Rare are all claims about a real performance, and a
+    // tease shouldn't earn any of them just by teasing a song for the first
+    // time (ever or this tour) or infrequently.
+    const isTease = song.performance_type === 'tease';
     const tourCount = tourRarity?.total_shows > 0 && song.song_id
         ? tourRarity.song_counts[song.song_id]
         : undefined;
-    const isRare = tourCount != null && tourCount / tourRarity.total_shows < 0.15;
-    const isLiveDebut = song.song_id != null && liveDebutSongIds?.has(song.song_id);
-    const isTourDebut = song.song_id != null && tourDebutSongIds?.has(song.song_id);
+    const isRare = !isTease && tourCount != null && tourCount / tourRarity.total_shows < 0.15;
+    const isLiveDebut = !isTease && song.song_id != null && liveDebutSongIds?.has(song.song_id);
+    const isTourDebut = !isTease && song.song_id != null && tourDebutSongIds?.has(song.song_id);
 
     const hasLyrics = Boolean(song.lyrics?.trim());
 

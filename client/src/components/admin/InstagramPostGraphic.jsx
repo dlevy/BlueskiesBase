@@ -107,11 +107,16 @@ function SongTag({ label, color, songFontSize }) {
 // skipped when it's not available.
 function getSongTags(song, { liveDebutSongIds, tourDebutSongIds, tourRarity }) {
     const tags = [];
-    const isLiveDebut = song.song_id != null && liveDebutSongIds?.has(song.song_id);
-    const isTourDebut = song.song_id != null && tourDebutSongIds?.has(song.song_id);
+    // A tease doesn't count as the song actually being played — Live Debut,
+    // Tour Debut and Rare are all claims about a real performance, and a
+    // tease shouldn't earn any of them just by teasing a song for the first
+    // time (ever or this tour) or infrequently.
+    const isTease = song.performance_type === 'tease';
+    const isLiveDebut = !isTease && song.song_id != null && liveDebutSongIds?.has(song.song_id);
+    const isTourDebut = !isTease && song.song_id != null && tourDebutSongIds?.has(song.song_id);
     if (isLiveDebut) tags.push({ label: 'Live Debut', color: '#34d399' });
     if (isTourDebut) tags.push({ label: 'Tour Debut', color: '#22d3ee' });
-    if (tourRarity?.total_shows > 0 && song.song_id != null) {
+    if (!isTease && tourRarity?.total_shows > 0 && song.song_id != null) {
         const tourCount = tourRarity.song_counts?.[song.song_id];
         if (tourCount != null && tourCount / tourRarity.total_shows < 0.15) {
             tags.push({ label: 'Rare', color: '#c084fc' });

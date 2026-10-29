@@ -121,7 +121,7 @@ export default function MostRecentShowWidget({ onReady }) {
 
                 const { data: setlistRows } = await supabase
                     .from('setlist_songs')
-                    .select('show_id, song_id, set_number, song_order, is_encore, songs!setlist_songs_song_id_fkey(title)')
+                    .select('show_id, song_id, set_number, song_order, is_encore, performance_type, songs!setlist_songs_song_id_fkey(title)')
                     .in('show_id', shows.map(s => s.id));
 
                 const byShow = {};

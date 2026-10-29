@@ -74,10 +74,13 @@ export default function SetlistPreview({ songs, total, liveDebutIds, tourDebutId
     });
     const effectiveTotal = (total ?? rawCount) - (rawCount - songs.length);
 
-    const liveDebuts = liveDebutIds?.size ? songs.filter(s => liveDebutIds.has(s.song_id)) : [];
+    // A tease doesn't count as the song actually being played — same rule the
+    // show page and Instagram graphic apply — so it never counts as a debut
+    // here either, even if its song_id is otherwise in liveDebutIds/tourDebutIds.
+    const liveDebuts = liveDebutIds?.size ? songs.filter(s => liveDebutIds.has(s.song_id) && s.performance_type !== 'tease') : [];
     const liveDebutSet = new Set(liveDebuts.map(s => s.song_id));
     const tourDebuts = tourDebutIds?.size
-        ? songs.filter(s => tourDebutIds.has(s.song_id) && !liveDebutSet.has(s.song_id))
+        ? songs.filter(s => tourDebutIds.has(s.song_id) && s.performance_type !== 'tease' && !liveDebutSet.has(s.song_id))
         : [];
     const hasDebuts = liveDebuts.length > 0 || tourDebuts.length > 0;
 

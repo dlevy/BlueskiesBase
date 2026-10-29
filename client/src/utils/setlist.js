@@ -12,7 +12,7 @@ export function orderSetlistSongs(rows) {
             (a.set_number ?? 0) - (b.set_number ?? 0) ||
             (a.song_order ?? 0) - (b.song_order ?? 0)
         )
-        .map(r => ({ song_id: r.song_id, title: r.songs?.title }))
+        .map(r => ({ song_id: r.song_id, title: r.songs?.title, performance_type: r.performance_type }))
         .filter(s => s.title);
 }
 

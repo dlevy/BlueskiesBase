@@ -49,7 +49,7 @@ async function fetchTourSetlistRows(tourName, todayStr, needsExtras) {
         let query = supabase
             .from('setlist_songs')
             .select(`
-                song_id, show_id, set_number, is_encore, song_order, notes,
+                song_id, show_id, set_number, is_encore, song_order, notes, performance_type,
                 songs!setlist_songs_song_id_fkey (
                     title, is_original${needsExtras ? ',\n                    album_songs ( albums ( title, release_date ) )' : ''}
                 ),
@@ -96,6 +96,11 @@ export async function fetchDefaultTourName() {
         .select('tour_name')
         .lte('show_date', todayStr)
         .not('tour_name', 'is', null)
+        // A non-tour side event (an afterparty, a one-off) stores tour_name
+        // as '' rather than null, so the null check above alone doesn't
+        // exclude it — one dated later the same night (higher day_order)
+        // than the actual tour show would otherwise win this sort.
+        .neq('tour_name', '')
         .order('show_date', { ascending: false })
         .order('day_order', { ascending: false })
         .order('id')
@@ -243,6 +248,13 @@ export async function fetchTourSongCounts(tourName, { stateFilter, countryFilter
     // can't be thrown off by two different songs sharing a title.
     const showSetsBySongId = {};
     rows.forEach(r => {
+        // A tease doesn't count as the song actually being played — same rule
+        // the show page, Instagram graphic and homepage list previews already
+        // apply to a single performance's own Live/Tour Debut and Rare tags.
+        // Here it means a song only ever teased this tour doesn't show up in
+        // Most Played/Rarest/the album breakdown at all, and isn't credited
+        // toward a show's songs-played count (avg songs/show, Biggest Setlist).
+        if (r.performance_type === 'tease') return;
         const title = r.songs?.title;
         if (title) {
             (showSetsByTitle[title] ||= new Set()).add(r.show_id);
