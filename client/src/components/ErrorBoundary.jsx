@@ -1,4 +1,11 @@
 import { Component } from 'react';
+import { reloadForStaleChunk } from '../utils/staleChunkReload';
+
+// A stale chunk hash from before the latest deploy (see main.jsx's
+// vite:preloadError listener for the full explanation) doesn't always go
+// through that event - the chunk's own import() can reject directly with one
+// of these browser-specific messages, landing straight here instead.
+const STALE_CHUNK_PATTERN = /error loading dynamically imported module|failed to fetch dynamically imported module|importing a module script failed/i;
 
 class ErrorBoundary extends Component {
     constructor(props) {
@@ -13,6 +20,10 @@ class ErrorBoundary extends Component {
     componentDidCatch(error, errorInfo) {
         console.error('[ErrorBoundary] Caught error:', error, errorInfo);
         this.setState({ error });
+
+        if (STALE_CHUNK_PATTERN.test(error?.message || '')) {
+            reloadForStaleChunk();
+        }
     }
 
     handleReset = () => {
