@@ -7,11 +7,44 @@ import { buildTourMapImage } from '../../components/ShowMapShare';
 import { getLocalDateString } from '../../utils/today';
 import { TOUR_STAT_TYPES, getStatTypeByKey } from '../../utils/tourStatTypes';
 import TourStatGraphic from '../../components/admin/TourStatGraphic';
+import TourMosaicGraphic, { MOSAIC_WIDTH, MOSAIC_HEIGHT } from '../../components/admin/TourMosaicGraphic';
 import { POST_STYLES, DEFAULT_STYLE_KEY, POST_WIDTH, POST_HEIGHT } from '../../utils/instagramStyles';
 import useBackgroundImageDataUrl from '../../hooks/useBackgroundImageDataUrl';
+import useBackgroundImageDataUrls from '../../hooks/useBackgroundImageDataUrls';
 import useGraphicPngExport from '../../hooks/useGraphicPngExport';
 
 const PREVIEW_WIDTH = 380;
+
+// Same tiebreak GET /api/posters uses to pick a show's "representative"
+// poster when it has several (comparePosterDisplayOrder in posters.js) —
+// duplicated here since this is the only client page that needs to pick one
+// poster per show rather than just listing all of them.
+function comparePosterDisplayOrder(a, b) {
+    if (a.is_primary !== b.is_primary) return a.is_primary ? -1 : 1;
+    if (a.is_primary) return (a.is_foil ? 1 : 0) - (b.is_foil ? 1 : 0);
+    return (a.display_order ?? 0) - (b.display_order ?? 0) || (a.created_at || '').localeCompare(b.created_at || '');
+}
+
+// One representative poster URL per show, from the tour's own poster list
+// (each poster already carries every show it's linked to — a tour-leg
+// poster backs several shows at once). Thumbnail preferred over the full
+// image: Tour Mosaic tiles are small, and thumbnails are already optimized
+// for exactly this, same as every other poster picker in this codebase.
+function buildPosterUrlByShow(postersForTour) {
+    const byShow = new Map();
+    postersForTour.forEach(poster => {
+        (poster.linkedShows || []).forEach(linkedShow => {
+            if (!byShow.has(linkedShow.id)) byShow.set(linkedShow.id, []);
+            byShow.get(linkedShow.id).push(poster);
+        });
+    });
+    const result = {};
+    byShow.forEach((list, showId) => {
+        const representative = [...list].sort(comparePosterDisplayOrder)[0];
+        result[showId] = representative?.thumbnail_url || representative?.poster_url || null;
+    });
+    return result;
+}
 
 export default function TourStatsPostPage() {
     const { tourName: encodedTourName } = useParams();
@@ -21,6 +54,7 @@ export default function TourStatsPostPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
+    const [mode, setMode] = useState('stat'); // 'stat' | 'mosaic'
     const [statKey, setStatKey] = useState(TOUR_STAT_TYPES[0].key);
     const [selectedAlbum, setSelectedAlbum] = useState('');
     const [neverPlayedTitles, setNeverPlayedTitles] = useState([]);
@@ -117,10 +151,45 @@ export default function TourStatsPostPage() {
 
     const rawBackgroundImageUrl = backgroundMode === 'poster' ? selectedPosterUrl : backgroundMode === 'photo' ? selectedPhotoUrl : null;
     const { dataUrl: backgroundImageDataUrl, loading: backgroundImageLoading } = useBackgroundImageDataUrl(rawBackgroundImageUrl);
-    const { generating, generatedImageUrl, download, clearGeneratedImage } = useGraphicPngExport(graphicRef, backgroundImageDataUrl, 'tour_stat_post_download');
 
+    // Tour Mosaic: every show on the tour, in date order, each tile backed
+    // by that show's own representative poster — including a scheduled show
+    // that hasn't happened (or hasn't had its setlist logged) yet, so the
+    // mosaic reserves its tile/grid space rather than only sizing itself for
+    // whatever's played so far (TourMosaicGraphic shows a "Setlist coming
+    // soon" placeholder for it). Computed regardless of `mode` so flipping
+    // the toggle doesn't have to wait for a fresh fetch, but cheap to skip
+    // (posters is usually empty before its own effect resolves) when mosaic
+    // hasn't been opened yet.
+    const mosaicShows = useMemo(
+        () => [...(tourData?.pastShows || []), ...(tourData?.upcomingShows || [])],
+        [tourData]
+    );
+    const mosaicPosterUrlByShow = useMemo(() => buildPosterUrlByShow(posters), [posters]);
+    const mosaicPosterUrls = useMemo(
+        () => [...new Set(Object.values(mosaicPosterUrlByShow).filter(Boolean))],
+        [mosaicPosterUrlByShow]
+    );
+    const { dataUrlByUrl: mosaicDataUrlByUrl, loading: mosaicImagesLoading } = useBackgroundImageDataUrls(
+        mode === 'mosaic' ? mosaicPosterUrls : []
+    );
+    const mosaicPosterDataUrlByShow = useMemo(() => {
+        const result = {};
+        Object.entries(mosaicPosterUrlByShow).forEach(([showId, url]) => {
+            result[showId] = url ? (mosaicDataUrlByUrl[url] || null) : null;
+        });
+        return result;
+    }, [mosaicPosterUrlByShow, mosaicDataUrlByUrl]);
+
+    const { generating, generatedImageUrl, download, clearGeneratedImage } = useGraphicPngExport(
+        graphicRef,
+        mode === 'mosaic' ? mosaicPosterUrls.map(u => mosaicDataUrlByUrl[u]).filter(Boolean) : backgroundImageDataUrl,
+        mode === 'mosaic' ? 'tour_mosaic_post_download' : 'tour_stat_post_download'
+    );
+
+    const tourSlug = tourName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
     const handleDownload = () => {
-        const tourSlug = tourName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        if (mode === 'mosaic') { download(`${tourSlug}-tour-mosaic.png`); return; }
         download(`${tourSlug}-${statKey}-tour-stat.png`);
     };
 
@@ -146,8 +215,10 @@ export default function TourStatsPostPage() {
     // first match from either list is enough, no need to tally/vote across shows.
     const artistName = tourData.pastShows?.[0]?.artist_name || tourData.upcomingShows?.[0]?.artist_name || null;
 
-    const previewHeight = Math.round(PREVIEW_WIDTH * (POST_HEIGHT / POST_WIDTH));
-    const previewScale = PREVIEW_WIDTH / POST_WIDTH;
+    const graphicWidth = mode === 'mosaic' ? MOSAIC_WIDTH : POST_WIDTH;
+    const graphicHeight = mode === 'mosaic' ? MOSAIC_HEIGHT : POST_HEIGHT;
+    const previewHeight = Math.round(PREVIEW_WIDTH * (graphicHeight / graphicWidth));
+    const previewScale = PREVIEW_WIDTH / graphicWidth;
 
     return (
         <div className="space-y-6">
@@ -158,10 +229,40 @@ export default function TourStatsPostPage() {
                 </PText>
             </div>
 
+            <div className="flex gap-1.5">
+                <button
+                    type="button"
+                    onClick={() => setMode('stat')}
+                    className={`text-sm px-3 py-1.5 rounded-lg border transition-all ${
+                        mode === 'stat' ? 'border-amber-500/40 bg-amber-500/10 text-amber-300' : 'border-white/10 hover:border-white/25 hover:bg-white/5'
+                    }`}
+                    style={mode !== 'stat' ? { color: 'var(--p-color-contrast-medium)' } : undefined}
+                >
+                    Single Stat Card
+                </button>
+                <button
+                    type="button"
+                    onClick={() => setMode('mosaic')}
+                    className={`text-sm px-3 py-1.5 rounded-lg border transition-all ${
+                        mode === 'mosaic' ? 'border-amber-500/40 bg-amber-500/10 text-amber-300' : 'border-white/10 hover:border-white/25 hover:bg-white/5'
+                    }`}
+                    style={mode !== 'mosaic' ? { color: 'var(--p-color-contrast-medium)' } : undefined}
+                >
+                    Full Tour Mosaic
+                </button>
+            </div>
+
             <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6">
                 {/* Controls */}
                 <div className="space-y-5 rounded-2xl border border-white/10 p-5" style={{ background: 'var(--p-color-surface)' }}>
-                    <div>
+                    {mode === 'mosaic' && (
+                        <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }} className="block">
+                            One tile per show on the tour ({mosaicShows.length} shows), each using its own poster as
+                            the backdrop — printable at 24x18in. A show still awaiting its setlist (or its poster)
+                            still reserves its tile, falling back to the plain style color below.
+                        </PText>
+                    )}
+                    <div style={mode === 'mosaic' ? { display: 'none' } : undefined}>
                         <label className="block text-xs font-medium uppercase tracking-wide mb-2" style={{ color: 'var(--p-color-contrast-medium)' }}>
                             Stat
                         </label>
@@ -215,12 +316,12 @@ export default function TourStatsPostPage() {
                         )}
                     </div>
 
-                    {statKey === 'tourSnapshot' && (
+                    {mode === 'stat' && statKey === 'tourSnapshot' && (
                         <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }} className="block -mb-2">
                             Tour Snapshot always uses the tour map as its background — the Background/Style choices below don't apply to it.
                         </PText>
                     )}
-                    <div style={statKey === 'tourSnapshot' ? { opacity: 0.45, pointerEvents: 'none' } : undefined}>
+                    <div style={mode === 'mosaic' ? { display: 'none' } : statKey === 'tourSnapshot' ? { opacity: 0.45, pointerEvents: 'none' } : undefined}>
                         <label className="block text-xs font-medium uppercase tracking-wide mb-2" style={{ color: 'var(--p-color-contrast-medium)' }}>
                             Background
                         </label>
@@ -316,9 +417,9 @@ export default function TourStatsPostPage() {
                         )}
                     </div>
 
-                    <div style={backgroundMode !== 'style' || statKey === 'tourSnapshot' ? { opacity: 0.45, pointerEvents: 'none' } : undefined}>
+                    <div style={mode === 'stat' && (backgroundMode !== 'style' || statKey === 'tourSnapshot') ? { opacity: 0.45, pointerEvents: 'none' } : undefined}>
                         <label className="block text-xs font-medium uppercase tracking-wide mb-2" style={{ color: 'var(--p-color-contrast-medium)' }}>
-                            Style
+                            {mode === 'mosaic' ? 'Style (fallback color for shows with no poster)' : 'Style'}
                         </label>
                         <div className="space-y-1.5">
                             {POST_STYLES.map(s => (
@@ -339,7 +440,7 @@ export default function TourStatsPostPage() {
                             ))}
                         </div>
 
-                        {backgroundMode !== 'style' && (
+                        {mode === 'stat' && backgroundMode !== 'style' && (
                             <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }} className="mt-3 block">
                                 Not used while background is set to {backgroundMode === 'poster' ? 'Tour Poster' : 'Tour Photo'} — image backgrounds always use a fixed high-contrast overlay for readability.
                             </PText>
@@ -349,10 +450,14 @@ export default function TourStatsPostPage() {
                     <PButton
                         onClick={handleDownload}
                         loading={generating}
-                        disabled={backgroundImageLoading || activeStatResult?.disabled || (statKey === 'tourSnapshot' && tourMapLoading)}
+                        disabled={mode === 'mosaic'
+                            ? (mosaicImagesLoading || mosaicShows.length === 0)
+                            : (backgroundImageLoading || activeStatResult?.disabled || (statKey === 'tourSnapshot' && tourMapLoading))}
                         className="w-full"
                     >
-                        {statKey === 'tourSnapshot' && tourMapLoading ? 'Generating map…' : backgroundImageLoading ? 'Loading background…' : 'Download PNG'}
+                        {mode === 'mosaic'
+                            ? (mosaicImagesLoading ? 'Loading posters…' : 'Download PNG')
+                            : (statKey === 'tourSnapshot' && tourMapLoading ? 'Generating map…' : backgroundImageLoading ? 'Loading background…' : 'Download PNG')}
                     </PButton>
                     <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }} className="block -mt-3">
                         On iPhone/iPad: Safari can't auto-download images — after generating, a full-size preview opens
@@ -363,26 +468,48 @@ export default function TourStatsPostPage() {
                 {/* Preview */}
                 <div className="flex items-start justify-center rounded-2xl border border-white/10 p-8" style={{ background: 'var(--p-color-canvas)' }}>
                     <div style={{ width: PREVIEW_WIDTH, height: previewHeight, overflow: 'hidden', borderRadius: 12, boxShadow: '0 10px 40px rgba(0,0,0,0.4)' }}>
-                        <div style={{ width: POST_WIDTH, height: POST_HEIGHT, transform: `scale(${previewScale})`, transformOrigin: 'top left' }}>
-                            {!activeStatResult?.disabled && !(statKey === 'tourSnapshot' && tourMapLoading) && (
-                                <TourStatGraphic
-                                    ref={graphicRef}
-                                    tourName={tourName}
-                                    artistName={artistName}
-                                    firstDate={tourData.firstDate}
-                                    lastDate={displayLastDate}
-                                    isOngoing={tourIsOngoing}
-                                    styleKey={styleKey}
-                                    backgroundMode={backgroundMode}
-                                    backgroundImageUrl={backgroundImageDataUrl}
-                                    tourMapImageUrl={statKey === 'tourSnapshot' ? tourMapUrl : null}
-                                    statResult={activeStatResult}
-                                />
-                            )}
-                            {statKey === 'tourSnapshot' && tourMapLoading && (
-                                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                    <PSpinner size="medium" aria={{ 'aria-label': 'Generating tour map' }} />
-                                </div>
+                        <div style={{ width: graphicWidth, height: graphicHeight, transform: `scale(${previewScale})`, transformOrigin: 'top left' }}>
+                            {mode === 'mosaic' ? (
+                                mosaicShows.length > 0 ? (
+                                    <TourMosaicGraphic
+                                        ref={graphicRef}
+                                        tourName={tourName}
+                                        artistName={artistName}
+                                        firstDate={mosaicShows[0].show_date}
+                                        lastDate={mosaicShows[mosaicShows.length - 1].show_date}
+                                        shows={mosaicShows}
+                                        setlistSongsByShow={tourData.setlistSongsByShow}
+                                        posterUrlByShow={mosaicPosterDataUrlByShow}
+                                        styleKey={styleKey}
+                                    />
+                                ) : (
+                                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--p-color-contrast-low)' }}>
+                                        No shows found for this tour
+                                    </div>
+                                )
+                            ) : (
+                                <>
+                                    {!activeStatResult?.disabled && !(statKey === 'tourSnapshot' && tourMapLoading) && (
+                                        <TourStatGraphic
+                                            ref={graphicRef}
+                                            tourName={tourName}
+                                            artistName={artistName}
+                                            firstDate={tourData.firstDate}
+                                            lastDate={displayLastDate}
+                                            isOngoing={tourIsOngoing}
+                                            styleKey={styleKey}
+                                            backgroundMode={backgroundMode}
+                                            backgroundImageUrl={backgroundImageDataUrl}
+                                            tourMapImageUrl={statKey === 'tourSnapshot' ? tourMapUrl : null}
+                                            statResult={activeStatResult}
+                                        />
+                                    )}
+                                    {statKey === 'tourSnapshot' && tourMapLoading && (
+                                        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <PSpinner size="medium" aria={{ 'aria-label': 'Generating tour map' }} />
+                                        </div>
+                                    )}
+                                </>
                             )}
                         </div>
                     </div>

@@ -13,7 +13,10 @@ import { trackEvent } from '../utils/analytics';
 // `backgroundImageDataUrl`, if given, is preloaded/decoded before capture —
 // it's a CSS background-image in the graphic (not an <img>), so there's
 // nothing in the DOM to call .decode() on directly; decoding an offscreen
-// copy of the exact same data: URL achieves the same thing.
+// copy of the exact same data: URL achieves the same thing. Can be a single
+// data: URL (every existing caller) or an array of them (the Tour Mosaic,
+// which embeds one background per tile) — either way, every one of them is
+// decoded before capture.
 export default function useGraphicPngExport(graphicRef, backgroundImageDataUrl, eventName) {
     const [generating, setGenerating] = useState(false);
     const [generatedImageUrl, setGeneratedImageUrl] = useState(null);
@@ -24,11 +27,14 @@ export default function useGraphicPngExport(graphicRef, backgroundImageDataUrl, 
         try {
             await document.fonts.ready;
 
-            if (backgroundImageDataUrl) {
+            const backgroundUrls = Array.isArray(backgroundImageDataUrl)
+                ? backgroundImageDataUrl.filter(Boolean)
+                : [backgroundImageDataUrl].filter(Boolean);
+            await Promise.all(backgroundUrls.map(url => {
                 const preload = new Image();
-                preload.src = backgroundImageDataUrl;
-                await preload.decode?.().catch(() => {});
-            }
+                preload.src = url;
+                return preload.decode?.().catch(() => {});
+            }));
 
             // Wait a couple of paint frames so the now-decoded background has
             // actually been composited on screen, not just decoded in

@@ -49,7 +49,7 @@ async function fetchTourSetlistRows(tourName, todayStr, needsExtras) {
         let query = supabase
             .from('setlist_songs')
             .select(`
-                song_id, show_id, set_number, is_encore, song_order, notes, performance_type,
+                song_id, show_id, set_number, is_encore, song_order, notes, performance_type, jams_into,
                 songs!setlist_songs_song_id_fkey (
                     title, is_original${needsExtras ? ',\n                    album_songs ( albums ( title, release_date ) )' : ''}
                 ),
@@ -224,7 +224,7 @@ export async function fetchTourSongCounts(tourName, { stateFilter, countryFilter
     onPlayedIds?.(playedIds);
 
     if (playedIds.length === 0) {
-        return { totalShows: tourShows.length, playedShows: 0, firstDate: tourShows[0].show_date, lastDate: tourShows[tourShows.length - 1].show_date, playedIds: [], songCounts: [], openingSongs: [], closingSongs: [], liveDebuts: [], biggestSetlist: null, albumBreakdown: [], songsByAlbum: {}, otherOriginals: 0, covers: 0, makeAmericaEnergyLines: [], pastShows: played, upcomingShows: upcoming };
+        return { totalShows: tourShows.length, playedShows: 0, firstDate: tourShows[0].show_date, lastDate: tourShows[tourShows.length - 1].show_date, playedIds: [], songCounts: [], openingSongs: [], closingSongs: [], liveDebuts: [], biggestSetlist: null, albumBreakdown: [], songsByAlbum: {}, otherOriginals: 0, covers: 0, makeAmericaEnergyLines: [], setlistSongsByShow: {}, pastShows: played, upcomingShows: upcoming };
     }
 
     // Intersected with playedIds rather than trusted as-is: setlistRowsPromise
@@ -269,6 +269,28 @@ export async function fetchTourSongCounts(tourName, { stateFilter, countryFilter
                 songMetaById[r.song_id] = { title, isOriginal: r.songs?.is_original, albumSongs: r.songs?.album_songs || [] };
             }
         }
+    });
+
+    // Every show's own ordered setlist (encores last, then set number, then
+    // position within the set) — unlike showSetsByTitle/songCounts above,
+    // teases are kept here (and not collapsed for sandwiching) since this is
+    // the actual setlist as performed, not a tally. Used by the Tour Mosaic
+    // stat card, which renders each show's real setlist on its own tile.
+    const setlistOrderKey = r => (r.is_encore ? 1 : 0) * 1000000 + (r.set_number ?? 0) * 10000 + (r.song_order ?? 0);
+    const setlistRowsByShow = {};
+    rows.forEach(r => { (setlistRowsByShow[r.show_id] ||= []).push(r); });
+    const setlistSongsByShow = {};
+    Object.entries(setlistRowsByShow).forEach(([showId, showRows]) => {
+        setlistSongsByShow[showId] = [...showRows]
+            .sort((a, b) => setlistOrderKey(a) - setlistOrderKey(b))
+            .map(r => ({
+                song_id: r.song_id,
+                title: r.songs?.title,
+                performance_type: r.performance_type,
+                is_original: r.songs?.is_original,
+                jams_into: r.jams_into,
+            }))
+            .filter(s => s.title);
     });
 
     // Live debuts: songs whose live debut — the earliest setlist_songs
@@ -463,6 +485,7 @@ export async function fetchTourSongCounts(tourName, { stateFilter, countryFilter
         otherOriginals,
         covers,
         makeAmericaEnergyLines,
+        setlistSongsByShow,
         pastShows: played,
         upcomingShows: upcoming,
     };
