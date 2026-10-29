@@ -41,7 +41,7 @@ async function computeSetlistIndex() {
             .from('setlist_songs')
             .select('song_id, show_id')
             .not('song_id', 'is', null)
-            .not('performance_type', 'in', '(dj,soundcheck)')
+            .not('performance_type', 'in', '(dj,soundcheck,tease)')
             .order('id')
     );
 
