@@ -35,12 +35,19 @@ const BOTTOM_PADDING = 180;
 const HEADER_FOOTER_CONTENT = 485;
 const MAX_SONG_FONT = 34;
 
-// Extra vertical space the "On This Day" badge row adds above the normal
-// header content — folded into the HEADER_FOOTER_CONTENT estimate when that
-// post type is active, so the setlist's font-size math still accounts for
-// the real amount of space left, instead of overflowing/clipping by however
-// tall this row ends up being.
+// Extra vertical space the "On This Day"/"Flashback" badge row adds above
+// the normal header content — folded into the HEADER_FOOTER_CONTENT estimate
+// when either post type is active (same pill size for both), so the
+// setlist's font-size math still accounts for the real amount of space left,
+// instead of overflowing/clipping by however tall this row ends up being.
 const TIME_MACHINE_BADGE_HEIGHT = 76;
+
+// Fixed, not tied to the selected color style's own accent (unlike "On This
+// Day", which deliberately matches the style) — a "Flashback" post is for
+// spotlighting any past show, not a specific style choice, so it needs to
+// read as its own distinct type at a glance regardless of which style is
+// active underneath it.
+const FLASHBACK_ACCENT = '#a78bfa';
 
 // Must match the actual rendered layout below (gap between the two columns,
 // gap within a song row) — the width-fitting math needs the real pixel
@@ -260,8 +267,9 @@ const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({
     const numberColumnTemplate = `${'9'.repeat(String(maxPosition).length || 1)}.`;
 
     const isOnThisDay = postType === 'onThisDay';
+    const isFlashback = postType === 'flashback';
     const onThisDayYears = isOnThisDay ? yearsAgo(show.show_date) : null;
-    const availableHeight = POST_HEIGHT - SIDE_PADDING - BOTTOM_PADDING - HEADER_FOOTER_CONTENT - (isOnThisDay ? TIME_MACHINE_BADGE_HEIGHT : 0);
+    const availableHeight = POST_HEIGHT - SIDE_PADDING - BOTTOM_PADDING - HEADER_FOOTER_CONTENT - ((isOnThisDay || isFlashback) ? TIME_MACHINE_BADGE_HEIGHT : 0);
     const columnWidth = (POST_WIDTH - SIDE_PADDING * 2 - COLUMN_GAP) / 2;
     const { columns, songFontSize } = pickSongLayout(numberedSongs, availableHeight, columnWidth, tagContext, numberColumnTemplate);
     const numberColumnWidth = measureTextWidth(numberColumnTemplate, songFontSize, 400);
@@ -331,6 +339,22 @@ const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({
                                     &middot; {onThisDayYears} {onThisDayYears === 1 ? 'Year' : 'Years'} Ago
                                 </span>
                             )}
+                        </div>
+                    )}
+                    {isFlashback && (
+                        <div style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 10,
+                            padding: '9px 20px', marginBottom: 24,
+                            border: `2px dashed ${FLASHBACK_ACCENT}`, borderRadius: 999,
+                            color: FLASHBACK_ACCENT,
+                        }}>
+                            <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill={FLASHBACK_ACCENT}>
+                                <path d="M11 19V5l-7 7 7 7z" />
+                                <path d="M21 19V5l-7 7 7 7z" />
+                            </svg>
+                            <span style={{ fontSize: 24, fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase' }}>
+                                Flashback
+                            </span>
                         </div>
                     )}
                     {show.tour_name && (

@@ -87,7 +87,7 @@ export default function InstagramPostPage() {
     const handleDownload = () => {
         const datePart = show.show_date;
         const artistPart = show.artist_name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-        const suffix = postType === 'onThisDay' ? 'on-this-day' : 'setlist';
+        const suffix = postType === 'onThisDay' ? 'on-this-day' : postType === 'flashback' ? 'flashback' : 'setlist';
         download(`${datePart}-${artistPart}-${suffix}.png`);
     };
 
@@ -128,6 +128,7 @@ export default function InstagramPostPage() {
                             {[
                                 { value: 'setlist', label: 'Setlist' },
                                 { value: 'onThisDay', label: 'On This Day' },
+                                { value: 'flashback', label: 'Flashback' },
                             ].map(opt => (
                                 <button
                                     key={opt.value}
@@ -147,6 +148,11 @@ export default function InstagramPostPage() {
                         {postType === 'onThisDay' && (
                             <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }} className="mt-2 block">
                                 Adds an "On This Day" badge with the years-ago count — pick this for a show whose date matches today's month/day in a past year.
+                            </PText>
+                        )}
+                        {postType === 'flashback' && (
+                            <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }} className="mt-2 block">
+                                Adds a "Flashback" badge — pick this for any past show you're spotlighting that isn't today's exact anniversary.
                             </PText>
                         )}
                     </div>
