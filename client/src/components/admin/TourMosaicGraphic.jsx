@@ -31,6 +31,17 @@ const GRID_STROKE_COLOR = '#52525b';
 const FONT_STACK = "'Inter', ui-sans-serif, system-ui, sans-serif";
 const DISPLAY_FONT_STACK = "'Space Grotesk', ui-sans-serif, system-ui, sans-serif";
 
+// Canvas-based text measurement, same approach InstagramPostGraphic.jsx/
+// TourStatGraphic.jsx use, so the number column's reserved width is the
+// actual rendered width of its widest number — not a guess.
+let measureCtx = null;
+function measureTextWidth(text, fontSizePx, fontWeight) {
+    if (!measureCtx) measureCtx = document.createElement('canvas').getContext('2d');
+    measureCtx.font = `${fontWeight} ${fontSizePx}px ${FONT_STACK}`;
+    return measureCtx.measureText(text).width;
+}
+const NUMBER_COLUMN_GAP = 4;
+
 // Same scrim recipe InstagramPostGraphic.jsx/TourStatGraphic.jsx use for a
 // poster/photo backdrop (IMAGE_TEXT_SHADOW's gradient) — darker than this
 // mosaic's original lighter scrim, which left the poster too visible and
@@ -146,6 +157,12 @@ const TourMosaicGraphic = forwardRef(function TourMosaicGraphic({
         const songs = setlistSongsByShow[show.id] || [];
         const numbered = assignSetlistDisplayNumbers(songs);
         const columns = songs.length > TWO_COLUMN_SONG_THRESHOLD ? splitIntoColumns(numbered) : [numbered];
+        // Reserved even for a tease/sandwiched-return row with no number of
+        // its own (see assignSetlistDisplayNumbers), so its title still lines
+        // up under the numbered rows' titles instead of starting flush left
+        // — same indent treatment InstagramPostGraphic.jsx gives them.
+        const maxPosition = numbered.reduce((max, { position }) => Math.max(max, position || 0), 0);
+        const numberColumnWidth = measureTextWidth(`${'9'.repeat(String(maxPosition || 1).length)}.`, songFontSize, 400);
         const cityLine = show.venues
             ? `${show.venues.city}${show.venues.state_country ? ', ' + show.venues.state_country : ''}`
             : '';
@@ -218,17 +235,18 @@ const TourMosaicGraphic = forwardRef(function TourMosaicGraphic({
                                             // the same song_id, so song_id alone collides.
                                             key={`${song.song_id ?? 'x'}-${i}`}
                                             style={{
-                                                display: 'flex', flexWrap: 'nowrap', alignItems: 'baseline', gap: 4,
+                                                display: 'flex', flexWrap: 'nowrap', alignItems: 'baseline', gap: NUMBER_COLUMN_GAP,
                                                 fontSize: songFontSize, lineHeight: 1.35,
                                                 opacity: song.performance_type === 'tease' ? 0.65 : 1,
                                                 fontStyle: song.performance_type === 'tease' ? 'italic' : 'normal',
                                             }}
                                         >
-                                            {position != null && (
-                                                <span style={{ flexShrink: 0, color: 'rgba(255,255,255,0.55)', fontVariantNumeric: 'tabular-nums' }}>
-                                                    {position}.
-                                                </span>
-                                            )}
+                                            <span style={{
+                                                flexShrink: 0, width: numberColumnWidth, textAlign: 'right',
+                                                color: 'rgba(255,255,255,0.55)', fontVariantNumeric: 'tabular-nums',
+                                            }}>
+                                                {position != null ? `${position}.` : ''}
+                                            </span>
                                             <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 }}>
                                                 {song.title}{song.jams_into ? ' →' : ''}
                                             </span>
