@@ -1,5 +1,5 @@
 import { forwardRef } from 'react';
-import { POST_WIDTH, POST_HEIGHT, getStyleByKey } from '../../utils/instagramStyles';
+import { POST_WIDTH, POST_HEIGHT, STORY_WIDTH, STORY_HEIGHT, getStyleByKey } from '../../utils/instagramStyles';
 import { assignSetlistDisplayNumbers } from '../../utils/setlist';
 
 function formatLongDate(dateString) {
@@ -23,6 +23,14 @@ const SET_KEYS = ['set1', 'set2', 'set3', 'encore'];
 // that's where feed UI overlaps the image most.
 const SIDE_PADDING = 50;
 const BOTTOM_PADDING = 180;
+
+// Instagram's own Story safe zone: the top profile/name bar and the bottom
+// reply-box/sticker tray both overlap a fixed band of the image regardless
+// of the 1080x1920 canvas's actual height, so — unlike the feed post's
+// BOTTOM_PADDING above, which is a fraction of that format's own height —
+// these are the flat pixel numbers Instagram recommends, applied to both
+// top and bottom.
+const STORY_SAFE_PADDING = 250;
 
 // Roughly how much vertical space the header + divider + footer (including
 // the tagline beneath the footer link) take up as rendered content — NOT
@@ -231,13 +239,19 @@ function splitIntoColumns(numberedSongs, columns) {
     return result;
 }
 
-// Fixed-pixel-size graphic (1080x1350, the only size offered) captured via
-// html-to-image. Layout is identical across styles/tours — only colors change —
-// so a new tour style never requires touching this component.
+// Fixed-pixel-size graphic — 1080x1350 (4:5 feed post) or 1080x1920 (9:16
+// story, picked via `format`) — captured via html-to-image. Layout is
+// identical across styles/tours — only colors change — so a new tour style
+// never requires touching this component.
 const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({
-    show, styleKey, liveDebutSongIds, tourDebutSongIds, tourRarity, backgroundMode = 'style', backgroundImageUrl, postType = 'setlist',
+    show, styleKey, liveDebutSongIds, tourDebutSongIds, tourRarity, backgroundMode = 'style', backgroundImageUrl, postType = 'setlist', format = 'post',
 }, ref) {
     const tagContext = { liveDebutSongIds, tourDebutSongIds, tourRarity };
+    const isStory = format === 'story';
+    const width = isStory ? STORY_WIDTH : POST_WIDTH;
+    const height = isStory ? STORY_HEIGHT : POST_HEIGHT;
+    const topPadding = isStory ? STORY_SAFE_PADDING : SIDE_PADDING;
+    const bottomPadding = isStory ? STORY_SAFE_PADDING : BOTTOM_PADDING;
     const style = getStyleByKey(styleKey);
     const useImageBackground = (backgroundMode === 'poster' || backgroundMode === 'photo') && !!backgroundImageUrl;
     // An image background never trusts the selected color style for text — an
@@ -269,8 +283,8 @@ const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({
     const isOnThisDay = postType === 'onThisDay';
     const isFlashback = postType === 'flashback';
     const onThisDayYears = isOnThisDay ? yearsAgo(show.show_date) : null;
-    const availableHeight = POST_HEIGHT - SIDE_PADDING - BOTTOM_PADDING - HEADER_FOOTER_CONTENT - ((isOnThisDay || isFlashback) ? TIME_MACHINE_BADGE_HEIGHT : 0);
-    const columnWidth = (POST_WIDTH - SIDE_PADDING * 2 - COLUMN_GAP) / 2;
+    const availableHeight = height - topPadding - bottomPadding - HEADER_FOOTER_CONTENT - ((isOnThisDay || isFlashback) ? TIME_MACHINE_BADGE_HEIGHT : 0);
+    const columnWidth = (width - SIDE_PADDING * 2 - COLUMN_GAP) / 2;
     const { columns, songFontSize } = pickSongLayout(numberedSongs, availableHeight, columnWidth, tagContext, numberColumnTemplate);
     const numberColumnWidth = measureTextWidth(numberColumnTemplate, songFontSize, 400);
     const venueLine = show.venues
@@ -282,8 +296,8 @@ const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({
             ref={ref}
             style={{
                 position: 'relative',
-                width: POST_WIDTH,
-                height: POST_HEIGHT,
+                width,
+                height,
                 background: useImageBackground ? '#0b0e13' : style.background,
                 fontFamily: FONT_STACK,
                 boxSizing: 'border-box',
@@ -315,7 +329,7 @@ const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({
             <div style={{
                 position: 'relative', zIndex: 1, width: '100%', height: '100%',
                 display: 'flex', flexDirection: 'column',
-                paddingLeft: SIDE_PADDING, paddingRight: SIDE_PADDING, paddingTop: SIDE_PADDING, paddingBottom: BOTTOM_PADDING,
+                paddingLeft: SIDE_PADDING, paddingRight: SIDE_PADDING, paddingTop: topPadding, paddingBottom: bottomPadding,
                 boxSizing: 'border-box',
                 color: palette.body, textShadow,
             }}>

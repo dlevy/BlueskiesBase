@@ -54,6 +54,12 @@ export function getStyleByKey(key) {
     return POST_STYLES.find(s => s.key === key) || POST_STYLES[0];
 }
 
-// Single fixed post size (4:5) — no format picker; every post is this size.
+// Single fixed post size (4:5) — every feed post is this size.
 export const POST_WIDTH = 1080;
 export const POST_HEIGHT = 1350;
+
+// Instagram Story size (9:16), per Instagram's own recommended resolution —
+// an alternate format for the single-show setlist generator, picked via a
+// Post/Story toggle alongside the existing color style.
+export const STORY_WIDTH = 1080;
+export const STORY_HEIGHT = 1920;
