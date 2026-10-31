@@ -462,8 +462,8 @@ export default function SearchPage() {
     return (
         <div className="px-4 pt-2 pb-4 md:pt-3 md:pb-6 max-w-6xl mx-auto">
             <SEO
-                title="Sturgill Simpson &amp; Johnny Blue Skies Setlists"
-                description="The complete Sturgill Simpson and Johnny Blue Skies setlist database. Search 400+ concerts from 2012 to present."
+                title="Johnny Blue Skies &amp; Sturgill Simpson Concert Setlists"
+                description="The complete Johnny Blue Skies &amp; The Dark Clouds and Sturgill Simpson concert setlist archive — search 400+ shows from 2012 to present."
             />
 
             <MainNavTabs onHomeClick={handleHomeClick} />
