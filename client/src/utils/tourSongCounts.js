@@ -330,8 +330,11 @@ export async function fetchTourSongCounts(tourName, { stateFilter, countryFilter
     // this specific title rather than parameterized.
     const ENERGY_SONG_TITLE = 'Make America Fuk Again';
     const makeAmericaEnergyLines = rows
-        .filter(r => r.songs?.title === ENERGY_SONG_TITLE && r.notes)
-        .map(r => ({ date: showById[r.show_id]?.show_date, venue: showById[r.show_id]?.venues || null, notes: r.notes }))
+        .filter(r => r.songs?.title === ENERGY_SONG_TITLE && r.notes?.length)
+        // notes is a TEXT[] column (a performance can carry more than one note) —
+        // joined into one display string so this stat's existing exact-string
+        // grouping (see tourStatTypes.js) keeps working unchanged.
+        .map(r => ({ date: showById[r.show_id]?.show_date, venue: showById[r.show_id]?.venues || null, notes: r.notes.join(' / ') }))
         .filter(l => l.date)
         .sort((a, b) => b.date.localeCompare(a.date));
 

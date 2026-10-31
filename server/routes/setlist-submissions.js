@@ -400,7 +400,9 @@ router.post('/songs/:songRowId/merge', requireEditorOrAdmin, async (req, res) =>
                 set_number: setNumber,
                 song_order: nextOrder,
                 is_encore: isEncore,
-                notes: songRow.notes,
+                // setlist_submission_songs.notes is a single free-text column (fans
+                // aren't curating multi-note footnotes); setlist_songs.notes is TEXT[].
+                notes: songRow.notes ? [songRow.notes] : null,
                 performance_type: 'full',
             })
             .select(`
@@ -505,7 +507,8 @@ router.post('/:submissionId/merge-all', requireEditorOrAdmin, async (req, res) =
                 set_number: setNumber,
                 song_order: songOrder,
                 is_encore: isEncore,
-                notes: row.notes,
+                // Same single-string -> TEXT[] wrap as the single-song merge above.
+                notes: row.notes ? [row.notes] : null,
                 performance_type: 'full',
             };
         });

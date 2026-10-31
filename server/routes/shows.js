@@ -13,7 +13,10 @@ const { redactProfile } = require('../utils/privacy');
 // neither of which should trigger a notification.
 function setlistSignature(rows) {
     return rows
-        .map(r => `${r.song_id}|${r.set_number}|${!!r.is_encore}|${r.notes || ''}|${r.jams_into || ''}|${r.performance_type || 'full'}`)
+        // notes is a TEXT[] column — joined on a separator that won't appear
+        // in real note text, so two different note sets can't collide into
+        // the same signature.
+        .map(r => `${r.song_id}|${r.set_number}|${!!r.is_encore}|${(r.notes || []).join('\u0001')}|${r.jams_into || ''}|${r.performance_type || 'full'}`)
         .sort()
         .join('\n');
 }
@@ -713,7 +716,7 @@ router.put('/:id/setlist', requireEditorOrAdmin, async (req, res) => {
                 set_number: item.set_number,
                 song_order: item.song_order,
                 is_encore: item.is_encore || false,
-                notes: item.notes || null,
+                notes: Array.isArray(item.notes) ? item.notes.filter(Boolean) : null,
                 jams_into: jamsInto,
                 performance_type: performanceType
             };
@@ -942,7 +945,7 @@ router.post('/:id/setlist/song', requireEditorOrAdmin, async (req, res) => {
                 set_number,
                 song_order,
                 is_encore: is_encore || false,
-                notes: notes || null,  // Performance-specific notes only
+                notes: Array.isArray(notes) ? notes.filter(Boolean) : null,  // Performance-specific notes only
                 jams_into: jamsIntoValue,  // UUID or null, NOT false
                 performance_type: performanceTypeValue  // full, tease, or partial
             }])

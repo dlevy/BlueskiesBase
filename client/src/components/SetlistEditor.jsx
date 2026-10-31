@@ -8,6 +8,13 @@ import QuickAddSong from './QuickAddSong';
 
 // soundcheck sorts first so it renders above Set 1 when active, matching
 // the public show page's "Sound Check" section sitting above the Setlist.
+const PERFORMANCE_TYPES = [
+    { value: 'full', label: 'Full' },
+    { value: 'tease', label: 'Tease' },
+    { value: 'partial', label: 'Partial' },
+    { value: 'dj', label: "DJ'd" },
+];
+
 const SET_ORDER = ['soundcheck', 'set1', 'set2', 'set3', 'encore'];
 const SET_LABELS = { soundcheck: 'Sound Check', set1: 'Set 1', set2: 'Set 2', set3: 'Set 3', encore: 'Encore' };
 const EMPTY_SETLIST = { soundcheck: [], set1: [], set2: [], set3: [], encore: [] };
@@ -51,7 +58,9 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
                         set_number: setNumber,
                         song_order: index + 1,
                         is_encore: isEncore,
-                        notes: song.notes || null,
+                        // Strip blank entries (e.g. an added-then-left-empty row) before
+                        // saving — never persist an empty-string note.
+                        notes: (song.notes || []).map(n => n.trim()).filter(Boolean),
                         jams_into: song.jams_into || null,
                         // Soundcheck isn't independently editable to tease/partial/dj —
                         // those classify a live performance, which this isn't.
@@ -74,7 +83,10 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
                     is_original: song.is_original ?? null,
                     is_sunday_valley: song.is_sunday_valley ?? false,
                     original_artist: song.original_artist || null,
-                    notes: song.notes || '',
+                    // notes is an array of strings (setlist_songs.notes is a TEXT[] column) —
+                    // defensive conversion in case anything upstream ever hands back the old
+                    // single-string shape.
+                    notes: Array.isArray(song.notes) ? song.notes : (song.notes ? [song.notes] : []),
                     jams_into: song.jams_into || null,
                     performance_type: song.performance_type || 'full',
                     order: index
@@ -114,7 +126,7 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
             is_sunday_valley: song.is_sunday_valley,
             original_artist: song.original_artist,
             written_by: song.written_by,
-            notes: '',
+            notes: [],
             jams_into: null,
             performance_type: 'full',
             order: setlist[setKey].length
@@ -133,16 +145,6 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
 
     const handleRemoveSong = (setKey, index) => {
         const updatedSetlist = { ...setlist, [setKey]: setlist[setKey].filter((_, i) => i !== index) };
-        setSetlist(updatedSetlist);
-        notifyChange(updatedSetlist);
-    };
-
-    const handleMoveSong = (setKey, index, direction) => {
-        const newIndex = direction === 'up' ? index - 1 : index + 1;
-        if (newIndex < 0 || newIndex >= setlist[setKey].length) return;
-        const updatedSet = [...setlist[setKey]];
-        [updatedSet[index], updatedSet[newIndex]] = [updatedSet[newIndex], updatedSet[index]];
-        const updatedSetlist = { ...setlist, [setKey]: updatedSet };
         setSetlist(updatedSetlist);
         notifyChange(updatedSetlist);
     };
@@ -204,7 +206,6 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
                         onAddSong={(song) => handleAddSong(setKey, song)}
                         onSongCreated={handleSongCreated}
                         onRemoveSong={(index) => handleRemoveSong(setKey, index)}
-                        onMoveSong={(index, direction) => handleMoveSong(setKey, index, direction)}
                         onUpdateSong={(index, field, value) => handleUpdateSong(setKey, index, field, value)}
                         onDragEnd={(event) => handleDragEnd(setKey, event)}
                         onRemoveSet={setKey !== 'set1' && setlist[setKey].length === 0 ? () => removeSetSection(setKey) : null}
@@ -235,7 +236,7 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
     );
 }
 
-function SetSection({ label, songs, allSongs, isSoundcheck, onAddSong, onSongCreated, onRemoveSong, onMoveSong, onUpdateSong, onDragEnd, onRemoveSet }) {
+function SetSection({ label, songs, allSongs, isSoundcheck, onAddSong, onSongCreated, onRemoveSong, onUpdateSong, onDragEnd, onRemoveSet }) {
     // A small activation distance keeps a plain click on the ⚙/×/drag-handle buttons from
     // being mistaken for a drag; KeyboardSensor gives the drag handle the standard dnd-kit
     // keyboard flow (Tab to it, Space to pick up, arrow keys to move, Space to drop).
@@ -262,17 +263,24 @@ function SetSection({ label, songs, allSongs, isSoundcheck, onAddSong, onSongCre
                     <SortableContext items={songs.map(s => s.id)} strategy={verticalListSortingStrategy}>
                         <div className="space-y-2 mb-3">
                             {songs.map((song, index) => (
-                                <SetlistSongItem
-                                    key={song.id ?? index}
-                                    song={song}
-                                    index={index}
-                                    isFirst={index === 0}
-                                    isLast={index === songs.length - 1}
-                                    isSoundcheck={isSoundcheck}
-                                    onRemove={() => onRemoveSong(index)}
-                                    onMove={(direction) => onMoveSong(index, direction)}
-                                    onUpdate={(field, value) => onUpdateSong(index, field, value)}
-                                />
+                                <div key={song.id ?? index}>
+                                    <SetlistSongItem
+                                        song={song}
+                                        index={index}
+                                        isSoundcheck={isSoundcheck}
+                                        onRemove={() => onRemoveSong(index)}
+                                        onUpdate={(field, value) => onUpdateSong(index, field, value)}
+                                    />
+                                    {/* Not part of the sortable list (no useSortable/id in `items`) —
+                                        dnd-kit only tracks drag state for registered items, so this
+                                        plain button sits between rows unaffected by drag sensors. */}
+                                    {index < songs.length - 1 && (
+                                        <JamConnector
+                                            linked={!!song.jams_into}
+                                            onToggle={() => onUpdateSong(index, 'jams_into', !song.jams_into)}
+                                        />
+                                    )}
+                                </div>
                             ))}
                         </div>
                     </SortableContext>
@@ -284,9 +292,51 @@ function SetSection({ label, songs, allSongs, isSoundcheck, onAddSong, onSongCre
     );
 }
 
-function SetlistSongItem({ song, index, isFirst, isLast, isSoundcheck, onRemove, onMove, onUpdate }) {
+// Sits between two consecutive songs — a faster way to set jams_into than
+// opening a song's ⚙ settings panel and finding the checkbox there. Toggles
+// the exact same field via the same onUpdate path the checkbox already uses,
+// so the two controls can never drift out of sync with each other. Uses the
+// same ">" glyph the row's own jams_into chip and the settings panel's
+// checkbox label already use for this, rather than a separate icon, so
+// there's only one visual symbol for "jams into" on this whole page.
+function JamConnector({ linked, onToggle }) {
+    return (
+        <button
+            type="button"
+            onClick={onToggle}
+            className="w-full flex items-center my-1 group"
+            title={linked ? 'Jams into next song — click to remove' : 'Click to mark as jamming into the next song'}
+            aria-pressed={linked}
+            aria-label={linked ? 'Jams into next song' : 'Does not jam into next song'}
+        >
+            <span className={`ml-2 flex items-center justify-center w-6 h-6 rounded-full border shrink-0 font-bold text-sm transition-colors ${
+                linked
+                    ? 'border-amber-400/60 bg-amber-400/10 text-amber-400'
+                    : 'border-white/15 text-[var(--p-color-contrast-low)] group-hover:border-white/30 group-hover:text-[var(--p-color-contrast-medium)]'
+            }`}>
+                &gt;
+            </span>
+            <span className={`h-px flex-1 ml-2 transition-colors ${linked ? 'bg-amber-400/50' : 'bg-white/10 group-hover:bg-white/25'}`} />
+        </button>
+    );
+}
+
+function SetlistSongItem({ song, index, isSoundcheck, onRemove, onUpdate }) {
     const [isExpanded, setIsExpanded] = useState(false);
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: song.id });
+
+    // Always shows at least one (empty) input, even for a song with zero
+    // notes saved — "default it to one" per the editor's own UX, while the
+    // underlying array stays empty until something is actually typed
+    // (notifyChange strips blank entries before saving either way).
+    const notesList = song.notes?.length > 0 ? song.notes : [''];
+    const updateNote = (i, value) => {
+        const updated = [...notesList];
+        updated[i] = value;
+        onUpdate('notes', updated);
+    };
+    const removeNote = (i) => onUpdate('notes', notesList.filter((_, idx) => idx !== i));
+    const addNote = () => onUpdate('notes', [...notesList, '']);
 
     const style = {
         transform: CSS.Transform.toString(transform),
@@ -297,8 +347,8 @@ function SetlistSongItem({ song, index, isFirst, isLast, isSoundcheck, onRemove,
 
     return (
         <div ref={setNodeRef} style={{ ...style, background: 'var(--p-color-canvas)' }} className="rounded-lg border border-white/10 p-2">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 flex-1 min-w-0">
+            <div className="flex items-start justify-between">
+                <div className="flex items-center gap-2 flex-1 min-w-0 flex-wrap">
                     <button type="button" {...attributes} {...listeners}
                         className="px-1 py-0.5 rounded hover:bg-white/10 transition-colors shrink-0 touch-none"
                         style={{ color: 'var(--p-color-contrast-medium)', cursor: isDragging ? 'grabbing' : 'grab' }}
@@ -309,6 +359,11 @@ function SetlistSongItem({ song, index, isFirst, isLast, isSoundcheck, onRemove,
                             <circle cx="2" cy="7" r="1.4" /><circle cx="8" cy="7" r="1.4" />
                             <circle cx="2" cy="12" r="1.4" /><circle cx="8" cy="12" r="1.4" />
                         </svg>
+                    </button>
+                    <button type="button" onClick={() => setIsExpanded(!isExpanded)}
+                        className="px-1.5 py-0.5 rounded hover:bg-white/10 transition-colors text-xs shrink-0"
+                        style={{ color: 'var(--p-color-contrast-medium)' }} title="Edit details">
+                        ⚙
                     </button>
                     <span className="text-xs font-mono shrink-0" style={{ color: 'var(--p-color-contrast-medium)' }}>
                         {index + 1}.
@@ -340,23 +395,25 @@ function SetlistSongItem({ song, index, isFirst, isLast, isSoundcheck, onRemove,
                             &gt;
                         </span>
                     )}
+                    {/* Meaningless for a soundcheck song — tease/partial/dj all classify
+                        a live performance, which this isn't; its performance_type is
+                        always forced to 'soundcheck' on save. */}
+                    {!isSoundcheck && (
+                        <div className="flex items-center gap-2 shrink-0">
+                            {PERFORMANCE_TYPES.map(opt => (
+                                <label key={opt.value} className="flex items-center gap-1 text-xs cursor-pointer"
+                                    style={{ color: 'var(--p-color-contrast-medium)' }}>
+                                    <input type="radio" name={`performance-type-${song.id ?? index}`} value={opt.value}
+                                        checked={(song.performance_type || 'full') === opt.value}
+                                        onChange={() => onUpdate('performance_type', opt.value)}
+                                        className="w-3 h-3" />
+                                    {opt.label}
+                                </label>
+                            ))}
+                        </div>
+                    )}
                 </div>
                 <div className="flex gap-1 shrink-0">
-                    <button type="button" onClick={() => setIsExpanded(!isExpanded)}
-                        className="px-1.5 py-0.5 rounded hover:bg-white/10 transition-colors text-xs"
-                        style={{ color: 'var(--p-color-contrast-medium)' }} title="Edit details">
-                        ⚙
-                    </button>
-                    <button type="button" onClick={() => onMove('up')} disabled={isFirst}
-                        className="px-1.5 py-0.5 rounded hover:bg-white/10 transition-colors text-sm disabled:opacity-30"
-                        style={{ color: 'var(--p-color-contrast-medium)' }} title="Move up">
-                        ↑
-                    </button>
-                    <button type="button" onClick={() => onMove('down')} disabled={isLast}
-                        className="px-1.5 py-0.5 rounded hover:bg-white/10 transition-colors text-sm disabled:opacity-30"
-                        style={{ color: 'var(--p-color-contrast-medium)' }} title="Move down">
-                        ↓
-                    </button>
                     <button type="button" onClick={onRemove}
                         className="px-1.5 py-0.5 rounded hover:bg-white/10 transition-colors text-sm"
                         style={{ color: 'var(--p-color-error)' }} title="Remove">
@@ -379,37 +436,31 @@ function SetlistSongItem({ song, index, isFirst, isLast, isSoundcheck, onRemove,
                     )}
 
                     <div className="pt-2 border-t border-white/10 space-y-2">
-                        {/* Meaningless for a soundcheck song — tease/partial/dj all
-                            classify a live performance, which this isn't; its
-                            performance_type is always forced to 'soundcheck' on save. */}
-                        {!isSoundcheck && (
-                            <div>
-                                <label className="block text-xs mb-1" style={{ color: 'var(--p-color-contrast-medium)' }}>
-                                    Performance Type
-                                </label>
-                                <select value={song.performance_type || 'full'}
-                                    onChange={e => onUpdate('performance_type', e.target.value)}
-                                    className="w-full rounded border border-white/10 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-[var(--p-color-info)]"
-                                    style={{ background: 'var(--p-color-canvas)', color: 'var(--p-color-primary)' }}>
-                                    <option value="full">Full Performance</option>
-                                    <option value="tease">Tease</option>
-                                    <option value="partial">Partial</option>
-                                    <option value="dj">DJ'd (not performed live)</option>
-                                </select>
-                            </div>
-                        )}
-
-                        <label className="flex items-center gap-2 text-xs cursor-pointer"
-                            style={{ color: 'var(--p-color-contrast-medium)' }}>
-                            <input type="checkbox" checked={!!song.jams_into}
-                                onChange={e => onUpdate('jams_into', e.target.checked)} className="w-3 h-3" />
-                            Jams into next song
-                            <span className="font-bold" style={{ color: 'var(--p-color-primary)' }}>&gt;</span>
-                        </label>
-
-                        <input type="text" placeholder="Performance notes (e.g., 'with guest', 'acoustic version')"
-                            value={song.notes || ''} onChange={e => onUpdate('notes', e.target.value)}
-                            className="w-full rounded border border-white/10 bg-white/5 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-[var(--p-color-info)] placeholder:text-gray-500" />
+                        <div className="space-y-1">
+                            {notesList.map((note, i) => (
+                                <div key={i} className="flex gap-1">
+                                    <input type="text" placeholder="Performance notes (e.g., 'with guest', 'acoustic version')"
+                                        value={note} onChange={e => updateNote(i, e.target.value)}
+                                        className="flex-1 min-w-0 rounded border border-white/10 bg-white/5 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-[var(--p-color-info)] placeholder:text-gray-500" />
+                                    {notesList.length > 1 && (
+                                        <button type="button" onClick={() => removeNote(i)}
+                                            className="px-1.5 rounded hover:bg-white/10 transition-colors text-sm shrink-0"
+                                            style={{ color: 'var(--p-color-error)' }} title="Remove note">
+                                            ×
+                                        </button>
+                                    )}
+                                </div>
+                            ))}
+                            <button type="button" onClick={addNote}
+                                className="text-xs hover:underline" style={{ color: 'var(--p-color-info)' }}>
+                                + Add note
+                            </button>
+                            {/* Tease/partial are classified via Performance Type above, not
+                                here — notes are free-text context, never a substitute for that. */}
+                            <PText size="x-small" style={{ color: 'var(--p-color-contrast-low)' }} className="block">
+                                Context only — don't use this to mark a tease or partial, use Performance Type above for that.
+                            </PText>
+                        </div>
                     </div>
 
                     <PText size="x-small" style={{ color: 'var(--p-color-contrast-low)' }} className="pt-1 border-t border-white/10">

@@ -291,10 +291,15 @@ function SongRow({ song, position, tourRarity, liveDebutSongIds, tourDebutSongId
                         <span className="font-bold text-amber-400 text-sm">→</span>
                     )}
                 </div>
-                {(song.original_artist || song.notes) && (
-                    <div className="mt-0.5 flex flex-wrap gap-x-2 text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>
-                        {song.original_artist && <span>({song.original_artist})</span>}
-                        {song.notes && <span className="italic">{song.notes}</span>}
+                {(song.original_artist || song.notes?.length > 0) && (
+                    <div className="mt-0.5 text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>
+                        {song.original_artist && <div>({song.original_artist})</div>}
+                        {song.notes?.filter(Boolean).map((note, i) => (
+                            <div key={i} className="italic flex gap-1">
+                                <span aria-hidden="true">&middot;</span>
+                                <span>{note}</span>
+                            </div>
+                        ))}
                     </div>
                 )}
             </div>
