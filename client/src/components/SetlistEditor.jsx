@@ -114,24 +114,74 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
         convertInitialSetlist(initialSetlist || {});
     }, [initialSetlist, convertInitialSetlist]);
 
-    const handleAddSong = (setKey, song) => {
-        const newSong = {
-            // Drag-and-drop needs a genuinely unique id per row to track items, not just a
-            // React key — Date.now() alone could collide if two songs land in the same
-            // millisecond (e.g. two quick picks from the keyboard).
-            id: `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-            song_id: song.id,
-            title: song.title,
-            is_original: song.is_original,
-            is_sunday_valley: song.is_sunday_valley,
-            original_artist: song.original_artist,
-            written_by: song.written_by,
-            notes: [],
-            jams_into: null,
-            performance_type: 'full',
-            order: setlist[setKey].length
-        };
-        const updatedSetlist = { ...setlist, [setKey]: [...setlist[setKey], newSong] };
+    // Drag-and-drop needs a genuinely unique id per row to track items, not just a
+    // React key — Date.now() alone could collide if two songs land in the same
+    // millisecond (e.g. two quick picks from the keyboard, or the two rows a
+    // single "middle" insert below adds at once).
+    const newRowId = () => `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+    // `song` is catalog-shaped ({id, title, is_original, is_sunday_valley,
+    // original_artist, written_by}, as QuickAddSong hands back) — note `id`
+    // there is the SONG's id, unlike a setlist row object where that same
+    // thing lives in `song_id`.
+    const buildEntry = (song, performanceType) => ({
+        id: newRowId(),
+        song_id: song.id,
+        title: song.title,
+        is_original: song.is_original,
+        is_sunday_valley: song.is_sunday_valley,
+        original_artist: song.original_artist,
+        written_by: song.written_by,
+        notes: [],
+        jams_into: null,
+        performance_type: performanceType,
+    });
+
+    // Appends to the bottom of a set — the "type and press Enter" quick-add's
+    // only job, always performanceType 'full'.
+    const insertSong = (setKey, atIndex, song, performanceType = 'full') => {
+        const updatedSet = [...setlist[setKey]];
+        updatedSet.splice(atIndex, 0, { ...buildEntry(song, performanceType), order: atIndex });
+        const updatedSetlist = { ...setlist, [setKey]: updatedSet };
+        setSetlist(updatedSetlist);
+        notifyChange(updatedSetlist);
+    };
+
+    // Handles the per-song "+ Add Tease"/"+ Add Partial" buttons, which also
+    // ask where relative to the anchor song (the row the button was clicked
+    // on) it happened:
+    //   - 'beginning' — inserted right before the anchor.
+    //   - 'end' (default) — inserted right after the anchor — the original
+    //     behavior from before position existed.
+    //   - 'middle' — the anchor song is resumed afterward (e.g. a tease
+    //     played mid-song, then the song continues), so this brings the
+    //     anchor song itself back in automatically right after the inserted
+    //     row instead of making the admin search for and re-add the same
+    //     song a second time — chained via jams_into on both transitional
+    //     rows (the same mechanism the connector between rows already sets)
+    //     so the resumed anchor is recognized as a continuation, not
+    //     renumbered as a second, separate instance of that song (see
+    //     assignSetlistDisplayNumbers in utils/setlist.js).
+    const insertPerformance = (setKey, anchorIndex, song, performanceType, position) => {
+        const anchor = setlist[setKey][anchorIndex];
+        const updatedSet = [...setlist[setKey]];
+
+        if (position === 'beginning') {
+            updatedSet.splice(anchorIndex, 0, buildEntry(song, performanceType));
+        } else if (position === 'middle') {
+            const anchorAsSong = {
+                id: anchor.song_id, title: anchor.title, is_original: anchor.is_original,
+                is_sunday_valley: anchor.is_sunday_valley, original_artist: anchor.original_artist, written_by: anchor.written_by,
+            };
+            const teaseEntry = { ...buildEntry(song, performanceType), jams_into: anchor.song_id };
+            const continuationEntry = buildEntry(anchorAsSong, anchor.performance_type || 'full');
+            updatedSet[anchorIndex] = { ...anchor, jams_into: song.id };
+            updatedSet.splice(anchorIndex + 1, 0, teaseEntry, continuationEntry);
+        } else {
+            updatedSet.splice(anchorIndex + 1, 0, buildEntry(song, performanceType));
+        }
+
+        const updatedSetlist = { ...setlist, [setKey]: updatedSet };
         setSetlist(updatedSetlist);
         notifyChange(updatedSetlist);
     };
@@ -203,7 +253,8 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
                         songs={setlist[setKey]}
                         allSongs={allSongs}
                         isSoundcheck={setKey === 'soundcheck'}
-                        onAddSong={(song) => handleAddSong(setKey, song)}
+                        onAddSong={(song) => insertSong(setKey, setlist[setKey].length, song)}
+                        onInsertSong={(anchorIndex, song, performanceType, position) => insertPerformance(setKey, anchorIndex, song, performanceType, position)}
                         onSongCreated={handleSongCreated}
                         onRemoveSong={(index) => handleRemoveSong(setKey, index)}
                         onUpdateSong={(index, field, value) => handleUpdateSong(setKey, index, field, value)}
@@ -236,7 +287,7 @@ export default function SetlistEditor({ initialSetlist = {}, onChange }) {
     );
 }
 
-function SetSection({ label, songs, allSongs, isSoundcheck, onAddSong, onSongCreated, onRemoveSong, onUpdateSong, onDragEnd, onRemoveSet }) {
+function SetSection({ label, songs, allSongs, isSoundcheck, onAddSong, onInsertSong, onSongCreated, onRemoveSong, onUpdateSong, onDragEnd, onRemoveSet }) {
     // A small activation distance keeps a plain click on the ⚙/×/drag-handle buttons from
     // being mistaken for a drag; KeyboardSensor gives the drag handle the standard dnd-kit
     // keyboard flow (Tab to it, Space to pick up, arrow keys to move, Space to drop).
@@ -268,6 +319,9 @@ function SetSection({ label, songs, allSongs, isSoundcheck, onAddSong, onSongCre
                                         song={song}
                                         index={index}
                                         isSoundcheck={isSoundcheck}
+                                        allSongs={allSongs}
+                                        onSongCreated={onSongCreated}
+                                        onInsertSong={onInsertSong}
                                         onRemove={() => onRemoveSong(index)}
                                         onUpdate={(field, value) => onUpdateSong(index, field, value)}
                                     />
@@ -321,8 +375,25 @@ function JamConnector({ linked, onToggle }) {
     );
 }
 
-function SetlistSongItem({ song, index, isSoundcheck, onRemove, onUpdate }) {
+const INSERT_POSITIONS = [
+    { value: 'beginning', label: 'Beginning' },
+    { value: 'middle', label: 'Middle' },
+    { value: 'end', label: 'End' },
+];
+
+function SetlistSongItem({ song, index, isSoundcheck, allSongs, onSongCreated, onInsertSong, onRemove, onUpdate }) {
     const [isExpanded, setIsExpanded] = useState(false);
+    // null | 'tease' | 'partial' — which inline "insert a song relative to
+    // this one" picker is open, if any. Lets a tease/partial be added at the
+    // exact spot it belongs instead of at the bottom of the set and then
+    // dragged into place.
+    const [inserting, setInserting] = useState(null);
+    // Where the tease/partial happened relative to this song — 'end' (right
+    // after, flowing into whatever comes next) is the default since it's
+    // the simplest, most common case. Reset to 'end' each time a fresh
+    // insert flow opens so it never carries over from a previous one.
+    const [insertPosition, setInsertPosition] = useState('end');
+    const openInsert = (type) => { setInserting(type); setInsertPosition('end'); };
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: song.id });
 
     // Always shows at least one (empty) input, even for a song with zero
@@ -421,6 +492,58 @@ function SetlistSongItem({ song, index, isSoundcheck, onRemove, onUpdate }) {
                     </button>
                 </div>
             </div>
+
+            {/* Meaningless for a soundcheck song, same reasoning as the Performance
+                Type radios above. */}
+            {!isSoundcheck && (
+                inserting ? (
+                    <div className="mt-1.5 pl-1 space-y-1">
+                        <div className="flex items-center gap-1">
+                            {INSERT_POSITIONS.map(opt => (
+                                <button key={opt.value} type="button" onClick={() => setInsertPosition(opt.value)}
+                                    className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors ${
+                                        insertPosition === opt.value
+                                            ? 'border-amber-400/60 bg-amber-400/10 text-amber-400'
+                                            : 'border-white/15 hover:border-white/30'
+                                    }`}
+                                    style={insertPosition !== opt.value ? { color: 'var(--p-color-contrast-low)' } : undefined}>
+                                    {opt.label}
+                                </button>
+                            ))}
+                        </div>
+                        <div className="flex items-start gap-1">
+                            <div className="flex-1 min-w-0">
+                                <QuickAddSong
+                                    allSongs={allSongs}
+                                    onSongCreated={onSongCreated}
+                                    onAddSong={(pickedSong) => { onInsertSong(index, pickedSong, inserting, insertPosition); setInserting(null); }}
+                                    placeholder={
+                                        insertPosition === 'beginning' ? `Type a song that was ${inserting === 'tease' ? 'teased' : 'played'} before this one…`
+                                        : insertPosition === 'middle' ? `Type a song that was ${inserting === 'tease' ? 'teased' : 'played'} in the middle of this one — it'll come back in after…`
+                                        : `Type a song to add as a ${inserting} right after this one…`
+                                    }
+                                />
+                            </div>
+                            <button type="button" onClick={() => setInserting(null)}
+                                className="px-1.5 py-0.5 rounded hover:bg-white/10 transition-colors text-sm shrink-0"
+                                style={{ color: 'var(--p-color-contrast-medium)' }} title="Cancel">
+                                ×
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="mt-1 pl-1 flex gap-3">
+                        <button type="button" onClick={() => openInsert('tease')}
+                            className="text-xs hover:underline" style={{ color: 'var(--p-color-contrast-low)' }}>
+                            + Add Tease
+                        </button>
+                        <button type="button" onClick={() => openInsert('partial')}
+                            className="text-xs hover:underline" style={{ color: 'var(--p-color-contrast-low)' }}>
+                            + Add Partial
+                        </button>
+                    </div>
+                )
+            )}
 
             {isExpanded && (
                 <div className="mt-2 pt-2 border-t border-white/10 space-y-2">
