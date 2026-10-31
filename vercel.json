@@ -14,6 +14,7 @@
     { "src": "/api/(.*)", "dest": "/api/[...path].js" },
     { "src": "/show/(.*)", "dest": "/api/[...path].js" },
     { "src": "/faq/?", "dest": "/api/[...path].js" },
+    { "src": "/tours/(.*)", "dest": "/api/[...path].js" },
     { "src": "/(.*)", "dest": "/index.html" }
   ]
 }

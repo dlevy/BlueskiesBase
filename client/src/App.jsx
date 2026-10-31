@@ -34,6 +34,7 @@ const PhotosPage = lazy(() => import('./pages/PhotosPage'))
 const LinksPage = lazy(() => import('./pages/LinksPage'))
 const MembersPage = lazy(() => import('./pages/MembersPage'))
 const TourStatsPage = lazy(() => import('./pages/TourStatsPage'))
+const TourPage = lazy(() => import('./pages/TourPage'))
 const UpcomingShowsPage = lazy(() => import('./pages/UpcomingShowsPage'))
 const PastShowsPage = lazy(() => import('./pages/PastShowsPage'))
 const ProfilePage = lazy(() => import('./pages/ProfilePage'))
@@ -134,6 +135,7 @@ function App() {
             <Route path="links" element={<LinksPage />} />
             <Route path="members" element={<MembersPage />} />
             <Route path="tour-stats" element={<TourStatsPage />} />
+            <Route path="tours/:tourSlug" element={<TourPage />} />
             <Route path="upcoming-shows" element={<UpcomingShowsPage />} />
             <Route path="past-shows" element={<PastShowsPage />} />
             <Route path="faq" element={<FaqPage />} />

@@ -8,6 +8,15 @@ function slugify(str) {
     return (str || '').toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 }
 
+// Must match MIN_TOUR_SHOWS in client/src/utils/tourSongCounts.js — the
+// sitemap should never advertise a /tours/* URL the public tour dropdown
+// itself wouldn't surface.
+const MIN_TOUR_SHOWS = 5;
+
+function buildTourPath(tourName) {
+    return `/tours/${slugify(tourName)}`;
+}
+
 // Mirrors buildShowPath in client/src/utils/showSlug.js:
 //   /show/{artist}/{YYYY-MM-DD}/{city-state}
 // Returns null when a segment would be empty — the :artist/:date/:locationSlug
@@ -32,7 +41,7 @@ router.get('/', async (req, res) => {
 
         const { data: shows, error } = await supabaseAdmin
             .from('shows')
-            .select('show_date, updated_at, artist_name, venues(city, state_country)')
+            .select('show_date, updated_at, artist_name, tour_name, venues(city, state_country)')
             .order('show_date', { ascending: false });
 
         if (error) throw error;
@@ -91,7 +100,50 @@ router.get('/', async (req, res) => {
             console.warn(`Sitemap: omitted ${colliding.length} ambiguous path(s): ${colliding.join(', ')}`);
         }
 
-        const allUrls = [...staticPages, ...showUrls];
+        // One <url> per tour with at least MIN_TOUR_SHOWS shows — same
+        // collision-skip pattern as showUrls above (a slug matching more than
+        // one distinct tour_name is a data-entry mistake, not a legitimate
+        // ambiguity, so it's omitted and logged rather than guessed at).
+        const todayStr = new Date().toISOString().slice(0, 10);
+        const tourByName = new Map();
+        for (const show of shows || []) {
+            if (!show.tour_name) continue;
+            const entry = tourByName.get(show.tour_name) || { count: 0, hasUpcoming: false, lastTouched: null };
+            entry.count++;
+            if (show.show_date >= todayStr) entry.hasUpcoming = true;
+            const touched = show.updated_at ? show.updated_at.split('T')[0] : show.show_date;
+            if (!entry.lastTouched || touched > entry.lastTouched) entry.lastTouched = touched;
+            tourByName.set(show.tour_name, entry);
+        }
+
+        const tourByPath = new Map();
+        for (const [tourName, entry] of tourByName) {
+            if (entry.count < MIN_TOUR_SHOWS) continue;
+            const url = buildTourPath(tourName);
+            if (!tourByPath.has(url)) tourByPath.set(url, []);
+            tourByPath.get(url).push({ tourName, entry });
+        }
+
+        const tourUrls = [];
+        const collidingTours = [];
+        for (const [url, matches] of tourByPath) {
+            if (matches.length > 1) {
+                collidingTours.push(url);
+                continue;
+            }
+            const { entry } = matches[0];
+            tourUrls.push({
+                url,
+                priority: '0.7',
+                changefreq: entry.hasUpcoming ? 'daily' : 'weekly',
+                lastmod: entry.lastTouched,
+            });
+        }
+        if (collidingTours.length) {
+            console.warn(`Sitemap: omitted ${collidingTours.length} ambiguous tour path(s): ${collidingTours.join(', ')}`);
+        }
+
+        const allUrls = [...staticPages, ...showUrls, ...tourUrls];
 
         // Child order below is fixed by the sitemap schema: loc, lastmod, changefreq, priority.
         const xml = `<?xml version="1.0" encoding="UTF-8"?>

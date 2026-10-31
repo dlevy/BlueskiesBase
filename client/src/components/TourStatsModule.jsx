@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { PHeading, PText, PSpinner, PInlineNotification } from '@porsche-design-system/components-react';
 import { fetchTourList, fetchDefaultTourName, fetchTourSongCounts, ALL_SHOWS } from '../utils/tourSongCounts';
 import { fetchGeographyOptions } from '../utils/geography';
 import { buildShowPath } from '../utils/showSlug';
+import { buildTourPath } from '../utils/tourSlug';
 import ShowMapShare from './ShowMapShare';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -73,6 +74,7 @@ function RareTag({ count, total }) {
 // renders this, since only the standalone page needs it.
 export default function TourStatsModule({ defaultTour = null }) {
     const navigate = useNavigate();
+    const location = useLocation();
     const { isEditorOrAdmin } = useAuth();
     const [tours, setTours] = useState([]);
     const [selectedTour, setSelectedTour] = useState('');
@@ -230,6 +232,15 @@ export default function TourStatsModule({ defaultTour = null }) {
                             <>
                                 <div className="flex flex-wrap items-baseline justify-between gap-2 mb-1">
                                     <PHeading size="large" tag="h2">{selectedTour}</PHeading>
+                                    {selectedTour !== ALL_SHOWS && location.pathname !== buildTourPath(selectedTour) && (
+                                        <Link
+                                            to={buildTourPath(selectedTour)}
+                                            className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-sm border border-white/15 hover:border-white/25 hover:bg-white/5 transition-all shrink-0"
+                                            style={{ color: 'var(--p-color-contrast-medium)' }}
+                                        >
+                                            View Tour Page
+                                        </Link>
+                                    )}
                                     {isEditorOrAdmin && selectedTour !== ALL_SHOWS && (
                                         <button
                                             onClick={() => navigate(`/admin/tours/${encodeURIComponent(selectedTour)}/stats-post`)}

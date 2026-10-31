@@ -6,6 +6,7 @@ import {
 } from '@porsche-design-system/components-react';
 import { getShowBySlug, getTourRarity, getShowDebuts, getAdjacentShows, checkShowAttendance, markShowAttended, unmarkShowAttended, getShowThanks, getShowPoster, getShowPhotos } from '../services/api';
 import { buildShowPath } from '../utils/showSlug';
+import { buildTourPath } from '../utils/tourSlug';
 import { assignSetlistDisplayNumbers } from '../utils/setlist';
 import { useAuth } from '../contexts/AuthContext';
 import { useAvatarNudge } from '../contexts/AvatarNudgeContext';
@@ -561,7 +562,11 @@ export default function ShowDetailPage() {
     const isFutureShow = showDateObj >= today;
     const longDate = showDateObj.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
-    const seoTitle = `${show.artist_name} at ${venueName} – ${longDate} Setlist`;
+    // City folded into the title itself, not just the description — city-name
+    // searches ("johnny blue skies [city] setlist") match against the title
+    // tag far more reliably than body/meta text.
+    const venueLabel = venueName && venueCity ? `${venueName}, ${venueCity}` : (venueName || venueCity);
+    const seoTitle = `${show.artist_name} at ${venueLabel} – ${longDate} Setlist`;
     const allSongsFlat = [
         ...(show.setlist?.set1 || []),
         ...(show.setlist?.set2 || []),
@@ -603,18 +608,12 @@ export default function ShowDetailPage() {
         ...(seoImageUrl ? { image: seoImageUrl } : {}),
     };
 
-    // No deep-linkable per-tour URL exists on the public site today (the
-    // Tour Stats page's tour picker is local state, not reflected in the
-    // URL) — the tour breadcrumb item links to the general /tour-stats
-    // page rather than a URL that would actually land on this specific
-    // tour, same loose "category page" pattern many sites use for a
-    // breadcrumb segment that isn't itself a dedicated page per value.
     const breadcrumbJsonLd = {
         '@context': 'https://schema.org',
         '@type': 'BreadcrumbList',
         itemListElement: [
             { '@type': 'ListItem', position: 1, name: 'Home', item: `${window.location.origin}/` },
-            ...(show.tour_name ? [{ '@type': 'ListItem', position: 2, name: show.tour_name, item: `${window.location.origin}/tour-stats` }] : []),
+            ...(show.tour_name ? [{ '@type': 'ListItem', position: 2, name: show.tour_name, item: `${window.location.origin}${buildTourPath(show.tour_name)}` }] : []),
             {
                 '@type': 'ListItem',
                 position: show.tour_name ? 3 : 2,
@@ -796,7 +795,11 @@ export default function ShowDetailPage() {
                 {/* Tags + Sources */}
                 {(show.tour_name || songStats.originals > 0 || songStats.covers > 0 || show.source_types?.length > 0) && (
                     <div className="mt-5 pt-4 border-t border-white/[0.07] flex flex-wrap items-center gap-2">
-                        {show.tour_name && <PTag>{show.tour_name}</PTag>}
+                        {show.tour_name && (
+                            <Link to={buildTourPath(show.tour_name)} className="transition-opacity hover:opacity-80">
+                                <PTag icon="arrow-right">{show.tour_name}</PTag>
+                            </Link>
+                        )}
                         {songStats.originals > 0 && (
                             <PTag color="notification-success-soft">
                                 {songStats.originals} Original{songStats.originals !== 1 ? 's' : ''}

@@ -1,5 +1,6 @@
 const express = require('express');
 const { findShowByPathParams, injectShowHead } = require('../server/utils/showMeta');
+const { findTourByUrlSlug, injectTourHead } = require('../server/utils/tourMeta');
 const { injectFaqHtml } = require('../server/utils/faqMeta');
 const { baseUrlFor } = require('../server/utils/baseUrl');
 
@@ -77,6 +78,40 @@ app.get('/api/faq', async (req, res) => {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400');
     res.status(200).send(body);
+});
+
+// Server-rendered meta/JSON-LD/noscript body for /tours/:tourSlug — same
+// reasoning and shape as the /show/:artist/:date/:location handler above.
+// vercel.json routes /tours/* here instead of straight to /index.html.
+app.get('/api/tours/:tourSlug', async (req, res) => {
+    try {
+        const { tourSlug } = req.params;
+        const host = req.get('x-forwarded-host') || req.get('host');
+        const proto = req.get('x-forwarded-proto') || 'https';
+        const indexRes = await fetch(`${proto}://${host}/index.html`);
+        const html = await indexRes.text();
+
+        const tour = await findTourByUrlSlug(tourSlug);
+        const body = tour
+            ? injectTourHead(html, tour.tourName, tour.pastShows, tour.upcomingShows, tour.setlistSongsByShow, baseUrlFor(req))
+            : html;
+
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400');
+        res.status(200).send(body);
+    } catch (err) {
+        console.error('[GET /tours/:tourSlug] Prerender error:', err);
+        try {
+            const host = req.get('x-forwarded-host') || req.get('host');
+            const proto = req.get('x-forwarded-proto') || 'https';
+            const indexRes = await fetch(`${proto}://${host}/index.html`);
+            res.setHeader('Content-Type', 'text/html; charset=utf-8');
+            res.status(200).send(await indexRes.text());
+        } catch (fallbackErr) {
+            console.error('[GET /tours/:tourSlug] Fallback fetch also failed:', fallbackErr);
+            res.status(500).send('Internal server error');
+        }
+    }
 });
 
 app.use('/api/shows', require('../server/routes/shows'));

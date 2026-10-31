@@ -1,4 +1,5 @@
 const { supabase } = require('../config/supabase');
+const { buildTourPath } = require('./tourMeta');
 
 // Must match client/src/utils/showSlug.js and server/routes/sitemap.js.
 function slugify(str) {
@@ -77,7 +78,12 @@ function buildShowHead(show, { imageUrl, canonicalUrl, baseUrl } = {}) {
     const [y, m, d] = show.show_date.split('-');
     const longDate = new Date(y, m - 1, d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
-    const title = `${show.artist_name} at ${venueName} – ${longDate} Setlist | SkySets.org`;
+    // City folded into the title itself, not just the description — city-name
+    // searches ("johnny blue skies [city] setlist") match against the title
+    // tag far more reliably than body/meta text. Keep in sync with the
+    // matching venueLabel in client/src/pages/ShowDetailPage.jsx.
+    const venueLabel = venueName && venueCity ? `${venueName}, ${venueCity}` : (venueName || venueCity);
+    const title = `${show.artist_name} at ${venueLabel} – ${longDate} Setlist | SkySets.org`;
     const description = `${show.artist_name} performed at ${venueName} in ${venueCity} on ${longDate}.`
         + (show.tour_name ? ` Part of the ${show.tour_name} tour.` : '');
 
@@ -114,18 +120,12 @@ function buildShowHead(show, { imageUrl, canonicalUrl, baseUrl } = {}) {
         ...(imageUrl ? { image: imageUrl } : {}),
     };
 
-    // No deep-linkable per-tour URL exists on the public site today (the
-    // Tour Stats page's tour picker is local state, not reflected in the
-    // URL) — the tour breadcrumb item links to the general /tour-stats page
-    // rather than a URL that would actually land on this specific tour,
-    // the same loose "category page" pattern many sites use for a
-    // breadcrumb segment that isn't itself a dedicated page per value.
     const breadcrumbJsonLd = {
         '@context': 'https://schema.org',
         '@type': 'BreadcrumbList',
         itemListElement: [
             { '@type': 'ListItem', position: 1, name: 'Home', item: `${baseUrl}/` },
-            ...(show.tour_name ? [{ '@type': 'ListItem', position: 2, name: show.tour_name, item: `${baseUrl}/tour-stats` }] : []),
+            ...(show.tour_name ? [{ '@type': 'ListItem', position: 2, name: show.tour_name, item: `${baseUrl}${buildTourPath(show.tour_name)}` }] : []),
             {
                 '@type': 'ListItem',
                 position: show.tour_name ? 3 : 2,
