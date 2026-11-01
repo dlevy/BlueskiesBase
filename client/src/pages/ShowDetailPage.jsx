@@ -167,6 +167,95 @@ function computeSetlistStats(show, tourRarity, liveDebutSongIds, tourDebutSongId
     };
 }
 
+// Which tags actually show up somewhere in this setlist — mirrors SongRow's
+// own per-row conditions exactly (including the tease exclusion already
+// used for Rare/Live Debut/Tour Debut there) so the legend only ever lists
+// a tag the admin can actually point to in the list above it, never every
+// possible tag regardless of whether this show uses it.
+function computeLegendTags(songs, tourRarity, liveDebutSongIds, tourDebutSongIds) {
+    const present = {
+        tease: false, partial: false, dj: false, cover: false, sundayValley: false,
+        liveDebut: false, tourDebut: false, rare: false, jamsInto: false,
+    };
+    songs.forEach(song => {
+        if (song.performance_type === 'tease') present.tease = true;
+        if (song.performance_type === 'partial') present.partial = true;
+        if (song.performance_type === 'dj') present.dj = true;
+        if (song.is_original === false) present.cover = true;
+        if (song.is_sunday_valley) present.sundayValley = true;
+        if (song.jams_into) present.jamsInto = true;
+
+        const isTease = song.performance_type === 'tease';
+        const tourCount = tourRarity?.total_shows > 0 && song.song_id ? tourRarity.song_counts[song.song_id] : undefined;
+        if (!isTease && tourCount != null && tourCount / tourRarity.total_shows < 0.15) present.rare = true;
+        if (!isTease && song.song_id != null && liveDebutSongIds?.has(song.song_id)) present.liveDebut = true;
+        if (!isTease && song.song_id != null && tourDebutSongIds?.has(song.song_id)) present.tourDebut = true;
+    });
+    return present;
+}
+
+// Sample tag + plain-text definition, one row per tag actually present —
+// same left-to-right order SongRow itself renders them in.
+function SetlistLegend({ songs, tourRarity, liveDebutSongIds, tourDebutSongIds }) {
+    const present = computeLegendTags(songs, tourRarity, liveDebutSongIds, tourDebutSongIds);
+    const items = [
+        present.tease && {
+            tag: <InlineTag className="bg-amber-500/10 text-amber-400">tease</InlineTag>,
+            text: "A brief, recognizable riff or musical phrase from the song — enough to tell what it is — without the band settling into it.",
+        },
+        present.partial && {
+            tag: <InlineTag className="bg-amber-500/10 text-amber-400">partial</InlineTag>,
+            text: 'The band plays at least one full section of the song (a verse, chorus, or passage) but not the whole thing, or plays the whole thing without the lyrics.',
+        },
+        present.dj && {
+            tag: <InlineTag className="bg-purple-500/10 text-purple-300">DJ'd</InlineTag>,
+            text: "Played as a recording over the PA — not performed live by the band.",
+        },
+        present.cover && {
+            tag: <InlineTag className="bg-blue-500/10 text-blue-300">cover</InlineTag>,
+            text: 'A song originally by another artist.',
+        },
+        present.sundayValley && {
+            tag: <InlineTag className="bg-teal-500/10 text-teal-300">Sunday Valley</InlineTag>,
+            text: "Written & originally performed by Sturgill's early band, Sunday Valley.",
+        },
+        present.liveDebut && {
+            tag: <LiveDebutBadge />,
+            text: 'First live performance of this song, ever.',
+        },
+        present.tourDebut && {
+            tag: <TourDebutBadge />,
+            text: 'First time this song has been played on this tour.',
+        },
+        present.rare && {
+            tag: <RarePill />,
+            text: 'Played at fewer than 15% of shows on this tour.',
+        },
+        present.jamsInto && {
+            tag: <span className="font-bold text-amber-400 text-sm">→</span>,
+            text: 'Transitions directly into the next song without stopping.',
+        },
+    ].filter(Boolean);
+
+    if (items.length === 0) return null;
+
+    return (
+        <div className="mt-4 pt-4 border-t border-white/10">
+            <PText size="xs" className="mb-2 block" style={{ color: 'var(--p-color-contrast-low)' }}>
+                Tags in this setlist
+            </PText>
+            <div className="space-y-1.5">
+                {items.map(({ tag, text }, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                        <span className="shrink-0">{tag}</span>
+                        <PText size="2xs" style={{ color: 'var(--p-color-contrast-low)' }}>{text}</PText>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
 function StatTile({ value, label, color }) {
     return (
         <div className="inline-flex items-center gap-1.5 rounded-lg border border-white/5 bg-white/5 px-2.5 py-1">
@@ -176,18 +265,26 @@ function StatTile({ value, label, color }) {
     );
 }
 
+// The static pill part of RareBadge, reused as-is (no hover tooltip) by the
+// Setlist legend, which already shows the definition as plain text.
+function RarePill() {
+    return (
+        <span
+            className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded cursor-default"
+            style={{ background: 'rgba(192, 132, 252, 0.12)', color: '#c084fc' }}
+        >
+            <svg aria-hidden="true" className="w-2.5 h-2.5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm0 10a1 1 0 011 1v1h1a1 1 0 110 2H6v1a1 1 0 11-2 0v-1H3a1 1 0 110-2h1v-1a1 1 0 011-1zM12 2a1 1 0 01.967.744L14.146 7.2 17.5 9.134a1 1 0 010 1.732l-3.354 1.935-1.18 4.455a1 1 0 01-1.933 0L9.854 12.8 6.5 10.866a1 1 0 010-1.732l3.354-1.935 1.18-4.456A1 1 0 0112 2z" clipRule="evenodd" />
+            </svg>
+            Rare
+        </span>
+    );
+}
+
 function RareBadge({ count, total, tourName }) {
     return (
         <div className="relative inline-flex group/rare">
-            <span
-                className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded cursor-default"
-                style={{ background: 'rgba(192, 132, 252, 0.12)', color: '#c084fc' }}
-            >
-                <svg aria-hidden="true" className="w-2.5 h-2.5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm0 10a1 1 0 011 1v1h1a1 1 0 110 2H6v1a1 1 0 11-2 0v-1H3a1 1 0 110-2h1v-1a1 1 0 011-1zM12 2a1 1 0 01.967.744L14.146 7.2 17.5 9.134a1 1 0 010 1.732l-3.354 1.935-1.18 4.455a1 1 0 01-1.933 0L9.854 12.8 6.5 10.866a1 1 0 010-1.732l3.354-1.935 1.18-4.456A1 1 0 0112 2z" clipRule="evenodd" />
-                </svg>
-                Rare
-            </span>
+            <RarePill />
             <div className="pointer-events-none absolute z-50 left-0 top-full mt-1.5
                             opacity-0 scale-95
                             group-hover/rare:opacity-100 group-hover/rare:scale-100
@@ -225,7 +322,18 @@ function DebutBadge({ label, color, title }) {
 const LiveDebutBadge = () => <DebutBadge label="Live Debut" color="#34d399" title="First live performance of this song, ever" />;
 const TourDebutBadge = () => <DebutBadge label="Tour Debut" color="#22d3ee" title="First time this song has been played on this tour" />;
 
-function SongRow({ song, position, tourRarity, liveDebutSongIds, tourDebutSongIds, showPosition = true }) {
+// Shared pill shape for the simpler tags (tease/partial/dj/cover/sunday
+// valley) — a plain colored label with no icon or tooltip. Used both inline
+// on a song row and, unchanged, as the sample tag in the Setlist legend.
+function InlineTag({ className, children, title }) {
+    return (
+        <span className={`text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded ${className}`} title={title}>
+            {children}
+        </span>
+    );
+}
+
+function SongRow({ song, position, tourRarity, liveDebutSongIds, tourDebutSongIds, showPosition = true, showLyricsLink = true }) {
     // A tease doesn't count as the song actually being played — Live Debut,
     // Tour Debut and Rare are all claims about a real performance, and a
     // tease shouldn't earn any of them just by teasing a song for the first
@@ -245,7 +353,7 @@ function SongRow({ song, position, tourRarity, liveDebutSongIds, tourDebutSongId
             {/* Reserves its width whether or not this song has lyrics, same
                 trick as the position number below, so titles stay aligned. */}
             <span className="shrink-0 w-5 flex justify-center pt-0.5">
-                {hasLyrics && (
+                {hasLyrics && showLyricsLink && (
                     <Link
                         to={`/discography?song=${song.song_id}`}
                         aria-label="View lyrics"
@@ -274,35 +382,23 @@ function SongRow({ song, position, tourRarity, liveDebutSongIds, tourDebutSongId
                         {song.title}
                     </span>
                     {song.performance_type === 'tease' && (
-                        <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400">
-                            tease
-                        </span>
+                        <InlineTag className="bg-amber-500/10 text-amber-400">tease</InlineTag>
                     )}
                     {song.performance_type === 'partial' && (
-                        <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400">
-                            partial
-                        </span>
+                        <InlineTag className="bg-amber-500/10 text-amber-400">partial</InlineTag>
                     )}
                     {song.performance_type === 'dj' && (
-                        <span
-                            className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-300"
-                            title="DJ'd — played as a recording, not performed live"
-                        >
+                        <InlineTag className="bg-purple-500/10 text-purple-300" title="DJ'd — played as a recording, not performed live">
                             DJ'd
-                        </span>
+                        </InlineTag>
                     )}
                     {song.is_original === false && (
-                        <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-300">
-                            cover
-                        </span>
+                        <InlineTag className="bg-blue-500/10 text-blue-300">cover</InlineTag>
                     )}
                     {song.is_sunday_valley && (
-                        <span
-                            className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-teal-500/10 text-teal-300"
-                            title="Written & originally performed by Sturgill's early band, Sunday Valley"
-                        >
+                        <InlineTag className="bg-teal-500/10 text-teal-300" title="Written & originally performed by Sturgill's early band, Sunday Valley">
                             Sunday Valley
-                        </span>
+                        </InlineTag>
                     )}
                     {isLiveDebut && <LiveDebutBadge />}
                     {isTourDebut && <TourDebutBadge />}
@@ -331,19 +427,28 @@ function SongRow({ song, position, tourRarity, liveDebutSongIds, tourDebutSongId
 
 function SetList({ songs, tourRarity, liveDebutSongIds, tourDebutSongIds, showPosition = true }) {
     const rows = assignSetlistDisplayNumbers(songs);
+    // A song played more than once in this setlist (a genuine repeat, or a
+    // sandwiched jam-return) only gets the lyrics icon on its first
+    // occurrence — every later one would just link to the same lyrics page.
+    const seenSongIds = new Set();
     return (
         <ol className="space-y-1">
-            {rows.map(({ song, position }, index) => (
-                <SongRow
-                    key={song.id || index}
-                    song={song}
-                    position={position}
-                    tourRarity={tourRarity}
-                    liveDebutSongIds={liveDebutSongIds}
-                    tourDebutSongIds={tourDebutSongIds}
-                    showPosition={showPosition}
-                />
-            ))}
+            {rows.map(({ song, position }, index) => {
+                const showLyricsLink = !song.song_id || !seenSongIds.has(song.song_id);
+                if (song.song_id) seenSongIds.add(song.song_id);
+                return (
+                    <SongRow
+                        key={song.id || index}
+                        song={song}
+                        position={position}
+                        tourRarity={tourRarity}
+                        liveDebutSongIds={liveDebutSongIds}
+                        tourDebutSongIds={tourDebutSongIds}
+                        showPosition={showPosition}
+                        showLyricsLink={showLyricsLink}
+                    />
+                );
+            })}
         </ol>
     );
 }
@@ -904,6 +1009,12 @@ export default function ShowDetailPage() {
                                 DJ'd songs aren't counted as songs you've seen live, but attending this show still counts toward your total shows.
                             </PText>
                         )}
+                        <SetlistLegend
+                            songs={allSongsFlat}
+                            tourRarity={tourRarity}
+                            liveDebutSongIds={liveDebutSongIds}
+                            tourDebutSongIds={tourDebutSongIds}
+                        />
                     </>
                 ) : (
                     <PText color="contrast-medium">
