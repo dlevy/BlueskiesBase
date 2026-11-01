@@ -1,6 +1,7 @@
 const express = require('express');
 const { findShowByPathParams, injectShowHead } = require('../server/utils/showMeta');
 const { findTourByUrlSlug, injectTourHead } = require('../server/utils/tourMeta');
+const { findSongByUrlSlug, injectSongHead } = require('../server/utils/songMeta');
 const { injectFaqHtml } = require('../server/utils/faqMeta');
 const { baseUrlFor } = require('../server/utils/baseUrl');
 
@@ -109,6 +110,51 @@ app.get('/api/tours/:tourSlug', async (req, res) => {
             res.status(200).send(await indexRes.text());
         } catch (fallbackErr) {
             console.error('[GET /tours/:tourSlug] Fallback fetch also failed:', fallbackErr);
+            res.status(500).send('Internal server error');
+        }
+    }
+});
+
+// Server-rendered meta/JSON-LD/noscript body for /songs/:songSlug — same
+// reasoning and shape as the /tours/:tourSlug handler above. vercel.json
+// routes /songs/* here instead of straight to /index.html.
+//
+// Public /songs/{slug} and the pre-existing GET /api/songs/:id (real JSON
+// data, used by getSongById() for every song) normalize to the identical
+// Express path, since both are a single segment under /api/songs. A slug is
+// never a valid UUID, so that's the disambiguator: a UUID-shaped param
+// passes straight through (`next()`) to the real API mounted just below;
+// anything else is treated as a slug and gets the prerendered HTML page.
+// Must come BEFORE the `app.use('/api/songs', ...)` mount for the
+// passthrough to actually reach it.
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+app.get('/api/songs/:songSlug', async (req, res, next) => {
+    const { songSlug } = req.params;
+    if (UUID_REGEX.test(songSlug)) return next();
+    try {
+        const host = req.get('x-forwarded-host') || req.get('host');
+        const proto = req.get('x-forwarded-proto') || 'https';
+        const indexRes = await fetch(`${proto}://${host}/index.html`);
+        const html = await indexRes.text();
+
+        const found = await findSongByUrlSlug(songSlug);
+        const body = found
+            ? injectSongHead(html, found.song, found.performanceCount, baseUrlFor(req))
+            : html;
+
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400');
+        res.status(200).send(body);
+    } catch (err) {
+        console.error('[GET /songs/:songSlug] Prerender error:', err);
+        try {
+            const host = req.get('x-forwarded-host') || req.get('host');
+            const proto = req.get('x-forwarded-proto') || 'https';
+            const indexRes = await fetch(`${proto}://${host}/index.html`);
+            res.setHeader('Content-Type', 'text/html; charset=utf-8');
+            res.status(200).send(await indexRes.text());
+        } catch (fallbackErr) {
+            console.error('[GET /songs/:songSlug] Fallback fetch also failed:', fallbackErr);
             res.status(500).send('Internal server error');
         }
     }

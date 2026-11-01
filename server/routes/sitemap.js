@@ -17,6 +17,10 @@ function buildTourPath(tourName) {
     return `/tours/${slugify(tourName)}`;
 }
 
+function buildSongPath(title) {
+    return `/songs/${slugify(title)}`;
+}
+
 // Mirrors buildShowPath in client/src/utils/showSlug.js:
 //   /show/{artist}/{YYYY-MM-DD}/{city-state}
 // Returns null when a segment would be empty — the :artist/:date/:locationSlug
@@ -143,7 +147,44 @@ router.get('/', async (req, res) => {
             console.warn(`Sitemap: omitted ${collidingTours.length} ambiguous tour path(s): ${collidingTours.join(', ')}`);
         }
 
-        const allUrls = [...staticPages, ...showUrls, ...tourUrls];
+        // One <url> per song that actually has lyrics — nothing else there to
+        // index. Same slug-collision-skip pattern as shows/tours above (two
+        // different songs sharing a title is a data-entry collision, e.g.
+        // "Machine Gun," not a legitimate ambiguity).
+        const { data: songs, error: songsError } = await supabaseAdmin
+            .from('songs')
+            .select('title, lyrics, updated_at')
+            .not('lyrics', 'is', null);
+        if (songsError) throw songsError;
+
+        const songByPath = new Map();
+        for (const song of songs || []) {
+            if (!song.lyrics?.trim()) continue;
+            const url = buildSongPath(song.title);
+            if (!songByPath.has(url)) songByPath.set(url, []);
+            songByPath.get(url).push(song);
+        }
+
+        const songUrls = [];
+        const collidingSongs = [];
+        for (const [url, matches] of songByPath) {
+            if (matches.length > 1) {
+                collidingSongs.push(url);
+                continue;
+            }
+            const [song] = matches;
+            songUrls.push({
+                url,
+                priority: '0.6',
+                changefreq: 'monthly',
+                lastmod: song.updated_at ? song.updated_at.split('T')[0] : undefined,
+            });
+        }
+        if (collidingSongs.length) {
+            console.warn(`Sitemap: omitted ${collidingSongs.length} ambiguous song path(s): ${collidingSongs.join(', ')}`);
+        }
+
+        const allUrls = [...staticPages, ...showUrls, ...tourUrls, ...songUrls];
 
         // Child order below is fixed by the sitemap schema: loc, lastmod, changefreq, priority.
         const xml = `<?xml version="1.0" encoding="UTF-8"?>

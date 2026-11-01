@@ -28,6 +28,7 @@ const ShowDetailPage = lazy(() => import('./pages/ShowDetailPage'))
 const StatsPage = lazy(() => import('./pages/StatsPage'))
 const PostersPage = lazy(() => import('./pages/PostersPage'))
 const DiscographyPage = lazy(() => import('./pages/DiscographyPage'))
+const SongLyricsPage = lazy(() => import('./pages/SongLyricsPage'))
 const BandPage = lazy(() => import('./pages/BandPage'))
 const BandMemberPage = lazy(() => import('./pages/BandMemberPage'))
 const PhotosPage = lazy(() => import('./pages/PhotosPage'))
@@ -128,6 +129,7 @@ function App() {
             <Route path="stats" element={<StatsPage />} />
             <Route path="posters" element={<PostersPage />} />
             <Route path="discography" element={<DiscographyPage />} />
+            <Route path="songs/:songSlug" element={<SongLyricsPage />} />
             <Route path="band" element={<BandPage />} />
             <Route path="band/:slug" element={<BandMemberPage />} />
             <Route path="artwork/:id" element={<ArtworkPage />} />

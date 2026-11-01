@@ -7,6 +7,7 @@ import {
 import { getShowBySlug, getTourRarity, getShowDebuts, getAdjacentShows, checkShowAttendance, markShowAttended, unmarkShowAttended, getShowThanks, getShowPoster, getShowPhotos } from '../services/api';
 import { buildShowPath } from '../utils/showSlug';
 import { buildTourPath } from '../utils/tourSlug';
+import { buildSongPath } from '../utils/songSlug';
 import { assignSetlistDisplayNumbers } from '../utils/setlist';
 import { useAuth } from '../contexts/AuthContext';
 import { useAvatarNudge } from '../contexts/AvatarNudgeContext';
@@ -333,7 +334,7 @@ function InlineTag({ className, children, title }) {
     );
 }
 
-function SongRow({ song, position, tourRarity, liveDebutSongIds, tourDebutSongIds, showPosition = true, showLyricsLink = true }) {
+function SongRow({ song, position, tourRarity, liveDebutSongIds, tourDebutSongIds, showPosition = true }) {
     // A tease doesn't count as the song actually being played — Live Debut,
     // Tour Debut and Rare are all claims about a real performance, and a
     // tease shouldn't earn any of them just by teasing a song for the first
@@ -350,23 +351,6 @@ function SongRow({ song, position, tourRarity, liveDebutSongIds, tourDebutSongId
 
     return (
         <li className="flex gap-3 py-0.5 items-start">
-            {/* Reserves its width whether or not this song has lyrics, same
-                trick as the position number below, so titles stay aligned. */}
-            <span className="shrink-0 w-5 flex justify-center pt-0.5">
-                {hasLyrics && showLyricsLink && (
-                    <Link
-                        to={`/discography?song=${song.song_id}`}
-                        aria-label="View lyrics"
-                        title="View lyrics"
-                        className="p-1 -m-1 rounded hover:bg-white/10 transition-colors"
-                        style={{ color: 'var(--p-color-info)' }}
-                    >
-                        <svg aria-hidden="true" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h10M4 18h7" />
-                        </svg>
-                    </Link>
-                )}
-            </span>
             {/* position is null for a jam's return to a song already numbered
                 earlier in the same chain — left blank rather than renumbered,
                 but the slot stays the same width so the title still lines up
@@ -378,9 +362,20 @@ function SongRow({ song, position, tourRarity, liveDebutSongIds, tourDebutSongId
             )}
             <div className="flex-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <span className="text-sm leading-relaxed font-semibold" style={{ color: 'var(--p-color-primary)' }}>
-                        {song.title}
-                    </span>
+                    {hasLyrics ? (
+                        <Link
+                            to={buildSongPath(song.title)}
+                            title="View lyrics"
+                            className="text-sm leading-relaxed font-semibold hover:underline"
+                            style={{ color: 'var(--p-color-primary)' }}
+                        >
+                            {song.title}
+                        </Link>
+                    ) : (
+                        <span className="text-sm leading-relaxed font-semibold" style={{ color: 'var(--p-color-primary)' }}>
+                            {song.title}
+                        </span>
+                    )}
                     {song.performance_type === 'tease' && (
                         <InlineTag className="bg-amber-500/10 text-amber-400">tease</InlineTag>
                     )}
@@ -414,7 +409,7 @@ function SongRow({ song, position, tourRarity, liveDebutSongIds, tourDebutSongId
                         {song.original_artist && <div>({song.original_artist})</div>}
                         {song.notes?.filter(Boolean).map((note, i) => (
                             <div key={i} className="italic flex gap-1">
-                                <span aria-hidden="true">&middot;</span>
+                                <span aria-hidden="true">&ndash;</span>
                                 <span>{note}</span>
                             </div>
                         ))}
@@ -427,28 +422,19 @@ function SongRow({ song, position, tourRarity, liveDebutSongIds, tourDebutSongId
 
 function SetList({ songs, tourRarity, liveDebutSongIds, tourDebutSongIds, showPosition = true }) {
     const rows = assignSetlistDisplayNumbers(songs);
-    // A song played more than once in this setlist (a genuine repeat, or a
-    // sandwiched jam-return) only gets the lyrics icon on its first
-    // occurrence — every later one would just link to the same lyrics page.
-    const seenSongIds = new Set();
     return (
         <ol className="space-y-1">
-            {rows.map(({ song, position }, index) => {
-                const showLyricsLink = !song.song_id || !seenSongIds.has(song.song_id);
-                if (song.song_id) seenSongIds.add(song.song_id);
-                return (
-                    <SongRow
-                        key={song.id || index}
-                        song={song}
-                        position={position}
-                        tourRarity={tourRarity}
-                        liveDebutSongIds={liveDebutSongIds}
-                        tourDebutSongIds={tourDebutSongIds}
-                        showPosition={showPosition}
-                        showLyricsLink={showLyricsLink}
-                    />
-                );
-            })}
+            {rows.map(({ song, position }, index) => (
+                <SongRow
+                    key={song.id || index}
+                    song={song}
+                    position={position}
+                    tourRarity={tourRarity}
+                    liveDebutSongIds={liveDebutSongIds}
+                    tourDebutSongIds={tourDebutSongIds}
+                    showPosition={showPosition}
+                />
+            ))}
         </ol>
     );
 }

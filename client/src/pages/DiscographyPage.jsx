@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { PSpinner, PText, PInlineNotification } from '@porsche-design-system/components-react';
 import { getSongs } from '../services/api';
+import { buildSongPath } from '../utils/songSlug';
 import MainNavTabs from '../components/MainNavTabs';
 import SEO from '../components/SEO';
 
@@ -19,60 +20,61 @@ function formatDate(dateStr) {
     return new Date(Number(y), Number(m) - 1, Number(d)).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-function SongRow({ song, expanded, onToggle }) {
+function SongRow({ song }) {
     const hasLyrics = Boolean(song.lyrics?.trim());
     const performanceTitle = song.last_played_show
         ? `Played ${song.performance_count}× · Last: ${formatDate(song.last_played_show.show_date)}`
         : 'No setlist in our records includes this song — it may still have been played before we started tracking, or at a show we don\'t have a setlist for';
-    return (
-        <li data-song-id={song.id} className="border-b border-white/5 last:border-b-0 scroll-mt-20">
-            <button
-                type="button"
-                onClick={hasLyrics ? onToggle : undefined}
-                disabled={!hasLyrics}
-                className={`w-full flex items-center justify-between gap-3 py-2.5 text-left transition-colors ${hasLyrics ? 'hover:bg-white/5 cursor-pointer' : 'cursor-default'}`}
-            >
-                <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-sm font-medium truncate" style={{ color: 'var(--p-color-primary)' }} title={performanceTitle}>
-                        {song.title}
-                    </span>
-                    {song.is_sunday_valley && (
-                        <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-teal-500/10 text-teal-300 whitespace-nowrap shrink-0">
-                            Sunday Valley
-                        </span>
-                    )}
-                    {song.is_original === false && (
-                        <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-300 whitespace-nowrap shrink-0">
-                            Cover{song.original_artist ? ` · ${song.original_artist}` : ''}
-                        </span>
-                    )}
-                </div>
-                {hasLyrics ? (
-                    <span className="text-xs shrink-0" style={{ color: 'var(--p-color-info)' }}>
-                        {expanded ? 'Hide lyrics' : 'Show lyrics'}
-                    </span>
-                ) : (
-                    <span className="text-xs shrink-0" style={{ color: 'var(--p-color-contrast-low)' }}>
-                        No lyrics yet
+    const rowContent = (
+        <>
+            <div className="flex items-center gap-2 min-w-0">
+                <span className="text-sm font-medium truncate" style={{ color: 'var(--p-color-primary)' }} title={performanceTitle}>
+                    {song.title}
+                </span>
+                {song.is_sunday_valley && (
+                    <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-teal-500/10 text-teal-300 whitespace-nowrap shrink-0">
+                        Sunday Valley
                     </span>
                 )}
-            </button>
-            {expanded && hasLyrics && (
-                <pre className="whitespace-pre-wrap font-sans text-sm pb-3 px-1" style={{ color: 'var(--p-color-contrast-medium)' }}>
-                    {song.lyrics}
-                </pre>
+                {song.is_original === false && (
+                    <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-300 whitespace-nowrap shrink-0">
+                        Cover{song.original_artist ? ` · ${song.original_artist}` : ''}
+                    </span>
+                )}
+            </div>
+            {hasLyrics ? (
+                <span className="text-xs shrink-0" style={{ color: 'var(--p-color-info)' }}>
+                    View lyrics
+                </span>
+            ) : (
+                <span className="text-xs shrink-0" style={{ color: 'var(--p-color-contrast-low)' }}>
+                    No lyrics yet
+                </span>
+            )}
+        </>
+    );
+    return (
+        <li className="border-b border-white/5 last:border-b-0">
+            {hasLyrics ? (
+                <Link
+                    to={buildSongPath(song.title)}
+                    className="w-full flex items-center justify-between gap-3 py-2.5 text-left transition-colors hover:bg-white/5"
+                >
+                    {rowContent}
+                </Link>
+            ) : (
+                <div className="w-full flex items-center justify-between gap-3 py-2.5 text-left">
+                    {rowContent}
+                </div>
             )}
         </li>
     );
 }
 
 export default function DiscographyPage() {
-    const [searchParams] = useSearchParams();
-    const targetSongId = searchParams.get('song');
     const [songs, setSongs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [expandedSongId, setExpandedSongId] = useState(targetSongId || null);
 
     useEffect(() => {
         getSongs()
@@ -88,18 +90,6 @@ export default function DiscographyPage() {
             })
             .finally(() => setLoading(false));
     }, []);
-
-    // Deep link from a show page's lyrics icon (?song=<id>) — scroll to that
-    // song once it's actually rendered (requestAnimationFrame rather than
-    // immediately, so layout has settled after the loading spinner is gone).
-    useEffect(() => {
-        if (!targetSongId || loading) return;
-        const raf = requestAnimationFrame(() => {
-            document.querySelector(`[data-song-id="${targetSongId}"]`)
-                ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        });
-        return () => cancelAnimationFrame(raf);
-    }, [targetSongId, loading]);
 
     const { albumGroups, otherSongs } = useMemo(() => {
         const groups = new Map();
@@ -131,8 +121,6 @@ export default function DiscographyPage() {
 
         return { albumGroups: sortedGroups, otherSongs: other };
     }, [songs]);
-
-    const toggle = (songId) => setExpandedSongId(prev => (prev === songId ? null : songId));
 
     return (
         <div className="px-4 pt-2 pb-4 md:pt-3 md:pb-6 max-w-3xl mx-auto">
@@ -177,12 +165,7 @@ export default function DiscographyPage() {
                             </div>
                             <ul>
                                 {albumSongs.map(song => (
-                                    <SongRow
-                                        key={song.id}
-                                        song={song}
-                                        expanded={expandedSongId === song.id}
-                                        onToggle={() => toggle(song.id)}
-                                    />
+                                    <SongRow key={song.id} song={song} />
                                 ))}
                             </ul>
                         </div>
@@ -195,12 +178,7 @@ export default function DiscographyPage() {
                             </h2>
                             <ul>
                                 {otherSongs.map(song => (
-                                    <SongRow
-                                        key={song.id}
-                                        song={song}
-                                        expanded={expandedSongId === song.id}
-                                        onToggle={() => toggle(song.id)}
-                                    />
+                                    <SongRow key={song.id} song={song} />
                                 ))}
                             </ul>
                         </div>
