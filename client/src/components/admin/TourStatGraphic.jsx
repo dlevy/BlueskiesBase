@@ -99,6 +99,18 @@ function denseListRowFitsInline(item, fontSize, columnWidth) {
     return metaWidth + DENSE_LIST_ROW_GAP + notesWidth <= columnWidth;
 }
 
+// Specific to the 'groupedList' stat type (currently just "How the Hell Did
+// I Miss This Song?") — font shrinks as the total song count (across every
+// group) grows, same scaling idea as denseListFontSize above, just keyed
+// off total rows rather than raw item count since a group header isn't its
+// own song row.
+function groupedListFontSize(totalSongs) {
+    if (totalSongs <= 6) return 31;
+    if (totalSongs <= 10) return 27;
+    if (totalSongs <= 16) return 23;
+    return 19;
+}
+
 // Specific to the 'list' stat type — every other list-type stat caps at 6
 // rows (MAX_RANKED_ROWS in tourStatTypes.js), so this is a no-op for them;
 // Album Breakdown is the one list stat that shows every row with nothing
@@ -146,6 +158,11 @@ const TourStatGraphic = forwardRef(function TourStatGraphic({
     const useImageBackground = !useTourMap && (backgroundMode === 'poster' || backgroundMode === 'photo') && !!backgroundImageUrl;
     const palette = (useImageBackground || useTourMap) ? IMAGE_OVERLAY_PALETTE : style;
     const textShadow = (useImageBackground || useTourMap) ? IMAGE_TEXT_SHADOW : 'none';
+    // groupedList's content can run tall (several groups, each with a
+    // couple of two-line song rows) — the standard 180px footer clearance
+    // is more than that type needs, so it gets a smaller one, pushing the
+    // footer down and freeing that space for the stat body instead.
+    const bottomPadding = statResult?.type === 'groupedList' ? 110 : BOTTOM_PADDING;
 
     const dateRangeLabel = firstDate === lastDate
         ? formatDateShort(firstDate)
@@ -234,7 +251,7 @@ const TourStatGraphic = forwardRef(function TourStatGraphic({
             <div style={{
                 position: 'relative', zIndex: 1, width: '100%', height: '100%',
                 display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-                paddingLeft: SIDE_PADDING, paddingRight: SIDE_PADDING, paddingTop: SIDE_PADDING, paddingBottom: BOTTOM_PADDING,
+                paddingLeft: SIDE_PADDING, paddingRight: SIDE_PADDING, paddingTop: SIDE_PADDING, paddingBottom: bottomPadding,
                 boxSizing: 'border-box',
                 color: palette.body, textShadow,
             }}>
@@ -396,6 +413,48 @@ const TourStatGraphic = forwardRef(function TourStatGraphic({
                                     {statResult.subdetail}
                                 </div>
                             )}
+                        </>
+                    ) : statResult.type === 'groupedList' ? (
+                        <>
+                            <div style={{ fontSize: 36, fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase', color: palette.accent }}>
+                                {statResult.title}
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', width: '100%', maxWidth: 940, gap: 16 }}>
+                                {statResult.groups.map((group, gi) => {
+                                    const totalSongs = statResult.groups.reduce((sum, g) => sum + g.songs.length, 0);
+                                    const fontSize = groupedListFontSize(totalSongs);
+                                    return (
+                                        <div key={gi} style={{ textAlign: 'left' }}>
+                                            <div style={{
+                                                fontSize: fontSize + 3, fontWeight: 800, color: palette.accent,
+                                                borderTop: gi > 0 ? `1px solid ${palette.divider}` : 'none',
+                                                paddingTop: gi > 0 ? 14 : 0, marginBottom: 6,
+                                            }}>
+                                                {group.countLabel} shows
+                                            </div>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                                {group.songs.map((s, si) => (
+                                                    // Title and its missed-show list are separate lines, not one run-on
+                                                    // sentence — a song that missed 3 shows (city+date each) is too
+                                                    // long to reliably fit next to its title on one line even after
+                                                    // shortening dates, and a line that DOES wrap mid-sentence reads
+                                                    // far worse than two short, intentional lines.
+                                                    <div key={si} style={{ lineHeight: 1.3 }}>
+                                                        <div style={{ fontSize, color: palette.heading, fontWeight: 700, wordBreak: 'break-word' }}>
+                                                            {s.title}
+                                                        </div>
+                                                        {s.missedLabel && (
+                                                            <div style={{ fontSize: Math.round(fontSize * 0.74), color: palette.muted, fontWeight: 500, wordBreak: 'break-word' }}>
+                                                                missed {s.missedLabel}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </>
                     ) : (
                         <>

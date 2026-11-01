@@ -290,6 +290,121 @@ export default function TourStatsModule({ defaultTour = null }) {
                                     </div>
                                 )}
 
+                                {(() => {
+                                    const playedOnce = tourData.songCounts
+                                        .filter(s => s.count === 1 && s.onlyShow)
+                                        .sort((a, b) => a.onlyShow.showDate.localeCompare(b.onlyShow.showDate));
+                                    if (playedOnce.length === 0) return null;
+                                    return (
+                                        <div className="mt-5 mb-6 rounded-xl border border-purple-500/20 bg-purple-500/5 p-4">
+                                            <PHeading size="small" tag="h3" className="mb-1">
+                                                Rarest of the Rare ({playedOnce.length})
+                                            </PHeading>
+                                            <PText size="x-small" color="contrast-medium" className="mb-3 block">
+                                                Songs played only once this tour
+                                            </PText>
+                                            <div className="space-y-2">
+                                                {playedOnce.map(s => (
+                                                    <div key={s.title} className="flex items-center justify-between gap-3">
+                                                        <span className="inline-flex items-center gap-1.5 text-xs truncate" style={{ color: 'var(--p-color-primary)' }}>
+                                                            <span className={`w-2 h-2 rounded-sm inline-block shrink-0 ${s.isOriginal === false ? 'bg-blue-400/70' : 'bg-amber-400/80'}`} />
+                                                            {s.title}
+                                                        </span>
+                                                        <Link
+                                                            to={buildShowPath({ artist_name: s.onlyShow.artistName, show_date: s.onlyShow.showDate, venues: s.onlyShow.venue })}
+                                                            className="text-xs text-right shrink-0 hover:underline"
+                                                            style={{ color: 'var(--p-color-contrast-medium)' }}
+                                                        >
+                                                            {formatDate(s.onlyShow.showDate)}
+                                                            {s.onlyShow.venue?.city && <> &middot; {s.onlyShow.venue.city}{s.onlyShow.venue.state_country ? `, ${s.onlyShow.venue.state_country}` : ''}</>}
+                                                        </Link>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+
+                                {(() => {
+                                    const { showsWithSetlist, showsWithSetlistInfo } = tourData;
+                                    // Must match MAX_MISSED in tourStatTypes.js's own copy of this stat.
+                                    const MAX_MISSED = 3;
+                                    // Same "needs enough data" floor as the song-count list below —
+                                    // early in a tour, "missed up to a few" would trivially flag
+                                    // almost everything played so far.
+                                    if (showsWithSetlist < 5) return null;
+                                    const candidates = tourData.songCounts
+                                        .map(s => ({ ...s, missedCount: showsWithSetlist - s.count }))
+                                        .filter(s => s.missedCount >= 1 && s.missedCount <= MAX_MISSED);
+                                    if (candidates.length === 0) return null;
+
+                                    // Grouped by missed-count ("28 of 29 shows") rather than repeating
+                                    // that count on every song's own row — the count is what's shared,
+                                    // not what's distinct about each song.
+                                    const byMissed = new Map();
+                                    candidates.forEach(s => {
+                                        if (!byMissed.has(s.missedCount)) byMissed.set(s.missedCount, []);
+                                        byMissed.get(s.missedCount).push(s);
+                                    });
+                                    const groups = [...byMissed.entries()]
+                                        .sort((a, b) => a[0] - b[0])
+                                        .map(([missedCount, songs]) => ({
+                                            missedCount,
+                                            songs: songs.sort((a, b) => a.title.localeCompare(b.title)),
+                                        }));
+
+                                    return (
+                                        <div className="mt-5 mb-6 rounded-xl border border-orange-500/20 bg-orange-500/5 p-4">
+                                            <PHeading size="small" tag="h3" className="mb-1">
+                                                How the Hell Did I Miss This Song? ({candidates.length})
+                                            </PHeading>
+                                            <PText size="x-small" color="contrast-medium" className="mb-3 block">
+                                                Played at every show on this tour but a few
+                                            </PText>
+                                            <div className="space-y-4">
+                                                {groups.map(group => (
+                                                    <div key={group.missedCount}>
+                                                        <p className="text-xs font-bold uppercase tracking-wide mb-1.5" style={{ color: '#fb923c' }}>
+                                                            {showsWithSetlist - group.missedCount} of {showsWithSetlist} shows
+                                                        </p>
+                                                        <div className="space-y-2">
+                                                            {group.songs.map(s => {
+                                                                const playedShowIds = new Set(s.showIds || []);
+                                                                const missedShows = (showsWithSetlistInfo || []).filter(sh => !playedShowIds.has(sh.id));
+                                                                return (
+                                                                    <div key={s.title}>
+                                                                        <span className="inline-flex items-center gap-1.5 text-xs" style={{ color: 'var(--p-color-primary)' }}>
+                                                                            <span className={`w-2 h-2 rounded-sm inline-block shrink-0 ${s.isOriginal === false ? 'bg-blue-400/70' : 'bg-amber-400/80'}`} />
+                                                                            {s.title}
+                                                                        </span>
+                                                                        {missedShows.length > 0 && (
+                                                                            <p className="text-xs italic mt-0.5 ml-3.5" style={{ color: 'var(--p-color-contrast-low)' }}>
+                                                                                Missed: {missedShows.map((sh, i) => (
+                                                                                    <span key={sh.id}>
+                                                                                        {i > 0 && '; '}
+                                                                                        <Link
+                                                                                            to={buildShowPath({ artist_name: sh.artistName, show_date: sh.showDate, venues: sh.venue })}
+                                                                                            className="hover:underline not-italic"
+                                                                                            style={{ color: 'var(--p-color-contrast-medium)' }}
+                                                                                        >
+                                                                                            {formatDate(sh.showDate)}
+                                                                                            {sh.venue?.city && <> &middot; {sh.venue.city}</>}
+                                                                                        </Link>
+                                                                                    </span>
+                                                                                ))}
+                                                                            </p>
+                                                                        )}
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+
                                 <PHeading size="small" tag="h3" className="mb-3">Songs Played</PHeading>
 
                                 <div className="flex items-center gap-4 mb-5">

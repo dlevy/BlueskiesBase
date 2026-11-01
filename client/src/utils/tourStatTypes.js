@@ -2,9 +2,11 @@
 // card per entry, never all of them at once (see TourStatsPostPage). Each
 // `compute(tourData)` takes exactly what fetchTourSongCounts() returns and
 // produces plain data, never JSX, so TourStatGraphic stays a dumb renderer.
-// Two shapes, picked via `type`:
-//   - 'headline': { type, headline, headlineSize: 'number'|'text', detail, subdetail? }
-//   - 'list':     { type, title, items: [{ label, value }], tiedNote?: { count, names? }, subdetail? }
+// Shapes, picked via `type`:
+//   - 'headline':    { type, headline, headlineSize: 'number'|'text', detail, subdetail? }
+//   - 'list':        { type, title, items: [{ label, value }], tiedNote?: { count, names? }, subdetail? }
+//   - 'denseList':   { type, title, items: [{ meta, notes }] } — every row shown, no rank/cap
+//   - 'groupedList': { type, title, groups: [{ countLabel, songs: [{ title, missedLabel }] }] }
 // Either shape may instead be { type, disabled: true, disabledReason } when
 // the tour has nothing to say for that stat (e.g. no rare songs logged yet),
 // so the picker can grey it out with a reason instead of the graphic ever
@@ -13,6 +15,16 @@
 function formatDateShort(dateStr) {
     const [y, m, d] = dateStr.split('-');
     return new Date(Number(y), Number(m) - 1, Number(d)).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+// No year — used only for the "How the Hell Did I Miss This Song?" card's
+// per-show missed-date list, where up to two dates+cities get packed onto
+// one dense row; the card's own header already states the tour's date
+// range, so the year is redundant there and just pushes rows toward
+// wrapping in that fixed-width graphic.
+function formatDateTiny(dateStr) {
+    const [y, m, d] = dateStr.split('-');
+    return new Date(Number(y), Number(m) - 1, Number(d)).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
 function venueLine(show) {
@@ -90,20 +102,79 @@ export const TOUR_STAT_TYPES = [
         compute(tourData) {
             const { songCounts, showsWithSetlist, totalShows } = tourData;
             if (!songCounts?.length) return { type: 'list', disabled: true, disabledReason: 'No songs played yet' };
-            const rarestSorted = [...songCounts].sort((a, b) => a.count - b.count || a.title.localeCompare(b.title));
+            // Every song tied at the tour's single lowest play count — shown in
+            // full, never capped/folded into a "+N more tied" note the way the
+            // other ranked-list stats are (buildRankedList/MAX_RANKED_ROWS):
+            // these are ALL equally "the rarest," so dropping any of them into
+            // a footnote would misrepresent which songs actually hold that
+            // title. Same uncapped posture as the homepage Tour Stats widget's
+            // own "Rarest So Far" tag.
+            const minCount = Math.min(...songCounts.map(s => s.count));
+            const rarest = songCounts
+                .filter(s => s.count === minCount)
+                .sort((a, b) => a.title.localeCompare(b.title));
             // A song played exactly once also names the actual date — that's
             // the interesting fact for a one-off, not just the count.
             // Ambiguous for 2+ shows (multiple dates), so those stay as a
             // plain count.
-            const { items, tiedNote } = buildRankedList(rarestSorted, s =>
-                s.count === 1 && s.showDates?.[0] ? `1 show · ${formatDateShort(s.showDates[0])}` : `${s.count} shows`
-            );
+            const items = rarest.map(s => ({
+                label: s.title,
+                value: s.count === 1 && s.showDates?.[0] ? `1 show · ${formatDateShort(s.showDates[0])}` : `${s.count} shows`,
+            }));
             return {
                 type: 'list',
                 title: 'Rarest Songs for This Tour',
                 items,
-                tiedNote,
                 subdetail: showsWithSetlist > 0 ? `${showsWithSetlist} of ${totalShows} shows played` : undefined,
+            };
+        },
+    },
+    {
+        key: 'nearlyEveryShow',
+        label: 'How the Hell Did I Miss This Song?',
+        // The flip side of Rarest Songs: a song that was played at every
+        // show but a small handful — missing it is the surprising fact, not
+        // seeing it. 'groupedList' — one header per distinct missed-count
+        // ("28 of 29 shows"), with every song that missed exactly that many
+        // listed underneath it — rather than repeating "28 of 29" on every
+        // song's own row, which was both redundant and the main thing
+        // pushing rows toward wrapping in the fixed-width graphic. Must
+        // match MAX_MISSED in TourStatsModule.jsx's own copy of this stat.
+        compute(tourData) {
+            const { songCounts, showsWithSetlist, showsWithSetlistInfo } = tourData;
+            const MAX_MISSED = 3;
+            // Needs enough logged shows for "missed up to a few" to mean
+            // anything — otherwise an early tour (e.g. 2 shows played so far)
+            // would trivially flag every song played at just one of them.
+            if (!songCounts?.length || showsWithSetlist < 5) {
+                return { type: 'groupedList', disabled: true, disabledReason: 'Not enough shows logged yet' };
+            }
+            const candidates = songCounts
+                .map(s => ({ ...s, missedCount: showsWithSetlist - s.count }))
+                .filter(s => s.missedCount >= 1 && s.missedCount <= MAX_MISSED);
+            if (candidates.length === 0) {
+                return { type: 'groupedList', disabled: true, disabledReason: 'No song has been played at every show but a few (yet)' };
+            }
+            const byMissed = new Map();
+            candidates.forEach(s => {
+                const playedShowIds = new Set(s.showIds || []);
+                const missedShows = (showsWithSetlistInfo || []).filter(sh => !playedShowIds.has(sh.id));
+                const missedLabel = missedShows
+                    .map(sh => `${formatDateTiny(sh.showDate)}${sh.venue?.city ? ' · ' + sh.venue.city : ''}`)
+                    .join('; ');
+                if (!byMissed.has(s.missedCount)) byMissed.set(s.missedCount, []);
+                byMissed.get(s.missedCount).push({ title: s.title, missedLabel });
+            });
+            const groups = [...byMissed.entries()]
+                .sort((a, b) => a[0] - b[0])
+                .map(([missedCount, songs]) => ({
+                    countLabel: `${showsWithSetlist - missedCount} of ${showsWithSetlist}`,
+                    songs: songs.sort((a, b) => a.title.localeCompare(b.title)),
+                }));
+            return {
+                type: 'groupedList',
+                title: 'How the Hell Did I Miss This Song?',
+                groups,
             };
         },
     },

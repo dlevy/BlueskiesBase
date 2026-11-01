@@ -224,7 +224,7 @@ export async function fetchTourSongCounts(tourName, { stateFilter, countryFilter
     onPlayedIds?.(playedIds);
 
     if (playedIds.length === 0) {
-        return { totalShows: tourShows.length, playedShows: 0, firstDate: tourShows[0].show_date, lastDate: tourShows[tourShows.length - 1].show_date, playedIds: [], songCounts: [], openingSongs: [], closingSongs: [], liveDebuts: [], biggestSetlist: null, albumBreakdown: [], songsByAlbum: {}, otherOriginals: 0, covers: 0, makeAmericaEnergyLines: [], setlistSongsByShow: {}, pastShows: played, upcomingShows: upcoming };
+        return { totalShows: tourShows.length, playedShows: 0, showsWithSetlist: 0, firstDate: tourShows[0].show_date, lastDate: tourShows[tourShows.length - 1].show_date, playedIds: [], songCounts: [], openingSongs: [], closingSongs: [], liveDebuts: [], biggestSetlist: null, albumBreakdown: [], songsByAlbum: {}, otherOriginals: 0, covers: 0, makeAmericaEnergyLines: [], setlistSongsByShow: {}, showsWithSetlistInfo: [], pastShows: played, upcomingShows: upcoming };
     }
 
     // Intersected with playedIds rather than trusted as-is: setlistRowsPromise
@@ -402,20 +402,50 @@ export async function fetchTourSongCounts(tourName, { stateFilter, countryFilter
 
     const showsWithSetlist = Object.keys(songIdsByShow).length;
 
+    // Every show that actually has a setlist logged (a subset of `played` —
+    // most of a tour's played dates usually do, but not always yet), each
+    // with its date/venue — the complete "roll call" a caller diffs a
+    // song's own showIds against to find which of those shows it WASN'T
+    // played at. Powers the "How the Hell Did I Miss This Song?" stat.
+    const showsWithSetlistInfo = Object.keys(songIdsByShow)
+        .map(id => showById[id])
+        .filter(Boolean)
+        .map(s => ({ id: s.id, showDate: s.show_date, artistName: s.artist_name, venue: s.venues || null }))
+        .sort((a, b) => a.showDate.localeCompare(b.showDate));
+
     // Same "rare" threshold and denominator as the show page's per-song Rare badge:
     // played at fewer than 15% of tour shows that actually have a setlist logged
     // (not every scheduled show — most of a tour is still-unplayed future dates).
     const songCounts = Object.entries(showSetsByTitle)
-        .map(([title, shows]) => ({
-            title,
-            count: shows.size,
-            isOriginal: isOriginalByTitle[title],
-            isRare: showsWithSetlist > 0 && shows.size / showsWithSetlist < 0.15,
-            // Sorted show dates this title was played on, within this tour's
-            // scope — lets a caller (e.g. the Rarest Songs stat) name the
-            // actual date for a song played only once, not just the count.
-            showDates: [...shows].map(id => showById[id]?.show_date).filter(Boolean).sort(),
-        }))
+        .map(([title, shows]) => {
+            const showIds = [...shows];
+            return {
+                title,
+                count: shows.size,
+                isOriginal: isOriginalByTitle[title],
+                isRare: showsWithSetlist > 0 && shows.size / showsWithSetlist < 0.15,
+                // Sorted show dates this title was played on, within this tour's
+                // scope — lets a caller (e.g. the Rarest Songs stat) name the
+                // actual date for a song played only once, not just the count.
+                showDates: showIds.map(id => showById[id]?.show_date).filter(Boolean).sort(),
+                // Every show id this title was played at (any count, not just
+                // 1) — lets a caller work out which of the tour's shows it was
+                // NOT played at (e.g. the "How the Hell Did I Miss This Song?"
+                // stat, by diffing against showsWithSetlistInfo below).
+                showIds,
+                // Only meaningful when count === 1 — the one show it was played
+                // at, with venue/artist for linking straight to that show page.
+                // Powers the "Rarest of the Rare" (played-once) card.
+                onlyShow: shows.size === 1 && showById[showIds[0]]
+                    ? {
+                        showId: showIds[0],
+                        showDate: showById[showIds[0]].show_date,
+                        artistName: showById[showIds[0]].artist_name,
+                        venue: showById[showIds[0]].venues || null,
+                    }
+                    : null,
+            };
+        })
         .sort((a, b) => b.count - a.count || a.title.localeCompare(b.title));
 
     const totalSongInstances = Object.values(songIdsByShow).reduce((sum, set) => sum + set.size, 0);
@@ -489,6 +519,7 @@ export async function fetchTourSongCounts(tourName, { stateFilter, countryFilter
         covers,
         makeAmericaEnergyLines,
         setlistSongsByShow,
+        showsWithSetlistInfo,
         pastShows: played,
         upcomingShows: upcoming,
     };
