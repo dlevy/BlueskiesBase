@@ -1,19 +1,20 @@
 import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
-    PHeading, PText, PTag, PSpinner, PInlineNotification
+    PHeading, PText, PSpinner, PInlineNotification
 } from '@porsche-design-system/components-react';
 import { buildShowPath } from '../utils/showSlug';
 import { searchShows, checkShowAttendanceBatch, markShowAttended, unmarkShowAttended, checkShowsHaveContent, getBands, getShowDebutsBatch } from '../services/apiCore';
+import { getTourRarity } from '../services/api';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import TourStatsWidget from '../components/TourStatsWidget';
 import UpcomingShowsWidget from '../components/UpcomingShowsWidget';
 import MostRecentShowWidget from '../components/MostRecentShowWidget';
 import NextShowWidget from '../components/NextShowWidget';
-import SetlistPreview from '../components/SetlistPreview';
+import ShowTagsRow from '../components/ShowTagsRow';
 import MainNavTabs from '../components/MainNavTabs';
-import { orderSetlistSongs } from '../utils/setlist';
+import { computeShowTagCounts } from '../utils/setlist';
 import { getLiveCoverTitles, getSundayValleyTitles } from '../utils/coverSongs';
 import { fetchGeographyOptions } from '../utils/geography';
 import { getLocalDateString } from '../utils/today';
@@ -29,25 +30,6 @@ const SongStatsWidget = lazy(() => import('../components/SongStatsWidget'));
 const UserStatsWidget = lazy(() => import('../components/UserStatsWidget'));
 
 const selectClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-transparent";
-
-// Shared neutral color for "this show has X" content-indicator tags (Video, Links,
-// Notes, Photos, Poster) — kept as one constant so they read as one family instead
-// of a rainbow of unrelated colors.
-const CONTENT_TAG_COLOR = '#9ca3af';
-
-// Same compact tag style used for Live Debut/Tour Debut/Rare/tease/partial/cover elsewhere
-// in the app (ShowDetailPage, SetlistPreview) — small, uppercase, color-mix background —
-// rather than the bulkier Porsche PTag pill.
-function ListTag({ label, color }) {
-    return (
-        <span
-            className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded"
-            style={{ background: `color-mix(in srgb, ${color} 12%, transparent)`, color }}
-        >
-            {label}
-        </span>
-    );
-}
 
 export default function SearchPage() {
     const { user, isEditorOrAdmin } = useAuth();
@@ -66,9 +48,7 @@ export default function SearchPage() {
     const [attendanceMap, setAttendanceMap] = useState({});
     const [attendanceLoading, setAttendanceLoading] = useState({});
     const [contentMap, setContentMap] = useState({});
-    const [songStatsMap, setSongStatsMap] = useState({});
-    const [setlistPreviewMap, setSetlistPreviewMap] = useState({});
-    const [debutsMap, setDebutsMap] = useState({}); // showId -> { live_debut_song_ids, tour_debut_song_ids }
+    const [tagCountsMap, setTagCountsMap] = useState({}); // showId -> {coverCount, teaseCount, rareCount, liveDebutCount, tourDebutCount}
     const [songStatsLoading, setSongStatsLoading] = useState(false);
     const lastCalculatedShowIds = useRef(null);
 
@@ -252,9 +232,9 @@ export default function SearchPage() {
     }, [results]);
 
     useEffect(() => {
-        const calculateSongStats = async () => {
+        const calculateTagCounts = async () => {
             if (filteredResults.length === 0) {
-                setSongStatsMap({}); setSetlistPreviewMap({}); setDebutsMap({}); setSongStatsLoading(false); lastCalculatedShowIds.current = null; return;
+                setTagCountsMap({}); setSongStatsLoading(false); lastCalculatedShowIds.current = null; return;
             }
             const showIds = filteredResults.map(s => s.id);
             const key = [...showIds].sort().join(',');
@@ -273,7 +253,7 @@ export default function SearchPage() {
                     while (hasMore) {
                         const { data: pageData, error, count } = await supabase
                             .from('setlist_songs')
-                            .select('show_id, song_id, id, set_number, song_order, is_encore, performance_type, songs!setlist_songs_song_id_fkey(id, title, is_original)', { count: 'exact' })
+                            .select('show_id, song_id, performance_type, songs!setlist_songs_song_id_fkey(is_original)', { count: 'exact' })
                             .in('show_id', batchIds)
                             .order('id')
                             .range(rangeStart, rangeStart + 999);
@@ -292,45 +272,47 @@ export default function SearchPage() {
                     (rowsByShow[item.show_id] ||= []).push(item);
                 });
 
-                const statsMap = {};
-                const previewMap = {};
-                showIds.forEach(showId => {
-                    const rows = rowsByShow[showId] || [];
-
-                    const seen = new Set();
-                    let originals = 0, covers = 0;
-                    rows.forEach(item => {
-                        if (!item.song_id || seen.has(item.song_id)) return;
-                        seen.add(item.song_id);
-                        if (item.songs?.is_original === true) originals++;
-                        else if (item.songs?.is_original === false) covers++;
-                    });
-                    statsMap[showId] = { originals, covers };
-
-                    // Setlist order isn't guaranteed across paginated batches, so sort here.
-                    previewMap[showId] = { songs: orderSetlistSongs(rows), total: rows.length };
-                });
-
-                setSongStatsMap(statsMap);
-                setSetlistPreviewMap(previewMap);
+                // Rare depends on tour-wide play counts — fetched once per distinct tour
+                // represented in the results (not once per show), reusing
+                // GET /shows/:id/tour-rarity with any show id from that tour.
+                const tourRarityByTour = {};
+                const tourReps = new Map();
+                filteredResults.forEach(s => { if (s.tour_name && !tourReps.has(s.tour_name)) tourReps.set(s.tour_name, s.id); });
+                await Promise.all([...tourReps.entries()].map(async ([tourName, repId]) => {
+                    try {
+                        tourRarityByTour[tourName] = await getTourRarity(repId);
+                    } catch (err) {
+                        console.error('[SearchPage] tour rarity fetch failed:', err);
+                    }
+                }));
 
                 // Debuts, batched in one call rather than one request per row — only for
                 // shows that actually have a setlist logged.
                 const showIdsWithSetlist = showIds.filter(id => rowsByShow[id]?.length > 0);
-                if (showIdsWithSetlist.length > 0) {
-                    getShowDebutsBatch(showIdsWithSetlist)
-                        .then(setDebutsMap)
-                        .catch(err => console.error('[SearchPage] Error fetching debuts batch:', err));
-                } else {
-                    setDebutsMap({});
-                }
+                const debutsByShow = showIdsWithSetlist.length > 0
+                    ? await getShowDebutsBatch(showIdsWithSetlist).catch(err => {
+                        console.error('[SearchPage] Error fetching debuts batch:', err);
+                        return {};
+                    })
+                    : {};
+
+                const tagsMap = {};
+                filteredResults.forEach(s => {
+                    const rows = rowsByShow[s.id] || [];
+                    const tourRarity = s.tour_name ? tourRarityByTour[s.tour_name] : undefined;
+                    const liveDebutIds = new Set(debutsByShow[s.id]?.live_debut_song_ids || []);
+                    const tourDebutIds = new Set(debutsByShow[s.id]?.tour_debut_song_ids || []);
+                    tagsMap[s.id] = computeShowTagCounts(rows, tourRarity, liveDebutIds, tourDebutIds);
+                });
+
+                setTagCountsMap(tagsMap);
             } catch (err) {
-                console.error('[SearchPage] Error calculating song stats:', err);
+                console.error('[SearchPage] Error calculating tag counts:', err);
             } finally {
                 setSongStatsLoading(false);
             }
         };
-        calculateSongStats();
+        calculateTagCounts();
     }, [filteredResults]);
 
     useEffect(() => { setFilteredResults(results); }, [results]);
@@ -741,9 +723,7 @@ export default function SearchPage() {
                                         const hasNotes = contentMap[show.id]?.hasNotes || false;
                                         const hasPhotos = contentMap[show.id]?.hasPhotos || false;
                                         const hasPoster = contentMap[show.id]?.hasPoster || false;
-                                        const songStats = songStatsMap[show.id] || { originals: 0, covers: 0 };
-                                        const setlistPreview = setlistPreviewMap[show.id];
-                                        const showDebuts = debutsMap[show.id];
+                                        const tagCounts = tagCountsMap[show.id] || {};
                                         const openedFor = show.opened_for?.name;
                                         const hasVideo = show.links?.some(l => l.url?.includes('youtube.com') || l.url?.includes('youtu.be'));
                                         const hasLinks = show.links?.some(l => l.url && !l.url.includes('youtube.com') && !l.url.includes('youtu.be'));
@@ -794,30 +774,13 @@ export default function SearchPage() {
                                                                 {show.tour_name}
                                                             </p>
                                                         )}
-                                                        {(hasNotes || hasPhotos || hasPoster || songStats.covers > 0 || openedFor || hasVideo || hasLinks) && (
-                                                            <div className="mt-2 flex flex-wrap gap-1.5">
-                                                                {openedFor && <PTag color="notification-warning-soft">Opening for {openedFor}</PTag>}
-                                                                {hasVideo && <ListTag label="Video" color={CONTENT_TAG_COLOR} />}
-                                                                {hasLinks && <ListTag label="Links" color={CONTENT_TAG_COLOR} />}
-                                                                {hasNotes && <ListTag label="Comments" color={CONTENT_TAG_COLOR} />}
-                                                                {hasPhotos && <ListTag label="Photos" color={CONTENT_TAG_COLOR} />}
-                                                                {hasPoster && <ListTag label="Poster" color={CONTENT_TAG_COLOR} />}
-                                                                {songStats.covers > 0 && (
-                                                                    <ListTag label={`${songStats.covers} Cover${songStats.covers !== 1 ? 's' : ''}`} color="#60a5fa" />
-                                                                )}
-                                                            </div>
-                                                        )}
-                                                        {setlistPreview?.songs?.length > 0 && (
-                                                            <div className="mt-2 pt-2 border-t border-white/5">
-                                                                <SetlistPreview
-                                                                    songs={setlistPreview.songs}
-                                                                    total={setlistPreview.total}
-                                                                    liveDebutIds={showDebuts ? new Set(showDebuts.live_debut_song_ids) : undefined}
-                                                                    tourDebutIds={showDebuts ? new Set(showDebuts.tour_debut_song_ids) : undefined}
-                                                                    max={8}
-                                                                />
-                                                            </div>
-                                                        )}
+                                                        <ShowTagsRow
+                                                            className="mt-2"
+                                                            openedFor={openedFor}
+                                                            hasVideo={hasVideo} hasLinks={hasLinks} hasNotes={hasNotes} hasPhotos={hasPhotos} hasPoster={hasPoster}
+                                                            coverCount={tagCounts.coverCount} teaseCount={tagCounts.teaseCount} rareCount={tagCounts.rareCount}
+                                                            tourDebutCount={tagCounts.tourDebutCount} liveDebutCount={tagCounts.liveDebutCount}
+                                                        />
                                                     </div>
                                                 </Link>
 

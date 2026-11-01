@@ -2,25 +2,29 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { PSpinner } from '@porsche-design-system/components-react';
 import { supabase } from '../services/supabase';
-import { getShowDebutsBatch } from '../services/apiCore';
+import { getShowDebutsBatch, checkShowsHaveContent } from '../services/apiCore';
+import { getTourRarity } from '../services/api';
 import { buildShowPath } from '../utils/showSlug';
-import SetlistPreview from './SetlistPreview';
-import { orderSetlistSongs } from '../utils/setlist';
+import ShowTagsRow from './ShowTagsRow';
+import { computeShowTagCounts } from '../utils/setlist';
 
 // How far back to look for a show that actually has a setlist. Setlists are
 // entered a day or two after the show, so the newest show by date is often still
 // empty — checking a window of recent shows avoids rendering a blank section.
 const LOOKBACK_SHOWS = 25;
-const PREVIEW_SONGS = 12;
 const OTHER_RECENT_SHOWS = 2;
 
 // One card design shared by the featured show and the ones below it — same size, same
-// content (artist, venue, tour, full setlist preview with debut tags). The only thing
-// that distinguishes "most recent" from "the others" is position in the list, not size
-// or how much information is shown.
+// content (artist, venue, tour, tag summary). The only thing that distinguishes "most
+// recent" from "the others" is position in the list, not size or how much information is
+// shown.
 // Exported so NextShowWidget can reuse the exact same card rendering
 // inside its own distinctively-styled wrapper, instead of duplicating this.
-export function ShowCard({ show, songs, totalSongs, liveDebutIds, tourDebutIds }) {
+export function ShowCard({
+    show, hasSetlist,
+    hasVideo, hasLinks, hasNotes, hasPhotos, hasPoster,
+    coverCount, teaseCount, rareCount, tourDebutCount, liveDebutCount,
+}) {
     const [y, m, d] = show.show_date.split('-');
     const dateObj = new Date(Number(y), Number(m) - 1, Number(d));
     const monthStr = dateObj.toLocaleString('default', { month: 'short' }).toUpperCase();
@@ -61,16 +65,13 @@ export function ShowCard({ show, songs, totalSongs, liveDebutIds, tourDebutIds }
                     </p>
                 )}
 
-                {songs.length > 0 ? (
-                    <div className="mt-3 pt-3 border-t border-white/5">
-                        <SetlistPreview
-                            songs={songs}
-                            total={totalSongs}
-                            liveDebutIds={liveDebutIds}
-                            tourDebutIds={tourDebutIds}
-                            max={PREVIEW_SONGS}
-                        />
-                    </div>
+                {hasSetlist ? (
+                    <ShowTagsRow
+                        className="mt-3 pt-3 border-t border-white/5"
+                        hasVideo={hasVideo} hasLinks={hasLinks} hasNotes={hasNotes} hasPhotos={hasPhotos} hasPoster={hasPoster}
+                        coverCount={coverCount} teaseCount={teaseCount} rareCount={rareCount}
+                        tourDebutCount={tourDebutCount} liveDebutCount={liveDebutCount}
+                    />
                 ) : (
                     <p className="mt-3 pt-3 border-t border-white/5 text-xs italic" style={{ color: 'var(--p-color-contrast-low)' }}>
                         Setlist not added yet
@@ -89,8 +90,7 @@ export function ShowCard({ show, songs, totalSongs, liveDebutIds, tourDebutIds }
 
 export default function MostRecentShowWidget({ onReady }) {
     const [displayShows, setDisplayShows] = useState([]);
-    const [songsByShow, setSongsByShow] = useState({});
-    const [debutsByShow, setDebutsByShow] = useState({});
+    const [tagsByShow, setTagsByShow] = useState({});
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -107,7 +107,7 @@ export default function MostRecentShowWidget({ onReady }) {
 
                 const { data: shows, error: showsError } = await supabase
                     .from('shows')
-                    .select('id, show_date, artist_name, tour_name, venues(name, city, state_country)')
+                    .select('id, show_date, artist_name, tour_name, links, venues(name, city, state_country)')
                     .lte('show_date', todayStr)
                     .order('show_date', { ascending: false })
                     .order('day_order', { ascending: false })
@@ -121,7 +121,7 @@ export default function MostRecentShowWidget({ onReady }) {
 
                 const { data: setlistRows } = await supabase
                     .from('setlist_songs')
-                    .select('show_id, song_id, set_number, song_order, is_encore, performance_type, songs!setlist_songs_song_id_fkey(title)')
+                    .select('show_id, song_id, performance_type, songs!setlist_songs_song_id_fkey(is_original)')
                     .in('show_id', shows.map(s => s.id));
 
                 const byShow = {};
@@ -139,23 +139,53 @@ export default function MostRecentShowWidget({ onReady }) {
                 if (eligible.length === 0) { if (!cancelled) setLoading(false); return; }
 
                 const shown = eligible.slice(0, 1 + OTHER_RECENT_SHOWS);
-
-                const songsMap = {};
-                shown.forEach(s => {
-                    const rows = byShow[s.id] || [];
-                    songsMap[s.id] = { songs: orderSetlistSongs(rows), total: rows.length };
-                });
+                const shownIds = shown.map(s => s.id);
 
                 if (cancelled) return;
                 setDisplayShows(shown);
-                setSongsByShow(songsMap);
 
-                getShowDebutsBatch(shown.map(s => s.id))
-                    .then(data => {
-                        if (cancelled) return;
-                        setDebutsByShow(data);
-                    })
-                    .catch(err => console.error('[MostRecentShowWidget] debuts fetch failed:', err));
+                // Rare depends on tour-wide play counts, fetched once per distinct tour
+                // represented among the shown cards (almost always just one) rather than
+                // once per show — GET /shows/:id/tour-rarity derives the tour from
+                // whichever show id it's given, so any show in that tour will do.
+                const tourRarityByTour = {};
+                const tourReps = new Map();
+                shown.forEach(s => { if (s.tour_name && !tourReps.has(s.tour_name)) tourReps.set(s.tour_name, s.id); });
+                await Promise.all([...tourReps.entries()].map(async ([tourName, repId]) => {
+                    try {
+                        tourRarityByTour[tourName] = await getTourRarity(repId);
+                    } catch (err) {
+                        console.error('[MostRecentShowWidget] tour rarity fetch failed:', err);
+                    }
+                }));
+
+                const [debutsByShow, { contentMap }] = await Promise.all([
+                    getShowDebutsBatch(shownIds).catch(err => { console.error('[MostRecentShowWidget] debuts fetch failed:', err); return {}; }),
+                    checkShowsHaveContent(shownIds).catch(err => { console.error('[MostRecentShowWidget] content fetch failed:', err); return { contentMap: {} }; }),
+                ]);
+
+                if (cancelled) return;
+
+                const tagsMap = {};
+                shown.forEach(s => {
+                    const rows = byShow[s.id] || [];
+                    const tourRarity = s.tour_name ? tourRarityByTour[s.tour_name] : undefined;
+                    const liveDebutIds = new Set(debutsByShow[s.id]?.live_debut_song_ids || []);
+                    const tourDebutIds = new Set(debutsByShow[s.id]?.tour_debut_song_ids || []);
+                    const counts = computeShowTagCounts(rows, tourRarity, liveDebutIds, tourDebutIds);
+                    const content = contentMap?.[s.id] || {};
+                    tagsMap[s.id] = {
+                        hasSetlist: rows.length > 0,
+                        hasVideo: s.links?.some(l => l.url?.includes('youtube.com') || l.url?.includes('youtu.be')) || false,
+                        hasLinks: s.links?.some(l => l.url && !l.url.includes('youtube.com') && !l.url.includes('youtu.be')) || false,
+                        hasNotes: content.hasNotes || false,
+                        hasPhotos: content.hasPhotos || false,
+                        hasPoster: content.hasPoster || false,
+                        ...counts,
+                    };
+                });
+
+                setTagsByShow(tagsMap);
             } catch (err) {
                 console.error('[MostRecentShowWidget] Error fetching most recent show:', err);
             } finally {
@@ -196,14 +226,7 @@ export default function MostRecentShowWidget({ onReady }) {
 
             <div className="space-y-4">
                 {displayShows.map(show => (
-                    <ShowCard
-                        key={show.id}
-                        show={show}
-                        songs={songsByShow[show.id]?.songs || []}
-                        totalSongs={songsByShow[show.id]?.total || 0}
-                        liveDebutIds={new Set(debutsByShow[show.id]?.live_debut_song_ids || [])}
-                        tourDebutIds={new Set(debutsByShow[show.id]?.tour_debut_song_ids || [])}
-                    />
+                    <ShowCard key={show.id} show={show} {...tagsByShow[show.id]} />
                 ))}
             </div>
         </div>

@@ -59,3 +59,48 @@ export function assignSetlistDisplayNumbers(songs) {
         return { song, position: skipNumber ? null : counter };
     });
 }
+
+/**
+ * Per-show tag counts (covers/teases/rare/live debuts/tour debuts) from raw
+ * setlist_songs rows — the summary-card counterpart to ShowDetailPage's own
+ * computeSetlistStats, used anywhere a show is listed without its full
+ * setlist (homepage widgets, search results) so the same show reports the
+ * same counts everywhere. Mirrors that function's exclusion rules exactly:
+ * a tease isn't a real performance of the song, so it earns its own
+ * teaseCount but never counts as a cover, rare song, or debut; a DJ'd song
+ * doesn't count anywhere.
+ *
+ * rows: raw setlist_songs rows [{song_id, performance_type, songs: {is_original}}].
+ * tourRarity: {total_shows, song_counts} from GET /shows/:id/tour-rarity, or
+ * null/undefined when the show has no tour (no Rare tag is possible then).
+ * liveDebutIds/tourDebutIds: Set<song_id>.
+ */
+export function computeShowTagCounts(rows, tourRarity, liveDebutIds, tourDebutIds) {
+    const seen = new Set();
+    let coverCount = 0, teaseCount = 0, rareCount = 0, liveDebutCount = 0, tourDebutCount = 0;
+
+    (rows || []).forEach(row => {
+        if (!row.song_id || seen.has(row.song_id)) return;
+
+        if (row.performance_type === 'tease') {
+            seen.add(row.song_id);
+            teaseCount++;
+            return;
+        }
+        if (row.performance_type === 'dj') {
+            seen.add(row.song_id);
+            return;
+        }
+        seen.add(row.song_id);
+
+        if (row.songs?.is_original === false) coverCount++;
+
+        const tourCount = tourRarity?.total_shows > 0 ? tourRarity.song_counts[row.song_id] : undefined;
+        if (tourCount != null && tourCount / tourRarity.total_shows < 0.15) rareCount++;
+
+        if (liveDebutIds?.has(row.song_id)) liveDebutCount++;
+        if (tourDebutIds?.has(row.song_id)) tourDebutCount++;
+    });
+
+    return { coverCount, teaseCount, rareCount, liveDebutCount, tourDebutCount };
+}

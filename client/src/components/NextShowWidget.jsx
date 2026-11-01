@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../services/supabase';
-import { getShowDebutsBatch } from '../services/apiCore';
+import { getShowDebutsBatch, checkShowsHaveContent } from '../services/apiCore';
+import { getTourRarity } from '../services/api';
 import { ShowCard } from './MostRecentShowWidget';
-import { orderSetlistSongs } from '../utils/setlist';
+import { computeShowTagCounts } from '../utils/setlist';
 
 // The single soonest show at or after today — "Tonight's Show" when that's
 // literally today, "Next Show" otherwise (with a days-away note so it's
@@ -12,9 +13,7 @@ import { orderSetlistSongs } from '../utils/setlist';
 // places, since here it's just highlighted, not removed from the list.
 export default function NextShowWidget({ onReady }) {
     const [show, setShow] = useState(null);
-    const [songs, setSongs] = useState([]);
-    const [totalSongs, setTotalSongs] = useState(0);
-    const [debuts, setDebuts] = useState({});
+    const [tags, setTags] = useState(null);
     const [loading, setLoading] = useState(true);
     const [isTonight, setIsTonight] = useState(false);
     const [daysAway, setDaysAway] = useState(0);
@@ -33,7 +32,7 @@ export default function NextShowWidget({ onReady }) {
 
                 const { data: shows, error: showsError } = await supabase
                     .from('shows')
-                    .select('id, show_date, artist_name, tour_name, venues(name, city, state_country)')
+                    .select('id, show_date, artist_name, tour_name, links, venues(name, city, state_country)')
                     .gte('show_date', todayStr)
                     .order('show_date', { ascending: true })
                     .order('day_order', { ascending: true })
@@ -48,13 +47,11 @@ export default function NextShowWidget({ onReady }) {
 
                 const { data: setlistRows } = await supabase
                     .from('setlist_songs')
-                    .select('show_id, song_id, set_number, song_order, is_encore, performance_type, songs!setlist_songs_song_id_fkey(title)')
+                    .select('show_id, song_id, performance_type, songs!setlist_songs_song_id_fkey(is_original)')
                     .eq('show_id', nextShow.id);
 
                 if (cancelled) return;
                 setShow(nextShow);
-                setSongs(orderSetlistSongs(setlistRows || []));
-                setTotalSongs((setlistRows || []).length);
                 setIsTonight(nextShow.show_date === todayStr);
                 // Calendar-day difference, not a 24h-based one — "tomorrow" should
                 // read as 1 day away right from midnight, not depend on what time
@@ -64,9 +61,32 @@ export default function NextShowWidget({ onReady }) {
                 const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
                 setDaysAway(Math.round((showMidnight - todayMidnight) / (24 * 60 * 60 * 1000)));
 
-                getShowDebutsBatch([nextShow.id])
-                    .then(data => { if (!cancelled) setDebuts(data); })
-                    .catch(err => console.error('[NextShowWidget] debuts fetch failed:', err));
+                const rows = setlistRows || [];
+
+                const [tourRarity, debutsByShow, { contentMap }] = await Promise.all([
+                    nextShow.tour_name
+                        ? getTourRarity(nextShow.id).catch(err => { console.error('[NextShowWidget] tour rarity fetch failed:', err); return undefined; })
+                        : Promise.resolve(undefined),
+                    getShowDebutsBatch([nextShow.id]).catch(err => { console.error('[NextShowWidget] debuts fetch failed:', err); return {}; }),
+                    checkShowsHaveContent([nextShow.id]).catch(err => { console.error('[NextShowWidget] content fetch failed:', err); return { contentMap: {} }; }),
+                ]);
+
+                if (cancelled) return;
+
+                const liveDebutIds = new Set(debutsByShow[nextShow.id]?.live_debut_song_ids || []);
+                const tourDebutIds = new Set(debutsByShow[nextShow.id]?.tour_debut_song_ids || []);
+                const counts = computeShowTagCounts(rows, tourRarity, liveDebutIds, tourDebutIds);
+                const content = contentMap?.[nextShow.id] || {};
+
+                setTags({
+                    hasSetlist: rows.length > 0,
+                    hasVideo: nextShow.links?.some(l => l.url?.includes('youtube.com') || l.url?.includes('youtu.be')) || false,
+                    hasLinks: nextShow.links?.some(l => l.url && !l.url.includes('youtube.com') && !l.url.includes('youtu.be')) || false,
+                    hasNotes: content.hasNotes || false,
+                    hasPhotos: content.hasPhotos || false,
+                    hasPoster: content.hasPoster || false,
+                    ...counts,
+                });
             } catch (err) {
                 console.error('[NextShowWidget] Error fetching next show:', err);
             } finally {
@@ -99,13 +119,7 @@ export default function NextShowWidget({ onReady }) {
                 )}
             </div>
 
-            <ShowCard
-                show={show}
-                songs={songs}
-                totalSongs={totalSongs}
-                liveDebutIds={new Set(debuts[show.id]?.live_debut_song_ids || [])}
-                tourDebutIds={new Set(debuts[show.id]?.tour_debut_song_ids || [])}
-            />
+            <ShowCard show={show} {...tags} />
         </div>
     );
 }
