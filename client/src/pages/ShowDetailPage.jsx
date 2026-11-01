@@ -89,12 +89,30 @@ function computeSetlistStats(show, tourRarity, liveDebutSongIds, tourDebutSongId
     const albumCounts = new Map();
     let otherOriginals = 0;
     let covers = 0;
+    let teaseCount = 0;
     let rareCount = 0;
     let liveDebutCount = 0;
     let tourDebutCount = 0;
 
     allSongs.forEach(song => {
         if (!song.song_id || seen.has(song.song_id)) return;
+
+        // A tease or DJ'd song isn't an actual performance of it, so it
+        // shouldn't count toward Covers/Originals/the album breakdown — same
+        // "doesn't count as the song being played" rule already applied to
+        // Rare/Live Debut/Tour Debut just below. A tease still gets its own
+        // honest count via teaseCount instead of silently vanishing from the
+        // stats; a song whose only appearance here is DJ'd (no live
+        // performance at all) doesn't get counted anywhere.
+        if (song.performance_type === 'tease') {
+            seen.add(song.song_id);
+            teaseCount++;
+            return;
+        }
+        if (song.performance_type === 'dj') {
+            seen.add(song.song_id);
+            return;
+        }
         seen.add(song.song_id);
 
         // A real album_songs association wins regardless of is_original — a
@@ -122,12 +140,11 @@ function computeSetlistStats(show, tourRarity, liveDebutSongIds, tourDebutSongId
         // played, so it shouldn't earn Live Debut, Tour Debut or Rare —
         // keeps these tile totals consistent with which rows actually show
         // the badge.
-        const isTease = song.performance_type === 'tease';
         const tourCount = tourRarity?.total_shows > 0 ? tourRarity.song_counts[song.song_id] : undefined;
-        if (!isTease && tourCount != null && tourCount / tourRarity.total_shows < 0.15) rareCount++;
+        if (tourCount != null && tourCount / tourRarity.total_shows < 0.15) rareCount++;
 
-        if (!isTease && liveDebutSongIds?.has(song.song_id)) liveDebutCount++;
-        if (!isTease && tourDebutSongIds?.has(song.song_id)) tourDebutCount++;
+        if (liveDebutSongIds?.has(song.song_id)) liveDebutCount++;
+        if (tourDebutSongIds?.has(song.song_id)) tourDebutCount++;
     });
 
     const albumBreakdown = [...albumCounts.entries()]
@@ -139,6 +156,7 @@ function computeSetlistStats(show, tourRarity, liveDebutSongIds, tourDebutSongId
         albumBreakdown,
         otherOriginals,
         covers,
+        teaseCount,
         rareCount,
         liveDebutCount,
         tourDebutCount,
@@ -448,7 +466,12 @@ export default function ShowDetailPage() {
         const seen = new Set();
         let originals = 0, covers = 0;
         allSongs.forEach(song => {
+            // A tease or DJ'd song isn't an actual performance of it, so it
+            // shouldn't count toward Originals/Covers — same "doesn't count
+            // as the song being played" rule applied everywhere else
+            // (debuts, rarity, tour performance counts).
             if (!song.song_id || seen.has(song.song_id)) return;
+            if (song.performance_type === 'tease' || song.performance_type === 'dj') return;
             seen.add(song.song_id);
             if (song.is_original === true) originals++;
             else covers++;
@@ -934,6 +957,9 @@ export default function ShowDetailPage() {
                         </div>
 
                         <div className="flex flex-wrap gap-2">
+                            {setlistStats.teaseCount > 0 && (
+                                <StatTile value={setlistStats.teaseCount} label="Teases" color="#fbbf24" />
+                            )}
                             {tourRarity && (
                                 <StatTile value={setlistStats.rareCount} label="Rare Songs" color="#c084fc" />
                             )}
