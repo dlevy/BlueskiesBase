@@ -117,8 +117,10 @@ function computeSetlistStats(show, tourRarity, liveDebutSongIds, tourDebutSongId
 
         // A real album_songs association wins regardless of is_original — a
         // cover that's an actual album track counts toward that album, not
-        // the generic Covers bucket. Only a song with no album association
-        // at all falls through to otherOriginals/covers.
+        // the generic non-album-covers bucket, but tracked separately within
+        // that album's own tally so its bar can show how much of it is
+        // original vs. a cover of someone else's song. Only a song with no
+        // album association at all falls through to otherOriginals/covers.
         const assocs = (song.songs?.album_songs || []).filter(as => as.albums);
         if (assocs.length > 0) {
             const primary = [...assocs].sort((a, b) => {
@@ -129,7 +131,9 @@ function computeSetlistStats(show, tourRarity, liveDebutSongIds, tourDebutSongId
                 return ra.localeCompare(rb);
             })[0];
             const title = primary.albums?.title || 'Other';
-            albumCounts.set(title, (albumCounts.get(title) || 0) + 1);
+            const entry = albumCounts.get(title) || { original: 0, cover: 0 };
+            if (song.is_original === false) entry.cover++; else entry.original++;
+            albumCounts.set(title, entry);
         } else if (song.is_original === false) {
             covers++;
         } else if (song.is_original === true) {
@@ -148,7 +152,7 @@ function computeSetlistStats(show, tourRarity, liveDebutSongIds, tourDebutSongId
     });
 
     const albumBreakdown = [...albumCounts.entries()]
-        .map(([title, count]) => ({ title, count }))
+        .map(([title, { original, cover }]) => ({ title, count: original + cover, originalCount: original, coverCount: cover }))
         .sort((a, b) => b.count - a.count);
 
     return {
@@ -925,21 +929,35 @@ export default function ShowDetailPage() {
                             {(() => {
                                 const bars = [
                                     ...setlistStats.albumBreakdown,
-                                    ...(setlistStats.otherOriginals > 0 ? [{ title: 'Other', count: setlistStats.otherOriginals }] : []),
-                                    ...(setlistStats.covers > 0 ? [{ title: 'Covers', count: setlistStats.covers, isCover: true }] : []),
+                                    ...(setlistStats.otherOriginals > 0 ? [{ title: 'Other', count: setlistStats.otherOriginals, originalCount: setlistStats.otherOriginals, coverCount: 0 }] : []),
+                                    ...(setlistStats.covers > 0 ? [{ title: 'Non-Album Covers', count: setlistStats.covers, originalCount: 0, coverCount: setlistStats.covers, isCover: true }] : []),
                                 ].sort((a, b) => b.count - a.count);
                                 const maxCount = Math.max(...bars.map(b => b.count));
-                                return bars.map(({ title, count, isCover }) => (
+                                return bars.map(({ title, count, originalCount, coverCount, isCover }) => (
                                     <div key={title}>
                                         <div className="flex items-center gap-3">
                                             <span className="text-xs w-40 sm:w-56 shrink-0 truncate text-right" style={{ color: 'var(--p-color-contrast-medium)' }}>
                                                 {title}
                                             </span>
-                                            <div className="flex-1 h-5 rounded bg-white/5 overflow-hidden">
-                                                <div
-                                                    className={`h-full rounded transition-all duration-700 ${isCover ? 'bg-blue-400/70' : 'bg-amber-400/80'}`}
-                                                    style={{ width: `${(count / maxCount) * 100}%` }}
-                                                />
+                                            {/* Split into an amber (original) and blue (cover) segment,
+                                                side by side — an album bar isn't just one color, since a
+                                                cover that's an actual track on that album (e.g. Mutiny
+                                                After Midnight) still shows as its own blue sliver within
+                                                that album's bar rather than being indistinguishable from
+                                                the album's original songs. */}
+                                            <div className="flex-1 h-5 rounded bg-white/5 overflow-hidden flex">
+                                                {originalCount > 0 && (
+                                                    <div
+                                                        className="h-full bg-amber-400/80 transition-all duration-700"
+                                                        style={{ width: `${(originalCount / maxCount) * 100}%` }}
+                                                    />
+                                                )}
+                                                {coverCount > 0 && (
+                                                    <div
+                                                        className="h-full bg-blue-400/70 transition-all duration-700"
+                                                        style={{ width: `${(coverCount / maxCount) * 100}%` }}
+                                                    />
+                                                )}
                                             </div>
                                             <span className="text-xs w-4 shrink-0" style={{ color: 'var(--p-color-contrast-medium)' }}>{count}</span>
                                         </div>
@@ -947,7 +965,7 @@ export default function ShowDetailPage() {
                                             <div className="flex items-center gap-3 mt-1">
                                                 <span className="w-40 sm:w-56 shrink-0" />
                                                 <p className="text-xs italic flex-1" style={{ color: 'var(--p-color-contrast-low)' }}>
-                                                    A cover on an official album counts toward that album, not Covers.
+                                                    A cover on an official album shows as the blue portion of that album's bar instead.
                                                 </p>
                                             </div>
                                         )}
