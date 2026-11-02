@@ -1243,6 +1243,48 @@ export const reportPhoto = async (photoId, reason, note = '') => {
 };
 
 /**
+ * Open (non-dismissed) photo reports for a show — staff-only, for the report
+ * banner shown inline on a reported photo.
+ */
+export const getPhotoReports = async (showId) => {
+    const token = await getAuthToken();
+    if (!token) {
+        throw new Error('Not authenticated');
+    }
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/photos/show/${showId}/reports`, {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+        },
+    });
+    if (!response.ok) {
+        throw new Error('Failed to fetch photo reports');
+    }
+    return response.json();
+};
+
+/**
+ * Staff clears a photo's open report(s) without deleting the photo.
+ */
+export const resolvePhotoReport = async (photoId) => {
+    const token = await getAuthToken();
+    if (!token) {
+        throw new Error('Not authenticated');
+    }
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/photos/${photoId}/resolve-report`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+        },
+    });
+    if (!response.ok) {
+        throw new Error('Failed to resolve report');
+    }
+    return response.json();
+};
+
+/**
  * Update photo caption
  */
 export const updatePhotoCaption = async (photoId, caption) => {

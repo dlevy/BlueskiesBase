@@ -44,6 +44,24 @@ const authenticate = async (req, res, next) => {
     next();
 };
 
+/**
+ * Middleware to require admin or editor — must run after `authenticate`.
+ * Same admin-or-editor definition as the DELETE route's own moderation check.
+ */
+const requireStaff = async (req, res, next) => {
+    const { data: profile } = await supabaseAdmin
+        .from('profiles')
+        .select('role, is_admin')
+        .eq('id', req.user.id)
+        .single();
+
+    const isStaff = profile?.is_admin || profile?.role === 'editor' || false;
+    if (!isStaff) {
+        return res.status(403).json({ error: 'Admin or editor access required' });
+    }
+    next();
+};
+
 // ============================================
 // USER PHOTOS ENDPOINTS
 // ============================================
@@ -169,6 +187,55 @@ router.get('/tour/:tourName', async (req, res) => {
         res.json({ photos });
     } catch (error) {
         console.error('Error in GET /api/photos/tour/:tourName:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * GET /api/photos/show/:showId/reports
+ * Open (non-dismissed) photo reports for every photo in a show — staff-only,
+ * backing the report banner shown inline on a reported photo. Each report
+ * fans out to one notification row per staff recipient (see
+ * notifyStaffOfPhotoReport), so this dedupes by (content_id, actor_id) to
+ * surface one entry per actual report rather than one per recipient.
+ */
+router.get('/show/:showId/reports', authenticate, requireStaff, async (req, res) => {
+    try {
+        const { showId } = req.params;
+        const { data: rows, error } = await supabaseAdmin
+            .from('notifications')
+            .select(`
+                content_id, actor_id, message, created_at,
+                profiles:actor_id ( username, display_name )
+            `)
+            .eq('type', 'photo_report')
+            .eq('content_type', 'photo')
+            .eq('show_id', showId)
+            .is('dismissed_at', null)
+            .order('created_at', { ascending: true });
+
+        if (error) {
+            console.error('Error fetching photo reports:', error);
+            return res.status(500).json({ error: 'Failed to fetch photo reports' });
+        }
+
+        const seen = new Set();
+        const reports = [];
+        for (const row of rows || []) {
+            const key = `${row.content_id}:${row.actor_id}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            reports.push({
+                photoId: row.content_id,
+                reporter: row.profiles,
+                message: row.message,
+                createdAt: row.created_at,
+            });
+        }
+
+        res.json({ reports });
+    } catch (error) {
+        console.error('Error in GET /api/photos/show/:showId/reports:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
@@ -336,6 +403,23 @@ router.post('/:photoId/report', authenticate, async (req, res) => {
     } catch (error) {
         console.error('Error in POST /api/photos/:photoId/report:', error);
         res.status(500).json({ error: 'Failed to report photo' });
+    }
+});
+
+/**
+ * POST /api/photos/:photoId/resolve-report
+ * Staff clears a photo's open report(s) without deleting the photo — same
+ * dismissedAt that deleting the photo already triggers (see
+ * dismissPhotoReportNotifications), just reachable without removing it, for
+ * when the photo turns out to be fine.
+ */
+router.post('/:photoId/resolve-report', authenticate, requireStaff, async (req, res) => {
+    try {
+        await dismissPhotoReportNotifications(req.params.photoId);
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error in POST /api/photos/:photoId/resolve-report:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 

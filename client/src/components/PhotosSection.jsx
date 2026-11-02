@@ -2,7 +2,8 @@
 import { Link } from 'react-router-dom';
 import { PHeading, PText, PButtonPure, PInlineNotification, PDivider } from '@porsche-design-system/components-react';
 import { useAuth } from '../contexts/AuthContext';
-import { getShowPhotos, uploadPhoto, deletePhoto, reportPhoto } from '../services/api';
+import { getShowPhotos, uploadPhoto, deletePhoto, reportPhoto, getPhotoReports, resolvePhotoReport } from '../services/api';
+import { parsePhotoReportMessage } from '../utils/notifications';
 import ThanksButton from './ThanksButton';
 import Lightbox from 'yet-another-react-lightbox';
 import 'yet-another-react-lightbox/styles.css';
@@ -39,6 +40,8 @@ export default function PhotosSection({ showId, thanksRows = [], onThanksChanged
     // dedup check (one open report per reporter+photo) is the real guard
     // against duplicates, not this.
     const [reportedPhotoIds, setReportedPhotoIds] = useState(new Set());
+    const [photoReports, setPhotoReports] = useState([]);
+    const [resolvingReport, setResolvingReport] = useState(false);
 
     const loadPhotos = useCallback(async () => {
         try {
@@ -50,7 +53,18 @@ export default function PhotosSection({ showId, thanksRows = [], onThanksChanged
         }
     }, [showId]);
 
+    const loadReports = useCallback(async () => {
+        if (!isEditorOrAdmin) { setPhotoReports([]); return; }
+        try {
+            const { reports } = await getPhotoReports(showId);
+            setPhotoReports(reports || []);
+        } catch (err) {
+            console.error('Error loading photo reports:', err);
+        }
+    }, [showId, isEditorOrAdmin]);
+
     useEffect(() => { loadPhotos(); }, [loadPhotos]);
+    useEffect(() => { loadReports(); }, [loadReports]);
 
     useEffect(() => {
         setReportPanelOpen(false);
@@ -91,9 +105,23 @@ export default function PhotosSection({ showId, thanksRows = [], onThanksChanged
         try {
             await deletePhoto(photoId);
             await loadPhotos();
+            await loadReports();
         } catch (err) {
             console.error('Error deleting photo:', err);
             setError('Failed to delete photo');
+        }
+    };
+
+    const handleResolveReport = async (photoId) => {
+        try {
+            setResolvingReport(true);
+            await resolvePhotoReport(photoId);
+            await loadReports();
+        } catch (err) {
+            console.error('Error resolving photo report:', err);
+            setError('Failed to resolve report');
+        } finally {
+            setResolvingReport(false);
         }
     };
 
@@ -118,6 +146,7 @@ export default function PhotosSection({ showId, thanksRows = [], onThanksChanged
     const lightboxSlides = photos.map(p => ({ src: p.photo_url, alt: p.caption || 'Show photo', title: p.caption }));
     const currentPhoto = photos[currentPhotoIndex];
     const currentPhotoThanks = currentPhoto ? thanksRows.filter(t => t.contentType === 'photo' && t.contentId === currentPhoto.id) : [];
+    const currentPhotoReports = currentPhoto ? photoReports.filter(r => r.photoId === currentPhoto.id) : [];
 
     return (
         <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 space-y-4">
@@ -194,6 +223,28 @@ export default function PhotosSection({ showId, thanksRows = [], onThanksChanged
                     </div>
 
                     <div className="space-y-2">
+                        {isEditorOrAdmin && currentPhotoReports.length > 0 && (
+                            <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 space-y-2">
+                                {currentPhotoReports.map((report, i) => {
+                                    const { reason, note } = parsePhotoReportMessage(report.message);
+                                    const reporterName = report.reporter?.display_name || report.reporter?.username || 'Someone';
+                                    return (
+                                        <PText key={i} size="xs" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                                            Reported by {reporterName} as <strong>{reason}</strong>{note ? ` — "${note}"` : ''}
+                                        </PText>
+                                    );
+                                })}
+                                <button
+                                    className={btnSecondary}
+                                    style={{ color: 'var(--p-color-contrast-medium)' }}
+                                    disabled={resolvingReport}
+                                    onClick={() => handleResolveReport(currentPhoto.id)}
+                                >
+                                    {resolvingReport && <Spinner />}
+                                    {resolvingReport ? 'Resolving…' : 'Resolve'}
+                                </button>
+                            </div>
+                        )}
                         {photos[currentPhotoIndex].caption && (
                             <PText size="sm" align="center">{photos[currentPhotoIndex].caption}</PText>
                         )}

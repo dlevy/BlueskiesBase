@@ -31,6 +31,14 @@ export function timeAgo(dateString) {
     return date.toLocaleDateString();
 }
 
+// Shared with the staff-only report banner on the photo itself
+// (PhotosSection.jsx) so both read the same reason/note split out of the
+// notification's `message` column ("inappropriate" or "inappropriate: note").
+export function parsePhotoReportMessage(message) {
+    const [reason, note] = (message || 'inappropriate').split(/:\s(.+)/s);
+    return { reason, note };
+}
+
 export function notificationText(n) {
     const actorName = n.actor?.display_name || n.actor?.username || 'Someone';
     const label = CONTENT_LABEL[n.content_type] || 'contribution';
@@ -39,7 +47,7 @@ export function notificationText(n) {
     if (n.type === 'submission') return `${actorName} submitted a setlist correction for review`;
     if (n.type === 'poster_interest') return `${actorName} sent you a message about your poster listing`;
     if (n.type === 'photo_report') {
-        const [reason, note] = (n.message || 'inappropriate').split(/:\s(.+)/s);
+        const { reason, note } = parsePhotoReportMessage(n.message);
         return `${actorName} reported a photo as ${reason}${note ? ` — "${note}"` : ''}`;
     }
     if (n.type === 'show_update') {
