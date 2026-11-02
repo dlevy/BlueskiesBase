@@ -26,7 +26,7 @@ export default function WhoWasThereSection({ showId, refreshOn, isFutureShow, is
     return (
         <div className="mt-5 pt-4 border-t border-white/[0.07]">
             <PText size="xs" className="uppercase tracking-wide font-semibold mb-2" style={{ color: 'var(--p-color-contrast-low)' }}>
-                {isCancelled ? 'Who Had Plans to Attend' : isFutureShow ? 'Who Is Attending?' : 'Who Was There'}
+                {isCancelled ? 'Who Planned to Go' : isFutureShow ? 'Who Is Attending?' : 'Who Was There'}
             </PText>
             <div className="flex flex-wrap items-center gap-1.5">
                 {attendees.map((a, i) => {

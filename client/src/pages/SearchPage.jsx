@@ -743,7 +743,7 @@ export default function SearchPage() {
                                                 <Link to={buildShowPath(show)} className="flex flex-1 min-w-0">
                                                     {/* Date column */}
                                                     <div className="shrink-0 flex flex-col items-center justify-center w-14 sm:w-16 py-4 bg-white/[0.02] border-r border-white/5">
-                                                        <span className="font-display font-bold text-xl sm:text-2xl leading-none text-amber-400">
+                                                        <span className={`font-display font-bold text-xl sm:text-2xl leading-none ${show.is_cancelled ? 'text-red-400/70' : 'text-amber-400'}`}>
                                                             {dayNum}
                                                         </span>
                                                         <span className="text-[9px] uppercase tracking-widest mt-0.5" style={{ color: 'var(--p-color-contrast-medium)' }}>
@@ -756,8 +756,13 @@ export default function SearchPage() {
 
                                                     {/* Text content — left-aligned */}
                                                     <div className="flex-1 min-w-0 p-3 sm:p-4">
-                                                        <p className="font-semibold text-sm text-left" style={{ color: 'var(--p-color-primary)' }}>
+                                                        <p className="font-semibold text-sm text-left flex items-center flex-wrap gap-1.5" style={{ color: 'var(--p-color-primary)' }}>
                                                             {show.artist_name}
+                                                            {show.is_cancelled && (
+                                                                <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 border border-red-500/30">
+                                                                    Canceled
+                                                                </span>
+                                                            )}
                                                         </p>
                                                         {show.venues && (
                                                             <>
@@ -776,7 +781,6 @@ export default function SearchPage() {
                                                         )}
                                                         <ShowTagsRow
                                                             className="mt-2"
-                                                            isCancelled={show.is_cancelled}
                                                             openedFor={openedFor}
                                                             hasVideo={hasVideo} hasLinks={hasLinks} hasNotes={hasNotes} hasPhotos={hasPhotos} hasPoster={hasPoster}
                                                             coverCount={tagCounts.coverCount} teaseCount={tagCounts.teaseCount} rareCount={tagCounts.rareCount}
@@ -788,7 +792,7 @@ export default function SearchPage() {
                                                 {/* Attendance + admin actions — outside the link */}
                                                 {(user || isEditorOrAdmin) && (
                                                     <div className="shrink-0 flex flex-col items-center justify-center px-3 border-l border-white/5 gap-1.5">
-                                                        {user && (
+                                                        {user && !show.is_cancelled && (
                                                             <button
                                                                 onClick={(e) => handleAttendanceToggle(show.id, e)}
                                                                 disabled={isLoading}

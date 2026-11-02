@@ -751,7 +751,7 @@ export default function ShowDetailPage() {
     };
 
     const attendanceLabel = show.is_cancelled
-        ? (attended ? 'I Had Plans to Attend' : 'Had Plans to Attend')
+        ? (attended ? 'I Planned to Go' : 'Planned to Go')
         : attended
             ? (isFutureShow ? "I'm Attending" : 'I Was There')
             : (isFutureShow ? 'Attending' : 'Attended');
@@ -818,8 +818,13 @@ export default function ShowDetailPage() {
             <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 md:p-8">
                 {/* Artist name + attendance button */}
                 <div className="flex flex-wrap items-start justify-between gap-4">
-                    <h1 className="font-display font-bold text-2xl md:text-4xl leading-tight min-w-0" style={{ color: 'var(--p-color-primary)' }}>
+                    <h1 className="font-display font-bold text-2xl md:text-4xl leading-tight min-w-0 flex items-center flex-wrap gap-2.5" style={{ color: 'var(--p-color-primary)' }}>
                         {show.artist_name}
+                        {show.is_cancelled && (
+                            <span className="shrink-0 text-xs md:text-sm font-bold uppercase tracking-wide px-2 py-1 rounded-md bg-red-500/20 text-red-400 border border-red-500/30 align-middle">
+                                Canceled
+                            </span>
+                        )}
                     </h1>
                     <div className="flex items-center gap-2 flex-wrap">
                     {isEditorOrAdmin && (
@@ -882,7 +887,7 @@ export default function ShowDetailPage() {
                 {/* Date */}
                 <div className="mt-5">
                     <div className="flex items-baseline gap-2.5">
-                        <span className="font-display font-bold text-3xl leading-none text-amber-400">
+                        <span className={`font-display font-bold text-3xl leading-none ${show.is_cancelled ? 'text-red-400/70' : 'text-amber-400'}`}>
                             {parseInt(sday, 10)}
                         </span>
                         <span className="font-semibold" style={{ color: 'var(--p-color-primary)' }}>
@@ -922,9 +927,8 @@ export default function ShowDetailPage() {
                 )}
 
                 {/* Tags + Sources */}
-                {(show.is_cancelled || show.tour_name || songStats.originals > 0 || songStats.covers > 0 || show.source_types?.length > 0) && (
+                {(show.tour_name || songStats.originals > 0 || songStats.covers > 0 || show.source_types?.length > 0) && (
                     <div className="mt-5 pt-4 border-t border-white/[0.07] flex flex-wrap items-center gap-2">
-                        {show.is_cancelled && <PTag color="notification-error-soft">Canceled</PTag>}
                         {show.tour_name && (
                             <Link to={buildTourPath(show.tour_name)} className="transition-opacity hover:opacity-80">
                                 <PTag icon="arrow-right">{show.tour_name}</PTag>
