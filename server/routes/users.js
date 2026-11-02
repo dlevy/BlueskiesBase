@@ -417,9 +417,18 @@ router.get('/stats', async (req, res) => {
         // user's own attended shows. Ties at the cutoff are folded into a note
         // rather than arbitrarily dropped, same tie-handling precedent used by the
         // tour-stats "Rarest Songs" card.
+        // songsSeen itself still includes a song whose only performance anywhere
+        // was a tease (computeSongsSeenForShows doesn't exclude teases — hearing
+        // one does count as having "seen" the song) — but index.showIdsBySong
+        // excludes teases entirely (see setlistIndex.js), so a tease-only song
+        // would otherwise score globalPlayCount: 0 and swamp this ranking ahead
+        // of songs that have actually been fully performed once or twice.
+        // Filtered out here rather than at the source, since songsSeen/
+        // songsNotSeen still need that song counted as seen.
         const RAREST_SEEN_LIMIT = 5;
         const songsSeenByRarity = songsSeen
-            .map(song => ({ ...song, globalPlayCount: index.showIdsBySong.get(song.id)?.size || 0 }))
+            .filter(song => index.showIdsBySong.has(song.id))
+            .map(song => ({ ...song, globalPlayCount: index.showIdsBySong.get(song.id).size }))
             .sort((a, b) => a.globalPlayCount - b.globalPlayCount || a.title.localeCompare(b.title));
 
         const rarestSongsSeen = songsSeenByRarity.slice(0, RAREST_SEEN_LIMIT);
