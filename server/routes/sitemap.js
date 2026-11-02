@@ -45,7 +45,7 @@ router.get('/', async (req, res) => {
 
         const { data: shows, error } = await supabaseAdmin
             .from('shows')
-            .select('show_date, updated_at, artist_name, tour_name, venues(city, state_country)')
+            .select('show_date, updated_at, artist_name, tour_name, is_cancelled, venues(city, state_country)')
             .order('show_date', { ascending: false });
 
         if (error) throw error;
@@ -114,7 +114,7 @@ router.get('/', async (req, res) => {
             if (!show.tour_name) continue;
             const entry = tourByName.get(show.tour_name) || { count: 0, hasUpcoming: false, lastTouched: null };
             entry.count++;
-            if (show.show_date >= todayStr) entry.hasUpcoming = true;
+            if (!show.is_cancelled && show.show_date >= todayStr) entry.hasUpcoming = true;
             const touched = show.updated_at ? show.updated_at.split('T')[0] : show.show_date;
             if (!entry.lastTouched || touched > entry.lastTouched) entry.lastTouched = touched;
             tourByName.set(show.tour_name, entry);

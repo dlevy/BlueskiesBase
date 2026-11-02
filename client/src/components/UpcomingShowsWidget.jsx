@@ -22,15 +22,19 @@ export default function UpcomingShowsWidget({ onReady }) {
                 // homepage, so it's excluded here to avoid showing it twice. A
                 // future show NextShowWidget features as "Next Show" stays in
                 // this list too — it's only highlighted up top, not pulled out.
+                // A canceled show isn't really "coming up" — excluded from this
+                // teaser list the same way it's excluded from NextShowWidget, rather
+                // than shown with a badge here (the full /upcoming-shows page is
+                // where a canceled show stays visible for the record).
                 const { data, error } = await supabase
                     .from('shows')
-                    .select('id, show_date, artist_name, tour_name, venues(name, city, state_country)')
+                    .select('id, show_date, artist_name, tour_name, is_cancelled, venues(name, city, state_country)')
                     .gt('show_date', todayStr)
                     .order('show_date', { ascending: true })
                     .order('day_order', { ascending: true })
-                    .limit(3);
+                    .limit(10);
 
-                if (!error) setUpcoming(data || []);
+                if (!error) setUpcoming((data || []).filter(s => !s.is_cancelled).slice(0, 3));
             } catch (err) {
                 console.error('[UpcomingShowsWidget] Error fetching upcoming shows:', err);
             } finally {

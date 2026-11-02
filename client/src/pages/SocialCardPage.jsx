@@ -44,8 +44,13 @@ export default function SocialCardPage() {
 
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const isUpcoming = (d) => { const [y, m, day] = d.split('-'); return new Date(y, m - 1, day) >= today; };
-    const pastShows = stats ? stats.attendedShows.filter(s => !isUpcoming(s.show_date)) : [];
-    const upcomingShows = stats ? stats.attendedShows.filter(s => isUpcoming(s.show_date)) : [];
+    // A canceled show never happened, regardless of date — excluded from both
+    // buckets, same as UserStatsWidget/StatsPage, so this shareable card never
+    // claims an inflated show count or badge tier, or drops a map pin for a
+    // show that didn't happen.
+    const notCanceled = stats ? stats.attendedShows.filter(s => !s.is_cancelled) : [];
+    const pastShows = notCanceled.filter(s => !isUpcoming(s.show_date));
+    const upcomingShows = notCanceled.filter(s => isUpcoming(s.show_date));
 
     // The map is the card's backdrop — generated once stats are in, cached
     // in state so it isn't rebuilt on every render.

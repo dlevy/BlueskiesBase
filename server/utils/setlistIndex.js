@@ -27,11 +27,16 @@ async function computeSetlistIndex() {
     if (cache && cache.expiresAt > Date.now()) return cache.data;
 
     const shows = await fetchAllPaginated(
-        supabase.from('shows').select('id, show_date, tour_name').order('id')
+        supabase.from('shows').select('id, show_date, tour_name, is_cancelled').order('id')
     );
     const showDateById = new Map();
     const tourNameByShowId = new Map();
-    shows.forEach(s => {
+    // A canceled show never happened — left out of showDateById entirely, so
+    // any setlist_songs row still pointing at one (e.g. a partial setlist
+    // logged before a show was cut short) is silently skipped below via the
+    // `if (!date) return` guard, rather than counting toward any song's
+    // global performance count.
+    shows.filter(s => !s.is_cancelled).forEach(s => {
         showDateById.set(s.id, s.show_date);
         if (s.tour_name) tourNameByShowId.set(s.id, s.tour_name);
     });

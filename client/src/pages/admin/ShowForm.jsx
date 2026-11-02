@@ -85,6 +85,7 @@ export default function ShowForm() {
         opened_for_id: '',
         links: [],
         day_order: 0,
+        is_cancelled: false,
     });
 
     const sourceTypeOptions = ['SBD', 'AUD', 'Matrix', 'FM', 'Video'];
@@ -135,6 +136,7 @@ export default function ShowForm() {
                 opened_for_id: show.opened_for_id  || '',
                 links:         show.links          || [],
                 day_order:     show.day_order      ?? 0,
+                is_cancelled:  show.is_cancelled    || false,
             });
             setInitialSetlist(show.setlist || {});
             setTourInputMode('select');
@@ -487,6 +489,18 @@ export default function ShowForm() {
                                         </label>
                                     ))}
                                 </div>
+                            </div>
+
+                            {/* Canceled — scheduled but never happened. Still gets its own page
+                                (posters/photos may already exist, people may have marked plans
+                                to attend), but it's never counted as attended or toward any
+                                played-shows total. */}
+                            <div>
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input type="checkbox" name="is_cancelled" checked={formData.is_cancelled}
+                                        onChange={handleChange} className="w-4 h-4" />
+                                    <PText size="small">This show was canceled</PText>
+                                </label>
                             </div>
                         </div>
                     )}

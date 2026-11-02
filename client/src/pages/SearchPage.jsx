@@ -776,6 +776,7 @@ export default function SearchPage() {
                                                         )}
                                                         <ShowTagsRow
                                                             className="mt-2"
+                                                            isCancelled={show.is_cancelled}
                                                             openedFor={openedFor}
                                                             hasVideo={hasVideo} hasLinks={hasLinks} hasNotes={hasNotes} hasPhotos={hasPhotos} hasPoster={hasPoster}
                                                             coverCount={tagCounts.coverCount} teaseCount={tagCounts.teaseCount} rareCount={tagCounts.rareCount}

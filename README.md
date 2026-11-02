@@ -267,13 +267,13 @@ Public reads, auth required to create/delete your own; submissions additionally 
 |---|---|
 | `profiles` | Extends Supabase auth users — `role` (`member`/`editor`/`admin`), legacy `is_admin`, avatar/bio/location, social links, favorite show/venue, attendance-privacy toggle |
 | `venues` | Concert venues with city/state |
-| `shows` | Individual concerts — tour name, source types, opener (`opened_for_id` → `bands`), poster artist credit, links (JSONB) |
+| `shows` | Individual concerts — tour name, source types, opener (`opened_for_id` → `bands`), poster artist credit, links (JSONB), `is_cancelled` (scheduled but never happened; never counted as attended/played) |
 | `songs` | Song catalog — `is_original`, cover attribution, writer credit |
 | `albums` / `album_songs` | Album catalog and its song ↔ album junction (track order) |
 | `setlist_songs` | Songs performed per show — set number, position, segue (`jams_into`), performance type (full/tease/partial) |
 | `bands` | Support acts |
 | `link_categories` / `links` | Admin-managed categories and external links for the public Links page; a link may optionally reference a `profiles` member |
-| `user_shows` | Shows a member attended |
+| `user_shows` | Shows a member marked — attended vs. planning to attend is derived from `show_date` vs. today, not stored; a mark on a show that's `is_cancelled` counts as neither |
 | `user_notes` | Per-show text notes |
 | `user_photos` | Photo uploads per show (full image + generated thumbnail) |
 | `user_posters` | Poster uploads per show, regular + foil variant (full image + generated thumbnail) |

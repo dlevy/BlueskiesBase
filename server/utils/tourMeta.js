@@ -57,18 +57,28 @@ async function findTourByUrlSlug(tourSlug) {
     }
     const tourName = matches[0];
 
-    const { data: shows, error: showsError } = await supabase
+    const { data: rawShows, error: showsError } = await supabase
         .from('shows')
-        .select('id, show_date, artist_name, venues(name, city, state_country)')
+        .select('id, show_date, artist_name, is_cancelled, venues(name, city, state_country)')
         .eq('tour_name', tourName)
         .order('show_date', { ascending: true })
         .order('day_order', { ascending: true })
         .order('id');
-    if (showsError || !shows?.length) return null;
+    if (showsError || !rawShows?.length) return null;
+
+    // A canceled show never happened — excluded from the "played" count and
+    // the "upcoming" list, same as everywhere else this tour's shows are
+    // counted. Still listed (tagged, see injectTourHead) via
+    // pastShowsWithCanceled/upcomingShowsWithCanceled below, same as the
+    // client-side tour page.
+    const shows = rawShows.filter(s => !s.is_cancelled);
+    if (!shows.length) return null;
 
     const todayStr = new Date().toISOString().slice(0, 10);
     const pastShows = shows.filter(s => s.show_date <= todayStr);
     const upcomingShows = shows.filter(s => s.show_date > todayStr);
+    const pastShowsWithCanceled = rawShows.filter(s => s.show_date <= todayStr);
+    const upcomingShowsWithCanceled = rawShows.filter(s => s.show_date > todayStr);
 
     // Same shape as fetchTourSetlistRows in client/src/utils/tourSongCounts.js,
     // scoped to this one already-known tour_name — teases are kept (this is
@@ -104,7 +114,7 @@ async function findTourByUrlSlug(tourSlug) {
             .filter(Boolean);
     });
 
-    return { tourName, pastShows, upcomingShows, setlistSongsByShow };
+    return { tourName, pastShows, upcomingShows, pastShowsWithCanceled, upcomingShowsWithCanceled, setlistSongsByShow };
 }
 
 // title/description/breadcrumb for a tour page. No tour-as-Event JSON-LD —
@@ -170,7 +180,7 @@ function venueLine(show) {
 // <noscript> block. Not prefilled into #root itself: React replaces #root's
 // children on mount, so prefilled content would flash and shift layout for
 // real visitors.
-function injectTourHead(html, tourName, pastShows, upcomingShows, setlistSongsByShow, baseUrl) {
+function injectTourHead(html, tourName, pastShows, upcomingShows, setlistSongsByShow, baseUrl, pastShowsWithCanceled = pastShows, upcomingShowsWithCanceled = upcomingShows) {
     const canonicalUrl = `${baseUrl}${buildTourPath(tourName)}`;
     const { title, description, jsonLd } = buildTourHead(tourName, pastShows, upcomingShows, { canonicalUrl, baseUrl });
     const escTitle = escapeHtml(title);
@@ -190,16 +200,17 @@ function injectTourHead(html, tourName, pastShows, upcomingShows, setlistSongsBy
     const jsonLdScript = `<script id="json-ld-seo" type="application/ld+json">${JSON.stringify(jsonLd).replace(/</g, '\\u003c')}</script>\n  </head>`;
     out = out.replace('</head>', jsonLdScript);
 
-    const upcomingHtml = upcomingShows.length
-        ? `<h2>Upcoming Shows</h2><ul>${upcomingShows.map(s =>
-            `<li><a href="${escapeHtml(buildShowPath(s))}">${escapeHtml(formatLongDate(s.show_date))} — ${escapeHtml(venueLine(s))}</a></li>`
+    const canceledTag = s => s.is_cancelled ? ' (Canceled)' : '';
+    const upcomingHtml = upcomingShowsWithCanceled.length
+        ? `<h2>Upcoming Shows</h2><ul>${upcomingShowsWithCanceled.map(s =>
+            `<li><a href="${escapeHtml(buildShowPath(s))}">${escapeHtml(formatLongDate(s.show_date))} — ${escapeHtml(venueLine(s))}${escapeHtml(canceledTag(s))}</a></li>`
         ).join('')}</ul>`
         : '';
-    const pastHtml = pastShows.length
-        ? `<h2>Setlists</h2>${pastShows.map(s => {
+    const pastHtml = pastShowsWithCanceled.length
+        ? `<h2>Setlists</h2>${pastShowsWithCanceled.map(s => {
             const songs = setlistSongsByShow[s.id] || [];
-            return `<section><h3><a href="${escapeHtml(buildShowPath(s))}">${escapeHtml(formatLongDate(s.show_date))} — ${escapeHtml(venueLine(s))}</a></h3>`
-                + (songs.length ? `<p>${escapeHtml(songs.join(', '))}</p>` : '')
+            return `<section><h3><a href="${escapeHtml(buildShowPath(s))}">${escapeHtml(formatLongDate(s.show_date))} — ${escapeHtml(venueLine(s))}${escapeHtml(canceledTag(s))}</a></h3>`
+                + (songs.length ? `<p>${escapeHtml(songs.join(', '))}</p>` : (s.is_cancelled ? `<p>This show was canceled.</p>` : ''))
                 + `</section>`;
         }).join('')}`
         : '';

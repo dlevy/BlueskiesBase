@@ -30,20 +30,23 @@ export default function NextShowWidget({ onReady }) {
                     String(today.getDate()).padStart(2, '0'),
                 ].join('-');
 
-                const { data: shows, error: showsError } = await supabase
+                const { data: rawShows, error: showsError } = await supabase
                     .from('shows')
-                    .select('id, show_date, artist_name, tour_name, links, venues(name, city, state_country)')
+                    .select('id, show_date, artist_name, tour_name, links, is_cancelled, venues(name, city, state_country)')
                     .gte('show_date', todayStr)
                     .order('show_date', { ascending: true })
                     .order('day_order', { ascending: true })
                     .order('id')
-                    .limit(1);
+                    .limit(10);
 
-                if (showsError || !shows?.length) {
+                // A canceled show was never really going to happen — skip it and
+                // feature the next real one, same as it's excluded from "upcoming".
+                const nextShow = (rawShows || []).find(s => !s.is_cancelled);
+
+                if (showsError || !nextShow) {
                     if (!cancelled) setLoading(false);
                     return;
                 }
-                const nextShow = shows[0];
 
                 const { data: setlistRows } = await supabase
                     .from('setlist_songs')

@@ -21,7 +21,7 @@ export default function UpcomingShowsPage() {
 
             const { data, error: fetchError } = await supabase
                 .from('shows')
-                .select('id, show_date, artist_name, tour_name, venues(name, city, state_country)')
+                .select('id, show_date, artist_name, tour_name, is_cancelled, venues(name, city, state_country)')
                 .gte('show_date', todayStr)
                 .order('show_date', { ascending: true })
                 .order('day_order', { ascending: true });

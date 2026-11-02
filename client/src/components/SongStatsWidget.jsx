@@ -43,7 +43,7 @@ export default function SongStatsWidget() {
                 for (let rangeStart = 0; ;) {
                     const { data: page, error: err } = await supabase
                         .from('shows')
-                        .select('show_date, venues(city, state_country)')
+                        .select('show_date, is_cancelled, venues(city, state_country)')
                         .order('id')
                         .range(rangeStart, rangeStart + 999);
                     if (err) throw err;
@@ -51,6 +51,10 @@ export default function SongStatsWidget() {
                     if (!page || page.length < 1000) break;
                     rangeStart += 1000;
                 }
+
+                // A canceled show never happened — excluded from every total/breakdown
+                // below (total shows, cities/countries visited, shows-by-year).
+                data = data.filter(s => !s.is_cancelled);
 
                 const monthCounts = {};
                 const yearCounts  = {};

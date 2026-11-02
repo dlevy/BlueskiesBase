@@ -26,8 +26,13 @@ export default function ShowListCard({ show }) {
 
             {/* Show info */}
             <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold truncate" style={{ color: 'var(--p-color-primary)' }}>
+                <p className="text-sm font-semibold truncate flex items-center gap-1.5" style={{ color: 'var(--p-color-primary)' }}>
                     {show.artist_name}
+                    {show.is_cancelled && (
+                        <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-red-500/15 text-red-400">
+                            Canceled
+                        </span>
+                    )}
                 </p>
                 {show.venues && (
                     <>

@@ -32,15 +32,16 @@ function Tag({ label, color }) {
  */
 export default function ShowTagsRow({
     className = '',
-    openedFor, hasVideo, hasLinks, hasNotes, hasPhotos, hasPoster,
+    isCancelled, openedFor, hasVideo, hasLinks, hasNotes, hasPhotos, hasPoster,
     coverCount = 0, teaseCount = 0, rareCount = 0, tourDebutCount = 0, liveDebutCount = 0,
 }) {
-    const hasAny = openedFor || hasVideo || hasLinks || hasNotes || hasPhotos || hasPoster ||
+    const hasAny = isCancelled || openedFor || hasVideo || hasLinks || hasNotes || hasPhotos || hasPoster ||
         coverCount > 0 || teaseCount > 0 || rareCount > 0 || tourDebutCount > 0 || liveDebutCount > 0;
     if (!hasAny) return null;
 
     return (
         <div className={`flex flex-wrap gap-1.5 ${className}`}>
+            {isCancelled && <PTag color="notification-error-soft">Canceled</PTag>}
             {openedFor && <PTag color="notification-warning-soft">Opening for {openedFor}</PTag>}
             {hasVideo && <Tag label="Video" color={CONTENT_TAG_COLOR} />}
             {hasLinks && <Tag label="Links" color={CONTENT_TAG_COLOR} />}

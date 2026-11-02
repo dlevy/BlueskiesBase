@@ -174,7 +174,7 @@ export async function fetchTourSongCounts(tourName, { stateFilter, countryFilter
     // venues included for the Tour Map (ShowMapShare, same shape it already
     // reads off a user's attended/upcoming shows); artist_name only needed
     // for linking a Live Debut entry to its actual show page.
-    const selectCols = 'id, show_date, artist_name, venues ( id, name, city, state_country, latitude, longitude )';
+    const selectCols = 'id, show_date, artist_name, is_cancelled, venues ( id, name, city, state_country, latitude, longitude )';
     let tourShows;
     if (tourName === ALL_SHOWS) {
         // No tour_name filter at all — includes one-off/benefit shows that
@@ -213,6 +213,18 @@ export async function fetchTourSongCounts(tourName, { stateFilter, countryFilter
     if (countryFilter) tourShows = tourShows.filter(s => getCountry(s.venues?.state_country) === countryFilter);
     if (!tourShows.length) return null;
 
+    // allTourShows (including canceled) backs pastShowsWithCanceled/
+    // upcomingShowsWithCanceled below — for a caller that still wants to list
+    // every scheduled show (e.g. TourPage's own per-show list), tagged. A
+    // canceled show never happened, though, so it's excluded from `tourShows`
+    // from here on — every count/stat this function produces (totalShows,
+    // played/upcoming, song counts, map pins) — same as it's excluded from
+    // "shows attended" everywhere else.
+    const allTourShows = tourShows;
+    tourShows = tourShows.filter(s => !s.is_cancelled);
+
+    const allPast = allTourShows.filter(s => s.show_date <= todayStr);
+    const allUpcoming = allTourShows.filter(s => s.show_date > todayStr);
     const played = tourShows.filter(s => s.show_date <= todayStr);
     const upcoming = tourShows.filter(s => s.show_date > todayStr);
     const playedIds = played.map(s => s.id);
@@ -224,7 +236,7 @@ export async function fetchTourSongCounts(tourName, { stateFilter, countryFilter
     onPlayedIds?.(playedIds);
 
     if (playedIds.length === 0) {
-        return { totalShows: tourShows.length, playedShows: 0, showsWithSetlist: 0, firstDate: tourShows[0].show_date, lastDate: tourShows[tourShows.length - 1].show_date, playedIds: [], songCounts: [], openingSongs: [], closingSongs: [], liveDebuts: [], biggestSetlist: null, albumBreakdown: [], songsByAlbum: {}, otherOriginals: 0, covers: 0, makeAmericaEnergyLines: [], setlistSongsByShow: {}, showsWithSetlistInfo: [], pastShows: played, upcomingShows: upcoming };
+        return { totalShows: tourShows.length, playedShows: 0, showsWithSetlist: 0, firstDate: allTourShows[0].show_date, lastDate: allTourShows[allTourShows.length - 1].show_date, playedIds: [], songCounts: [], openingSongs: [], closingSongs: [], liveDebuts: [], biggestSetlist: null, albumBreakdown: [], songsByAlbum: {}, otherOriginals: 0, covers: 0, makeAmericaEnergyLines: [], setlistSongsByShow: {}, showsWithSetlistInfo: [], pastShows: played, upcomingShows: upcoming, pastShowsWithCanceled: allPast, upcomingShowsWithCanceled: allUpcoming };
     }
 
     // Intersected with playedIds rather than trusted as-is: setlistRowsPromise
@@ -522,5 +534,11 @@ export async function fetchTourSongCounts(tourName, { stateFilter, countryFilter
         showsWithSetlistInfo,
         pastShows: played,
         upcomingShows: upcoming,
+        // Same shape as pastShows/upcomingShows but includes canceled shows —
+        // for a caller that still wants to list every scheduled show (tagged),
+        // like TourPage's own per-show list, as opposed to every stat/count
+        // above and the Tour Map pins, which stay canceled-free.
+        pastShowsWithCanceled: allPast,
+        upcomingShowsWithCanceled: allUpcoming,
     };
 }

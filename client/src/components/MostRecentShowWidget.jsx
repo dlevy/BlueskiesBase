@@ -105,16 +105,20 @@ export default function MostRecentShowWidget({ onReady }) {
                     String(today.getDate()).padStart(2, '0'),
                 ].join('-');
 
-                const { data: shows, error: showsError } = await supabase
+                const { data: rawShows, error: showsError } = await supabase
                     .from('shows')
-                    .select('id, show_date, artist_name, tour_name, links, venues(name, city, state_country)')
+                    .select('id, show_date, artist_name, tour_name, links, is_cancelled, venues(name, city, state_country)')
                     .lte('show_date', todayStr)
                     .order('show_date', { ascending: false })
                     .order('day_order', { ascending: false })
                     .order('id', { ascending: false })
                     .limit(LOOKBACK_SHOWS);
 
-                if (showsError || !shows?.length) {
+                // A canceled show never happened — not eligible to be featured as a
+                // "most recent show" at all, same as it's excluded from "attended".
+                const shows = (rawShows || []).filter(s => !s.is_cancelled);
+
+                if (showsError || !shows.length) {
                     if (!cancelled) setLoading(false);
                     return;
                 }

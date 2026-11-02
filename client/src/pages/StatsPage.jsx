@@ -159,8 +159,12 @@ export default function StatsPage() {
 
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const isUpcoming = (d) => { const [y, m, day] = d.split('-'); return new Date(y, m - 1, day) >= today; };
-    const upcomingShows = stats.attendedShows.filter(s => isUpcoming(s.show_date)).sort((a, b) => a.show_date.localeCompare(b.show_date));
-    const pastShows = stats.attendedShows.filter(s => !isUpcoming(s.show_date)).sort((a, b) => b.show_date.localeCompare(a.show_date));
+    // A canceled show never happened, regardless of date — its own bucket,
+    // not counted as attended (past) or upcoming.
+    const canceledShows = stats.attendedShows.filter(s => s.is_cancelled);
+    const notCanceled = stats.attendedShows.filter(s => !s.is_cancelled);
+    const upcomingShows = notCanceled.filter(s => isUpcoming(s.show_date)).sort((a, b) => a.show_date.localeCompare(b.show_date));
+    const pastShows = notCanceled.filter(s => !isUpcoming(s.show_date)).sort((a, b) => b.show_date.localeCompare(a.show_date));
     const funStats = computeFunStats(pastShows, stats.songsSeen);
 
     return (
@@ -182,6 +186,9 @@ export default function StatsPage() {
                 <StatCard value={upcomingShows.length} label="Upcoming Shows" />
                 <StatCard value={stats.totalSongsSeen} label="Songs Seen Live" />
                 <StatCard value={stats.totalSongsNotSeen} label="Songs Not Yet Seen" />
+                {canceledShows.length > 0 && (
+                    <StatCard value={canceledShows.length} label="Canceled Shows" />
+                )}
             </div>
 
             {/* Fun Stats */}
@@ -276,6 +283,7 @@ export default function StatsPage() {
                 {[
                     ['shows', `Past Shows (${pastShows.length})`],
                     ['upcoming', `Upcoming (${upcomingShows.length})`],
+                    ...(canceledShows.length > 0 ? [['canceled', `Canceled (${canceledShows.length})`]] : []),
                     ['seen', `Songs Seen (${stats.totalSongsSeen})`],
                     ['notSeen', `Not Seen (${stats.totalSongsNotSeen})`],
                 ].map(([id, label]) => (
@@ -349,6 +357,35 @@ export default function StatsPage() {
                                         {show.tour_name && (
                                             <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>{show.tour_name}</PText>
                                         )}
+                                    </Link>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {activeTab === 'canceled' && (
+                    <div>
+                        <PHeading size="lg" tag="h2">Canceled Shows</PHeading>
+                        <div className="mt-4 mb-6"><PDivider /></div>
+                        {canceledShows.length === 0 ? (
+                            <PText color="contrast-medium">No canceled shows.</PText>
+                        ) : (
+                            <div className="space-y-2">
+                                {canceledShows.map((show) => (
+                                    <Link
+                                        key={show.id}
+                                        to={buildShowPath(show)}
+                                        className="block rounded-xl border border-white/5 bg-white/5 p-4 hover:bg-white/10 hover:border-white/20 transition-all"
+                                    >
+                                        <PText weight="semi-bold">{formatDate(show.show_date)}</PText>
+                                        <PText size="sm" color="contrast-medium">{show.artist_name}</PText>
+                                        {show.venues && (
+                                            <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>
+                                                {show.venues.name} · {show.venues.city}, {show.venues.state_country}
+                                            </PText>
+                                        )}
+                                        <PTag color="notification-error-soft">Canceled</PTag>
                                     </Link>
                                 ))}
                             </div>

@@ -6,19 +6,22 @@ const { supabaseAdmin } = require('../config/supabase');
 
 /**
  * Attendee ids for a show, minus the actor — but only if the show is in the
- * past. "Attended" vs "planning to attend" isn't a stored flag anywhere in
- * this codebase (see user_shows) — it's always derived by comparing
- * shows.show_date to today, the same UTC-date-string comparison already used
- * in server/routes/users.js (inherits that file's known UTC-vs-local-midnight
- * edge case; not worth fixing here since it's the existing convention).
+ * past and not canceled. "Attended" vs "planning to attend" isn't a stored
+ * flag anywhere in this codebase (see user_shows) — it's always derived by
+ * comparing shows.show_date to today, the same UTC-date-string comparison
+ * already used in server/routes/users.js (inherits that file's known
+ * UTC-vs-local-midnight edge case; not worth fixing here since it's the
+ * existing convention). A canceled show never happened, so nobody "attended"
+ * it regardless of date — excluded up front rather than folded into the date
+ * check below.
  */
 async function getPastShowAttendeeIds(showId, excludeUserId) {
     const { data: show } = await supabaseAdmin
         .from('shows')
-        .select('show_date')
+        .select('show_date, is_cancelled')
         .eq('id', showId)
         .maybeSingle();
-    if (!show) return [];
+    if (!show || show.is_cancelled) return [];
 
     const todayStr = new Date().toISOString().slice(0, 10);
     if (show.show_date > todayStr) return [];
@@ -156,9 +159,9 @@ async function notifyPosterLinkedToShows({ showIds, actorId, posterId }) {
         const todayStr = new Date().toISOString().slice(0, 10);
         const { data: shows } = await supabaseAdmin
             .from('shows')
-            .select('id, show_date')
+            .select('id, show_date, is_cancelled')
             .in('id', uniqueShowIds);
-        const pastShowIds = (shows || []).filter(s => s.show_date <= todayStr).map(s => s.id);
+        const pastShowIds = (shows || []).filter(s => s.show_date <= todayStr && !s.is_cancelled).map(s => s.id);
         if (pastShowIds.length === 0) return;
 
         const { data: attendeeRows } = await supabaseAdmin

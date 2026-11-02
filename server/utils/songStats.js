@@ -33,7 +33,7 @@ async function computeGlobalSongStats(limit = 10, filter = null) {
     const cached = !filter && cache.get(limit);
     if (cached && cached.expiresAt > Date.now()) return cached.data;
 
-    let showsQuery = supabase.from('shows').select('id, show_date').order('id');
+    let showsQuery = supabase.from('shows').select('id, show_date, is_cancelled').order('id');
     if (filter?.tourName) showsQuery = showsQuery.eq('tour_name', filter.tourName);
     if (filter?.startDate) showsQuery = showsQuery.gte('show_date', filter.startDate);
     if (filter?.endDate) showsQuery = showsQuery.lte('show_date', filter.endDate);
@@ -48,9 +48,12 @@ async function computeGlobalSongStats(limit = 10, filter = null) {
         rangeStart += 1000;
     }
 
+    // A canceled show never happened — left out of showDates, so any
+    // setlist_songs row still pointing at one is silently skipped below via
+    // the `if (!showDate) return` guard, same as computeSetlistIndex.
     const showDates = {};
-    shows.forEach(show => { showDates[show.id] = show.show_date; });
-    const showIds = filter ? shows.map(s => s.id) : null;
+    shows.filter(s => !s.is_cancelled).forEach(show => { showDates[show.id] = show.show_date; });
+    const showIds = filter ? shows.filter(s => !s.is_cancelled).map(s => s.id) : null;
 
     let allSetlistSongs = [];
     let from = 0;

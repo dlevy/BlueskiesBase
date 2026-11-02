@@ -689,7 +689,9 @@ export default function ShowDetailPage() {
     // searches ("johnny blue skies [city] setlist") match against the title
     // tag far more reliably than body/meta text.
     const venueLabel = venueName && venueCity ? `${venueName}, ${venueCity}` : (venueName || venueCity);
-    const seoTitle = `${show.artist_name} at ${venueLabel} – ${longDate} Setlist`;
+    const seoTitle = show.is_cancelled
+        ? `${show.artist_name} at ${venueLabel} – ${longDate} (Canceled)`
+        : `${show.artist_name} at ${venueLabel} – ${longDate} Setlist`;
     const allSongsFlat = [
         ...(show.setlist?.set1 || []),
         ...(show.setlist?.set2 || []),
@@ -702,7 +704,9 @@ export default function ShowDetailPage() {
     // flagged inline.
     const soundcheckSongs = show.setlist?.soundcheck || [];
     const firstFive = allSongsFlat.slice(0, 5).map(s => s.title).filter(Boolean).join(', ');
-    const seoDescription = `${show.artist_name} performed at ${venueName} in ${venueCity} on ${longDate}.${firstFive ? ' Setlist: ' + firstFive + '.' : ''}`;
+    const seoDescription = show.is_cancelled
+        ? `${show.artist_name} was scheduled to perform at ${venueName} in ${venueCity} on ${longDate}, but the show was canceled.`
+        : `${show.artist_name} performed at ${venueName} in ${venueCity} on ${longDate}.${firstFive ? ' Setlist: ' + firstFive + '.' : ''}`;
     // Keep in sync with server/utils/showMeta.js buildShowHead — that's what
     // crawlers actually see (prerendered into index.html for /show/* before
     // this client-side version would ever run); this copy covers in-app
@@ -719,7 +723,7 @@ export default function ShowDetailPage() {
         name: `${show.artist_name} – ${venueName}`,
         startDate: show.show_date,
         endDate: show.show_date,
-        eventStatus: 'https://schema.org/EventScheduled',
+        eventStatus: show.is_cancelled ? 'https://schema.org/EventCancelled' : 'https://schema.org/EventScheduled',
         eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
         description: seoDescription + (show.tour_name ? ` Part of the ${show.tour_name} tour.` : ''),
         location: {
@@ -746,9 +750,11 @@ export default function ShowDetailPage() {
         ],
     };
 
-    const attendanceLabel = attended
-        ? (isFutureShow ? "I'm Attending" : 'I Was There')
-        : (isFutureShow ? 'Attending' : 'Attended');
+    const attendanceLabel = show.is_cancelled
+        ? (attended ? 'I Had Plans to Attend' : 'Had Plans to Attend')
+        : attended
+            ? (isFutureShow ? "I'm Attending" : 'I Was There')
+            : (isFutureShow ? 'Attending' : 'Attended');
     const attendanceIcon = attended ? 'check' : 'plus';
 
     const setlistStats = computeSetlistStats(show, tourRarity, liveDebutSongIds, tourDebutSongIds);
@@ -916,8 +922,9 @@ export default function ShowDetailPage() {
                 )}
 
                 {/* Tags + Sources */}
-                {(show.tour_name || songStats.originals > 0 || songStats.covers > 0 || show.source_types?.length > 0) && (
+                {(show.is_cancelled || show.tour_name || songStats.originals > 0 || songStats.covers > 0 || show.source_types?.length > 0) && (
                     <div className="mt-5 pt-4 border-t border-white/[0.07] flex flex-wrap items-center gap-2">
+                        {show.is_cancelled && <PTag color="notification-error-soft">Canceled</PTag>}
                         {show.tour_name && (
                             <Link to={buildTourPath(show.tour_name)} className="transition-opacity hover:opacity-80">
                                 <PTag icon="arrow-right">{show.tour_name}</PTag>
@@ -945,7 +952,7 @@ export default function ShowDetailPage() {
                 )}
 
                 {/* Who Was There */}
-                <WhoWasThereSection showId={show.id} refreshOn={attended} isFutureShow={isFutureShow} />
+                <WhoWasThereSection showId={show.id} refreshOn={attended} isFutureShow={isFutureShow} isCancelled={show.is_cancelled} />
             </div>
 
             {/* Sound Check — shown above the Setlist card, only when there's anything
@@ -1002,6 +1009,8 @@ export default function ShowDetailPage() {
                             tourDebutSongIds={tourDebutSongIds}
                         />
                     </>
+                ) : show.is_cancelled ? (
+                    <PText color="contrast-medium">This show was canceled.</PText>
                 ) : (
                     <PText color="contrast-medium">
                         No official setlist yet.{' '}
@@ -1149,16 +1158,21 @@ export default function ShowDetailPage() {
 
             <CommentsSection showId={show.id} thanksRows={thanksRows} onThanksChanged={loadThanks} />
 
-            {/* Setlist Submission */}
-            {/* scroll-margin-top clears the sticky header (h-14) when jumped to via the anchor above */}
-            <div id="community-setlist" style={{ scrollMarginTop: '4.5rem' }}>
-                <SetlistSubmissionSection
-                    showId={show.id}
-                    thanksRows={thanksRows}
-                    onThanksChanged={loadThanks}
-                    officialSongIds={new Set(allSongsFlat.map(s => s.song_id).filter(Boolean))}
-                />
-            </div>
+            {/* Setlist Submission — suppressed for a canceled show with no setlist
+                entered; there's nothing to submit corrections to for a show that
+                never happened. A canceled show with a partial setlist already
+                logged (e.g. cut short mid-set) still gets this tool normally. */}
+            {!(show.is_cancelled && allSongsFlat.length === 0) && (
+                // scroll-margin-top clears the sticky header (h-14) when jumped to via the anchor above
+                <div id="community-setlist" style={{ scrollMarginTop: '4.5rem' }}>
+                    <SetlistSubmissionSection
+                        showId={show.id}
+                        thanksRows={thanksRows}
+                        onThanksChanged={loadThanks}
+                        officialSongIds={new Set(allSongsFlat.map(s => s.song_id).filter(Boolean))}
+                    />
+                </div>
+            )}
         </div>
     );
 }

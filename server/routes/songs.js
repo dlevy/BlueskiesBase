@@ -137,6 +137,7 @@ router.get('/:id', async (req, res) => {
                         id,
                         show_date,
                         artist_name,
+                        is_cancelled,
                         venues (
                             name,
                             city,
@@ -166,7 +167,11 @@ router.get('/:id', async (req, res) => {
             }
         }
 
-        const performances = allPerformances;
+        // A canceled show never happened — excluded from this song's performance
+        // history entirely, same as it's excluded from the global performance_count
+        // in GET /api/songs (computeSetlistIndex). Without this, a song's lyrics
+        // page could show a performance count that contradicts the catalog list.
+        const performances = allPerformances.filter(p => !p.shows?.is_cancelled);
 
         // Calculate performance type counts — 'dj' (afterparty-style DJ spin) and
         // 'soundcheck' (not performed during the actual show) are each tracked as

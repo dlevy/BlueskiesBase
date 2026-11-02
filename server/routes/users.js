@@ -317,6 +317,7 @@ router.get('/stats', async (req, res) => {
                     show_date,
                     artist_name,
                     tour_name,
+                    is_cancelled,
                     venues (
                         id,
                         name,
@@ -334,6 +335,13 @@ router.get('/stats', async (req, res) => {
 
         console.log(`[Stats] Found ${attendedShows?.length || 0} attended shows`);
         const attendedShowIds = attendedShows.map(us => us.show_id);
+        // Used only for "songs I've seen live" below — a canceled show's songs
+        // (if any were logged before it was cut short) never count toward any
+        // performance stat anywhere else on the site (see computeSetlistIndex),
+        // so they don't count here either. attendedShowIds itself stays
+        // unfiltered — still needed for co-attendee lookups on every tab,
+        // including the Canceled one.
+        const nonCancelledShowIds = attendedShows.filter(us => !us.shows?.is_cancelled).map(us => us.show_id);
 
         // songsSeen, the shared setlist index, and the full song catalog are
         // independent of each other — fetch/compute them together rather than
@@ -343,7 +351,7 @@ router.get('/stats', async (req, res) => {
         // utils/setlistIndex.js's own comment for the measured cost this was.
         console.log('[Stats] Fetching songs seen, setlist index, and song catalog...');
         const [songsSeen, index, allSongsResult] = await Promise.all([
-            computeSongsSeenForShows(attendedShowIds),
+            computeSongsSeenForShows(nonCancelledShowIds),
             computeSetlistIndex(),
             supabase.from('songs').select('id, title, is_original, is_sunday_valley, original_artist'),
         ]);
@@ -392,11 +400,13 @@ router.get('/stats', async (req, res) => {
 
         // Past shows (full objects, not just ids) — a future show marked "attending"
         // has no setlist yet, so debuts/fun-facts are scoped to shows that already
-        // happened, same "only past shows" intent as before.
+        // happened, same "only past shows" intent as before. A canceled show never
+        // happened regardless of date, so it's excluded here too, not just from
+        // totalShowsAttended below.
         const todayStr = resolveTodayStr(req.query.today);
         const pastShows = attendedShows
             .map(us => us.shows)
-            .filter(s => s?.show_date && s.show_date <= todayStr);
+            .filter(s => s?.show_date && s.show_date <= todayStr && !s.is_cancelled);
 
         const { liveDebuts } = await computeDebutDetails(pastShows, songsSeen);
         const funStats = computeFunStats(pastShows, songsSeen);
@@ -476,7 +486,10 @@ router.get('/stats', async (req, res) => {
         console.log(`[Stats] Shows: ${attendedShows.length}, Songs Seen: ${songsSeen.length}, Songs Not Seen: ${songsNotSeenWithShow.length}`);
 
         const response = {
-            totalShowsAttended: attendedShows.length,
+            // Was previously `attendedShows.length` (every marked show, including
+            // future "planning to attend" rows) — fixed to match pastShows, which
+            // is also now the definition that excludes canceled shows.
+            totalShowsAttended: pastShows.length,
             attendedShows: attendedShows.map(us => us.shows),
             songsSeen: songsSeen,
             songsNotSeen: songsNotSeenWithShow,
@@ -547,7 +560,7 @@ router.get('/directory', async (req, res) => {
         for (let rangeStart = 0; ;) {
             const { data: page, error: pageError } = await supabase
                 .from('user_shows')
-                .select('user_id, shows(show_date)')
+                .select('user_id, shows(show_date, is_cancelled)')
                 .order('id')
                 .range(rangeStart, rangeStart + 999);
             if (pageError) {
@@ -555,7 +568,7 @@ router.get('/directory', async (req, res) => {
                 return res.status(500).json({ error: 'Failed to fetch directory' });
             }
             (page || []).forEach(row => {
-                if (!row.user_id || !row.shows?.show_date || row.shows.show_date > todayStr) return;
+                if (!row.user_id || !row.shows?.show_date || row.shows.show_date > todayStr || row.shows.is_cancelled) return;
                 attendedCounts[row.user_id] = (attendedCounts[row.user_id] || 0) + 1;
             });
             if (!page || page.length < 1000) break;
@@ -668,6 +681,7 @@ router.get('/profile/:username', async (req, res) => {
                     show_date,
                     artist_name,
                     tour_name,
+                    is_cancelled,
                     venues ( id, name, city, state_country, latitude, longitude )
                 )
             `)
@@ -680,8 +694,8 @@ router.get('/profile/:username', async (req, res) => {
 
         const todayStr = resolveTodayStr(req.query.today);
         const allAttendedShows = (attendedShows || []).map(us => us.shows).filter(Boolean);
-        const pastShows = allAttendedShows.filter(s => s.show_date && s.show_date <= todayStr);
-        const upcomingShows = allAttendedShows.filter(s => s.show_date && s.show_date > todayStr);
+        const pastShows = allAttendedShows.filter(s => s.show_date && s.show_date <= todayStr && !s.is_cancelled);
+        const upcomingShows = allAttendedShows.filter(s => s.show_date && s.show_date > todayStr && !s.is_cancelled);
         const pastShowIds = pastShows.map(s => s.id);
 
         const songsSeen = await computeSongsSeenForShows(pastShowIds);
@@ -912,7 +926,7 @@ router.put('/profile', async (req, res) => {
             const todayStr = resolveTodayStr(req.body.today);
             const { data: attended, error: attendedError } = await supabase
                 .from('user_shows')
-                .select('shows ( id, show_date, venue_id )')
+                .select('shows ( id, show_date, venue_id, is_cancelled )')
                 .eq('user_id', user.id);
 
             if (attendedError) {
@@ -922,7 +936,7 @@ router.put('/profile', async (req, res) => {
 
             const pastAttended = (attended || [])
                 .map(row => row.shows)
-                .filter(s => s?.show_date && s.show_date <= todayStr);
+                .filter(s => s?.show_date && s.show_date <= todayStr && !s.is_cancelled);
             const validShowIds = new Set(pastAttended.map(s => s.id));
             const validVenueIds = new Set(pastAttended.map(s => s.venue_id).filter(Boolean));
 

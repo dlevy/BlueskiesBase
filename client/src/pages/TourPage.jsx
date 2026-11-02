@@ -140,7 +140,13 @@ export default function TourPage() {
 
     const pastShows = tourData?.pastShows || [];
     const upcomingShows = tourData?.upcomingShows || [];
-    const orderedPastShows = sortOrder === 'asc' ? pastShows : [...pastShows].slice().reverse();
+    // Includes canceled shows (tagged below) — unlike pastShows/upcomingShows
+    // above, which stay canceled-free for the "shows played" stat text and
+    // date range, this page's own per-show list still shows every scheduled
+    // show for the record.
+    const allPastShows = tourData?.pastShowsWithCanceled || [];
+    const allUpcomingShows = tourData?.upcomingShowsWithCanceled || [];
+    const orderedPastShows = sortOrder === 'asc' ? allPastShows : [...allPastShows].slice().reverse();
 
     const firstDate = pastShows[0]?.show_date || upcomingShows[0]?.show_date;
     const lastDate = upcomingShows[upcomingShows.length - 1]?.show_date || pastShows[pastShows.length - 1]?.show_date;
@@ -187,11 +193,11 @@ export default function TourPage() {
                 <PInlineNotification heading="Error" description={error} state="error" dismissButton={false} />
             ) : (
                 <>
-                    {upcomingShows.length > 0 && (
+                    {allUpcomingShows.length > 0 && (
                         <div>
                             <PHeading size="large" tag="h2" className="mb-3">Upcoming Shows</PHeading>
                             <div className="space-y-2">
-                                {upcomingShows.map(show => (
+                                {allUpcomingShows.map(show => (
                                     <ShowListCard key={show.id} show={show} />
                                 ))}
                             </div>
@@ -201,7 +207,7 @@ export default function TourPage() {
                     <div>
                         <div className="flex items-center justify-between mb-3">
                             <PHeading size="large" tag="h2">Setlists</PHeading>
-                            {pastShows.length > 1 && (
+                            {allPastShows.length > 1 && (
                                 <PButtonPure
                                     icon={sortOrder === 'asc' ? 'arrow-down' : 'arrow-up'}
                                     onClick={() => setSortOrder(o => o === 'asc' ? 'desc' : 'asc')}
@@ -211,7 +217,7 @@ export default function TourPage() {
                             )}
                         </div>
 
-                        {pastShows.length === 0 ? (
+                        {allPastShows.length === 0 ? (
                             <PText color="contrast-medium">Setlists will appear here once the tour kicks off.</PText>
                         ) : (
                             <div className="space-y-5">
@@ -224,10 +230,19 @@ export default function TourPage() {
                                                 {show.venues && (
                                                     <span className="text-sm" style={{ color: 'var(--p-color-contrast-medium)' }}> — {venueLabel(show.venues)}</span>
                                                 )}
+                                                {show.is_cancelled && (
+                                                    <span className="ml-2 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-red-500/15 text-red-400 align-middle">
+                                                        Canceled
+                                                    </span>
+                                                )}
                                             </Link>
-                                            {songs.length > 0 && (
+                                            {songs.length > 0 ? (
                                                 <p className="text-xs mt-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>
                                                     {songs.map(songLabel).join(', ')}
+                                                </p>
+                                            ) : show.is_cancelled && (
+                                                <p className="text-xs mt-1.5" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                                                    This show was canceled.
                                                 </p>
                                             )}
                                         </div>

@@ -21,7 +21,7 @@ function buildShowPath(show) {
 async function findShowByPathParams({ artist, date, location }) {
     const { data: shows, error } = await supabase
         .from('shows')
-        .select('id, artist_name, show_date, tour_name, venues(name, city, state_country)')
+        .select('id, artist_name, show_date, tour_name, is_cancelled, venues(name, city, state_country)')
         .eq('show_date', date);
 
     if (error || !shows) return null;
@@ -83,9 +83,13 @@ function buildShowHead(show, { imageUrl, canonicalUrl, baseUrl } = {}) {
     // tag far more reliably than body/meta text. Keep in sync with the
     // matching venueLabel in client/src/pages/ShowDetailPage.jsx.
     const venueLabel = venueName && venueCity ? `${venueName}, ${venueCity}` : (venueName || venueCity);
-    const title = `${show.artist_name} at ${venueLabel} – ${longDate} Setlist | SkySets.org`;
-    const description = `${show.artist_name} performed at ${venueName} in ${venueCity} on ${longDate}.`
-        + (show.tour_name ? ` Part of the ${show.tour_name} tour.` : '');
+    const title = show.is_cancelled
+        ? `${show.artist_name} at ${venueLabel} – ${longDate} (Canceled) | SkySets.org`
+        : `${show.artist_name} at ${venueLabel} – ${longDate} Setlist | SkySets.org`;
+    const description = show.is_cancelled
+        ? `${show.artist_name} was scheduled to perform at ${venueName} in ${venueCity} on ${longDate}, but the show was canceled.`
+        : `${show.artist_name} performed at ${venueName} in ${venueCity} on ${longDate}.`
+            + (show.tour_name ? ` Part of the ${show.tour_name} tour.` : '');
 
     // No ticketing/promoter data exists in this archive (it's a historical
     // setlist database, not a ticketing site) — deliberately not fabricating
@@ -104,7 +108,7 @@ function buildShowHead(show, { imageUrl, canonicalUrl, baseUrl } = {}) {
         name: `${show.artist_name} – ${venueName}`,
         startDate: show.show_date,
         endDate: show.show_date,
-        eventStatus: 'https://schema.org/EventScheduled',
+        eventStatus: show.is_cancelled ? 'https://schema.org/EventCancelled' : 'https://schema.org/EventScheduled',
         eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
         description,
         location: {

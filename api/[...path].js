@@ -94,7 +94,7 @@ app.get('/api/tours/:tourSlug', async (req, res) => {
 
         const tour = await findTourByUrlSlug(tourSlug);
         const body = tour
-            ? injectTourHead(html, tour.tourName, tour.pastShows, tour.upcomingShows, tour.setlistSongsByShow, baseUrlFor(req))
+            ? injectTourHead(html, tour.tourName, tour.pastShows, tour.upcomingShows, tour.setlistSongsByShow, baseUrlFor(req), tour.pastShowsWithCanceled, tour.upcomingShowsWithCanceled)
             : html;
 
         res.setHeader('Content-Type', 'text/html; charset=utf-8');

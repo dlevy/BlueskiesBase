@@ -189,12 +189,20 @@ router.get('/:id/tour-rarity', async (req, res) => {
             return res.json({ tour_name: null, total_shows: 0, song_counts: {} });
         }
 
-        const { data: tourShows, error: tourError } = await supabase
+        const { data: rawTourShows, error: tourError } = await supabase
             .from('shows')
-            .select('id')
+            .select('id, is_cancelled')
             .eq('tour_name', show.tour_name);
 
-        if (tourError || !tourShows?.length) {
+        if (tourError || !rawTourShows?.length) {
+            return res.json({ tour_name: show.tour_name, total_shows: 0, song_counts: {} });
+        }
+
+        // A canceled show never happened — excluded from the tour entirely here,
+        // same as everywhere else tour-wide totals are computed, so it can't
+        // taint the rare-song ratio for every other show on the tour.
+        const tourShows = rawTourShows.filter(s => !s.is_cancelled);
+        if (!tourShows.length) {
             return res.json({ tour_name: show.tour_name, total_shows: 0, song_counts: {} });
         }
 
@@ -474,7 +482,7 @@ router.get('/:id', async (req, res) => {
  */
 router.post('/', requireEditorOrAdmin, async (req, res) => {
     try {
-        const { venue_id, show_date, artist_name, tour_name, notes, source_types, opened_for_id, links, day_order } = req.body;
+        const { venue_id, show_date, artist_name, tour_name, notes, source_types, opened_for_id, links, day_order, is_cancelled } = req.body;
 
         const { data: show, error } = await supabase
             .from('shows')
@@ -487,6 +495,7 @@ router.post('/', requireEditorOrAdmin, async (req, res) => {
                 source_types,
                 opened_for_id: opened_for_id || null,
                 day_order: parseInt(day_order, 10) || 0,
+                is_cancelled: !!is_cancelled,
             }])
             .select()
             .single();
@@ -553,7 +562,7 @@ router.patch('/:id/tour', requireEditorOrAdmin, async (req, res) => {
 router.put('/:id', requireEditorOrAdmin, async (req, res) => {
     try {
         const { id } = req.params;
-        const { venue_id, show_date, artist_name, tour_name, notes, source_types, opened_for_id, links, day_order } = req.body;
+        const { venue_id, show_date, artist_name, tour_name, notes, source_types, opened_for_id, links, day_order, is_cancelled } = req.body;
 
         const { data: show, error } = await supabase
             .from('shows')
@@ -566,6 +575,7 @@ router.put('/:id', requireEditorOrAdmin, async (req, res) => {
                 source_types,
                 opened_for_id: opened_for_id || null,
                 day_order: parseInt(day_order, 10) || 0,
+                is_cancelled: !!is_cancelled,
             })
             .eq('id', id)
             .select()

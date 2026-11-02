@@ -144,7 +144,7 @@ export default function EditProfilePage() {
             .then(data => {
                 const todayStr = getLocalDateString();
                 const past = (data.attendedShows || [])
-                    .filter(s => s?.show_date && s.show_date <= todayStr)
+                    .filter(s => s?.show_date && s.show_date <= todayStr && !s.is_cancelled)
                     .sort((a, b) => b.show_date.localeCompare(a.show_date));
                 setPastShows(past);
             })

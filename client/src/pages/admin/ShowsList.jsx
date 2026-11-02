@@ -405,7 +405,14 @@ export default function ShowsList() {
                                         <PText size="small">{formatDate(show.show_date)}</PText>
                                     </td>
                                     <td className="px-4 py-3 whitespace-nowrap">
-                                        <PText size="small" weight="semi-bold">{show.artist_name}</PText>
+                                        <PText size="small" weight="semi-bold">
+                                            {show.artist_name}
+                                            {show.is_cancelled && (
+                                                <span className="ml-2 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-red-500/15 text-red-400">
+                                                    Canceled
+                                                </span>
+                                            )}
+                                        </PText>
                                     </td>
                                     <td className="px-4 py-3">
                                         {show.venues ? (
