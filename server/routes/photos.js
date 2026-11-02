@@ -3,7 +3,10 @@ const router = express.Router();
 const multer = require('multer');
 const { supabase, supabaseAdmin } = require('../config/supabase');
 const { optimizeFullImage, generateThumbnail } = require('../utils/imageProcessing');
-const { notifyShowAttendees } = require('../utils/notify');
+const { notifyShowAttendees, notifyStaffOfPhotoReport, dismissPhotoReportNotifications } = require('../utils/notify');
+
+const REPORT_REASONS = ['inaccurate', 'inappropriate'];
+const REPORT_NOTE_MAX_LENGTH = 280;
 
 // Configure multer for memory storage
 const upload = multer({
@@ -281,6 +284,62 @@ router.post('/upload', authenticate, upload.single('photo'), async (req, res) =>
 });
 
 /**
+ * POST /api/photos/:photoId/report
+ * Flag a photo as inaccurate or inappropriate. No dedicated report table —
+ * this just fires a 'photo_report' notification to every admin/editor (see
+ * notifyStaffOfPhotoReport), the same way a setlist submission alerts staff.
+ * Dedup is against that notification history: one open report per
+ * (reporter, photo) pair, so re-clicking Report doesn't spam staff.
+ */
+router.post('/:photoId/report', authenticate, async (req, res) => {
+    try {
+        const { photoId } = req.params;
+        const userId = req.user.id;
+        const reason = req.body.reason;
+        const note = typeof req.body.note === 'string' ? req.body.note.trim().slice(0, REPORT_NOTE_MAX_LENGTH) : '';
+
+        if (!REPORT_REASONS.includes(reason)) {
+            return res.status(400).json({ error: 'reason must be "inaccurate" or "inappropriate"' });
+        }
+
+        const { data: photo, error: fetchError } = await supabaseAdmin
+            .from('user_photos')
+            .select('user_id, show_id')
+            .eq('id', photoId)
+            .maybeSingle();
+
+        if (fetchError || !photo) {
+            return res.status(404).json({ error: 'Photo not found' });
+        }
+        if (photo.user_id === userId) {
+            return res.status(400).json({ error: "You can't report your own photo" });
+        }
+
+        const { data: existing } = await supabaseAdmin
+            .from('notifications')
+            .select('id')
+            .eq('type', 'photo_report')
+            .eq('content_type', 'photo')
+            .eq('content_id', photoId)
+            .eq('actor_id', userId)
+            .is('dismissed_at', null)
+            .limit(1);
+
+        if (existing && existing.length > 0) {
+            return res.status(409).json({ error: "You've already reported this photo" });
+        }
+
+        const message = note ? `${reason}: ${note}` : reason;
+        await notifyStaffOfPhotoReport({ photoId, showId: photo.show_id, actorId: userId, message });
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error in POST /api/photos/:photoId/report:', error);
+        res.status(500).json({ error: 'Failed to report photo' });
+    }
+});
+
+/**
  * PUT /api/photos/:photoId
  * Update photo caption
  */
@@ -393,6 +452,8 @@ router.delete('/:photoId', authenticate, async (req, res) => {
             console.error('Error deleting photo record:', deleteError);
             return res.status(500).json({ error: 'Failed to delete photo' });
         }
+
+        await dismissPhotoReportNotifications(photoId);
 
         // Delete from storage
         const toRemove = [filePath, thumbFilePath].filter(Boolean);

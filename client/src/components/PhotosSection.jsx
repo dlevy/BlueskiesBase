@@ -2,7 +2,7 @@
 import { Link } from 'react-router-dom';
 import { PHeading, PText, PButtonPure, PInlineNotification, PDivider } from '@porsche-design-system/components-react';
 import { useAuth } from '../contexts/AuthContext';
-import { getShowPhotos, uploadPhoto, deletePhoto } from '../services/api';
+import { getShowPhotos, uploadPhoto, deletePhoto, reportPhoto } from '../services/api';
 import ThanksButton from './ThanksButton';
 import Lightbox from 'yet-another-react-lightbox';
 import 'yet-another-react-lightbox/styles.css';
@@ -30,6 +30,15 @@ export default function PhotosSection({ showId, thanksRows = [], onThanksChanged
     const [selectedFile, setSelectedFile] = useState(null);
     const [caption, setCaption] = useState('');
     const [showUploadForm, setShowUploadForm] = useState(false);
+    const [reportPanelOpen, setReportPanelOpen] = useState(false);
+    const [reportReason, setReportReason] = useState(null);
+    const [reportNote, setReportNote] = useState('');
+    const [reportSubmitting, setReportSubmitting] = useState(false);
+    const [reportError, setReportError] = useState(null);
+    // Session-only — a reload just re-shows the Report button; the server-side
+    // dedup check (one open report per reporter+photo) is the real guard
+    // against duplicates, not this.
+    const [reportedPhotoIds, setReportedPhotoIds] = useState(new Set());
 
     const loadPhotos = useCallback(async () => {
         try {
@@ -42,6 +51,13 @@ export default function PhotosSection({ showId, thanksRows = [], onThanksChanged
     }, [showId]);
 
     useEffect(() => { loadPhotos(); }, [loadPhotos]);
+
+    useEffect(() => {
+        setReportPanelOpen(false);
+        setReportReason(null);
+        setReportNote('');
+        setReportError(null);
+    }, [currentPhotoIndex]);
 
     const handleFileSelect = (e) => {
         const file = e.target.files[0];
@@ -78,6 +94,24 @@ export default function PhotosSection({ showId, thanksRows = [], onThanksChanged
         } catch (err) {
             console.error('Error deleting photo:', err);
             setError('Failed to delete photo');
+        }
+    };
+
+    const handleSubmitReport = async (photoId) => {
+        if (!reportReason) { setReportError('Choose a reason first'); return; }
+        try {
+            setReportSubmitting(true);
+            setReportError(null);
+            await reportPhoto(photoId, reportReason, reportNote);
+            setReportedPhotoIds(prev => new Set(prev).add(photoId));
+            setReportPanelOpen(false);
+            setReportReason(null);
+            setReportNote('');
+        } catch (err) {
+            console.error('Error reporting photo:', err);
+            setReportError(err.message || 'Failed to report photo');
+        } finally {
+            setReportSubmitting(false);
         }
     };
 
@@ -180,7 +214,22 @@ export default function PhotosSection({ showId, thanksRows = [], onThanksChanged
                                     ? <Link to={`/profile/${photos[currentPhotoIndex].profiles.username}`} className="hover:underline">{photos[currentPhotoIndex].profiles.display_name || photos[currentPhotoIndex].profiles.username}</Link>
                                     : 'Anonymous'}
                             </span>
-                            <div className="justify-self-end">
+                            <div className="justify-self-end flex items-center gap-1">
+                                {user && currentPhoto.user_id !== user.id && (
+                                    reportedPhotoIds.has(currentPhoto.id) ? (
+                                        <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>Reported</PText>
+                                    ) : (
+                                        <PButtonPure
+                                            size="x-small"
+                                            icon="flag"
+                                            hideLabel
+                                            title="Report this photo"
+                                            onClick={() => setReportPanelOpen(o => !o)}
+                                        >
+                                            Report this photo
+                                        </PButtonPure>
+                                    )
+                                )}
                                 {(isEditorOrAdmin || (user && photos[currentPhotoIndex].user_id === user.id)) && (
                                     <PButtonPure size="x-small" icon="delete" hideLabel onClick={() => handleDelete(photos[currentPhotoIndex].id)}>
                                         Delete
@@ -188,6 +237,55 @@ export default function PhotosSection({ showId, thanksRows = [], onThanksChanged
                                 )}
                             </div>
                         </div>
+
+                        {reportPanelOpen && (
+                            <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2.5">
+                                <PText size="xs" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                                    Why are you reporting this photo?
+                                </PText>
+                                <div className="flex gap-2">
+                                    {['inaccurate', 'inappropriate'].map(r => (
+                                        <button
+                                            key={r}
+                                            className={r === reportReason ? btnPrimary : btnSecondary}
+                                            style={r === reportReason ? undefined : { color: 'var(--p-color-contrast-medium)' }}
+                                            onClick={() => setReportReason(r)}
+                                        >
+                                            {r === 'inaccurate' ? 'Inaccurate' : 'Inappropriate'}
+                                        </button>
+                                    ))}
+                                </div>
+                                <input
+                                    type="text"
+                                    value={reportNote}
+                                    onChange={(e) => setReportNote(e.target.value)}
+                                    placeholder="Add a note (optional)"
+                                    maxLength={280}
+                                    className={inputClass}
+                                />
+                                {reportError && (
+                                    <PText size="xs" style={{ color: 'var(--p-color-error)' }}>{reportError}</PText>
+                                )}
+                                <div className="flex gap-2">
+                                    <button
+                                        className={btnPrimary}
+                                        disabled={reportSubmitting || !reportReason}
+                                        onClick={() => handleSubmitReport(currentPhoto.id)}
+                                    >
+                                        {reportSubmitting && <Spinner />}
+                                        {reportSubmitting ? 'Submitting…' : 'Submit Report'}
+                                    </button>
+                                    <button
+                                        className={btnSecondary}
+                                        style={{ color: 'var(--p-color-contrast-medium)' }}
+                                        disabled={reportSubmitting}
+                                        onClick={() => { setReportPanelOpen(false); setReportReason(null); setReportNote(''); setReportError(null); }}
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {photos.length > 1 && (

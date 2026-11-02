@@ -38,6 +38,10 @@ export function notificationText(n) {
     if (n.type === 'mention') return `${actorName} mentioned you in a comment`;
     if (n.type === 'submission') return `${actorName} submitted a setlist correction for review`;
     if (n.type === 'poster_interest') return `${actorName} sent you a message about your poster listing`;
+    if (n.type === 'photo_report') {
+        const [reason, note] = (n.message || 'inappropriate').split(/:\s(.+)/s);
+        return `${actorName} reported a photo as ${reason}${note ? ` — "${note}"` : ''}`;
+    }
     if (n.type === 'show_update') {
         return n.content_type === 'setlist'
             ? `${actorName} updated the setlist for a show you attended`

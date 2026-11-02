@@ -1217,6 +1217,32 @@ export const uploadPhoto = async (showId, file, caption = '') => {
 };
 
 /**
+ * Report a photo as inaccurate or inappropriate. Throws with the server's
+ * error message (e.g. "You've already reported this photo") on failure so
+ * the caller can show it directly.
+ */
+export const reportPhoto = async (photoId, reason, note = '') => {
+    const token = await getAuthToken();
+    if (!token) {
+        throw new Error('Not authenticated');
+    }
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/photos/${photoId}/report`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ reason, note }),
+    });
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to report photo');
+    }
+    return response.json();
+};
+
+/**
  * Update photo caption
  */
 export const updatePhotoCaption = async (photoId, caption) => {

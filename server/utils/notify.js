@@ -258,10 +258,62 @@ async function notifyMentions({ noteText, showId, actorId, commentId }) {
     }
 }
 
+/**
+ * A logged-in user flagged a photo as inaccurate or inappropriate — same
+ * staff audience and same "each one is its own distinct thing to review"
+ * reasoning as notifyStaffOfSubmission. Unlike that function, this report has
+ * no other durable record anywhere (no dedicated table) — the notification
+ * row IS the report — so a write failure here is surfaced to the caller
+ * rather than swallowed, letting the route return an error instead of
+ * silently losing the report.
+ */
+async function notifyStaffOfPhotoReport({ photoId, showId, actorId, message }) {
+    const { data: staff } = await supabaseAdmin
+        .from('profiles')
+        .select('id')
+        .in('role', ['admin', 'editor']);
+
+    const recipients = (staff || []).map(p => p.id).filter(id => id !== actorId);
+    if (recipients.length === 0) return;
+
+    const rows = recipients.map(userId => ({
+        user_id: userId,
+        type: 'photo_report',
+        actor_id: actorId,
+        content_type: 'photo',
+        content_id: photoId,
+        show_id: showId,
+        message,
+    }));
+    const { error } = await supabaseAdmin.from('notifications').insert(rows);
+    if (error) throw error;
+}
+
+/**
+ * A reported photo got deleted (whether or not the deleting admin got there
+ * via the report notification) — closes out every staff member's still-open
+ * photo_report notification for it, the same dismissed_at a user sets on
+ * their own notification (see PUT /:notificationId/dismiss in
+ * server/routes/notifications.js), just applied across every recipient at
+ * once so nobody goes looking for a photo that's already gone.
+ */
+async function dismissPhotoReportNotifications(photoId) {
+    const { error } = await supabaseAdmin
+        .from('notifications')
+        .update({ dismissed_at: new Date().toISOString() })
+        .eq('type', 'photo_report')
+        .eq('content_type', 'photo')
+        .eq('content_id', photoId)
+        .is('dismissed_at', null);
+    if (error) console.error('[dismissPhotoReportNotifications] error:', error);
+}
+
 module.exports = {
     notifyShowAttendees,
     notifySetlistUpdated,
     notifyPosterLinkedToShows,
     notifyStaffOfSubmission,
     notifyMentions,
+    notifyStaffOfPhotoReport,
+    dismissPhotoReportNotifications,
 };
