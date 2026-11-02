@@ -272,7 +272,7 @@ export default function PhotosSection({ showId, thanksRows = [], onThanksChanged
                                     ) : (
                                         <PButtonPure
                                             size="x-small"
-                                            icon="flag"
+                                            icon="warning"
                                             hideLabel
                                             title="Report this photo"
                                             onClick={() => setReportPanelOpen(o => !o)}
