@@ -39,7 +39,7 @@ export default function SearchPage() {
 
     const [searchParams, setSearchParams] = useState({
         year: '', month: '', song: '', source: '', state: '', country: '',
-        hasNotes: false, hasPhotos: false, hasPoster: false
+        hasNotes: false, hasPhotos: false, hasPoster: false, isCancelled: false
     });
     const [results, setResults] = useState([]);
     const [filteredResults, setFilteredResults] = useState([]);
@@ -319,7 +319,7 @@ export default function SearchPage() {
 
     const hasActiveFilters = (p) =>
         p.year || p.month || p.song || p.source || p.state || p.country ||
-        p.hasNotes || p.hasPhotos || p.hasPoster;
+        p.hasNotes || p.hasPhotos || p.hasPoster || p.isCancelled;
 
     const handleAttendanceToggle = async (showId, e) => {
         e.preventDefault(); e.stopPropagation();
@@ -370,10 +370,11 @@ export default function SearchPage() {
         const hasNotes = urlParams.get('hasNotes') === 'true';
         const hasPhotos = urlParams.get('hasPhotos') === 'true';
         const hasPoster = urlParams.get('hasPoster') === 'true';
+        const isCancelled = urlParams.get('isCancelled') === 'true';
 
-        if (!song && !year && !month && !source && !state && !country && !hasNotes && !hasPhotos && !hasPoster) return;
+        if (!song && !year && !month && !source && !state && !country && !hasNotes && !hasPhotos && !hasPoster && !isCancelled) return;
 
-        const initParams = { year, month, song, source, state, country, hasNotes, hasPhotos, hasPoster };
+        const initParams = { year, month, song, source, state, country, hasNotes, hasPhotos, hasPoster, isCancelled };
         setSearchParams(initParams);
         performSearch(initParams);
         // Intentionally only ever hydrates from the URL once, on first load.
@@ -402,14 +403,14 @@ export default function SearchPage() {
     const clearFilter = (filterName) => {
         const newParams = {
             ...searchParams,
-            [filterName]: ['hasNotes', 'hasPhotos', 'hasPoster'].includes(filterName) ? false : ''
+            [filterName]: ['hasNotes', 'hasPhotos', 'hasPoster', 'isCancelled'].includes(filterName) ? false : ''
         };
         setSearchParams(newParams);
         performSearch(newParams);
     };
 
     const clearAllFilters = () => {
-        const newParams = { year: '', month: '', song: '', source: '', state: '', country: '', hasNotes: false, hasPhotos: false, hasPoster: false };
+        const newParams = { year: '', month: '', song: '', source: '', state: '', country: '', hasNotes: false, hasPhotos: false, hasPoster: false, isCancelled: false };
         setSearchParams(newParams);
         setResults([]);
     };
@@ -434,6 +435,7 @@ export default function SearchPage() {
         if (searchParams.hasNotes) filters.push({ name: 'hasNotes', label: 'Has Comments', value: 'Yes' });
         if (searchParams.hasPhotos) filters.push({ name: 'hasPhotos', label: 'Has Photos', value: 'Yes' });
         if (searchParams.hasPoster) filters.push({ name: 'hasPoster', label: 'Has Poster', value: 'Yes' });
+        if (searchParams.isCancelled) filters.push({ name: 'isCancelled', label: 'Canceled', value: 'Yes' });
         return filters;
     };
 
@@ -629,12 +631,13 @@ export default function SearchPage() {
                                 </div>
 
                                 <div>
-                                    <label className="block text-xs font-semibold mb-2" style={{ color: 'var(--p-color-contrast-medium)' }}>FILTER BY CONTENT</label>
+                                    <label className="block text-xs font-semibold mb-2" style={{ color: 'var(--p-color-contrast-medium)' }}>ADDITIONAL FILTERS</label>
                                     <div className="flex flex-wrap gap-4">
                                         {[
                                             { name: 'hasNotes', label: 'Comments' },
                                             { name: 'hasPhotos', label: 'Photos' },
                                             { name: 'hasPoster', label: 'Poster' },
+                                            { name: 'isCancelled', label: 'Canceled Shows' },
                                         ].map(({ name, label }) => (
                                             <label key={name} className="inline-flex items-center gap-2 cursor-pointer">
                                                 <input

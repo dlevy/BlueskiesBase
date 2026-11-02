@@ -19,10 +19,11 @@ const { getStateName, getCountry } = require('../utils/geography');
  *   - hasNotes: Filter by shows with user notes (true/false)
  *   - hasPhotos: Filter by shows with user photos (true/false)
  *   - hasPoster: Filter by shows with user posters (true/false)
+ *   - isCancelled: Filter to only canceled shows (true/false)
  */
 router.get('/shows', async (req, res) => {
     try {
-        const { year, month, day, venue, city, state, country, song, source, hasNotes, hasPhotos, hasPoster } = req.query;
+        const { year, month, day, venue, city, state, country, song, source, hasNotes, hasPhotos, hasPoster, isCancelled } = req.query;
 
         // Handle content-based filters (hasNotes, hasPhotos, hasPoster)
         // These require querying the user_notes, user_photos, user_posters tables first
@@ -161,6 +162,10 @@ router.get('/shows', async (req, res) => {
 
         if (source) {
             query = query.contains('source_types', [source]);
+        }
+
+        if (isCancelled === 'true') {
+            query = query.eq('is_cancelled', true);
         }
 
         // Execute the query
