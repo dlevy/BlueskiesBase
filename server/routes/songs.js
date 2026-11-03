@@ -263,11 +263,11 @@ router.post('/', requireEditorOrAdmin, async (req, res) => {
         // is_sunday_valley's NOT NULL constraint. Matters in practice: the
         // "+ Add as new song" quick-create flow (QuickAddSong.jsx) only ever
         // sends { title }.
-        const { title, original_artist, is_original = true, is_sunday_valley = false, written_by, lyrics, notes, album_id, confirmed_played_undated = false, undated_performance_note, performance_evidence = [] } = req.body;
+        const { title, original_artist, is_original = true, is_sunday_valley = false, written_by, lyrics, notes, album_id, confirmed_played_undated = false, undated_performance_note, performance_evidence = [], live_debut_suppressed = false } = req.body;
 
         const { data: song, error } = await supabase
             .from('songs')
-            .insert([{ title, original_artist, is_original, is_sunday_valley, written_by, lyrics, notes, album_id: album_id || null, confirmed_played_undated, undated_performance_note, performance_evidence }])
+            .insert([{ title, original_artist, is_original, is_sunday_valley, written_by, lyrics, notes, album_id: album_id || null, confirmed_played_undated, undated_performance_note, performance_evidence, live_debut_suppressed }])
             .select()
             .single();
 
@@ -292,11 +292,11 @@ router.post('/', requireEditorOrAdmin, async (req, res) => {
 router.put('/:id', requireEditorOrAdmin, async (req, res) => {
     try {
         const { id } = req.params;
-        const { title, original_artist, is_original, is_sunday_valley, written_by, lyrics, notes, album_id, track_order, confirmed_played_undated, undated_performance_note, performance_evidence } = req.body;
+        const { title, original_artist, is_original, is_sunday_valley, written_by, lyrics, notes, album_id, track_order, confirmed_played_undated, undated_performance_note, performance_evidence, live_debut_suppressed } = req.body;
 
         const { data: song, error } = await supabase
             .from('songs')
-            .update({ title, original_artist, is_original, is_sunday_valley, written_by, lyrics, notes, album_id: album_id || null, track_order, confirmed_played_undated, undated_performance_note, performance_evidence, updated_at: new Date() })
+            .update({ title, original_artist, is_original, is_sunday_valley, written_by, lyrics, notes, album_id: album_id || null, track_order, confirmed_played_undated, undated_performance_note, performance_evidence, live_debut_suppressed, updated_at: new Date() })
             .eq('id', id)
             .select()
             .single();

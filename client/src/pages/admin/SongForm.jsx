@@ -22,7 +22,8 @@ export default function SongForm({ song, onClose }) {
         album_id: '',
         confirmed_played_undated: false,
         undated_performance_note: '',
-        performance_evidence: []
+        performance_evidence: [],
+        live_debut_suppressed: false
     });
     const [albums, setAlbums] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -54,7 +55,8 @@ export default function SongForm({ song, onClose }) {
                 album_id: song.album_id || '',
                 confirmed_played_undated: song.confirmed_played_undated ?? false,
                 undated_performance_note: song.undated_performance_note || '',
-                performance_evidence: song.performance_evidence || []
+                performance_evidence: song.performance_evidence || [],
+                live_debut_suppressed: song.live_debut_suppressed ?? false
             });
         }
     }, [song]);
@@ -207,6 +209,17 @@ export default function SongForm({ song, onClose }) {
                     <textarea name="lyrics" value={formData.lyrics} onChange={handleChange} rows="8"
                         placeholder="Enter song lyrics (optional)"
                         className={inputClass + ' resize-none font-mono'} />
+                </div>
+
+                <div className="flex items-center gap-3 p-3 rounded-xl border border-white/10 bg-white/5">
+                    <input type="checkbox" name="live_debut_suppressed" id="live_debut_suppressed"
+                        checked={formData.live_debut_suppressed} onChange={handleChange} className="w-4 h-4" />
+                    <label htmlFor="live_debut_suppressed" className="cursor-pointer">
+                        <PText size="small">Suppress "Live Debut" tag</PText>
+                        <PText size="x-small" color="contrast-medium">
+                            Hides the Live Debut badge on this song's earliest-known show, without changing its performance history or first-played date. Use for songs from a sparsely-documented era (e.g. a newly-added old setlist) where "first played here" is probably just a gap in the records, not a real debut.
+                        </PText>
+                    </label>
                 </div>
 
                 <div className="flex items-center gap-3 p-3 rounded-xl border border-white/10 bg-white/5">

@@ -51,7 +51,7 @@ async function fetchTourSetlistRows(tourName, todayStr, needsExtras) {
             .select(`
                 song_id, show_id, set_number, is_encore, song_order, notes, performance_type, jams_into,
                 songs!setlist_songs_song_id_fkey (
-                    title, is_original${needsExtras ? ',\n                    album_songs ( albums ( title, release_date ) )' : ''}
+                    title, is_original, live_debut_suppressed${needsExtras ? ',\n                    album_songs ( albums ( title, release_date ) )' : ''}
                 ),
                 shows!inner ( show_date )
             `)
@@ -278,7 +278,7 @@ export async function fetchTourSongCounts(tourName, { stateFilter, countryFilter
             (songIdsByShow[r.show_id] ||= new Set()).add(r.song_id);
             (showSetsBySongId[r.song_id] ||= new Set()).add(r.show_id);
             if (!songMetaById[r.song_id]) {
-                songMetaById[r.song_id] = { title, isOriginal: r.songs?.is_original, albumSongs: r.songs?.album_songs || [] };
+                songMetaById[r.song_id] = { title, isOriginal: r.songs?.is_original, albumSongs: r.songs?.album_songs || [], liveDebutSuppressed: r.songs?.live_debut_suppressed };
             }
         }
     });
@@ -355,7 +355,7 @@ export async function fetchTourSongCounts(tourName, { stateFilter, countryFilter
         const meta = songMetaById[songId];
         const earliest = globalEarliestBySong[songId];
         const showIdsHere = showSetsBySongId[songId];
-        if (!meta || !earliest || !showIdsHere) return;
+        if (!meta || !earliest || !showIdsHere || meta.liveDebutSuppressed) return;
         const debutShowId = [...showIdsHere].find(showId => showById[showId]?.show_date === earliest);
         if (debutShowId == null) return;
         liveDebuts.push({

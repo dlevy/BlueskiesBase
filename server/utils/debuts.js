@@ -66,11 +66,26 @@ async function computeDebutsForShows(showIds) {
     // that was expensive enough to matter).
     const index = await computeSetlistIndex();
 
+    // A song can be flagged live_debut_suppressed to hide the "Live Debut" badge
+    // even though it has a computed earliest date — e.g. a setlist from a
+    // sparsely-documented era where "first played here" is likely just an
+    // artifact of incomplete records, not a real debut. Doesn't affect the
+    // song's actual earliest/last-played dates (globalEarliestBySong above is
+    // untouched) — only whether it's allowed into the live-debut list below.
+    const involvedSongIds = [...new Set(batchSongs.map(s => s.song_id))];
+    const { data: suppressedRows, error: suppressedError } = await supabase
+        .from('songs')
+        .select('id')
+        .in('id', involvedSongIds)
+        .eq('live_debut_suppressed', true);
+    if (suppressedError) throw new Error('Failed to load live_debut_suppressed flags: ' + suppressedError.message);
+    const suppressedIds = new Set((suppressedRows || []).map(s => s.id));
+
     showIds.forEach(showId => {
         const meta = showMeta[showId];
         if (!meta) return; // leaves the default empty arrays already set above
         const songsHere = [...(songsByShow[showId] || [])];
-        const live = songsHere.filter(songId => index.globalEarliestBySong.get(songId) === meta.show_date);
+        const live = songsHere.filter(songId => !suppressedIds.has(songId) && index.globalEarliestBySong.get(songId) === meta.show_date);
         const liveSet = new Set(live);
         const tourEarliestForTour = meta.tour_name ? index.tourEarliestBySongTour.get(meta.tour_name) : null;
         const tour = tourEarliestForTour
