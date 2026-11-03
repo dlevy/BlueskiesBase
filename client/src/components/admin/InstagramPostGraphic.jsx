@@ -80,6 +80,31 @@ function measureTextWidth(text, fontSizePx, fontWeight) {
     return measureCtx.measureText(text).width;
 }
 
+// Simulates the browser's own greedy word-wrap to count how many lines a
+// title will actually take at `availWidth` — needed because a song's title
+// no longer truncates with an ellipsis (see the render below, which lets it
+// wrap instead, indented to line up with the title rather than the number),
+// so the font-size search has to budget real height for however many lines
+// that produces, not assume every song is always exactly one line.
+function countWrappedLines(text, availWidth, fontSize, fontWeight) {
+    if (availWidth <= 0) return 1;
+    const words = text.split(' ');
+    const spaceWidth = measureTextWidth(' ', fontSize, fontWeight);
+    let lines = 1;
+    let lineWidth = 0;
+    words.forEach((word, i) => {
+        const wordWidth = measureTextWidth(word, fontSize, fontWeight);
+        const needed = lineWidth === 0 ? wordWidth : lineWidth + spaceWidth + wordWidth;
+        if (needed <= availWidth || lineWidth === 0) {
+            lineWidth = needed;
+        } else {
+            lines++;
+            lineWidth = wordWidth;
+        }
+    });
+    return lines;
+}
+
 // Fixed high-contrast palette used when the background is an image (the show
 // poster or an uploaded show photo) instead of a flat color — a tour's color
 // style can't be trusted to read well over an arbitrary image, so image
@@ -145,12 +170,12 @@ function getSongTags(song, { liveDebutSongIds, tourDebutSongIds, tourRarity }) {
     return tags;
 }
 
-// The widest a single song's row (number + title + any tags) can be at a
-// given font size — a song's row never wraps (see the render below), so if
-// this exceeds the column width the title gets ellipsis-truncated. Tag font
-// size and padding are both proportional to songFontSize (see SongTag), so
-// their width scales with it too; only the flex gaps between elements are
-// fixed pixel values that don't scale with font size.
+// The width of a single song's row (number + title + any tags) on one line,
+// at a given font size — used to decide whether its tags fit inline or need
+// to drop to their own line below (see the render below). Tag font size and
+// padding are both proportional to songFontSize (see SongTag), so their
+// width scales with it too; only the flex gaps between elements are fixed
+// pixel values that don't scale with font size.
 // The number column is a fixed width shared by every row (see
 // numberColumnTemplate below) — a row with no number at all (a jam's
 // return, or a tease; see assignSetlistDisplayNumbers) still reserves that
@@ -170,17 +195,35 @@ function measureRowWidth(song, fontSize, tagContext, numberColumnWidth) {
     return width;
 }
 
+// How many lines a song's row takes at a given font size: the title wraps
+// (rather than ellipsis-truncating — see the render below) onto as many
+// lines as it needs, and its tags — if present and not sharing the title's
+// first line — add exactly one more. A title that already needed more than
+// one line never tries to fit tags inline (there's no single "first line
+// width" left to compare against that would mean anything useful), so tags
+// always drop below a wrapped title.
+function songLineInfo(song, fontSize, tagContext, numberColumnWidth, columnWidth) {
+    const titleText = `${song.title}${song.jams_into ? ' →' : ''}`;
+    const titleAvailWidth = Math.max(1, columnWidth - numberColumnWidth - ROW_GAP);
+    const titleLines = countWrappedLines(titleText, titleAvailWidth, fontSize, 400);
+    const tags = getSongTags(song, tagContext);
+    const tagsFitInline = titleLines === 1 && tags.length > 0
+        && measureRowWidth(song, fontSize, tagContext, numberColumnWidth) <= columnWidth;
+    const tagsWrap = tags.length > 0 && !tagsFitInline;
+    return { tagsFitInline, lineUnits: titleLines + (tagsWrap ? 1 : 0) };
+}
+
 // Always two columns. The font has no minimum floor — it shrinks as far as
 // necessary so every song fits vertically, within the available height. No
 // floor here is exactly what used to cause songs to get silently clipped
 // off the top/bottom of long setlists.
 //
 // A song whose title + tags are too wide for the column no longer shrinks
-// the font for every other song to make room — its tags wrap onto their own
-// line below the title instead (see the render below), so this only needs
-// to size for *height*, treating a wrapped song as 2 line-units instead of
-// 1 wherever that happens to land, rather than also sizing for every row's
-// full tagged width like it used to.
+// the font for every other song to make room — its title wraps onto
+// additional lines, and its tags wrap onto their own line below, instead
+// (see the render below), so this only needs to size for *height*, treating
+// a wrapped song as however many line-units that produces, rather than also
+// shrinking every row's font to fit its full tagged width like it used to.
 function pickSongLayout(numberedSongs, availableHeight, columnWidth, tagContext, numberColumnTemplate) {
     const usable = Math.max(availableHeight, 100);
     const columns = 2;
@@ -194,19 +237,24 @@ function pickSongLayout(numberedSongs, availableHeight, columnWidth, tagContext,
     const heightFontSize = lineHeight / 1.45;
 
     // Binary-search the largest font size at which every column's songs —
-    // 2 line-units for one whose tags don't fit inline at that size, 1
-    // otherwise — still fit within the available height. Tag width doesn't
-    // scale perfectly linearly with font size (Math.max(10, Math.round(...))
-    // floors/rounds it), so a closed-form solve isn't reliable; a quick
-    // search is simpler and exact enough at pixel scale.
+    // each sized by however many line-units its title wrap + wrapped tags
+    // line (if any) actually need — still fit within the available height.
+    // Tag/title width don't scale perfectly linearly with font size
+    // (Math.max(10, Math.round(...)) floors/rounds tag size; word-wrap line
+    // counts are step functions), so a closed-form solve isn't reliable; a
+    // quick search is simpler and exact enough at pixel scale.
     const fits = (fontSize) => {
         const numberColumnWidth = measureTextWidth(numberColumnTemplate, fontSize, 400);
         const perLineHeight = fontSize * 1.45;
         return colSongs.every(column => {
-            const lineUnits = column.reduce((sum, { song }) =>
-                sum + (measureRowWidth(song, fontSize, tagContext, numberColumnWidth) <= columnWidth ? 1 : 2), 0);
-            const wrappedCount = lineUnits - column.length;
-            return lineUnits * perLineHeight + wrappedCount * TAG_WRAP_GAP <= usable;
+            let totalHeight = 0;
+            column.forEach(({ song }) => {
+                const { lineUnits, tagsFitInline } = songLineInfo(song, fontSize, tagContext, numberColumnWidth, columnWidth);
+                totalHeight += lineUnits * perLineHeight;
+                const tags = getSongTags(song, tagContext);
+                if (tags.length > 0 && !tagsFitInline) totalHeight += TAG_WRAP_GAP;
+            });
+            return totalHeight <= usable;
         });
     };
     let lo = 1;
@@ -407,13 +455,19 @@ const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({
                                     // title — not every song's font shrinking to make this one's
                                     // tags fit inline (see pickSongLayout above, which already
                                     // sized for whichever songs land here).
-                                    const tagsFitInline = measureRowWidth(song, songFontSize, tagContext, numberColumnWidth) <= columnWidth;
+                                    const { tagsFitInline } = songLineInfo(song, songFontSize, tagContext, numberColumnWidth, columnWidth);
                                     return (
                                         <div
                                             key={song.id || i}
                                             style={{ fontSize: songFontSize, lineHeight: 1.45, color: palette.heading }}
                                         >
-                                            <div style={{ display: 'flex', flexWrap: 'nowrap', alignItems: 'center', gap: ROW_GAP }}>
+                                            {/* alignItems: 'flex-start' (not 'center') so the number
+                                                lines up with the title's first line, not the vertical
+                                                center of a title that's wrapped onto several. The title
+                                                itself wraps (instead of ellipsis-truncating) — as a flex
+                                                item, its wrapped lines stay left-aligned to its own box,
+                                                i.e. indented to the title's start, not the number's. */}
+                                            <div style={{ display: 'flex', flexWrap: 'nowrap', alignItems: 'flex-start', gap: ROW_GAP }}>
                                                 <span style={{
                                                     flexShrink: 0, width: numberColumnWidth, textAlign: 'right',
                                                     color: palette.muted, fontVariantNumeric: 'tabular-nums',
@@ -421,7 +475,7 @@ const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({
                                                     {position != null ? `${position}.` : ''}
                                                 </span>
                                                 <span style={{
-                                                    minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                                    minWidth: 0, whiteSpace: 'normal', overflowWrap: 'break-word',
                                                 }}>
                                                     {song.title}{song.jams_into ? ' →' : ''}
                                                 </span>
