@@ -170,47 +170,21 @@ function getSongTags(song, { liveDebutSongIds, tourDebutSongIds, tourRarity }) {
     return tags;
 }
 
-// The width of a single song's row (number + title + any tags) on one line,
-// at a given font size — used to decide whether its tags fit inline or need
-// to drop to their own line below (see the render below). Tag font size and
-// padding are both proportional to songFontSize (see SongTag), so their
-// width scales with it too; only the flex gaps between elements are fixed
-// pixel values that don't scale with font size.
-// The number column is a fixed width shared by every row (see
-// numberColumnTemplate below) — a row with no number at all (a jam's
-// return, or a tease; see assignSetlistDisplayNumbers) still reserves that
-// same width, left blank, so every title still starts at the same x
-// position instead of a numberless row's title creeping left into the gap.
-function measureRowWidth(song, fontSize, tagContext, numberColumnWidth) {
-    const titleText = `${song.title}${song.jams_into ? ' →' : ''}`;
-    const titleWidth = measureTextWidth(titleText, fontSize, 400);
-    let width = numberColumnWidth + ROW_GAP + titleWidth;
-
-    const tagFontSize = Math.max(10, Math.round(fontSize * 0.4));
-    getSongTags(song, tagContext).forEach(({ label }) => {
-        // SongTag's own padding is '0.15em 0.5em' — 0.5em each side, 1em top/bottom half.
-        const tagPadding = tagFontSize; // 0.5em * 2 sides = 1em = tagFontSize px
-        width += ROW_GAP + measureTextWidth(label, tagFontSize, 700) + tagPadding;
-    });
-    return width;
-}
-
 // How many lines a song's row takes at a given font size: the title wraps
 // (rather than ellipsis-truncating — see the render below) onto as many
-// lines as it needs, and its tags — if present and not sharing the title's
-// first line — add exactly one more. A title that already needed more than
-// one line never tries to fit tags inline (there's no single "first line
-// width" left to compare against that would mean anything useful), so tags
-// always drop below a wrapped title.
+// lines as it needs, and its tags — if any — always add exactly one more
+// line below, never squeezed onto the title's own line. A show with a lot
+// of tagged songs (teases, covers, rarities, debuts...) would otherwise put
+// a different number of tags starting at a different x position after every
+// title, which reads as scattered/inconsistent rather than as one cohesive
+// list — putting every tag row at the same fixed indent, on its own line,
+// looks the same regardless of how many tags a given show happens to have.
 function songLineInfo(song, fontSize, tagContext, numberColumnWidth, columnWidth) {
     const titleText = `${song.title}${song.jams_into ? ' →' : ''}`;
     const titleAvailWidth = Math.max(1, columnWidth - numberColumnWidth - ROW_GAP);
     const titleLines = countWrappedLines(titleText, titleAvailWidth, fontSize, 400);
-    const tags = getSongTags(song, tagContext);
-    const tagsFitInline = titleLines === 1 && tags.length > 0
-        && measureRowWidth(song, fontSize, tagContext, numberColumnWidth) <= columnWidth;
-    const tagsWrap = tags.length > 0 && !tagsFitInline;
-    return { tagsFitInline, lineUnits: titleLines + (tagsWrap ? 1 : 0) };
+    const hasTags = getSongTags(song, tagContext).length > 0;
+    return { lineUnits: titleLines + (hasTags ? 1 : 0), hasTags };
 }
 
 // Always two columns. The font has no minimum floor — it shrinks as far as
@@ -249,10 +223,9 @@ function pickSongLayout(numberedSongs, availableHeight, columnWidth, tagContext,
         return colSongs.every(column => {
             let totalHeight = 0;
             column.forEach(({ song }) => {
-                const { lineUnits, tagsFitInline } = songLineInfo(song, fontSize, tagContext, numberColumnWidth, columnWidth);
+                const { lineUnits, hasTags } = songLineInfo(song, fontSize, tagContext, numberColumnWidth, columnWidth);
                 totalHeight += lineUnits * perLineHeight;
-                const tags = getSongTags(song, tagContext);
-                if (tags.length > 0 && !tagsFitInline) totalHeight += TAG_WRAP_GAP;
+                if (hasTags) totalHeight += TAG_WRAP_GAP;
             });
             return totalHeight <= usable;
         });
@@ -451,11 +424,6 @@ const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({
                             <div key={colIndex} style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                                 {columnSongs.map(({ song, position }, i) => {
                                     const tags = getSongTags(song, tagContext);
-                                    // Only this song's tags drop to their own line below the
-                                    // title — not every song's font shrinking to make this one's
-                                    // tags fit inline (see pickSongLayout above, which already
-                                    // sized for whichever songs land here).
-                                    const { tagsFitInline } = songLineInfo(song, songFontSize, tagContext, numberColumnWidth, columnWidth);
                                     return (
                                         <div
                                             key={song.id || i}
@@ -479,11 +447,12 @@ const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({
                                                 }}>
                                                     {song.title}{song.jams_into ? ' →' : ''}
                                                 </span>
-                                                {tagsFitInline && tags.map(tag => (
-                                                    <SongTag key={tag.label} label={tag.label} color={tag.color} songFontSize={songFontSize} />
-                                                ))}
                                             </div>
-                                            {!tagsFitInline && tags.length > 0 && (
+                                            {/* Tags always sit on their own line, at the same fixed
+                                                indent as the title — never inline after it — so every
+                                                tagged row looks the same regardless of how many tags
+                                                it has or how long its title is (see songLineInfo above). */}
+                                            {tags.length > 0 && (
                                                 <div style={{
                                                     display: 'flex', flexWrap: 'nowrap', alignItems: 'center', gap: ROW_GAP,
                                                     marginTop: TAG_WRAP_GAP, paddingLeft: numberColumnWidth + ROW_GAP,
