@@ -187,6 +187,9 @@ export default function SongLyricsPage() {
                     {song.is_sunday_valley && (
                         <Tag className="bg-teal-500/10 text-teal-300">Sunday Valley</Tag>
                     )}
+                    {song.confirmed_played_undated && (
+                        <Tag className="bg-amber-500/10 text-amber-300">Played, Date Unknown</Tag>
+                    )}
                 </div>
                 {albums.length > 0 && (
                     <PText size="small" color="contrast-medium" className="mt-2 block">
@@ -233,6 +236,13 @@ export default function SongLyricsPage() {
                             </div>
                         )}
                     </div>
+                </div>
+            ) : song.confirmed_played_undated ? (
+                <div className="rounded-2xl border border-amber-500/20 bg-[#1a1e26] p-6 md:p-10">
+                    <PHeading size="large" tag="h2">Performance History</PHeading>
+                    <PText size="small" color="contrast-medium" className="mt-1 block">
+                        {song.undated_performance_note || 'Confirmed played live, but no dated setlist survives for this song.'}
+                    </PText>
                 </div>
             ) : null}
 

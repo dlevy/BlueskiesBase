@@ -18,7 +18,9 @@ export default function SongForm({ song, onClose }) {
         written_by: '',
         lyrics: '',
         notes: '',
-        album_id: ''
+        album_id: '',
+        confirmed_played_undated: false,
+        undated_performance_note: ''
     });
     const [albums, setAlbums] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -47,7 +49,9 @@ export default function SongForm({ song, onClose }) {
                 written_by: song.written_by || '',
                 lyrics: song.lyrics || '',
                 notes: song.notes || '',
-                album_id: song.album_id || ''
+                album_id: song.album_id || '',
+                confirmed_played_undated: song.confirmed_played_undated ?? false,
+                undated_performance_note: song.undated_performance_note || ''
             });
         }
     }, [song]);
@@ -194,6 +198,28 @@ export default function SongForm({ song, onClose }) {
                         placeholder="Enter song lyrics (optional)"
                         className={inputClass + ' resize-none font-mono'} />
                 </div>
+
+                <div className="flex items-center gap-3 p-3 rounded-xl border border-white/10 bg-white/5">
+                    <input type="checkbox" name="confirmed_played_undated" id="confirmed_played_undated"
+                        checked={formData.confirmed_played_undated} onChange={handleChange} className="w-4 h-4" />
+                    <label htmlFor="confirmed_played_undated" className="cursor-pointer">
+                        <PText size="small">Confirmed played live, but no dated setlist exists</PText>
+                        <PText size="x-small" color="contrast-medium">
+                            For songs known to have been performed (paper setlists, video, etc.) with no traceable show/date. Keeps it out of "Holy Grails" and shows a note instead of "never played" on its public page.
+                        </PText>
+                    </label>
+                </div>
+
+                {formData.confirmed_played_undated && (
+                    <div>
+                        <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>
+                            Undated Performance Note <span style={{ color: 'var(--p-color-contrast-low)' }}>(public, shown on the song's page)</span>
+                        </label>
+                        <textarea name="undated_performance_note" value={formData.undated_performance_note} onChange={handleChange} rows="2"
+                            placeholder="e.g., Confirmed played live during the Sunday Valley era, based on paper setlists and video footage — no documented date survives."
+                            className={inputClass + ' resize-none'} />
+                    </div>
+                )}
 
                 <div>
                     <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>Notes</label>

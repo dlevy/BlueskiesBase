@@ -30,6 +30,7 @@ function CommunityStatCard({ value, label }) {
 
 export default function SongStatsWidget() {
     const [holyGrails, setHolyGrails] = useState([]);
+    const [confirmedUndated, setConfirmedUndated] = useState([]);
     const [showStats, setShowStats] = useState(null);
     const [communityStats, setCommunityStats] = useState(null);
 
@@ -99,8 +100,17 @@ export default function SongStatsWidget() {
                 // unplayed cover officially released on an album is still a
                 // deep-cut worth spotlighting here, same reasoning as the
                 // Discography page's album grouping.
+                // Confirmed-played-but-undated songs (known to have been performed,
+                // e.g. during the Sunday Valley bar-show era, but with no traceable
+                // setlist/date) aren't true Holy Grails — call them out separately
+                // instead of mislabeling them as "never played live".
                 const unplayed = (songsData.songs || []).filter(
-                    s => (s.is_original === true || (s.album_songs?.length > 0)) && s.performance_count === 0
+                    s => (s.is_original === true || (s.album_songs?.length > 0)) && s.performance_count === 0 && !s.confirmed_played_undated
+                );
+                setConfirmedUndated(
+                    (songsData.songs || [])
+                        .filter(s => s.confirmed_played_undated)
+                        .sort((a, b) => a.title.localeCompare(b.title))
                 );
 
                 const albumMap = new Map();
@@ -282,6 +292,29 @@ export default function SongStatsWidget() {
                             </div>
                         ))}
                     </div>
+                </div>
+            )}
+
+            {/* Confirmed Played, No Dated Setlist — e.g. Sunday Valley bar-show
+                songs known from paper setlists/video but with no traceable date,
+                kept distinct from the true Holy Grails above. */}
+            {confirmedUndated.length > 0 && (
+                <div className="rounded-2xl border border-teal-500/20 bg-[#1a1e26] p-5 space-y-4">
+                    <div>
+                        <PHeading size="lg" tag="h3">Confirmed Played, No Dated Setlist</PHeading>
+                        <PText size="small" color="contrast-medium">
+                            Known to have been performed live — often during the Sunday Valley era — but no dated setlist survives
+                        </PText>
+                        <div className="mt-2"><PDivider /></div>
+                    </div>
+                    <ul className="space-y-1">
+                        {confirmedUndated.map(song => (
+                            <li key={song.id} className="flex items-start gap-2" title={song.undated_performance_note || undefined}>
+                                <span className="mt-1.5 shrink-0 w-1.5 h-1.5 rounded-full bg-teal-500/50" />
+                                <PText size="small" color="contrast-medium">{song.title}</PText>
+                            </li>
+                        ))}
+                    </ul>
                 </div>
             )}
 

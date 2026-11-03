@@ -36,7 +36,7 @@ async function findSongByUrlSlug(songSlug) {
 
     const { data: song, error: songError } = await supabase
         .from('songs')
-        .select('id, title, lyrics, is_original, original_artist, written_by, is_sunday_valley, album_songs(albums(title, release_date))')
+        .select('id, title, lyrics, is_original, original_artist, written_by, is_sunday_valley, confirmed_played_undated, undated_performance_note, album_songs(albums(title, release_date))')
         .eq('id', matches[0].id)
         .single();
     if (songError || !song) return null;
@@ -79,7 +79,9 @@ function buildSongHead(song, performanceCount, { canonicalUrl, baseUrl } = {}) {
         + (isCover && song.original_artist ? ` (originally by ${song.original_artist})` : '')
         + (albums.length > 0 ? `, from ${albumsText}` : '')
         + `, performed live by Johnny Blue Skies & The Dark Clouds and Sturgill Simpson.`
-        + (performanceCount > 0 ? ` Played ${performanceCount} time${performanceCount === 1 ? '' : 's'}.` : '');
+        + (performanceCount > 0
+            ? ` Played ${performanceCount} time${performanceCount === 1 ? '' : 's'}.`
+            : song.confirmed_played_undated ? ` ${song.undated_performance_note || 'Confirmed played live, but no dated setlist survives.'}` : '');
 
     const composerName = song.written_by || (isCover ? song.original_artist : null);
 
@@ -130,13 +132,16 @@ function injectSongHead(html, song, performanceCount, baseUrl) {
     const tagsHtml = [
         song.is_original === false ? `Cover${song.original_artist ? ` of ${escapeHtml(song.original_artist)}` : ''}` : null,
         song.is_sunday_valley ? 'Sunday Valley' : null,
+        song.confirmed_played_undated ? 'Played, Date Unknown' : null,
     ].filter(Boolean).join(' &middot; ');
     const lyricsHtml = song.lyrics
         ? `<pre>${escapeHtml(song.lyrics)}</pre>`
         : `<p>Lyrics not available yet.</p>`;
     const performanceHtml = performanceCount > 0
         ? `<p>Played ${performanceCount} time${performanceCount === 1 ? '' : 's'} live.</p>`
-        : '';
+        : song.confirmed_played_undated
+            ? `<p>${escapeHtml(song.undated_performance_note || 'Confirmed played live, but no dated setlist survives.')}</p>`
+            : '';
     const albums = songAlbums(song);
     const albumsHtml = albums.length > 0
         ? `<p>On ${escapeHtml(albums.map(a => `${a.title} (${albumYear(a.release_date)})`).join(', '))}</p>`

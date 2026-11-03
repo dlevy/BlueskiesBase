@@ -24,7 +24,9 @@ function SongRow({ song }) {
     const hasLyrics = Boolean(song.lyrics?.trim());
     const performanceTitle = song.last_played_show
         ? `Played ${song.performance_count}× · Last: ${formatDate(song.last_played_show.show_date)}`
-        : 'No setlist in our records includes this song — it may still have been played before we started tracking, or at a show we don\'t have a setlist for';
+        : song.confirmed_played_undated
+            ? (song.undated_performance_note || 'Confirmed played live, but no dated setlist survives for this song.')
+            : 'No setlist in our records includes this song — it may still have been played before we started tracking, or at a show we don\'t have a setlist for';
     const rowContent = (
         <>
             <div className="flex items-center gap-2 min-w-0">
@@ -34,6 +36,30 @@ function SongRow({ song }) {
                 {song.is_sunday_valley && (
                     <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-teal-500/10 text-teal-300 whitespace-nowrap shrink-0">
                         Sunday Valley
+                    </span>
+                )}
+                {song.confirmed_played_undated && (
+                    <span
+                        className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 whitespace-nowrap shrink-0"
+                        title={song.undated_performance_note || undefined}
+                    >
+                        Played, Date Unknown
+                    </span>
+                )}
+                {song.last_played_show && (
+                    <span
+                        className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 whitespace-nowrap shrink-0"
+                        title={`Played ${song.performance_count}×`}
+                    >
+                        Last: {formatDate(song.last_played_show.show_date)}
+                    </span>
+                )}
+                {!song.last_played_show && !song.confirmed_played_undated && (
+                    <span
+                        className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-300 whitespace-nowrap shrink-0"
+                        title={performanceTitle}
+                    >
+                        Never Played
                     </span>
                 )}
                 {song.is_original === false && (
