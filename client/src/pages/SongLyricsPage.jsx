@@ -6,6 +6,7 @@ import { buildSongPath, slugify } from '../utils/songSlug';
 import { buildShowPath } from '../utils/showSlug';
 import SEO from '../components/SEO';
 import MainNavTabs from '../components/MainNavTabs';
+import SongEvidenceLinks from '../components/SongEvidenceLinks';
 
 function formatDate(dateStr) {
     const [y, m, d] = dateStr.split('-');
@@ -238,11 +239,12 @@ export default function SongLyricsPage() {
                     </div>
                 </div>
             ) : song.confirmed_played_undated ? (
-                <div className="rounded-2xl border border-amber-500/20 bg-[#1a1e26] p-6 md:p-10">
+                <div className="rounded-2xl border border-amber-500/20 bg-[#1a1e26] p-6 md:p-10 space-y-3">
                     <PHeading size="large" tag="h2">Performance History</PHeading>
-                    <PText size="small" color="contrast-medium" className="mt-1 block">
+                    <PText size="small" color="contrast-medium" className="block">
                         {song.undated_performance_note || 'Confirmed played live, but no dated setlist survives for this song.'}
                     </PText>
+                    <SongEvidenceLinks evidence={song.performance_evidence} />
                 </div>
             ) : null}
 

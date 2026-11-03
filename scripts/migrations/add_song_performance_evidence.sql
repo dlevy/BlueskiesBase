@@ -1,0 +1,12 @@
+-- Lets a song (e.g. a confirmed-played-undated Sunday Valley song) carry one
+-- or more pieces of supporting evidence: an external hyperlink, or an
+-- uploaded photo with an optional caption/credit link. Stored as a JSONB
+-- array rather than a separate table — same lightweight pattern already used
+-- for band_members.links / gear_items.links.
+--
+-- Item shape: { id, type: 'link' | 'photo', label, url, photo_url, caption, caption_url }
+-- - type 'link':  url is the external link the label points to.
+-- - type 'photo': photo_url is the uploaded image; caption/caption_url are
+--   optional (caption becomes a hyperlink when caption_url is set — for
+--   photo credit).
+ALTER TABLE songs ADD COLUMN IF NOT EXISTS performance_evidence jsonb NOT NULL DEFAULT '[]'::jsonb;

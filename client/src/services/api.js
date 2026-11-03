@@ -176,6 +176,30 @@ export const updateSong = async (id, songData) => {
 };
 
 /**
+ * Upload a photo for a song's performance_evidence list. Returns { photo_url }
+ * only — the caller adds it into the song's performance_evidence array and
+ * saves it via updateSong(), same as every other song field.
+ */
+export const uploadSongEvidencePhoto = async (songId, file) => {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+
+    const formData = new FormData();
+    formData.append('photo', file);
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/songs/${songId}/evidence-photo`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData,
+    });
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to upload photo');
+    }
+    return response.json();
+};
+
+/**
  * Delete a song
  */
 export const deleteSong = async (id) => {

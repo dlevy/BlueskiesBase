@@ -5,6 +5,7 @@ import { supabase } from '../services/supabase';
 import { useCountUp } from '../hooks/useCountUp';
 import { getCountry } from '../utils/geography';
 import TourStatsModule from './TourStatsModule';
+import SongEvidenceLinks from './SongEvidenceLinks';
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
@@ -307,11 +308,16 @@ export default function SongStatsWidget() {
                         </PText>
                         <div className="mt-2"><PDivider /></div>
                     </div>
-                    <ul className="space-y-1">
+                    <ul className="space-y-1.5">
                         {confirmedUndated.map(song => (
-                            <li key={song.id} className="flex items-start gap-2" title={song.undated_performance_note || undefined}>
+                            <li key={song.id} className="flex items-start gap-2">
                                 <span className="mt-1.5 shrink-0 w-1.5 h-1.5 rounded-full bg-teal-500/50" />
-                                <PText size="small" color="contrast-medium">{song.title}</PText>
+                                <div>
+                                    <PText size="small" color="contrast-medium" title={song.undated_performance_note || undefined}>
+                                        {song.title}
+                                    </PText>
+                                    <SongEvidenceLinks evidence={song.performance_evidence} />
+                                </div>
                             </li>
                         ))}
                     </ul>

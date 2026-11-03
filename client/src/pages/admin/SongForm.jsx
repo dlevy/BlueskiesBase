@@ -3,6 +3,7 @@ import { PHeading, PText, PButton, PButtonPure, PInlineNotification } from '@por
 import { createSong, updateSong, deleteSong, getAlbums } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { trackEvent } from '../../utils/analytics';
+import SongEvidenceEditor from '../../components/admin/SongEvidenceEditor';
 
 const inputClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--p-color-info)] focus:border-transparent placeholder:text-gray-500";
 const selectClass = "w-full rounded-lg border border-white/10 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--p-color-info)] focus:border-transparent";
@@ -20,7 +21,8 @@ export default function SongForm({ song, onClose }) {
         notes: '',
         album_id: '',
         confirmed_played_undated: false,
-        undated_performance_note: ''
+        undated_performance_note: '',
+        performance_evidence: []
     });
     const [albums, setAlbums] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -51,7 +53,8 @@ export default function SongForm({ song, onClose }) {
                 notes: song.notes || '',
                 album_id: song.album_id || '',
                 confirmed_played_undated: song.confirmed_played_undated ?? false,
-                undated_performance_note: song.undated_performance_note || ''
+                undated_performance_note: song.undated_performance_note || '',
+                performance_evidence: song.performance_evidence || []
             });
         }
     }, [song]);
@@ -89,11 +92,18 @@ export default function SongForm({ song, onClose }) {
         setLoading(true);
         setError(null);
         try {
+            // Drop any evidence row left fully blank (no label, and no url/photo).
+            const payload = {
+                ...formData,
+                performance_evidence: formData.performance_evidence.filter(
+                    item => item.label || item.url || item.photo_url
+                ),
+            };
             if (song) {
-                await updateSong(song.id, formData);
+                await updateSong(song.id, payload);
                 trackEvent('song_updated', formData.title);
             } else {
-                await createSong(formData);
+                await createSong(payload);
                 trackEvent('song_created', formData.title);
             }
             onClose();
@@ -219,6 +229,20 @@ export default function SongForm({ song, onClose }) {
                             placeholder="e.g., Confirmed played live during the Sunday Valley era, based on paper setlists and video footage — no documented date survives."
                             className={inputClass + ' resize-none'} />
                     </div>
+                )}
+
+                {formData.confirmed_played_undated && (
+                    song ? (
+                        <SongEvidenceEditor
+                            songId={song.id}
+                            evidence={formData.performance_evidence}
+                            onChange={newEvidence => setFormData(prev => ({ ...prev, performance_evidence: newEvidence }))}
+                        />
+                    ) : (
+                        <PText size="x-small" color="contrast-medium">
+                            Save this song first, then reopen it to add proof links/photos.
+                        </PText>
+                    )
                 )}
 
                 <div>

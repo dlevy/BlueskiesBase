@@ -36,7 +36,7 @@ async function findSongByUrlSlug(songSlug) {
 
     const { data: song, error: songError } = await supabase
         .from('songs')
-        .select('id, title, lyrics, is_original, original_artist, written_by, is_sunday_valley, confirmed_played_undated, undated_performance_note, album_songs(albums(title, release_date))')
+        .select('id, title, lyrics, is_original, original_artist, written_by, is_sunday_valley, confirmed_played_undated, undated_performance_note, performance_evidence, album_songs(albums(title, release_date))')
         .eq('id', matches[0].id)
         .single();
     if (songError || !song) return null;
@@ -142,6 +142,12 @@ function injectSongHead(html, song, performanceCount, baseUrl) {
         : song.confirmed_played_undated
             ? `<p>${escapeHtml(song.undated_performance_note || 'Confirmed played live, but no dated setlist survives.')}</p>`
             : '';
+    const evidenceHtml = (song.performance_evidence || []).length > 0
+        ? `<ul>${song.performance_evidence.map(item => {
+            const href = item.type === 'photo' ? item.photo_url : item.url;
+            return href ? `<li><a href="${escapeHtml(href)}">${escapeHtml(item.label || href)}</a></li>` : '';
+        }).join('')}</ul>`
+        : '';
     const albums = songAlbums(song);
     const albumsHtml = albums.length > 0
         ? `<p>On ${escapeHtml(albums.map(a => `${a.title} (${albumYear(a.release_date)})`).join(', '))}</p>`
@@ -150,7 +156,8 @@ function injectSongHead(html, song, performanceCount, baseUrl) {
         + (tagsHtml ? `<p>${tagsHtml}</p>` : '')
         + albumsHtml
         + lyricsHtml
-        + performanceHtml;
+        + performanceHtml
+        + evidenceHtml;
     out = out.replace('<div id="root"></div>', `<div id="root"></div>\n    <noscript><main>${body}</main></noscript>`);
 
     return out;

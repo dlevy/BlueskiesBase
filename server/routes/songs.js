@@ -1,10 +1,21 @@
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
 const { supabase } = require('../config/supabase');
 const { computeGlobalSongStats } = require('../utils/songStats');
 const { getSongsCache, setSongsCache, invalidateSongsCache } = require('../utils/songsCache');
 const { computeSetlistIndex } = require('../utils/setlistIndex');
 const { requireAdmin, requireEditorOrAdmin } = require('../middleware/requireRole');
+
+const SONG_EVIDENCE_BUCKET = 'song-evidence-photos';
+const uploadEvidencePhoto = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB, same as avatars/posters/photos/band-member photos
+    fileFilter: (req, file, cb) => {
+        if (file.mimetype.startsWith('image/')) cb(null, true);
+        else cb(new Error('Only image files are allowed'));
+    },
+});
 
 /**
  * GET /api/songs
@@ -209,6 +220,38 @@ router.get('/:id', async (req, res) => {
 });
 
 /**
+ * POST /api/songs/:id/evidence-photo
+ * Upload a photo for a song's performance_evidence list (editor or admin).
+ * Returns the public URL only — the client adds it into the song's
+ * performance_evidence array locally and persists the whole array via the
+ * normal PUT /api/songs/:id, same as every other song field.
+ */
+router.post('/:id/evidence-photo', requireEditorOrAdmin, uploadEvidencePhoto.single('photo'), async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (!req.file) return res.status(400).json({ error: 'No photo provided' });
+
+        const fileExt = req.file.originalname.split('.').pop();
+        const fileName = `${id}/${Date.now()}.${fileExt}`;
+        const { error: uploadError } = await supabase.storage
+            .from(SONG_EVIDENCE_BUCKET)
+            .upload(fileName, req.file.buffer, { contentType: req.file.mimetype, upsert: false });
+
+        if (uploadError) {
+            console.error('Error uploading evidence photo:', uploadError);
+            return res.status(500).json({ error: 'Failed to upload photo' });
+        }
+
+        const { data: { publicUrl } } = supabase.storage.from(SONG_EVIDENCE_BUCKET).getPublicUrl(fileName);
+        res.json({ photo_url: publicUrl });
+
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
  * POST /api/songs
  * Create a new song (editor or admin)
  */
@@ -220,11 +263,11 @@ router.post('/', requireEditorOrAdmin, async (req, res) => {
         // is_sunday_valley's NOT NULL constraint. Matters in practice: the
         // "+ Add as new song" quick-create flow (QuickAddSong.jsx) only ever
         // sends { title }.
-        const { title, original_artist, is_original = true, is_sunday_valley = false, written_by, lyrics, notes, album_id, confirmed_played_undated = false, undated_performance_note } = req.body;
+        const { title, original_artist, is_original = true, is_sunday_valley = false, written_by, lyrics, notes, album_id, confirmed_played_undated = false, undated_performance_note, performance_evidence = [] } = req.body;
 
         const { data: song, error } = await supabase
             .from('songs')
-            .insert([{ title, original_artist, is_original, is_sunday_valley, written_by, lyrics, notes, album_id: album_id || null, confirmed_played_undated, undated_performance_note }])
+            .insert([{ title, original_artist, is_original, is_sunday_valley, written_by, lyrics, notes, album_id: album_id || null, confirmed_played_undated, undated_performance_note, performance_evidence }])
             .select()
             .single();
 
@@ -249,11 +292,11 @@ router.post('/', requireEditorOrAdmin, async (req, res) => {
 router.put('/:id', requireEditorOrAdmin, async (req, res) => {
     try {
         const { id } = req.params;
-        const { title, original_artist, is_original, is_sunday_valley, written_by, lyrics, notes, album_id, track_order, confirmed_played_undated, undated_performance_note } = req.body;
+        const { title, original_artist, is_original, is_sunday_valley, written_by, lyrics, notes, album_id, track_order, confirmed_played_undated, undated_performance_note, performance_evidence } = req.body;
 
         const { data: song, error } = await supabase
             .from('songs')
-            .update({ title, original_artist, is_original, is_sunday_valley, written_by, lyrics, notes, album_id: album_id || null, track_order, confirmed_played_undated, undated_performance_note, updated_at: new Date() })
+            .update({ title, original_artist, is_original, is_sunday_valley, written_by, lyrics, notes, album_id: album_id || null, track_order, confirmed_played_undated, undated_performance_note, performance_evidence, updated_at: new Date() })
             .eq('id', id)
             .select()
             .single();
