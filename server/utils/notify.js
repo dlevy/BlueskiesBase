@@ -70,9 +70,12 @@ async function notifyShowAttendees({ showId, actorId, contentType, contentId }) 
  *
  * `pairs`: [{ userId, showId }] — deduped to one showId per userId (first
  * wins), so one person appearing via multiple shows in the same batch still
- * gets exactly one row.
+ * gets exactly one row. `showId` is null for content that isn't show-scoped
+ * (e.g. a forum thread) — just another column value as far as this function
+ * is concerned. `type` defaults to 'show_update' for the existing show-scoped
+ * callers; notifyForumReply passes 'forum_reply'.
  */
-async function upsertShowUpdateNotifications({ pairs, actorId, contentType, contentId }) {
+async function upsertShowUpdateNotifications({ pairs, actorId, contentType, contentId, type = 'show_update' }) {
     try {
         const showIdByUser = new Map();
         for (const { userId, showId } of pairs) {
@@ -87,7 +90,7 @@ async function upsertShowUpdateNotifications({ pairs, actorId, contentType, cont
         const { data: existing } = await supabaseAdmin
             .from('notifications')
             .select('id, user_id')
-            .eq('type', 'show_update')
+            .eq('type', type)
             .eq('content_type', contentType)
             .eq('content_id', contentId)
             .is('dismissed_at', null)
@@ -110,7 +113,7 @@ async function upsertShowUpdateNotifications({ pairs, actorId, contentType, cont
             .filter(userId => !existingIdByUser.has(userId))
             .map(userId => ({
                 user_id: userId,
-                type: 'show_update',
+                type,
                 actor_id: actorId,
                 content_type: contentType,
                 content_id: contentId,
@@ -217,13 +220,16 @@ async function notifyStaffOfSubmission({ showId, actorId, contentId }) {
 }
 
 /**
- * Scans comment text for @handles, matches them against real usernames, and
+ * Scans text for @handles, matches them against real usernames, and
  * notifies each (excluding the author) — skipping anyone already notified
- * for this exact comment, so re-saving an edit doesn't re-notify.
+ * for this exact piece of content, so re-saving an edit doesn't re-notify.
+ * `contentType`/`contentId` identify what was mentioned-in (a show comment,
+ * a forum thread, a forum reply, ...); `showId` is optional and only
+ * meaningful for show-scoped content.
  */
-async function notifyMentions({ noteText, showId, actorId, commentId }) {
+async function notifyMentions({ text, showId = null, actorId, contentId, contentType = 'note' }) {
     try {
-        const handles = [...new Set((noteText.match(/@([a-zA-Z0-9_]+)/g) || []).map(m => m.slice(1).toLowerCase()))];
+        const handles = [...new Set((text.match(/@([a-zA-Z0-9_]+)/g) || []).map(m => m.slice(1).toLowerCase()))];
         if (handles.length === 0) return;
 
         const { data: mentioned } = await supabaseAdmin
@@ -237,8 +243,8 @@ async function notifyMentions({ noteText, showId, actorId, commentId }) {
             .from('notifications')
             .select('user_id')
             .eq('type', 'mention')
-            .eq('content_type', 'note')
-            .eq('content_id', commentId)
+            .eq('content_type', contentType)
+            .eq('content_id', contentId)
             .in('user_id', candidates.map(c => c.id));
         const alreadyNotified = new Set((existing || []).map(e => e.user_id));
 
@@ -248,8 +254,8 @@ async function notifyMentions({ noteText, showId, actorId, commentId }) {
                 user_id: c.id,
                 type: 'mention',
                 actor_id: actorId,
-                content_type: 'note',
-                content_id: commentId,
+                content_type: contentType,
+                content_id: contentId,
                 show_id: showId,
             }));
         if (rows.length === 0) return;
@@ -311,6 +317,91 @@ async function dismissPhotoReportNotifications(photoId) {
     if (error) console.error('[dismissPhotoReportNotifications] error:', error);
 }
 
+/**
+ * A new reply landed on a forum thread — notifies every "participant"
+ * (the thread's own author plus everyone who's replied, minus the person who
+ * just replied), not just the thread author, so an active conversation
+ * doesn't go unnoticed by anyone in it. Coalesced per (user, thread) per
+ * calendar day via the same primitive show_update notifications use — a
+ * thread that gets five replies in an hour still produces one notification
+ * per participant, bumped and resurfaced as unread rather than duplicated.
+ * No show_id (forum content isn't show-scoped); upsertShowUpdateNotifications
+ * already treats showId as just another column to write, so passing none
+ * through the pairs here simply leaves it null.
+ */
+async function notifyForumReply({ threadId, actorId }) {
+    try {
+        const { data: thread } = await supabaseAdmin
+            .from('forum_threads')
+            .select('user_id')
+            .eq('id', threadId)
+            .maybeSingle();
+        if (!thread) return;
+
+        const { data: replyRows } = await supabaseAdmin
+            .from('forum_replies')
+            .select('user_id')
+            .eq('thread_id', threadId);
+
+        const participantIds = new Set([thread.user_id, ...(replyRows || []).map(r => r.user_id)]);
+        participantIds.delete(actorId);
+        if (participantIds.size === 0) return;
+
+        await upsertShowUpdateNotifications({
+            pairs: [...participantIds].map(userId => ({ userId, showId: null })),
+            actorId,
+            contentType: 'forum_thread',
+            contentId: threadId,
+            type: 'forum_reply',
+        });
+    } catch (err) {
+        console.error('[notifyForumReply] error:', err);
+    }
+}
+
+/**
+ * A logged-in user flagged a forum thread or reply — same staff audience and
+ * "no dedicated report table, the notification row IS the report" shape as
+ * notifyStaffOfPhotoReport, just generalized over contentType (forum_thread
+ * vs forum_reply) since both are reportable.
+ */
+async function notifyStaffOfForumReport({ contentType, contentId, actorId, message }) {
+    const { data: staff } = await supabaseAdmin
+        .from('profiles')
+        .select('id')
+        .in('role', ['admin', 'editor']);
+
+    const recipients = (staff || []).map(p => p.id).filter(id => id !== actorId);
+    if (recipients.length === 0) return;
+
+    const rows = recipients.map(userId => ({
+        user_id: userId,
+        type: 'forum_report',
+        actor_id: actorId,
+        content_type: contentType,
+        content_id: contentId,
+        message,
+    }));
+    const { error } = await supabaseAdmin.from('notifications').insert(rows);
+    if (error) throw error;
+}
+
+/**
+ * A reported thread or reply got deleted — closes out every staff member's
+ * still-open forum_report notification for it, same dismissed_at pattern as
+ * dismissPhotoReportNotifications.
+ */
+async function dismissForumReportNotifications(contentType, contentId) {
+    const { error } = await supabaseAdmin
+        .from('notifications')
+        .update({ dismissed_at: new Date().toISOString() })
+        .eq('type', 'forum_report')
+        .eq('content_type', contentType)
+        .eq('content_id', contentId)
+        .is('dismissed_at', null);
+    if (error) console.error('[dismissForumReportNotifications] error:', error);
+}
+
 module.exports = {
     notifyShowAttendees,
     notifySetlistUpdated,
@@ -319,4 +410,7 @@ module.exports = {
     notifyMentions,
     notifyStaffOfPhotoReport,
     dismissPhotoReportNotifications,
+    notifyForumReply,
+    notifyStaffOfForumReport,
+    dismissForumReportNotifications,
 };

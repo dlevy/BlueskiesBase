@@ -26,23 +26,28 @@ const authenticate = async (req, res, next) => {
 // Maps a thankable content_type to the real table that owns it, so the owner
 // (and the show it belongs to, for the notification) is always resolved
 // server-side from the actual record — never trusted from client input.
+// showCol is null for content that isn't show-scoped (forum threads/replies)
+// — resolveContentOwner below treats that as "no show", not an error.
 const CONTENT_TABLES = {
     photo: { table: 'user_photos', ownerCol: 'user_id', showCol: 'show_id' },
     poster: { table: 'user_posters', ownerCol: 'user_id', showCol: 'show_id' },
     note: { table: 'user_notes', ownerCol: 'user_id', showCol: 'show_id' },
     setlist_submission: { table: 'setlist_submissions', ownerCol: 'user_id', showCol: 'show_id' },
+    forum_thread: { table: 'forum_threads', ownerCol: 'user_id', showCol: null },
+    forum_reply: { table: 'forum_replies', ownerCol: 'user_id', showCol: null },
 };
 
 async function resolveContentOwner(contentType, contentId) {
     const cfg = CONTENT_TABLES[contentType];
     if (!cfg) return null;
+    const cols = cfg.showCol ? `${cfg.ownerCol}, ${cfg.showCol}` : cfg.ownerCol;
     const { data, error } = await supabaseAdmin
         .from(cfg.table)
-        .select(`${cfg.ownerCol}, ${cfg.showCol}`)
+        .select(cols)
         .eq('id', contentId)
         .maybeSingle();
     if (error || !data) return null;
-    return { ownerId: data[cfg.ownerCol], showId: data[cfg.showCol] };
+    return { ownerId: data[cfg.ownerCol], showId: cfg.showCol ? data[cfg.showCol] : null };
 }
 
 /**
@@ -104,6 +109,49 @@ router.get('/show/:showId', async (req, res) => {
         res.json({ thanks: relevant });
     } catch (error) {
         console.error('Error in GET /api/thanks/show/:showId:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * GET /api/thanks/thread/:threadId
+ * Every thanks row for a forum thread itself plus every one of its replies,
+ * in one public (no auth) request — same batch-then-group-client-side shape
+ * as GET /api/thanks/show/:showId, just scoped to a thread instead of a show.
+ * Response: { thanks: [{ contentType, contentId, thankedBy, thankedByName }] }
+ */
+router.get('/thread/:threadId', async (req, res) => {
+    try {
+        const { threadId } = req.params;
+
+        const { data: replies } = await supabaseAdmin.from('forum_replies').select('id').eq('thread_id', threadId);
+        const replyIds = (replies || []).map(r => r.id);
+        const allIds = [threadId, ...replyIds];
+
+        const { data: rows, error } = await supabaseAdmin
+            .from('thanks')
+            .select('content_type, content_id, thanked_by, profiles:thanked_by(username, display_name, hide_from_directory)')
+            .in('content_id', allIds)
+            .in('content_type', ['forum_thread', 'forum_reply']);
+
+        if (error) {
+            console.error('Error fetching forum thanks:', error);
+            return res.status(500).json({ error: 'Failed to fetch thanks' });
+        }
+
+        const replyIdSet = new Set(replyIds);
+        const relevant = (rows || [])
+            .filter(r => (r.content_type === 'forum_thread' && r.content_id === threadId) || (r.content_type === 'forum_reply' && replyIdSet.has(r.content_id)))
+            .map(r => ({
+                contentType: r.content_type,
+                contentId: r.content_id,
+                thankedBy: r.thanked_by,
+                thankedByName: resolveDisplayName(r.profiles),
+            }));
+
+        res.json({ thanks: relevant });
+    } catch (error) {
+        console.error('Error in GET /api/thanks/thread/:threadId:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });

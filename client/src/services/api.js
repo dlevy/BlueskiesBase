@@ -1744,6 +1744,18 @@ export const getShowThanks = async (showId) => {
 };
 
 /**
+ * Every thanks row for a forum thread itself plus every one of its replies,
+ * in one request. Public, no auth required.
+ */
+export const getThreadThanks = async (threadId) => {
+    const response = await fetch(`${API_BASE_URL}/api/thanks/thread/${threadId}`);
+    if (!response.ok) {
+        throw new Error('Failed to fetch thanks');
+    }
+    return response.json();
+};
+
+/**
  * Thank a piece of content (photo/poster/note/setlist_submission).
  * Idempotent — thanking something already thanked is a harmless no-op.
  */
@@ -2099,6 +2111,282 @@ export const getAnalyticsEventNames = async () => {
         const error = await response.json().catch(() => ({}));
         throw new Error(error.error || 'Failed to load event names');
     }
+    return response.json();
+};
+
+// ============================================
+// FORUM API
+// ============================================
+
+/**
+ * All forum categories (with thread_count), including a synthetic "Other"
+ * entry if any thread's category was deleted. Public, no auth required.
+ */
+export const getForumCategories = async () => {
+    const response = await fetch(`${API_BASE_URL}/api/forum/categories`);
+    if (!response.ok) throw new Error('Failed to fetch forum categories');
+    return response.json();
+};
+
+export const createForumCategory = async (name, description = '') => {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/forum/categories`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, description }),
+    });
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to create category');
+    }
+    return response.json();
+};
+
+export const updateForumCategory = async (categoryId, updates) => {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/forum/categories/${categoryId}`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+    });
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to update category');
+    }
+    return response.json();
+};
+
+export const deleteForumCategory = async (categoryId) => {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/forum/categories/${categoryId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to delete category');
+    }
+    return response.json();
+};
+
+/**
+ * Threads in a category — pass 'other' for threads whose category was
+ * deleted. Public, no auth required.
+ */
+export const getForumThreads = async (categoryId) => {
+    const params = new URLSearchParams({ category: categoryId });
+    const response = await fetch(`${API_BASE_URL}/api/forum/threads?${params}`);
+    if (!response.ok) throw new Error('Failed to fetch forum threads');
+    return response.json();
+};
+
+/**
+ * The show-discussion thread for a show, if one's been started yet.
+ * Response: { thread: { id, title } | null }. Public, no auth required.
+ */
+export const getThreadByShow = async (showId) => {
+    const response = await fetch(`${API_BASE_URL}/api/forum/threads/by-show/${showId}`);
+    if (!response.ok) throw new Error('Failed to check for a discussion thread');
+    return response.json();
+};
+
+/**
+ * Starts (or, if someone beat you to it, just finds) the one discussion
+ * thread for a show.
+ */
+export const startShowDiscussion = async (showId) => {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/forum/threads/for-show`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ show_id: showId }),
+    });
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to start discussion');
+    }
+    return response.json();
+};
+
+/**
+ * Shows with no discussion thread yet — backs the show picker shown on the
+ * show-discussion category's page in place of the normal "New Thread" form.
+ */
+export const getShowsWithoutDiscussion = async (query = '') => {
+    const params = new URLSearchParams();
+    if (query) params.set('q', query);
+    const response = await fetch(`${API_BASE_URL}/api/forum/shows-without-discussion?${params}`);
+    if (!response.ok) throw new Error('Failed to fetch shows');
+    return response.json();
+};
+
+export const getForumThread = async (threadId) => {
+    const response = await fetch(`${API_BASE_URL}/api/forum/threads/${threadId}`);
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to fetch thread');
+    }
+    return response.json();
+};
+
+export const createForumThread = async (categoryId, title, body) => {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/forum/threads`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ category_id: categoryId, title, body }),
+    });
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to create thread');
+    }
+    return response.json();
+};
+
+export const updateForumThread = async (threadId, title, body) => {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/forum/threads/${threadId}`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, body }),
+    });
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to update thread');
+    }
+    return response.json();
+};
+
+export const deleteForumThread = async (threadId) => {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/forum/threads/${threadId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to delete thread');
+    }
+    return response.json();
+};
+
+/** Pin/lock a thread (editor or admin). `updates`: { is_pinned?, is_locked? } */
+export const moderateForumThread = async (threadId, updates) => {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/forum/threads/${threadId}/moderate`, {
+        method: 'PATCH',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+    });
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to update thread');
+    }
+    return response.json();
+};
+
+export const reportForumThread = async (threadId, reason, note = '') => {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/forum/threads/${threadId}/report`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason, note }),
+    });
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to report thread');
+    }
+    return response.json();
+};
+
+export const createForumReply = async (threadId, body) => {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/forum/threads/${threadId}/replies`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ body }),
+    });
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to post reply');
+    }
+    return response.json();
+};
+
+export const updateForumReply = async (replyId, body) => {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/forum/replies/${replyId}`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ body }),
+    });
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to update reply');
+    }
+    return response.json();
+};
+
+export const deleteForumReply = async (replyId) => {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/forum/replies/${replyId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to delete reply');
+    }
+    return response.json();
+};
+
+export const reportForumReply = async (replyId, reason, note = '') => {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/forum/replies/${replyId}/report`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason, note }),
+    });
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to report reply');
+    }
+    return response.json();
+};
+
+/** Open forum reports across every thread/reply (editor or admin). */
+export const getForumReports = async () => {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/forum/reports`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!response.ok) throw new Error('Failed to fetch forum reports');
+    return response.json();
+};
+
+export const resolveForumReport = async (contentType, contentId) => {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/forum/reports/resolve`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contentType, contentId }),
+    });
+    if (!response.ok) throw new Error('Failed to resolve report');
     return response.json();
 };
 

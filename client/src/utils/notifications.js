@@ -8,6 +8,8 @@ export const CONTENT_LABEL = {
     note: 'comment',
     setlist_submission: 'setlist submission',
     setlist: 'setlist',
+    forum_thread: 'forum post',
+    forum_reply: 'forum reply',
 };
 
 // notifications.created_at is a Postgres TIMESTAMP (no time zone) holding UTC,
@@ -50,6 +52,12 @@ export function notificationText(n) {
         const { reason, note } = parsePhotoReportMessage(n.message);
         return `${actorName} reported a photo as ${reason}${note ? ` — "${note}"` : ''}`;
     }
+    if (n.type === 'forum_report') {
+        const { reason, note } = parsePhotoReportMessage(n.message);
+        const what = n.content_type === 'forum_reply' ? 'reply' : 'thread';
+        return `${actorName} reported a forum ${what} as ${reason}${note ? ` — "${note}"` : ''}`;
+    }
+    if (n.type === 'forum_reply') return `${actorName} replied to a thread you're in`;
     if (n.type === 'show_update') {
         return n.content_type === 'setlist'
             ? `${actorName} updated the setlist for a show you attended`
@@ -78,6 +86,16 @@ export function notificationLink(n) {
     if (n.type === 'poster_interest') {
         return n.actor?.username ? `/profile/${n.actor.username}` : null;
     }
+    // Forum content is never show-scoped (n.shows is always null for it), and
+    // every forum notification except a forum_report on a reply points its
+    // content_id at the thread itself — a reply-report's content_id is the
+    // reply id, which needs a lookup to resolve to its thread (see GET
+    // /api/forum/reports), not available here, so it's left unlinked;
+    // staff handle those through the Forum Moderation reports queue instead.
+    if (n.content_type === 'forum_thread') {
+        return `/forum/thread/${n.content_id}`;
+    }
+    if (n.content_type === 'forum_reply') return null;
     if (!n.shows) return null;
     const base = buildShowPath(n.shows);
     if (n.type === 'submission') return `${base}#submission-${n.content_id}`;

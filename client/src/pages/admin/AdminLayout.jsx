@@ -60,6 +60,7 @@ export default function AdminLayout() {
                             { to: '/admin/venues', label: 'Venues' },
                             { to: '/admin/band-members', label: 'Band Members' },
                             { to: '/admin/setlist-submissions', label: 'Setlist Submissions' },
+                            { to: '/admin/forum', label: 'Forum' },
                             // Full admins only — user management, site settings, the
                             // link directory, and analytics are intentionally out of
                             // reach for editors.

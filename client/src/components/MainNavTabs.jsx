@@ -21,6 +21,8 @@ const TABS = [
     { id: 'myshows', label: 'My Shows', to: '/?tab=myshows' },
     { id: 'posters', label: 'Posters', to: '/posters' },
     { id: 'photos', label: 'Photos', to: '/photos' },
+    // Forum tab hidden for now (functionality stays live at /forum, just not linked) — uncomment to re-enable.
+    // { id: 'forum', label: 'Forum', to: '/forum' },
     { id: 'members', label: 'Members', to: '/members' },
 ];
 
@@ -36,7 +38,8 @@ export default function MainNavTabs({ onHomeClick } = {}) {
     // still means the Search view) — any other unmatched route (e.g. a show
     // detail page) gets no active tab at all, rather than misleadingly
     // highlighting Search.
-    const activeTab = ROUTE_TAB[location.pathname] || urlParams.get('tab') || (location.pathname === '/' ? 'search' : null);
+    const activeTab = (location.pathname.startsWith('/forum') ? 'forum' : null)
+        || ROUTE_TAB[location.pathname] || urlParams.get('tab') || (location.pathname === '/' ? 'search' : null);
 
     return (
         // Sticky right below the logo header (top-14 = the header's own h-14),

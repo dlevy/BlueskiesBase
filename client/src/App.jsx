@@ -33,6 +33,9 @@ const BandPage = lazy(() => import('./pages/BandPage'))
 const BandMemberPage = lazy(() => import('./pages/BandMemberPage'))
 const PhotosPage = lazy(() => import('./pages/PhotosPage'))
 const LinksPage = lazy(() => import('./pages/LinksPage'))
+const ForumPage = lazy(() => import('./pages/ForumPage'))
+const ForumCategoryPage = lazy(() => import('./pages/ForumCategoryPage'))
+const ForumThreadPage = lazy(() => import('./pages/ForumThreadPage'))
 const MembersPage = lazy(() => import('./pages/MembersPage'))
 const TourStatsPage = lazy(() => import('./pages/TourStatsPage'))
 const TourPage = lazy(() => import('./pages/TourPage'))
@@ -74,6 +77,7 @@ const SetlistSubmissionsReview = lazy(() => import('./pages/admin/SetlistSubmiss
 const InstagramPostPage = lazy(() => import('./pages/admin/InstagramPostPage'))
 const TourStatsPostPage = lazy(() => import('./pages/admin/TourStatsPostPage'))
 const AnalyticsPage = lazy(() => import('./pages/admin/AnalyticsPage'))
+const ForumModeration = lazy(() => import('./pages/admin/ForumModeration'))
 
 // Shared fallback for every lazy route above, while its chunk is still
 // being fetched — same spinner treatment already used throughout the app
@@ -135,6 +139,9 @@ function App() {
             <Route path="artwork/:id" element={<ArtworkPage />} />
             <Route path="photos" element={<PhotosPage />} />
             <Route path="links" element={<LinksPage />} />
+            <Route path="forum" element={<ForumPage />} />
+            <Route path="forum/thread/:threadId" element={<ForumThreadPage />} />
+            <Route path="forum/:categorySlug" element={<ForumCategoryPage />} />
             <Route path="members" element={<MembersPage />} />
             <Route path="tour-stats" element={<TourStatsPage />} />
             <Route path="tours/:tourSlug" element={<TourPage />} />
@@ -187,6 +194,7 @@ function App() {
             <Route path="tours/:tourName" element={<TourEditPage />} />
             <Route path="tours/:tourName/stats-post" element={<TourStatsPostPage />} />
             <Route path="setlist-submissions" element={<SetlistSubmissionsReview />} />
+            <Route path="forum" element={<ForumModeration />} />
             <Route path="analytics" element={<AnalyticsPage />} />
             <Route path="users" element={<AdminUsers />} />
             <Route path="settings" element={<SiteSettingsPage />} />

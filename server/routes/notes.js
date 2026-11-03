@@ -106,7 +106,7 @@ router.post('/', authenticate, async (req, res) => {
         }
 
         await notifyShowAttendees({ showId: show_id, actorId: userId, contentType: 'note', contentId: data.id });
-        await notifyMentions({ noteText: note_text, showId: show_id, actorId: userId, commentId: data.id });
+        await notifyMentions({ text: note_text, showId: show_id, actorId: userId, contentId: data.id, contentType: 'note' });
 
         res.json({ note: data });
     } catch (error) {
@@ -155,7 +155,7 @@ router.put('/:noteId', authenticate, async (req, res) => {
             return res.status(500).json({ error: 'Failed to update note' });
         }
 
-        await notifyMentions({ noteText: note_text, showId: note.show_id, actorId: userId, commentId: noteId });
+        await notifyMentions({ text: note_text, showId: note.show_id, actorId: userId, contentId: noteId, contentType: 'note' });
 
         res.json({ note: data });
     } catch (error) {
