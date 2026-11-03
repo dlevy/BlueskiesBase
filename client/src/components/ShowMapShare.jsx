@@ -747,7 +747,16 @@ export default function ShowMapShare({ pastShows, upcomingShows, title = 'My Sho
             </div>
 
             {/* Interactive Leaflet map */}
-            <div className="rounded-xl overflow-hidden" style={{ height: 360, position: 'relative' }}>
+            {/* isolation: 'isolate' confines Leaflet's internal pane/control
+                z-indexes (up to 1000) to a stacking context of their own —
+                without it they compare directly against the page's sticky
+                header/nav (z-50/z-40). transform: translateZ(0) additionally
+                forces this overflow:hidden box onto its own compositor layer —
+                iOS Safari doesn't reliably clip Leaflet's 3D-transformed tile
+                panes (it uses translate3d for pan/zoom) to a plain
+                overflow:hidden ancestor, letting them paint above the sticky
+                header during scroll without this. */}
+            <div className="rounded-xl overflow-hidden" style={{ height: 360, position: 'relative', isolation: 'isolate', transform: 'translateZ(0)' }}>
                 {pins.length > 0 ? (
                     <MapContainer
                         center={[39.5, -98.35]}
