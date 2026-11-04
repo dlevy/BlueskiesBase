@@ -157,25 +157,29 @@ function CategoriesPanel({ categories, isAdmin, onChanged }) {
                                             ★
                                         </button>
                                     )}
-                                    <button type="button" disabled={saving || i === 0} onClick={() => move(category, -1)}
-                                        className="text-xs px-1.5 disabled:opacity-30" style={{ color: 'var(--p-color-contrast-medium)' }}>↑</button>
-                                    <button type="button" disabled={saving || i === sortedCategories.length - 1} onClick={() => move(category, 1)}
-                                        className="text-xs px-1.5 disabled:opacity-30" style={{ color: 'var(--p-color-contrast-medium)' }}>↓</button>
-                                    <PButtonPure size="x-small" disabled={saving} onClick={() => startEdit(category)}>Rename</PButtonPure>
                                     {isAdmin && (
-                                        <PButtonPure size="x-small" disabled={saving} onClick={() => handleDelete(category)} style={{ color: 'var(--p-color-notification-error)' }}>
-                                            Delete
-                                        </PButtonPure>
+                                        <>
+                                            <button type="button" disabled={saving || i === 0} onClick={() => move(category, -1)}
+                                                className="text-xs px-1.5 disabled:opacity-30" style={{ color: 'var(--p-color-contrast-medium)' }}>↑</button>
+                                            <button type="button" disabled={saving || i === sortedCategories.length - 1} onClick={() => move(category, 1)}
+                                                className="text-xs px-1.5 disabled:opacity-30" style={{ color: 'var(--p-color-contrast-medium)' }}>↓</button>
+                                            <PButtonPure size="x-small" disabled={saving} onClick={() => startEdit(category)}>Rename</PButtonPure>
+                                            <PButtonPure size="x-small" disabled={saving} onClick={() => handleDelete(category)} style={{ color: 'var(--p-color-notification-error)' }}>
+                                                Delete
+                                            </PButtonPure>
+                                        </>
                                     )}
                                 </>
                             )}
                         </div>
                     ))}
 
-                    <div className="flex gap-2 pt-2 border-t border-white/10">
-                        <input type="text" value={newName} onChange={e => setNewName(e.target.value)} placeholder="New category name…" className={inputClass} />
-                        <PButton size="small" disabled={saving || !newName.trim()} onClick={handleAdd}>+ Add</PButton>
-                    </div>
+                    {isAdmin && (
+                        <div className="flex gap-2 pt-2 border-t border-white/10">
+                            <input type="text" value={newName} onChange={e => setNewName(e.target.value)} placeholder="New category name…" className={inputClass} />
+                            <PButton size="small" disabled={saving || !newName.trim()} onClick={handleAdd}>+ Add</PButton>
+                        </div>
+                    )}
                 </div>
             )}
         </div>
