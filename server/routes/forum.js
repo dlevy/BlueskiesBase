@@ -41,6 +41,23 @@ function validateTitleAndBody({ title, body }) {
     return null;
 }
 
+/**
+ * Subscribes a user to a thread's reply notifications, idempotently.
+ * Called whenever someone posts a thread or a reply, so the default
+ * notified audience stays "the thread's author plus everyone who's
+ * replied" — same as before subscriptions existed — while still letting an
+ * explicit unsubscribe (DELETE /threads/:id/subscription) stick until they
+ * post again. Awaited and logged like every other mutation in this file,
+ * not swallowed as non-fatal the way notify.js's own notification sends are
+ * — a user should reliably end up subscribed after posting.
+ */
+async function ensureSubscribed(threadId, userId) {
+    const { error } = await supabase
+        .from('forum_thread_subscriptions')
+        .upsert({ thread_id: threadId, user_id: userId }, { onConflict: 'thread_id,user_id', ignoreDuplicates: true });
+    if (error) console.error('[ensureSubscribed] error:', error);
+}
+
 // ============================================
 // CATEGORIES
 // Declared before the generic /threads/:id routes below, same ordering
@@ -346,6 +363,82 @@ router.get('/threads', async (req, res) => {
 });
 
 /**
+ * GET /api/forum/search?q=&limit=
+ * Finds threads by title, thread body, or any reply's body underneath them
+ * — so a buried reply's content is findable too. Same fetch-all-then-
+ * filter-in-memory posture as GET /shows-without-discussion (small forum,
+ * simplicity over scalability; no full-text search/tsvector exists anywhere
+ * in this codebase). `q` is required — this isn't a browse endpoint, that's
+ * what GET /threads is for. limit defaults 20, capped 50.
+ *
+ * Each result carries matched_in: 'title' | 'body' | 'reply' so the client
+ * can show *why* it matched. When matched_in is 'reply', matching_reply is
+ * also included (the earliest-matching reply under that thread) so the
+ * result row can show a snippet of it — a thread matching both its own
+ * text and a reply reports 'title'/'body' (the more prominent match).
+ */
+router.get('/search', async (req, res) => {
+    try {
+        const q = (req.query.q || '').trim().toLowerCase();
+        const limit = Math.min(parseInt(req.query.limit, 10) || 20, 50);
+        if (!q) return res.json({ results: [] });
+
+        async function fetchAll(table, select) {
+            let rows = [];
+            for (let rangeStart = 0; ; ) {
+                const { data: page, error } = await supabase.from(table).select(select).range(rangeStart, rangeStart + 999);
+                if (error) throw error;
+                rows = rows.concat(page || []);
+                if (!page || page.length < 1000) break;
+                rangeStart += 1000;
+            }
+            return rows;
+        }
+
+        const [threads, replies] = await Promise.all([
+            fetchAll('forum_threads', `id, title, body, category_id, created_at, last_activity_at, is_pinned, is_locked, ${AUTHOR_SELECT}, forum_categories ( id, name )`),
+            fetchAll('forum_replies', `id, thread_id, body, created_at, ${AUTHOR_SELECT}`),
+        ]);
+
+        const matchingReplyByThread = new Map();
+        for (const r of replies) {
+            if (matchingReplyByThread.has(r.thread_id)) continue;
+            if (r.body.toLowerCase().includes(q)) matchingReplyByThread.set(r.thread_id, r);
+        }
+
+        const replyCounts = {};
+        replies.forEach(r => { replyCounts[r.thread_id] = (replyCounts[r.thread_id] || 0) + 1; });
+
+        const results = [];
+        for (const t of threads) {
+            const titleMatch = t.title.toLowerCase().includes(q);
+            const bodyMatch = t.body.toLowerCase().includes(q);
+            const matchingReply = matchingReplyByThread.get(t.id);
+            if (!titleMatch && !bodyMatch && !matchingReply) continue;
+
+            results.push({
+                ...t,
+                profiles: redactProfile(t.profiles),
+                reply_count: replyCounts[t.id] || 0,
+                matched_in: titleMatch ? 'title' : bodyMatch ? 'body' : 'reply',
+                matching_reply: (!titleMatch && !bodyMatch && matchingReply) ? {
+                    id: matchingReply.id,
+                    body: matchingReply.body,
+                    profiles: redactProfile(matchingReply.profiles),
+                    created_at: matchingReply.created_at,
+                } : null,
+            });
+        }
+
+        results.sort((a, b) => new Date(b.last_activity_at) - new Date(a.last_activity_at));
+        res.json({ results: results.slice(0, limit) });
+    } catch (error) {
+        console.error('Error in GET /api/forum/search:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
  * GET /api/forum/threads/by-show/:showId
  * The show-discussion thread for a show, if one's been started yet (null
  * otherwise) — the show page uses this to show "Start Discussion" or
@@ -483,6 +576,7 @@ router.post('/threads/for-show', authenticate, async (req, res) => {
             return res.status(500).json({ error: 'Failed to start discussion' });
         }
 
+        await ensureSubscribed(thread.id, req.user.id);
         await notifyMentions({ text: body, actorId: req.user.id, contentId: thread.id, contentType: 'forum_thread' });
 
         res.status(201).json({ thread: { ...thread, profiles: redactProfile(thread.profiles) }, alreadyExisted: false });
@@ -567,6 +661,7 @@ router.post('/threads', authenticate, async (req, res) => {
             return res.status(500).json({ error: 'Failed to create thread' });
         }
 
+        await ensureSubscribed(thread.id, req.user.id);
         await notifyMentions({ text: body, actorId: req.user.id, contentId: thread.id, contentType: 'forum_thread' });
 
         res.status(201).json({ thread: { ...thread, profiles: redactProfile(thread.profiles) } });
@@ -599,7 +694,7 @@ router.put('/threads/:id', authenticate, async (req, res) => {
 
         const { data: thread, error } = await supabase
             .from('forum_threads')
-            .update({ title: title.trim(), body: body.trim(), updated_at: new Date().toISOString() })
+            .update({ title: title.trim(), body: body.trim(), updated_at: new Date().toISOString(), edited_at: new Date().toISOString() })
             .eq('id', id)
             .select(`*, ${AUTHOR_SELECT}, forum_categories ( id, name )`)
             .single();
@@ -678,6 +773,13 @@ router.delete('/threads/:id', authenticate, async (req, res) => {
         const { data: replyRows } = await supabase.from('forum_replies').select('id').eq('thread_id', id);
         const replyIds = (replyRows || []).map(r => r.id);
 
+        // Owners can only self-delete a thread no one else has replied to yet —
+        // once there are replies, deleting it would erase other people's
+        // contributions with no recovery. Editors/admins can still moderate it.
+        if (!canModerate && replyIds.length > 0) {
+            return res.status(403).json({ error: 'This thread has replies and can no longer be deleted — ask a moderator if it needs to come down.' });
+        }
+
         const { error: deleteError } = await supabase.from('forum_threads').delete().eq('id', id);
         if (deleteError) {
             console.error('Error deleting forum thread:', deleteError);
@@ -738,6 +840,77 @@ router.post('/threads/:id/report', authenticate, async (req, res) => {
 });
 
 // ============================================
+// SUBSCRIPTIONS
+// ============================================
+
+/**
+ * GET /api/forum/threads/:id/subscription
+ * Current user's "notify me on new replies" state for a thread. Requires
+ * auth (there's no notion of checking anyone else's state) — this is why
+ * the client fetches it as a separate call rather than folding it into the
+ * public, unauthenticated GET /threads/:id.
+ */
+router.get('/threads/:id/subscription', authenticate, async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('forum_thread_subscriptions')
+            .select('id')
+            .eq('thread_id', req.params.id)
+            .eq('user_id', req.user.id)
+            .maybeSingle();
+        if (error) {
+            console.error('Error fetching subscription state:', error);
+            return res.status(500).json({ error: 'Failed to fetch subscription state' });
+        }
+        res.json({ subscribed: !!data });
+    } catch (error) {
+        console.error('Error in GET /api/forum/threads/:id/subscription:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * POST /api/forum/threads/:id/subscription
+ * Subscribe to a thread. Idempotent.
+ */
+router.post('/threads/:id/subscription', authenticate, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { data: thread } = await supabase.from('forum_threads').select('id').eq('id', id).maybeSingle();
+        if (!thread) return res.status(404).json({ error: 'Thread not found' });
+
+        await ensureSubscribed(id, req.user.id);
+        res.json({ subscribed: true });
+    } catch (error) {
+        console.error('Error in POST /api/forum/threads/:id/subscription:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * DELETE /api/forum/threads/:id/subscription
+ * Unsubscribe from a thread. Sticks until the user posts again — only
+ * POST /threads, POST /threads/for-show, and POST .../replies re-subscribe.
+ */
+router.delete('/threads/:id/subscription', authenticate, async (req, res) => {
+    try {
+        const { error } = await supabase
+            .from('forum_thread_subscriptions')
+            .delete()
+            .eq('thread_id', req.params.id)
+            .eq('user_id', req.user.id);
+        if (error) {
+            console.error('Error unsubscribing from thread:', error);
+            return res.status(500).json({ error: 'Failed to unsubscribe' });
+        }
+        res.json({ subscribed: false });
+    } catch (error) {
+        console.error('Error in DELETE /api/forum/threads/:id/subscription:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// ============================================
 // REPLIES
 // ============================================
 
@@ -770,6 +943,7 @@ router.post('/threads/:id/replies', authenticate, async (req, res) => {
         }
 
         await supabase.from('forum_threads').update({ last_activity_at: new Date().toISOString() }).eq('id', id);
+        await ensureSubscribed(id, req.user.id);
         await notifyForumReply({ threadId: id, actorId: req.user.id });
         // Mentions point at the thread (not this reply) so notificationLink()
         // can always resolve a link with no extra lookup — every forum
@@ -805,7 +979,7 @@ router.put('/replies/:id', authenticate, async (req, res) => {
 
         const { data: reply, error } = await supabase
             .from('forum_replies')
-            .update({ body: body.trim(), updated_at: new Date().toISOString() })
+            .update({ body: body.trim(), updated_at: new Date().toISOString(), edited_at: new Date().toISOString() })
             .eq('id', id)
             .select(`*, ${AUTHOR_SELECT}`)
             .single();

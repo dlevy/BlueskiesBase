@@ -2208,6 +2208,19 @@ export const getForumThreads = async (categoryId) => {
 };
 
 /**
+ * Forum-wide search across thread titles, thread bodies, and reply bodies.
+ * Public, no auth required. Each result's matched_in is 'title' | 'body' |
+ * 'reply'; when 'reply', matching_reply is included.
+ */
+export const searchForumThreads = async (query, limit) => {
+    const params = new URLSearchParams({ q: query });
+    if (limit) params.set('limit', limit);
+    const response = await fetch(`${API_BASE_URL}/api/forum/search?${params}`);
+    if (!response.ok) throw new Error('Failed to search forum');
+    return response.json();
+};
+
+/**
  * The show-discussion thread for a show, if one's been started yet.
  * Response: { thread: { id, title } | null }. Public, no auth required.
  */
@@ -2328,6 +2341,45 @@ export const reportForumThread = async (threadId, reason, note = '') => {
     if (!response.ok) {
         const error = await response.json().catch(() => ({}));
         throw new Error(error.error || 'Failed to report thread');
+    }
+    return response.json();
+};
+
+/** Current user's subscription state for a thread. */
+export const getThreadSubscription = async (threadId) => {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/forum/threads/${threadId}/subscription`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!response.ok) throw new Error('Failed to fetch subscription state');
+    return response.json();
+};
+
+export const subscribeToThread = async (threadId) => {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/forum/threads/${threadId}/subscription`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to subscribe');
+    }
+    return response.json();
+};
+
+export const unsubscribeFromThread = async (threadId) => {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/forum/threads/${threadId}/subscription`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to unsubscribe');
     }
     return response.json();
 };

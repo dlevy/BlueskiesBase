@@ -318,32 +318,28 @@ async function dismissPhotoReportNotifications(photoId) {
 }
 
 /**
- * A new reply landed on a forum thread — notifies every "participant"
- * (the thread's own author plus everyone who's replied, minus the person who
- * just replied), not just the thread author, so an active conversation
- * doesn't go unnoticed by anyone in it. Coalesced per (user, thread) per
- * calendar day via the same primitive show_update notifications use — a
- * thread that gets five replies in an hour still produces one notification
- * per participant, bumped and resurfaced as unread rather than duplicated.
- * No show_id (forum content isn't show-scoped); upsertShowUpdateNotifications
- * already treats showId as just another column to write, so passing none
- * through the pairs here simply leaves it null.
+ * A new reply landed on a forum thread — notifies every subscriber of that
+ * thread (forum_thread_subscriptions), minus the person who just replied.
+ * Posting the thread or any reply auto-subscribes the poster
+ * (server/routes/forum.js), so the default audience is still "the thread's
+ * author plus everyone who's replied" — but an explicit unsubscribe now
+ * sticks, which a live owner+repliers derivation couldn't support.
+ * Coalesced per (user, thread) per calendar day via the same primitive
+ * show_update notifications use — a thread that gets five replies in an
+ * hour still produces one notification per participant, bumped and
+ * resurfaced as unread rather than duplicated. No show_id (forum content
+ * isn't show-scoped); upsertShowUpdateNotifications already treats showId
+ * as just another column to write, so passing none through the pairs here
+ * simply leaves it null.
  */
 async function notifyForumReply({ threadId, actorId }) {
     try {
-        const { data: thread } = await supabaseAdmin
-            .from('forum_threads')
-            .select('user_id')
-            .eq('id', threadId)
-            .maybeSingle();
-        if (!thread) return;
-
-        const { data: replyRows } = await supabaseAdmin
-            .from('forum_replies')
+        const { data: subRows } = await supabaseAdmin
+            .from('forum_thread_subscriptions')
             .select('user_id')
             .eq('thread_id', threadId);
 
-        const participantIds = new Set([thread.user_id, ...(replyRows || []).map(r => r.user_id)]);
+        const participantIds = new Set((subRows || []).map(r => r.user_id));
         participantIds.delete(actorId);
         if (participantIds.size === 0) return;
 

@@ -7,15 +7,12 @@ import { useAuth } from '../contexts/AuthContext';
 import MainNavTabs from '../components/MainNavTabs';
 import SEO from '../components/SEO';
 import MentionTextarea from '../components/MentionTextarea';
+import ForumThreadRow from '../components/ForumThreadRow';
 
 const inputClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-transparent placeholder:text-gray-500";
 const textareaClass = inputClass + " resize-none";
 const btnPrimary = "inline-flex items-center gap-1.5 h-8 px-4 rounded-lg text-sm font-medium border border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/18 transition-all disabled:opacity-50 disabled:cursor-not-allowed";
 const btnSecondary = "inline-flex items-center gap-1.5 h-8 px-4 rounded-lg text-sm font-medium border border-white/15 hover:border-white/25 hover:bg-white/5 transition-all disabled:opacity-50 disabled:cursor-not-allowed";
-
-function formatDate(dateString) {
-    return new Date(dateString).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-}
 
 // show_date is a plain DATE string (YYYY-MM-DD), not a timestamp — parsed
 // via its parts directly rather than `new Date(dateString)`, which reads a
@@ -118,38 +115,6 @@ function ShowDiscussionPicker({ onStarted, onCancel }) {
                 Cancel
             </button>
         </div>
-    );
-}
-
-function ThreadRow({ thread }) {
-    const author = thread.profiles;
-    return (
-        <Link
-            to={buildThreadPath(thread.id)}
-            className="flex items-center justify-between gap-3 rounded-xl border border-white/5 bg-white/5 hover:border-amber-500/20 hover:bg-white/[0.07] hover:-translate-y-px hover:shadow-lg hover:shadow-black/20 transition-all duration-150 p-4"
-        >
-            <div className="min-w-0">
-                <p className="text-sm font-semibold truncate flex items-center gap-1.5" style={{ color: 'var(--p-color-primary)' }}>
-                    {thread.is_pinned && (
-                        <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                            Pinned
-                        </span>
-                    )}
-                    {thread.is_locked && (
-                        <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-white/10 text-white/60 border border-white/15">
-                            Locked
-                        </span>
-                    )}
-                    {thread.title}
-                </p>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--p-color-contrast-low)' }}>
-                    by {author?.username ? (author.display_name || author.username) : 'Anonymous'} &middot; {formatDate(thread.created_at)}
-                </p>
-            </div>
-            <span className="shrink-0 text-xs text-right" style={{ color: 'var(--p-color-contrast-low)' }}>
-                {thread.reply_count} repl{thread.reply_count !== 1 ? 'ies' : 'y'}
-            </span>
-        </Link>
     );
 }
 
@@ -327,7 +292,7 @@ export default function ForumCategoryPage() {
                 </PText>
             ) : (
                 <div className="space-y-2">
-                    {threads.map(thread => <ThreadRow key={thread.id} thread={thread} />)}
+                    {threads.map(thread => <ForumThreadRow key={thread.id} thread={thread} />)}
                 </div>
             )}
         </div>

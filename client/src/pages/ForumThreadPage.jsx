@@ -4,7 +4,7 @@ import { PSpinner, PText, PHeading, PInlineNotification, PButtonPure, PDivider }
 import {
     getForumThread, updateForumThread, deleteForumThread, moderateForumThread, reportForumThread,
     createForumReply, updateForumReply, deleteForumReply, reportForumReply, getMentionableUsers,
-    getThreadThanks,
+    getThreadThanks, getThreadSubscription, subscribeToThread, unsubscribeFromThread,
 } from '../services/api';
 import { buildCategoryPath } from '../utils/forumSlug';
 import { buildShowPath } from '../utils/showSlug';
@@ -41,13 +41,14 @@ function renderWithMentions(text, usernameSet) {
     });
 }
 
-function AuthorLine({ profile, dateString }) {
+function AuthorLine({ profile, dateString, editedAt }) {
     return (
         <p className="text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>
             {profile?.username
                 ? <Link to={`/profile/${profile.username}`} className="hover:underline" style={{ color: 'var(--p-color-contrast-medium)' }}>{profile.display_name || profile.username}</Link>
                 : (profile?.display_name || 'Anonymous')}
             {' · '}{formatDateTime(dateString)}
+            {editedAt && ' (edited)'}
         </p>
     );
 }
@@ -157,6 +158,8 @@ export default function ForumThreadPage() {
     const [reportError, setReportError] = useState(null);
 
     const [thanksRows, setThanksRows] = useState([]);
+    const [subscribed, setSubscribed] = useState(false);
+    const [subscribing, setSubscribing] = useState(false);
     const replySectionRef = useRef(null);
 
     useEffect(() => {
@@ -194,6 +197,32 @@ export default function ForumThreadPage() {
     }, [threadId]);
 
     useEffect(() => { loadThanks(); }, [loadThanks]);
+
+    useEffect(() => {
+        if (!user) { setSubscribed(false); return; }
+        getThreadSubscription(threadId)
+            .then(data => setSubscribed(!!data.subscribed))
+            .catch(err => console.error('[ForumThreadPage] Error loading subscription state:', err));
+    }, [user, threadId]);
+
+    const handleToggleSubscription = async () => {
+        if (subscribing) return;
+        try {
+            setSubscribing(true);
+            if (subscribed) {
+                await unsubscribeFromThread(threadId);
+                setSubscribed(false);
+            } else {
+                await subscribeToThread(threadId);
+                setSubscribed(true);
+            }
+        } catch (err) {
+            console.error('[ForumThreadPage] Error toggling subscription:', err);
+            setError(err.message || 'Failed to update subscription');
+        } finally {
+            setSubscribing(false);
+        }
+    };
 
     const handleQuote = (text, username) => {
         const quote = buildQuote(text, username);
@@ -245,6 +274,7 @@ export default function ForumThreadPage() {
             setError(null);
             await createForumReply(threadId, replyBody);
             setReplyBody('');
+            setSubscribed(true);
             await load();
         } catch (err) {
             console.error('[ForumThreadPage] Error posting reply:', err);
@@ -370,7 +400,7 @@ export default function ForumThreadPage() {
                                     )}
                                     <PHeading size="large" tag="h1">{thread.title}</PHeading>
                                 </div>
-                                <AuthorLine profile={thread.profiles} dateString={thread.created_at} />
+                                <AuthorLine profile={thread.profiles} dateString={thread.created_at} editedAt={thread.edited_at} />
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
                                 <ThanksButton
@@ -382,6 +412,11 @@ export default function ForumThreadPage() {
                                     isOwnContent={isMine}
                                     onToggled={loadThanks}
                                 />
+                                {user && (
+                                    <PButtonPure size="x-small" icon="bell" disabled={subscribing} onClick={handleToggleSubscription}>
+                                        {subscribed ? 'Unsubscribe' : 'Subscribe'}
+                                    </PButtonPure>
+                                )}
                                 {user && !thread.is_locked && (
                                     <PButtonPure size="x-small" icon="chat" hideLabel title="Quote this post" onClick={() => handleQuote(thread.body, thread.profiles?.username || 'someone')}>
                                         Quote
@@ -392,7 +427,7 @@ export default function ForumThreadPage() {
                                         Edit
                                     </PButtonPure>
                                 )}
-                                {(isMine || isEditorOrAdmin) && (
+                                {((isMine && replies.length === 0) || isEditorOrAdmin) && (
                                     <PButtonPure size="x-small" icon="delete" onClick={handleDeleteThread}>Delete</PButtonPure>
                                 )}
                                 {isEditorOrAdmin && (
@@ -449,7 +484,7 @@ export default function ForumThreadPage() {
                             ) : (
                                 <>
                                     <div className="flex items-center justify-between gap-2">
-                                        <AuthorLine profile={reply.profiles} dateString={reply.created_at} />
+                                        <AuthorLine profile={reply.profiles} dateString={reply.created_at} editedAt={reply.edited_at} />
                                         <div className="flex items-center gap-2 shrink-0">
                                             <ThanksButton
                                                 contentType="forum_reply"
