@@ -12,7 +12,7 @@ import { assignSetlistDisplayNumbers } from '../utils/setlist';
 import { useAuth } from '../contexts/AuthContext';
 import { useAvatarNudge } from '../contexts/AvatarNudgeContext';
 import CommentsSection from '../components/CommentsSection';
-// import ForumDiscussionBar from '../components/ForumDiscussionBar'; // hidden for now, see usage below
+import ForumDiscussionBar from '../components/ForumDiscussionBar';
 import WhoWasThereSection from '../components/WhoWasThereSection';
 import PhotosSection from '../components/PhotosSection';
 import PostersSection from '../components/PostersSection';
@@ -1161,8 +1161,7 @@ export default function ShowDetailPage() {
                 </div>
             )}
 
-            {/* Forum discussion bar hidden for now (functionality stays live, just not linked) — uncomment to re-enable. */}
-            {/* <ForumDiscussionBar showId={show.id} /> */}
+            <ForumDiscussionBar showId={show.id} />
 
             <CommentsSection showId={show.id} thanksRows={thanksRows} onThanksChanged={loadThanks} />
 

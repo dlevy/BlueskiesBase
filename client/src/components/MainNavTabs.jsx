@@ -21,8 +21,7 @@ const TABS = [
     { id: 'myshows', label: 'My Shows', to: '/?tab=myshows' },
     { id: 'posters', label: 'Posters', to: '/posters' },
     { id: 'photos', label: 'Photos', to: '/photos' },
-    // Forum tab hidden for now (functionality stays live at /forum, just not linked) — uncomment to re-enable.
-    // { id: 'forum', label: 'Forum', to: '/forum' },
+    { id: 'forum', label: 'Forum', to: '/forum' },
     { id: 'members', label: 'Members', to: '/members' },
 ];
 
