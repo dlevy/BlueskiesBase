@@ -389,67 +389,17 @@ export default function ForumThreadPage() {
                     </div>
                 ) : (
                     <>
-                        <div className="flex flex-wrap items-start justify-between gap-3">
-                            <div className="min-w-0">
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                    {thread.is_pinned && (
-                                        <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">Pinned</span>
-                                    )}
-                                    {thread.is_locked && (
-                                        <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-white/10 text-white/60 border border-white/15">Locked</span>
-                                    )}
-                                    <PHeading size="large" tag="h1">{thread.title}</PHeading>
-                                </div>
-                                <AuthorLine profile={thread.profiles} dateString={thread.created_at} editedAt={thread.edited_at} />
+                        <div className="min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                                {thread.is_pinned && (
+                                    <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">Pinned</span>
+                                )}
+                                {thread.is_locked && (
+                                    <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-white/10 text-white/60 border border-white/15">Locked</span>
+                                )}
+                                <PHeading size="large" tag="h1">{thread.title}</PHeading>
                             </div>
-                            <div className="flex items-center gap-2 shrink-0">
-                                <ThanksButton
-                                    contentType="forum_thread"
-                                    contentId={thread.id}
-                                    count={threadThanks.length}
-                                    thankedByMe={!!user && threadThanks.some(t => t.thankedBy === user.id)}
-                                    thankedByNames={threadThanks.map(t => t.thankedByName)}
-                                    isOwnContent={isMine}
-                                    onToggled={loadThanks}
-                                />
-                                {user && (
-                                    <PButtonPure size="x-small" icon="bell" disabled={subscribing} onClick={handleToggleSubscription}>
-                                        {subscribed ? 'Unsubscribe' : 'Subscribe'}
-                                    </PButtonPure>
-                                )}
-                                {user && !thread.is_locked && (
-                                    <PButtonPure size="x-small" icon="chat" hideLabel title="Quote this post" onClick={() => handleQuote(thread.body, thread.profiles?.username || 'someone')}>
-                                        Quote
-                                    </PButtonPure>
-                                )}
-                                {isMine && (
-                                    <PButtonPure size="x-small" icon="edit" onClick={() => { setEditTitle(thread.title); setEditBody(thread.body); setEditingThread(true); }}>
-                                        Edit
-                                    </PButtonPure>
-                                )}
-                                {((isMine && replies.length === 0) || isEditorOrAdmin) && (
-                                    <PButtonPure size="x-small" icon="delete" onClick={handleDeleteThread}>Delete</PButtonPure>
-                                )}
-                                {isEditorOrAdmin && (
-                                    <PButtonPure size="x-small" icon={thread.is_pinned ? 'minus' : 'plus'} onClick={() => handleModerate({ is_pinned: !thread.is_pinned })}>
-                                        {thread.is_pinned ? 'Unpin' : 'Pin'}
-                                    </PButtonPure>
-                                )}
-                                {isEditorOrAdmin && (
-                                    <PButtonPure size="x-small" icon={thread.is_locked ? 'lock-open' : 'lock'} onClick={() => handleModerate({ is_locked: !thread.is_locked })}>
-                                        {thread.is_locked ? 'Unlock' : 'Lock'}
-                                    </PButtonPure>
-                                )}
-                                {user && !isMine && (
-                                    reportedKeys.has('thread') ? (
-                                        <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>Reported</PText>
-                                    ) : (
-                                        <PButtonPure size="x-small" icon="warning" hideLabel title="Report this thread" onClick={() => setReportingKey(reportingKey === 'thread' ? null : 'thread')}>
-                                            Report
-                                        </PButtonPure>
-                                    )
-                                )}
-                            </div>
+                            <AuthorLine profile={thread.profiles} dateString={thread.created_at} editedAt={thread.edited_at} />
                         </div>
                         <PostBody text={thread.body} usernameSet={usernameSet} />
                         {reportingKey === 'thread' && (
@@ -460,6 +410,54 @@ export default function ForumThreadPage() {
                                 onSubmit={(reason, note) => handleSubmitReport('thread', reason, note)}
                             />
                         )}
+                        <div className="flex items-center justify-end gap-2 flex-wrap border-t border-white/5 pt-3">
+                            <ThanksButton
+                                contentType="forum_thread"
+                                contentId={thread.id}
+                                count={threadThanks.length}
+                                thankedByMe={!!user && threadThanks.some(t => t.thankedBy === user.id)}
+                                thankedByNames={threadThanks.map(t => t.thankedByName)}
+                                isOwnContent={isMine}
+                                onToggled={loadThanks}
+                            />
+                            {user && (
+                                <PButtonPure size="x-small" icon="bell" disabled={subscribing} onClick={handleToggleSubscription}>
+                                    {subscribed ? 'Unsubscribe' : 'Subscribe'}
+                                </PButtonPure>
+                            )}
+                            {user && !thread.is_locked && (
+                                <PButtonPure size="x-small" icon="chat" hideLabel title="Quote this post" onClick={() => handleQuote(thread.body, thread.profiles?.username || 'someone')}>
+                                    Quote
+                                </PButtonPure>
+                            )}
+                            {isMine && (
+                                <PButtonPure size="x-small" icon="edit" onClick={() => { setEditTitle(thread.title); setEditBody(thread.body); setEditingThread(true); }}>
+                                    Edit
+                                </PButtonPure>
+                            )}
+                            {((isMine && replies.length === 0) || isEditorOrAdmin) && (
+                                <PButtonPure size="x-small" icon="delete" onClick={handleDeleteThread}>Delete</PButtonPure>
+                            )}
+                            {isEditorOrAdmin && (
+                                <PButtonPure size="x-small" icon={thread.is_pinned ? 'minus' : 'plus'} onClick={() => handleModerate({ is_pinned: !thread.is_pinned })}>
+                                    {thread.is_pinned ? 'Unpin' : 'Pin'}
+                                </PButtonPure>
+                            )}
+                            {isEditorOrAdmin && (
+                                <PButtonPure size="x-small" icon={thread.is_locked ? 'lock-open' : 'lock'} onClick={() => handleModerate({ is_locked: !thread.is_locked })}>
+                                    {thread.is_locked ? 'Unlock' : 'Lock'}
+                                </PButtonPure>
+                            )}
+                            {user && !isMine && (
+                                reportedKeys.has('thread') ? (
+                                    <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>Reported</PText>
+                                ) : (
+                                    <PButtonPure size="x-small" icon="warning" hideLabel title="Report this thread" onClick={() => setReportingKey(reportingKey === 'thread' ? null : 'thread')}>
+                                        Report
+                                    </PButtonPure>
+                                )
+                            )}
+                        </div>
                     </>
                 )}
             </div>
@@ -483,44 +481,7 @@ export default function ForumThreadPage() {
                                 </div>
                             ) : (
                                 <>
-                                    <div className="flex items-center justify-between gap-2">
-                                        <AuthorLine profile={reply.profiles} dateString={reply.created_at} editedAt={reply.edited_at} />
-                                        <div className="flex items-center gap-2 shrink-0">
-                                            <ThanksButton
-                                                contentType="forum_reply"
-                                                contentId={reply.id}
-                                                count={replyThanks.length}
-                                                thankedByMe={!!user && replyThanks.some(t => t.thankedBy === user.id)}
-                                                thankedByNames={replyThanks.map(t => t.thankedByName)}
-                                                isOwnContent={replyIsMine}
-                                                onToggled={loadThanks}
-                                            />
-                                            {user && !thread.is_locked && (
-                                                <PButtonPure size="x-small" icon="chat" hideLabel title="Quote this reply" onClick={() => handleQuote(reply.body, reply.profiles?.username || 'someone')}>
-                                                    Quote
-                                                </PButtonPure>
-                                            )}
-                                            {replyIsMine && (
-                                                <PButtonPure size="x-small" icon="edit" hideLabel title="Edit" onClick={() => { setEditingReplyId(reply.id); setEditReplyBody(reply.body); }}>
-                                                    Edit
-                                                </PButtonPure>
-                                            )}
-                                            {(replyIsMine || isEditorOrAdmin) && (
-                                                <PButtonPure size="x-small" icon="delete" hideLabel title="Delete" onClick={() => handleDeleteReply(reply.id)}>
-                                                    Delete
-                                                </PButtonPure>
-                                            )}
-                                            {user && !replyIsMine && (
-                                                reportedKeys.has(reply.id) ? (
-                                                    <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>Reported</PText>
-                                                ) : (
-                                                    <PButtonPure size="x-small" icon="warning" hideLabel title="Report this reply" onClick={() => setReportingKey(reportingKey === reply.id ? null : reply.id)}>
-                                                        Report
-                                                    </PButtonPure>
-                                                )
-                                            )}
-                                        </div>
-                                    </div>
+                                    <AuthorLine profile={reply.profiles} dateString={reply.created_at} editedAt={reply.edited_at} />
                                     <PostBody text={reply.body} usernameSet={usernameSet} />
                                     {reportingKey === reply.id && (
                                         <ReportPanel
@@ -530,6 +491,41 @@ export default function ForumThreadPage() {
                                             onSubmit={(reason, note) => handleSubmitReport(reply.id, reason, note)}
                                         />
                                     )}
+                                    <div className="flex items-center justify-end gap-2 flex-wrap border-t border-white/5 pt-2">
+                                        <ThanksButton
+                                            contentType="forum_reply"
+                                            contentId={reply.id}
+                                            count={replyThanks.length}
+                                            thankedByMe={!!user && replyThanks.some(t => t.thankedBy === user.id)}
+                                            thankedByNames={replyThanks.map(t => t.thankedByName)}
+                                            isOwnContent={replyIsMine}
+                                            onToggled={loadThanks}
+                                        />
+                                        {user && !thread.is_locked && (
+                                            <PButtonPure size="x-small" icon="chat" hideLabel title="Quote this reply" onClick={() => handleQuote(reply.body, reply.profiles?.username || 'someone')}>
+                                                Quote
+                                            </PButtonPure>
+                                        )}
+                                        {replyIsMine && (
+                                            <PButtonPure size="x-small" icon="edit" hideLabel title="Edit" onClick={() => { setEditingReplyId(reply.id); setEditReplyBody(reply.body); }}>
+                                                Edit
+                                            </PButtonPure>
+                                        )}
+                                        {(replyIsMine || isEditorOrAdmin) && (
+                                            <PButtonPure size="x-small" icon="delete" hideLabel title="Delete" onClick={() => handleDeleteReply(reply.id)}>
+                                                Delete
+                                            </PButtonPure>
+                                        )}
+                                        {user && !replyIsMine && (
+                                            reportedKeys.has(reply.id) ? (
+                                                <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>Reported</PText>
+                                            ) : (
+                                                <PButtonPure size="x-small" icon="warning" hideLabel title="Report this reply" onClick={() => setReportingKey(reportingKey === reply.id ? null : reply.id)}>
+                                                    Report
+                                                </PButtonPure>
+                                            )
+                                        )}
+                                    </div>
                                 </>
                             )}
                         </div>
