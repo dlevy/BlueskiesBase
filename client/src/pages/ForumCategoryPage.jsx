@@ -6,8 +6,9 @@ import { resolveCategoryBySlug, buildCategoryPath, buildThreadPath } from '../ut
 import { useAuth } from '../contexts/AuthContext';
 import MainNavTabs from '../components/MainNavTabs';
 import SEO from '../components/SEO';
-import MentionTextarea from '../components/MentionTextarea';
+import ForumPostEditor from '../components/ForumPostEditor';
 import ForumThreadRow from '../components/ForumThreadRow';
+import ForumSearchBox from '../components/ForumSearchBox';
 
 const inputClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-transparent placeholder:text-gray-500";
 const textareaClass = inputClass + " resize-none";
@@ -239,6 +240,8 @@ export default function ForumCategoryPage() {
                 )}
             </div>
 
+            <ForumSearchBox categoryId={category.id || 'other'} placeholder={`Search ${category.name}…`} />
+
             {showNewThreadForm && isShowDiscussion && (
                 <ShowDiscussionPicker
                     onStarted={(threadId) => navigate(buildThreadPath(threadId))}
@@ -258,7 +261,7 @@ export default function ForumCategoryPage() {
                         maxLength={200}
                         className={inputClass}
                     />
-                    <MentionTextarea
+                    <ForumPostEditor
                         value={newBody}
                         onChange={setNewBody}
                         members={members}

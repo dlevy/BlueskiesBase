@@ -363,13 +363,16 @@ router.get('/threads', async (req, res) => {
 });
 
 /**
- * GET /api/forum/search?q=&limit=
+ * GET /api/forum/search?q=&limit=&category=
  * Finds threads by title, thread body, or any reply's body underneath them
  * — so a buried reply's content is findable too. Same fetch-all-then-
  * filter-in-memory posture as GET /shows-without-discussion (small forum,
  * simplicity over scalability; no full-text search/tsvector exists anywhere
  * in this codebase). `q` is required — this isn't a browse endpoint, that's
- * what GET /threads is for. limit defaults 20, capped 50.
+ * what GET /threads is for. limit defaults 20, capped 50. `category`
+ * optionally scopes results to one category ('other' for uncategorized,
+ * matching GET /threads's convention) — used when searching from within a
+ * category page rather than the forum-wide search on the main forum page.
  *
  * Each result carries matched_in: 'title' | 'body' | 'reply' so the client
  * can show *why* it matched. When matched_in is 'reply', matching_reply is
@@ -381,6 +384,7 @@ router.get('/search', async (req, res) => {
     try {
         const q = (req.query.q || '').trim().toLowerCase();
         const limit = Math.min(parseInt(req.query.limit, 10) || 20, 50);
+        const { category } = req.query;
         if (!q) return res.json({ results: [] });
 
         async function fetchAll(table, select) {
@@ -409,8 +413,14 @@ router.get('/search', async (req, res) => {
         const replyCounts = {};
         replies.forEach(r => { replyCounts[r.thread_id] = (replyCounts[r.thread_id] || 0) + 1; });
 
+        const scopedThreads = category === 'other'
+            ? threads.filter(t => !t.category_id)
+            : category
+                ? threads.filter(t => t.category_id === category)
+                : threads;
+
         const results = [];
-        for (const t of threads) {
+        for (const t of scopedThreads) {
             const titleMatch = t.title.toLowerCase().includes(q);
             const bodyMatch = t.body.toLowerCase().includes(q);
             const matchingReply = matchingReplyByThread.get(t.id);
@@ -514,6 +524,52 @@ router.get('/shows-without-discussion', async (req, res) => {
         res.json({ shows: candidates.slice(0, limit) });
     } catch (error) {
         console.error('Error in GET /api/forum/shows-without-discussion:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * GET /api/forum/shows-search?q=&limit=
+ * Same shape and matching rules as GET /shows-without-discussion, but over
+ * every show rather than only ones lacking a discussion — backs the compose
+ * toolbar's "insert a setlist link / insert a setlist" show picker, which
+ * needs to find any show, discussed or not.
+ */
+router.get('/shows-search', async (req, res) => {
+    try {
+        const q = (req.query.q || '').trim().toLowerCase();
+        const limit = Math.min(parseInt(req.query.limit, 10) || 20, 50);
+
+        let shows = [];
+        for (let rangeStart = 0; ; ) {
+            const { data: page, error } = await supabase
+                .from('shows')
+                .select('id, show_date, artist_name, venues ( name, city, state_country )')
+                .order('show_date', { ascending: false })
+                .order('day_order', { ascending: false })
+                .range(rangeStart, rangeStart + 999);
+            if (error) {
+                console.error('Error fetching shows for compose-toolbar picker:', error);
+                return res.status(500).json({ error: 'Failed to fetch shows' });
+            }
+            shows = shows.concat(page || []);
+            if (!page || page.length < 1000) break;
+            rangeStart += 1000;
+        }
+
+        let candidates = shows;
+        if (q) {
+            candidates = candidates.filter(s =>
+                s.artist_name.toLowerCase().includes(q) ||
+                s.venues?.name?.toLowerCase().includes(q) ||
+                s.venues?.city?.toLowerCase().includes(q) ||
+                s.show_date.includes(q)
+            );
+        }
+
+        res.json({ shows: candidates.slice(0, limit) });
+    } catch (error) {
+        console.error('Error in GET /api/forum/shows-search:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });

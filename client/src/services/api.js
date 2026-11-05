@@ -2200,9 +2200,12 @@ export const deleteForumCategory = async (categoryId) => {
  * Threads in a category — pass 'other' for threads whose category was
  * deleted. Public, no auth required.
  */
+// categoryId omitted fetches every thread across all categories, unfiltered.
 export const getForumThreads = async (categoryId) => {
-    const params = new URLSearchParams({ category: categoryId });
-    const response = await fetch(`${API_BASE_URL}/api/forum/threads?${params}`);
+    const url = categoryId === undefined
+        ? `${API_BASE_URL}/api/forum/threads`
+        : `${API_BASE_URL}/api/forum/threads?${new URLSearchParams({ category: categoryId })}`;
+    const response = await fetch(url);
     if (!response.ok) throw new Error('Failed to fetch forum threads');
     return response.json();
 };
@@ -2210,11 +2213,13 @@ export const getForumThreads = async (categoryId) => {
 /**
  * Forum-wide search across thread titles, thread bodies, and reply bodies.
  * Public, no auth required. Each result's matched_in is 'title' | 'body' |
- * 'reply'; when 'reply', matching_reply is included.
+ * 'reply'; when 'reply', matching_reply is included. categoryId optionally
+ * scopes results to one category ('other' for uncategorized).
  */
-export const searchForumThreads = async (query, limit) => {
+export const searchForumThreads = async (query, limit, categoryId) => {
     const params = new URLSearchParams({ q: query });
     if (limit) params.set('limit', limit);
+    if (categoryId !== undefined) params.set('category', categoryId);
     const response = await fetch(`${API_BASE_URL}/api/forum/search?${params}`);
     if (!response.ok) throw new Error('Failed to search forum');
     return response.json();
@@ -2257,6 +2262,16 @@ export const getShowsWithoutDiscussion = async (query = '') => {
     const params = new URLSearchParams();
     if (query) params.set('q', query);
     const response = await fetch(`${API_BASE_URL}/api/forum/shows-without-discussion?${params}`);
+    if (!response.ok) throw new Error('Failed to fetch shows');
+    return response.json();
+};
+
+// Backs the compose toolbar's show picker (insert a setlist link / a whole
+// setlist) — unlike getShowsWithoutDiscussion, this searches every show.
+export const searchShowsForForum = async (query = '') => {
+    const params = new URLSearchParams();
+    if (query) params.set('q', query);
+    const response = await fetch(`${API_BASE_URL}/api/forum/shows-search?${params}`);
     if (!response.ok) throw new Error('Failed to fetch shows');
     return response.json();
 };

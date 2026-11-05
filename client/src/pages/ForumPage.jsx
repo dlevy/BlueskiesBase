@@ -1,18 +1,20 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { PSpinner, PText, PHeading } from '@porsche-design-system/components-react';
-import { getForumCategories, searchForumThreads } from '../services/api';
+import { getForumCategories, getForumThreads, searchForumThreads } from '../services/api';
 import { buildCategoryPath } from '../utils/forumSlug';
 import MainNavTabs from '../components/MainNavTabs';
 import SEO from '../components/SEO';
 import ForumThreadRow from '../components/ForumThreadRow';
 
 const inputClass = "flex-1 min-w-[200px] max-w-md rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-transparent placeholder:text-gray-500";
+const PREVIEW_COUNT = 2;
 
 export default function ForumPage() {
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [allThreads, setAllThreads] = useState([]);
 
     const [query, setQuery] = useState('');
     const [results, setResults] = useState([]);
@@ -31,6 +33,26 @@ export default function ForumPage() {
             .finally(() => { if (!cancelled) setLoading(false); });
         return () => { cancelled = true; };
     }, []);
+
+    useEffect(() => {
+        let cancelled = false;
+        // Unfiltered fetch — already sorted pinned-first then most-recently-active
+        // by the server, so grouping it client-side gives each category's
+        // preview rows in the right order for free.
+        getForumThreads()
+            .then(data => { if (!cancelled) setAllThreads(data.threads || []); })
+            .catch(err => console.error('[ForumPage] Error loading threads for preview:', err));
+        return () => { cancelled = true; };
+    }, []);
+
+    const previewsByCategory = useMemo(() => {
+        const grouped = {};
+        for (const thread of allThreads) {
+            const key = thread.category_id || 'other';
+            (grouped[key] ||= []).push(thread);
+        }
+        return grouped;
+    }, [allThreads]);
 
     const runSearch = useCallback((q) => {
         if (!q.trim()) { setResults([]); setSearching(false); return; }
@@ -120,24 +142,41 @@ export default function ForumPage() {
                     )}
 
                     {!loading && !error && categories.length > 0 && (
-                        <div className="space-y-2">
-                            {categories.map(category => (
-                                <Link
-                                    key={category.id || 'other'}
-                                    to={buildCategoryPath(category)}
-                                    className="flex items-center justify-between gap-3 rounded-xl border border-white/5 bg-white/5 hover:border-amber-500/20 hover:bg-white/[0.07] hover:-translate-y-px hover:shadow-lg hover:shadow-black/20 transition-all duration-150 p-4"
-                                >
-                                    <div className="min-w-0">
-                                        <PHeading size="sm" tag="h2">{category.name}</PHeading>
+                        <div className="space-y-3">
+                            {categories.map(category => {
+                                const categoryKey = category.id || 'other';
+                                const categoryPath = buildCategoryPath(category);
+                                const preview = (previewsByCategory[categoryKey] || []).slice(0, PREVIEW_COUNT);
+                                return (
+                                    <div key={categoryKey} className="rounded-xl border border-white/5 bg-white/5 p-4">
+                                        <div className="flex items-start justify-between gap-3">
+                                            <Link to={categoryPath} className="min-w-0 hover:underline">
+                                                <PHeading size="sm" tag="h2">{category.name}</PHeading>
+                                            </Link>
+                                            <span className="shrink-0 text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>
+                                                {category.thread_count} thread{category.thread_count !== 1 ? 's' : ''}
+                                            </span>
+                                        </div>
                                         {category.description && (
                                             <PText size="xs" color="contrast-medium" className="block mt-0.5">{category.description}</PText>
                                         )}
+                                        {preview.length > 0 && (
+                                            <div className="mt-2 pt-1 border-t border-white/5 divide-y divide-white/5">
+                                                {preview.map(thread => (
+                                                    <ForumThreadRow key={thread.id} thread={thread} compact />
+                                                ))}
+                                            </div>
+                                        )}
+                                        <Link
+                                            to={categoryPath}
+                                            className="inline-block mt-2 text-xs hover:underline"
+                                            style={{ color: 'var(--p-color-info)' }}
+                                        >
+                                            {category.thread_count > 0 ? 'View all →' : 'Be the first to post →'}
+                                        </Link>
                                     </div>
-                                    <span className="shrink-0 text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>
-                                        {category.thread_count} thread{category.thread_count !== 1 ? 's' : ''}
-                                    </span>
-                                </Link>
-                            ))}
+                                );
+                            })}
                         </div>
                     )}
                 </>

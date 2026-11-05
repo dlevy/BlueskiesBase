@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, forwardRef } from 'react';
 
 // Finds the @token currently being typed, ending at the cursor — must start
 // at a word boundary (start of text, or preceded by whitespace) and contain
@@ -20,13 +20,23 @@ function detectMention(text, cursor) {
  * measuring caret position, same placement style QuickAddSong.jsx already
  * uses for its own dropdown), filtered against both username and display
  * name as you type, matching up to 6 members.
+ *
+ * Forwards its ref to the underlying <textarea> — ForumPostEditor's toolbar
+ * needs the real DOM node to read/set selection when wrapping text in
+ * formatting markers or inserting a setlist link. Callers that don't pass a
+ * ref (CommentsSection's plain usage) are unaffected.
  */
-export default function MentionTextarea({ value, onChange, members = [], placeholder, rows = 4, className }) {
+const MentionTextarea = forwardRef(function MentionTextarea({ value, onChange, members = [], placeholder, rows = 4, className }, forwardedRef) {
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState('');
     const [highlighted, setHighlighted] = useState(0);
     const [mentionStart, setMentionStart] = useState(null);
-    const textareaRef = useRef(null);
+    const innerRef = useRef(null);
+    const setRefs = (node) => {
+        innerRef.current = node;
+        if (typeof forwardedRef === 'function') forwardedRef(node);
+        else if (forwardedRef) forwardedRef.current = node;
+    };
 
     const q = query.toLowerCase();
     const matches = open && q
@@ -52,7 +62,7 @@ export default function MentionTextarea({ value, onChange, members = [], placeho
     };
 
     const selectMember = (member) => {
-        const textarea = textareaRef.current;
+        const textarea = innerRef.current;
         const cursor = textarea ? textarea.selectionStart : value.length;
         const before = value.slice(0, mentionStart);
         const after = value.slice(cursor);
@@ -88,7 +98,7 @@ export default function MentionTextarea({ value, onChange, members = [], placeho
     return (
         <div className="relative">
             <textarea
-                ref={textareaRef}
+                ref={setRefs}
                 value={value}
                 onChange={handleChange}
                 onKeyDown={handleKeyDown}
@@ -123,4 +133,6 @@ export default function MentionTextarea({ value, onChange, members = [], placeho
             )}
         </div>
     );
-}
+});
+
+export default MentionTextarea;

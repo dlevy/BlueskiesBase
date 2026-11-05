@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo, Fragment } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { PSpinner, PText, PHeading, PInlineNotification, PButtonPure, PDivider } from '@porsche-design-system/components-react';
 import {
@@ -11,8 +11,9 @@ import { buildShowPath } from '../utils/showSlug';
 import { useAuth } from '../contexts/AuthContext';
 import MainNavTabs from '../components/MainNavTabs';
 import SEO from '../components/SEO';
-import MentionTextarea from '../components/MentionTextarea';
+import ForumPostEditor from '../components/ForumPostEditor';
 import ThanksButton from '../components/ThanksButton';
+import { renderForumBody } from '../utils/forumMarkup';
 
 const inputClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-transparent placeholder:text-gray-500";
 const textareaClass = inputClass + " resize-none";
@@ -22,23 +23,6 @@ const REPORT_REASONS = ['spam', 'inappropriate'];
 
 function formatDateTime(dateString) {
     return new Date(dateString).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
-}
-
-// Same @handle linkification as CommentsSection.jsx.
-function renderWithMentions(text, usernameSet) {
-    if (!usernameSet || usernameSet.size === 0) return text;
-    const parts = text.split(/(@[a-zA-Z0-9_]+)/g);
-    return parts.map((part, i) => {
-        const m = part.match(/^@([a-zA-Z0-9_]+)$/);
-        if (m && usernameSet.has(m[1].toLowerCase())) {
-            return (
-                <Link key={i} to={`/profile/${m[1].toLowerCase()}`} className="hover:underline" style={{ color: 'var(--p-color-primary)' }}>
-                    {part}
-                </Link>
-            );
-        }
-        return <Fragment key={i}>{part}</Fragment>;
-    });
 }
 
 function AuthorLine({ profile, dateString, editedAt }) {
@@ -75,17 +59,17 @@ function buildQuote(text, username) {
 function PostBody({ text, usernameSet }) {
     const { quote, rest } = splitLeadingQuote(text);
     return (
-        <>
+        <div className="space-y-2">
             {quote && (
                 <blockquote
-                    className="border-l-2 pl-3 italic text-sm mb-2"
+                    className="border-l-2 pl-3 italic space-y-2"
                     style={{ borderColor: 'rgba(245,158,11,0.3)', color: 'var(--p-color-contrast-medium)' }}
                 >
-                    {renderWithMentions(quote, usernameSet)}
+                    {renderForumBody(quote, usernameSet)}
                 </blockquote>
             )}
-            <PText size="sm" className="whitespace-pre-wrap">{renderWithMentions(rest, usernameSet)}</PText>
-        </>
+            {renderForumBody(rest, usernameSet)}
+        </div>
     );
 }
 
@@ -160,6 +144,7 @@ export default function ForumThreadPage() {
     const [thanksRows, setThanksRows] = useState([]);
     const [subscribed, setSubscribed] = useState(false);
     const [subscribing, setSubscribing] = useState(false);
+    const [replyQuery, setReplyQuery] = useState('');
     const replySectionRef = useRef(null);
 
     useEffect(() => {
@@ -186,6 +171,7 @@ export default function ForumThreadPage() {
     }, [threadId]);
 
     useEffect(() => { load(); }, [load]);
+    useEffect(() => { setReplyQuery(''); }, [threadId]);
 
     const loadThanks = useCallback(async () => {
         try {
@@ -351,6 +337,13 @@ export default function ForumThreadPage() {
     const bodyPreview = thread.body.length > 160 ? `${thread.body.slice(0, 160)}…` : thread.body;
     const threadThanks = thanksRows.filter(t => t.contentType === 'forum_thread' && t.contentId === thread.id);
 
+    const trimmedReplyQuery = replyQuery.trim().toLowerCase();
+    const isFilteringReplies = trimmedReplyQuery.length > 0;
+    const visibleReplies = isFilteringReplies
+        ? replies.filter(r => r.body.toLowerCase().includes(trimmedReplyQuery))
+        : replies;
+    const opMatches = isFilteringReplies && (thread.title.toLowerCase().includes(trimmedReplyQuery) || thread.body.toLowerCase().includes(trimmedReplyQuery));
+
     return (
         <div className="px-4 pt-2 pb-4 md:pt-3 md:pb-6 max-w-4xl mx-auto space-y-6">
             <SEO title={thread.title} description={bodyPreview} path={`/forum/thread/${thread.id}`} />
@@ -381,7 +374,7 @@ export default function ForumThreadPage() {
                 {editingThread ? (
                     <div className="space-y-3">
                         <input type="text" value={editTitle} onChange={e => setEditTitle(e.target.value)} maxLength={200} className={inputClass} />
-                        <MentionTextarea value={editBody} onChange={setEditBody} members={members} rows={6} className={textareaClass} />
+                        <ForumPostEditor value={editBody} onChange={setEditBody} members={members} rows={6} className={textareaClass} />
                         <div className="flex gap-2">
                             <button className={btnPrimary} disabled={saving} onClick={handleSaveThreadEdit}>{saving ? 'Saving…' : 'Save'}</button>
                             <button className={btnSecondary} style={{ color: 'var(--p-color-contrast-medium)' }} disabled={saving} onClick={() => setEditingThread(false)}>Cancel</button>
@@ -410,7 +403,7 @@ export default function ForumThreadPage() {
                                 onSubmit={(reason, note) => handleSubmitReport('thread', reason, note)}
                             />
                         )}
-                        <div className="flex items-center justify-end gap-2 flex-wrap border-t border-white/5 pt-3">
+                        <div className="flex items-center justify-between gap-2 flex-wrap border-t border-white/5 pt-3">
                             <ThanksButton
                                 contentType="forum_thread"
                                 contentId={thread.id}
@@ -420,60 +413,80 @@ export default function ForumThreadPage() {
                                 isOwnContent={isMine}
                                 onToggled={loadThanks}
                             />
-                            {user && (
-                                <PButtonPure size="x-small" icon="bell" disabled={subscribing} onClick={handleToggleSubscription}>
-                                    {subscribed ? 'Unsubscribe' : 'Subscribe'}
-                                </PButtonPure>
-                            )}
-                            {user && !thread.is_locked && (
-                                <PButtonPure size="x-small" icon="chat" hideLabel title="Quote this post" onClick={() => handleQuote(thread.body, thread.profiles?.username || 'someone')}>
-                                    Quote
-                                </PButtonPure>
-                            )}
-                            {isMine && (
-                                <PButtonPure size="x-small" icon="edit" onClick={() => { setEditTitle(thread.title); setEditBody(thread.body); setEditingThread(true); }}>
-                                    Edit
-                                </PButtonPure>
-                            )}
-                            {((isMine && replies.length === 0) || isEditorOrAdmin) && (
-                                <PButtonPure size="x-small" icon="delete" onClick={handleDeleteThread}>Delete</PButtonPure>
-                            )}
-                            {isEditorOrAdmin && (
-                                <PButtonPure size="x-small" icon={thread.is_pinned ? 'minus' : 'plus'} onClick={() => handleModerate({ is_pinned: !thread.is_pinned })}>
-                                    {thread.is_pinned ? 'Unpin' : 'Pin'}
-                                </PButtonPure>
-                            )}
-                            {isEditorOrAdmin && (
-                                <PButtonPure size="x-small" icon={thread.is_locked ? 'lock-open' : 'lock'} onClick={() => handleModerate({ is_locked: !thread.is_locked })}>
-                                    {thread.is_locked ? 'Unlock' : 'Lock'}
-                                </PButtonPure>
-                            )}
-                            {user && !isMine && (
-                                reportedKeys.has('thread') ? (
-                                    <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>Reported</PText>
-                                ) : (
-                                    <PButtonPure size="x-small" icon="warning" hideLabel title="Report this thread" onClick={() => setReportingKey(reportingKey === 'thread' ? null : 'thread')}>
-                                        Report
+                            <div className="flex items-center gap-2 flex-wrap">
+                                {user && (
+                                    <PButtonPure size="x-small" icon="bell" disabled={subscribing} onClick={handleToggleSubscription}>
+                                        {subscribed ? 'Unsubscribe' : 'Subscribe'}
                                     </PButtonPure>
-                                )
-                            )}
+                                )}
+                                {user && !thread.is_locked && (
+                                    <PButtonPure size="x-small" icon="chat" onClick={() => handleQuote(thread.body, thread.profiles?.username || 'someone')}>
+                                        Quote
+                                    </PButtonPure>
+                                )}
+                                {isMine && (
+                                    <PButtonPure size="x-small" icon="edit" onClick={() => { setEditTitle(thread.title); setEditBody(thread.body); setEditingThread(true); }}>
+                                        Edit
+                                    </PButtonPure>
+                                )}
+                                {((isMine && replies.length === 0) || isEditorOrAdmin) && (
+                                    <PButtonPure size="x-small" icon="delete" onClick={handleDeleteThread}>Delete</PButtonPure>
+                                )}
+                                {isEditorOrAdmin && (
+                                    <PButtonPure size="x-small" icon={thread.is_pinned ? 'minus' : 'plus'} onClick={() => handleModerate({ is_pinned: !thread.is_pinned })}>
+                                        {thread.is_pinned ? 'Unpin' : 'Pin'}
+                                    </PButtonPure>
+                                )}
+                                {isEditorOrAdmin && (
+                                    <PButtonPure size="x-small" icon={thread.is_locked ? 'lock-open' : 'lock'} onClick={() => handleModerate({ is_locked: !thread.is_locked })}>
+                                        {thread.is_locked ? 'Unlock' : 'Lock'}
+                                    </PButtonPure>
+                                )}
+                                {user && !isMine && (
+                                    reportedKeys.has('thread') ? (
+                                        <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>Reported</PText>
+                                    ) : (
+                                        <PButtonPure size="x-small" icon="warning" onClick={() => setReportingKey(reportingKey === 'thread' ? null : 'thread')}>
+                                            Report
+                                        </PButtonPure>
+                                    )
+                                )}
+                            </div>
                         </div>
                     </>
                 )}
             </div>
 
             <div className="space-y-3">
-                <PHeading size="sm" tag="h2">{replies.length} Repl{replies.length !== 1 ? 'ies' : 'y'}</PHeading>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <PHeading size="sm" tag="h2">
+                        {isFilteringReplies
+                            ? `${visibleReplies.length} of ${replies.length} Repl${replies.length !== 1 ? 'ies' : 'y'} matching "${replyQuery.trim()}"`
+                            : `${replies.length} Repl${replies.length !== 1 ? 'ies' : 'y'}`}
+                    </PHeading>
+                    {replies.length > 0 && (
+                        <input
+                            type="text"
+                            value={replyQuery}
+                            onChange={e => setReplyQuery(e.target.value)}
+                            placeholder="Search this thread…"
+                            className="w-full max-w-[220px] rounded-lg border border-white/10 bg-white/5 py-1.5 px-3 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-transparent placeholder:text-gray-500"
+                        />
+                    )}
+                </div>
+                {opMatches && (
+                    <PText size="xs" color="contrast-medium">Also matches the original post above.</PText>
+                )}
                 <PDivider />
 
-                {replies.map(reply => {
+                {visibleReplies.map(reply => {
                     const replyIsMine = !!user && reply.user_id === user.id;
                     const replyThanks = thanksRows.filter(t => t.contentType === 'forum_reply' && t.contentId === reply.id);
                     return (
                         <div key={reply.id} className="rounded-xl border border-white/5 bg-white/5 p-4 space-y-2">
                             {editingReplyId === reply.id ? (
                                 <div className="space-y-2">
-                                    <MentionTextarea value={editReplyBody} onChange={setEditReplyBody} members={members} rows={4} className={textareaClass} />
+                                    <ForumPostEditor value={editReplyBody} onChange={setEditReplyBody} members={members} rows={4} className={textareaClass} />
                                     <div className="flex gap-2">
                                         <button className={btnPrimary} disabled={saving} onClick={() => handleSaveReplyEdit(reply.id)}>{saving ? 'Saving…' : 'Save'}</button>
                                         <button className={btnSecondary} style={{ color: 'var(--p-color-contrast-medium)' }} disabled={saving} onClick={() => setEditingReplyId(null)}>Cancel</button>
@@ -491,7 +504,7 @@ export default function ForumThreadPage() {
                                             onSubmit={(reason, note) => handleSubmitReport(reply.id, reason, note)}
                                         />
                                     )}
-                                    <div className="flex items-center justify-end gap-2 flex-wrap border-t border-white/5 pt-2">
+                                    <div className="flex items-center justify-between gap-2 flex-wrap border-t border-white/5 pt-2">
                                         <ThanksButton
                                             contentType="forum_reply"
                                             contentId={reply.id}
@@ -501,30 +514,32 @@ export default function ForumThreadPage() {
                                             isOwnContent={replyIsMine}
                                             onToggled={loadThanks}
                                         />
-                                        {user && !thread.is_locked && (
-                                            <PButtonPure size="x-small" icon="chat" hideLabel title="Quote this reply" onClick={() => handleQuote(reply.body, reply.profiles?.username || 'someone')}>
-                                                Quote
-                                            </PButtonPure>
-                                        )}
-                                        {replyIsMine && (
-                                            <PButtonPure size="x-small" icon="edit" hideLabel title="Edit" onClick={() => { setEditingReplyId(reply.id); setEditReplyBody(reply.body); }}>
-                                                Edit
-                                            </PButtonPure>
-                                        )}
-                                        {(replyIsMine || isEditorOrAdmin) && (
-                                            <PButtonPure size="x-small" icon="delete" hideLabel title="Delete" onClick={() => handleDeleteReply(reply.id)}>
-                                                Delete
-                                            </PButtonPure>
-                                        )}
-                                        {user && !replyIsMine && (
-                                            reportedKeys.has(reply.id) ? (
-                                                <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>Reported</PText>
-                                            ) : (
-                                                <PButtonPure size="x-small" icon="warning" hideLabel title="Report this reply" onClick={() => setReportingKey(reportingKey === reply.id ? null : reply.id)}>
-                                                    Report
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            {user && !thread.is_locked && (
+                                                <PButtonPure size="x-small" icon="chat" onClick={() => handleQuote(reply.body, reply.profiles?.username || 'someone')}>
+                                                    Quote
                                                 </PButtonPure>
-                                            )
-                                        )}
+                                            )}
+                                            {replyIsMine && (
+                                                <PButtonPure size="x-small" icon="edit" onClick={() => { setEditingReplyId(reply.id); setEditReplyBody(reply.body); }}>
+                                                    Edit
+                                                </PButtonPure>
+                                            )}
+                                            {(replyIsMine || isEditorOrAdmin) && (
+                                                <PButtonPure size="x-small" icon="delete" onClick={() => handleDeleteReply(reply.id)}>
+                                                    Delete
+                                                </PButtonPure>
+                                            )}
+                                            {user && !replyIsMine && (
+                                                reportedKeys.has(reply.id) ? (
+                                                    <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>Reported</PText>
+                                                ) : (
+                                                    <PButtonPure size="x-small" icon="warning" onClick={() => setReportingKey(reportingKey === reply.id ? null : reply.id)}>
+                                                        Report
+                                                    </PButtonPure>
+                                                )
+                                            )}
+                                        </div>
                                     </div>
                                 </>
                             )}
@@ -535,6 +550,9 @@ export default function ForumThreadPage() {
                 {replies.length === 0 && (
                     <PText color="contrast-medium" align="center" className="py-6">No replies yet.</PText>
                 )}
+                {replies.length > 0 && isFilteringReplies && visibleReplies.length === 0 && !opMatches && (
+                    <PText color="contrast-medium" align="center" className="py-6">No replies match "{replyQuery.trim()}".</PText>
+                )}
             </div>
 
             {user ? (
@@ -543,7 +561,7 @@ export default function ForumThreadPage() {
                 ) : (
                     <div ref={replySectionRef} className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 space-y-3">
                         <PHeading size="sm" tag="h2">Reply</PHeading>
-                        <MentionTextarea
+                        <ForumPostEditor
                             value={replyBody}
                             onChange={setReplyBody}
                             members={members}

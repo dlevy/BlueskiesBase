@@ -5,7 +5,7 @@ import { addThanks, removeThanks } from '../services/api';
 
 function HeartIcon({ filled }) {
     return (
-        <svg aria-hidden="true" className="w-[18px] h-[18px] shrink-0" viewBox="0 0 24 24" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={filled ? 0 : 2}>
+        <svg aria-hidden="true" className="w-4 h-4 shrink-0 block" viewBox="0 0 24 24" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={filled ? 0 : 2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 21s-6.716-4.35-9.428-8.272C.814 9.953 1.5 6.5 4.5 5.1 7 3.93 9.5 5 12 8c2.5-3 5-4.07 7.5-2.9 3 1.4 3.686 4.853 1.928 7.628C18.716 16.65 12 21 12 21z" />
         </svg>
     );
@@ -67,7 +67,7 @@ export default function ThanksButton({ contentType, contentId, count, thankedByM
     };
 
     return (
-        <span className="relative inline-block group/thanks">
+        <span className="relative inline-flex items-center group/thanks">
             <button
                 type="button"
                 onClick={interactive ? handleClick : undefined}
@@ -75,13 +75,13 @@ export default function ThanksButton({ contentType, contentId, count, thankedByM
                 aria-pressed={thankedByMe}
                 aria-label={thankedByMe ? 'Thanked' : 'Thanks'}
                 title={!interactive ? namesLabel(thankedByNames) || undefined : undefined}
-                className={`inline-flex items-center gap-1 transition-all disabled:opacity-100 ${
+                className={`inline-flex items-center gap-1 leading-none transition-all disabled:opacity-100 ${
                     interactive ? 'cursor-pointer hover:brightness-110' : 'cursor-default'
                 }`}
                 style={{ color: thankedByMe ? '#f59e0b' : 'var(--p-color-contrast-medium)' }}
             >
                 <HeartIcon filled={thankedByMe} />
-                {count > 0 && <span className="text-xs">{count}</span>}
+                {count > 0 && <span className="text-xs leading-none">{count}</span>}
             </button>
             <NamesTooltip names={thankedByNames} />
         </span>
