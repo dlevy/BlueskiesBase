@@ -6,6 +6,7 @@ import ShowListCard from './ShowListCard';
 
 export default function UpcomingShowsWidget({ onReady }) {
     const [upcoming, setUpcoming] = useState([]);
+    const [onThisDay, setOnThisDay] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -34,7 +35,28 @@ export default function UpcomingShowsWidget({ onReady }) {
                     .order('day_order', { ascending: true })
                     .limit(10);
 
-                if (!error) setUpcoming((data || []).filter(s => !s.is_cancelled).slice(0, 3));
+                const upcomingShows = error ? [] : (data || []).filter(s => !s.is_cancelled).slice(0, 3);
+                setUpcoming(upcomingShows);
+
+                // No upcoming shows to tease — fall back to "On This Day in
+                // History" so the slot isn't just an empty-state message.
+                // Only fetched when actually needed, since most of the time
+                // there IS something upcoming and this query would go unused.
+                if (upcomingShows.length === 0) {
+                    // Explicit date strings for this month/day across past years —
+                    // .like() on a date column fails in PostgreSQL without an
+                    // explicit text cast, so .in() is used instead.
+                    const pastDates = [];
+                    for (let year = 2010; year < yyyy; year++) {
+                        pastDates.push(`${year}-${mm}-${dd}`);
+                    }
+                    const { data: historyData, error: historyError } = await supabase
+                        .from('shows')
+                        .select('id, show_date, artist_name, tour_name, venues(name, city, state_country)')
+                        .in('show_date', pastDates)
+                        .order('show_date', { ascending: false });
+                    if (!historyError) setOnThisDay(historyData || []);
+                }
             } catch (err) {
                 console.error('[UpcomingShowsWidget] Error fetching upcoming shows:', err);
             } finally {
@@ -61,6 +83,45 @@ export default function UpcomingShowsWidget({ onReady }) {
         );
     }
 
+    if (upcoming.length === 0) {
+        const todayLabel = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+        return (
+            <div className="space-y-3">
+                <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-4">
+                    <p className="text-sm text-center" style={{ color: 'var(--p-color-contrast-low)' }}>
+                        No upcoming shows scheduled
+                    </p>
+                </div>
+
+                <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-5">
+                    <div className="flex items-baseline gap-2 mb-4">
+                        <h3 className="font-display font-bold text-base" style={{ color: 'var(--p-color-primary)' }}>
+                            On This Day in History
+                        </h3>
+                        <span className="text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>
+                            {todayLabel}
+                        </span>
+                    </div>
+
+                    {onThisDay.length === 0 ? (
+                        <p className="text-sm py-6 text-center" style={{ color: 'var(--p-color-contrast-low)' }}>
+                            No shows on {todayLabel} in past years
+                        </p>
+                    ) : (
+                        // Fixed height so a day with many past shows scrolls in place
+                        // instead of growing the card — matches the ~3-row height the
+                        // "Upcoming Shows" layout this replaces would have had.
+                        <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                            {onThisDay.map(show => (
+                                <ShowListCard key={show.id} show={show} yearOnly />
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-5">
             <div className="flex items-baseline justify-between gap-2 mb-4">
@@ -76,17 +137,11 @@ export default function UpcomingShowsWidget({ onReady }) {
                 </Link>
             </div>
 
-            {upcoming.length === 0 ? (
-                <p className="text-sm py-6 text-center" style={{ color: 'var(--p-color-contrast-low)' }}>
-                    No upcoming shows scheduled
-                </p>
-            ) : (
-                <div className="space-y-2">
-                    {upcoming.map(show => (
-                        <ShowListCard key={show.id} show={show} />
-                    ))}
-                </div>
-            )}
+            <div className="space-y-2">
+                {upcoming.map(show => (
+                    <ShowListCard key={show.id} show={show} />
+                ))}
+            </div>
         </div>
     );
 }

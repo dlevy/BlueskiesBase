@@ -6,7 +6,10 @@ import { buildShowPath } from '../utils/showSlug';
 // elsewhere that include a setlist preview): the homepage's
 // UpcomingShowsWidget, UpcomingShowsPage, and PastShowsPage all render the
 // same row so they stay visually identical regardless of time direction.
-export default function ShowListCard({ show }) {
+// yearOnly swaps the date badge to just the year — used by the "On This
+// Day in History" list, where every row already shares the same month/day,
+// so the day/month would be redundant and the year is what distinguishes them.
+export default function ShowListCard({ show, yearOnly = false }) {
     const [y, m, d] = show.show_date.split('-');
     const dateObj = new Date(Number(y), Number(m) - 1, Number(d));
     const monthStr = dateObj.toLocaleString('default', { month: 'short' }).toUpperCase();
@@ -19,9 +22,15 @@ export default function ShowListCard({ show }) {
         >
             {/* Date column */}
             <div className="shrink-0 w-12 flex flex-col items-center text-center">
-                <span className="font-display font-bold text-xl leading-none text-amber-400">{dayNum}</span>
-                <span className="text-[9px] uppercase tracking-widest mt-0.5" style={{ color: 'var(--p-color-contrast-medium)' }}>{monthStr}</span>
-                <span className="text-[9px] mt-0.5" style={{ color: 'var(--p-color-contrast-low)' }}>{y}</span>
+                {yearOnly ? (
+                    <span className="font-display font-bold text-lg leading-none text-amber-400">{y}</span>
+                ) : (
+                    <>
+                        <span className="font-display font-bold text-xl leading-none text-amber-400">{dayNum}</span>
+                        <span className="text-[9px] uppercase tracking-widest mt-0.5" style={{ color: 'var(--p-color-contrast-medium)' }}>{monthStr}</span>
+                        <span className="text-[9px] mt-0.5" style={{ color: 'var(--p-color-contrast-low)' }}>{y}</span>
+                    </>
+                )}
             </div>
 
             {/* Show info */}
