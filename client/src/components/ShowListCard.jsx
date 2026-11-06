@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { buildShowPath } from '../utils/showSlug';
+import { formatVenueLocation } from '../utils/geography';
 
 // Shared show row — date badge + venue/tour info — used anywhere a flat,
 // lightweight show list is needed (as opposed to ShowCard components
@@ -9,7 +10,13 @@ import { buildShowPath } from '../utils/showSlug';
 // yearOnly swaps the date badge to just the year — used by the "On This
 // Day in History" list, where every row already shares the same month/day,
 // so the day/month would be redundant and the year is what distinguishes them.
-export default function ShowListCard({ show, yearOnly = false }) {
+// hideCountry drops the country from the location line (city + state only) —
+// opt-in per caller rather than the default, so PastShowsPage/TourPage keep
+// showing the full location unless a caller asks otherwise.
+// inlineVenueName puts the venue name on the same line as the location
+// ("Venue — City, State") instead of its own line above it, matching the
+// one-line style used elsewhere (e.g. MostRecentShowWidget's ShowCard).
+export default function ShowListCard({ show, yearOnly = false, hideCountry = false, inlineVenueName = false }) {
     const [y, m, d] = show.show_date.split('-');
     const dateObj = new Date(Number(y), Number(m) - 1, Number(d));
     const monthStr = dateObj.toLocaleString('default', { month: 'short' }).toUpperCase();
@@ -44,14 +51,27 @@ export default function ShowListCard({ show, yearOnly = false }) {
                     )}
                 </p>
                 {show.venues && (
-                    <>
+                    inlineVenueName ? (
                         <p className="text-xs truncate" style={{ color: 'var(--p-color-contrast-medium)' }}>
                             {show.venues.name}
+                            <span style={{ color: 'var(--p-color-contrast-low)' }}>
+                                {' — '}{hideCountry
+                                    ? [show.venues.city, show.venues.state].filter(Boolean).join(', ')
+                                    : formatVenueLocation(show.venues)}
+                            </span>
                         </p>
-                        <p className="text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>
-                            {show.venues.city}{show.venues.state_country ? `, ${show.venues.state_country}` : ''}
-                        </p>
-                    </>
+                    ) : (
+                        <>
+                            <p className="text-xs truncate" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                                {show.venues.name}
+                            </p>
+                            <p className="text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>
+                                {hideCountry
+                                    ? [show.venues.city, show.venues.state].filter(Boolean).join(', ')
+                                    : formatVenueLocation(show.venues)}
+                            </p>
+                        </>
+                    )
                 )}
                 {show.tour_name && (
                     <p className="text-xs italic mt-0.5 truncate" style={{ color: 'var(--p-color-contrast-low)' }}>

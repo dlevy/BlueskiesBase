@@ -12,7 +12,8 @@ export default function VenueForm({ venue, onClose }) {
     const [formData, setFormData] = useState({
         name: '',
         city: '',
-        state_country: '',
+        state: '',
+        country: '',
         address: '',
     });
     const [loading, setLoading] = useState(false);
@@ -24,7 +25,8 @@ export default function VenueForm({ venue, onClose }) {
             setFormData({
                 name: venue.name || '',
                 city: venue.city || '',
-                state_country: venue.state_country || '',
+                state: venue.state || '',
+                country: venue.country || '',
                 address: venue.address || '',
             });
         }
@@ -40,7 +42,7 @@ export default function VenueForm({ venue, onClose }) {
         setLoading(true);
         setError(null);
         try {
-            const label = [formData.name, [formData.city, formData.state_country].filter(Boolean).join(', ')].filter(Boolean).join(' — ');
+            const label = [formData.name, [formData.city, formData.state, formData.country].filter(Boolean).join(', ')].filter(Boolean).join(' — ');
             if (venue) {
                 await updateVenue(venue.id, formData);
                 trackEvent('venue_updated', label);
@@ -62,7 +64,7 @@ export default function VenueForm({ venue, onClose }) {
         setError(null);
         try {
             await deleteVenue(venue.id);
-            trackEvent('venue_deleted', [venue.name, [venue.city, venue.state_country].filter(Boolean).join(', ')].filter(Boolean).join(' — '));
+            trackEvent('venue_deleted', [venue.name, [venue.city, venue.state, venue.country].filter(Boolean).join(', ')].filter(Boolean).join(' — '));
             onClose();
         } catch (err) {
             console.error('Error deleting venue:', err);
@@ -101,12 +103,21 @@ export default function VenueForm({ venue, onClose }) {
                         required placeholder="e.g., Morrison" className={inputClass} />
                 </div>
 
-                <div>
-                    <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>
-                        State/Country <span style={{ color: 'var(--p-color-error)' }}>*</span>
-                    </label>
-                    <input type="text" name="state_country" value={formData.state_country} onChange={handleChange}
-                        required placeholder="e.g., CO or United States" className={inputClass} />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>
+                            State/Province
+                        </label>
+                        <input type="text" name="state" value={formData.state} onChange={handleChange}
+                            placeholder="e.g., Colorado" className={inputClass} />
+                    </div>
+                    <div>
+                        <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>
+                            Country <span style={{ color: 'var(--p-color-error)' }}>*</span>
+                        </label>
+                        <input type="text" name="country" value={formData.country} onChange={handleChange}
+                            required placeholder="e.g., United States" className={inputClass} />
+                    </div>
                 </div>
 
                 <div>

@@ -37,7 +37,8 @@ function computeFunStats(pastShows, songsSeen) {
         dowCounts[dow]     = (dowCounts[dow]     || 0) + 1;
         yearCounts[y]      = (yearCounts[y]       || 0) + 1;
         cities.add(city);
-        if (show.venues?.state_country) regions.add(show.venues.state_country);
+        const region = [show.venues?.state, show.venues?.country].filter(Boolean).join(', ');
+        if (region) regions.add(region);
     }
 
     const topCity  = Object.entries(cityCounts).sort((a, b) => b[1] - a[1])[0];

@@ -1,5 +1,6 @@
 import { forwardRef } from 'react';
 import { assignSetlistDisplayNumbers } from '../../utils/setlist';
+import { formatVenueLocation } from '../../utils/geography';
 import { getStyleByKey, DEFAULT_STYLE_KEY } from '../../utils/instagramStyles';
 
 // Printable at 24x18in (a standard large poster size) once exported at
@@ -163,9 +164,7 @@ const TourMosaicGraphic = forwardRef(function TourMosaicGraphic({
         // — same indent treatment InstagramPostGraphic.jsx gives them.
         const maxPosition = numbered.reduce((max, { position }) => Math.max(max, position || 0), 0);
         const numberColumnWidth = measureTextWidth(`${'9'.repeat(String(maxPosition || 1).length)}.`, songFontSize, 400);
-        const cityLine = show.venues
-            ? `${show.venues.city}${show.venues.state_country ? ', ' + show.venues.state_country : ''}`
-            : '';
+        const cityLine = show.venues ? formatVenueLocation(show.venues) : '';
 
         return (
             <div

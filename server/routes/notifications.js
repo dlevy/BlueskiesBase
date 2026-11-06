@@ -25,7 +25,7 @@ const authenticate = async (req, res, next) => {
 /**
  * GET /api/notifications
  * The logged-in user's own notifications, most recent first. The embedded
- * `shows` shape (id, show_date, artist_name, venues.city/state_country)
+ * `shows` shape (id, show_date, artist_name, venues.city/state/country/state_country)
  * matches exactly what client/src/utils/showSlug.js's buildShowPath() needs,
  * so the client can link back to the show with no extra fetch. `unreadCount`
  * is a separate exact count (not just derived from this capped page) so the
@@ -54,7 +54,7 @@ router.get('/', authenticate, async (req, res) => {
                 dismissed_at,
                 created_at,
                 actor:actor_id ( id, username, display_name, avatar_url ),
-                shows ( id, show_date, artist_name, venues ( city, state_country ) )
+                shows ( id, show_date, artist_name, venues ( city, state, country, state_country ) )
             `)
             .eq('user_id', req.user.id)
             .order('created_at', { ascending: false })

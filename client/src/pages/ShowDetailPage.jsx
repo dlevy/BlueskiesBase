@@ -678,7 +678,7 @@ export default function ShowDetailPage() {
 
     const venueName = show.venues?.name || '';
     const venueCity = show.venues
-        ? `${show.venues.city}${show.venues.state_country ? ', ' + show.venues.state_country : ''}`
+        ? [show.venues.city, show.venues.state, show.venues.country].filter(Boolean).join(', ')
         : '';
     const [syear, smonth, sday] = show.show_date.split('-');
     const showDateObj = new Date(syear, smonth - 1, sday);
@@ -730,7 +730,7 @@ export default function ShowDetailPage() {
         location: {
             '@type': 'MusicVenue',
             name: venueName,
-            address: { '@type': 'PostalAddress', addressLocality: show.venues?.city, addressRegion: show.venues?.state_country }
+            address: { '@type': 'PostalAddress', addressLocality: show.venues?.city, addressRegion: show.venues?.state, addressCountry: show.venues?.country }
         },
         performer: { '@type': 'MusicGroup', name: show.artist_name },
         ...(seoImageUrl ? { image: seoImageUrl } : {}),

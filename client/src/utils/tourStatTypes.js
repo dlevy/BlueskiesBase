@@ -12,6 +12,8 @@
 // so the picker can grey it out with a reason instead of the graphic ever
 // rendering blank/undefined text.
 
+import { formatVenueLocation } from './geography';
+
 function formatDateShort(dateStr) {
     const [y, m, d] = dateStr.split('-');
     return new Date(Number(y), Number(m) - 1, Number(d)).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -29,7 +31,7 @@ function formatDateTiny(dateStr) {
 
 function venueLine(show) {
     if (!show?.venue) return show?.artistName || '';
-    return `${show.venue.name} — ${show.venue.city}${show.venue.state_country ? ', ' + show.venue.state_country : ''}`;
+    return `${show.venue.name} — ${formatVenueLocation(show.venue)}`;
 }
 
 // Display-only shortening for the Album Breakdown card — a long album

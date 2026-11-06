@@ -59,7 +59,7 @@ async function findTourByUrlSlug(tourSlug) {
 
     const { data: rawShows, error: showsError } = await supabase
         .from('shows')
-        .select('id, show_date, artist_name, is_cancelled, venues(name, city, state_country)')
+        .select('id, show_date, artist_name, is_cancelled, venues(name, city, state, country, state_country)')
         .eq('tour_name', tourName)
         .order('show_date', { ascending: true })
         .order('day_order', { ascending: true })
@@ -168,8 +168,8 @@ function formatLongDate(dateString) {
 
 function venueLine(show) {
     if (!show.venues) return '';
-    const { name, city, state_country } = show.venues;
-    const cityState = [city, state_country].filter(Boolean).join(', ');
+    const { name, city, state, country } = show.venues;
+    const cityState = [city, state, country].filter(Boolean).join(', ');
     return [name, cityState].filter(Boolean).join(', ');
 }
 

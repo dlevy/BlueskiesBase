@@ -91,7 +91,7 @@ router.get('/', async (req, res) => {
                     show_date,
                     artist_name,
                     tour_name,
-                    venues ( name, city, state_country )
+                    venues ( name, city, state, country, state_country )
                 )
             `);
 
@@ -168,7 +168,7 @@ router.get('/tour/:tourName', async (req, res) => {
                 .from('user_photos')
                 .select(`
                     id, photo_url, thumbnail_url, caption, display_order, created_at,
-                    shows!inner ( id, show_date, artist_name, tour_name, venues ( name, city, state_country ) )
+                    shows!inner ( id, show_date, artist_name, tour_name, venues ( name, city, state, country, state_country ) )
                 `)
                 .eq('shows.tour_name', tourName)
                 .order('id')

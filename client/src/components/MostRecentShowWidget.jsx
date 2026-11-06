@@ -55,7 +55,7 @@ export function ShowCard({
                     <p className="text-sm mt-0.5" style={{ color: 'var(--p-color-contrast-medium)' }}>
                         {show.venues.name}
                         <span style={{ color: 'var(--p-color-contrast-low)' }}>
-                            {' — '}{show.venues.city}{show.venues.state_country ? `, ${show.venues.state_country}` : ''}
+                            {' — '}{[show.venues.city, show.venues.state].filter(Boolean).join(', ')}
                         </span>
                     </p>
                 )}
@@ -107,7 +107,7 @@ export default function MostRecentShowWidget({ onReady }) {
 
                 const { data: rawShows, error: showsError } = await supabase
                     .from('shows')
-                    .select('id, show_date, artist_name, tour_name, links, is_cancelled, venues(name, city, state_country)')
+                    .select('id, show_date, artist_name, tour_name, links, is_cancelled, venues(name, city, state, country, state_country)')
                     .lte('show_date', todayStr)
                     .order('show_date', { ascending: false })
                     .order('day_order', { ascending: false })

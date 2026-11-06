@@ -43,7 +43,7 @@ router.get('/', async (req, res) => {
                     id,
                     name,
                     city,
-                    state_country,
+                    state, country, state_country,
                     address
                 )
             `, { count: 'exact' })
@@ -95,7 +95,7 @@ router.get('/lookup', async (req, res) => {
 
         const { data: shows, error } = await supabase
             .from('shows')
-            .select('id, artist_name, venues(city, state_country)')
+            .select('id, artist_name, venues(city, state, country, state_country)')
             .eq('show_date', date);
 
         if (error) return res.status(500).json({ error: error.message });
@@ -141,7 +141,7 @@ router.get('/:id/adjacent', async (req, res) => {
         if (showError || !show) return res.status(404).json({ error: 'Show not found' });
 
         const { show_date: d, day_order: o } = show;
-        const cols = 'id, show_date, artist_name, venues(city, state_country)';
+        const cols = 'id, show_date, artist_name, venues(city, state, country, state_country)';
 
         const [{ data: prevRows }, { data: nextRows }] = await Promise.all([
             supabase
@@ -375,7 +375,7 @@ router.get('/:id', async (req, res) => {
             .from('shows')
             .select(`
                 *,
-                venues (id, name, city, state_country, address),
+                venues (id, name, city, state, country, state_country, address),
                 opened_for:bands!shows_opened_for_id_fkey(id, name)
             `)
             .eq('id', id)

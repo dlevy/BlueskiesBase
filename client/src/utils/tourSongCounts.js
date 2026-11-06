@@ -1,5 +1,4 @@
 import { supabase } from '../services/supabase';
-import { getStateName, getCountry } from './geography';
 import { getLocalDateString } from './today';
 
 // Sentinel tourName for "every show, regardless of tour" — also doubles as
@@ -174,7 +173,7 @@ export async function fetchTourSongCounts(tourName, { stateFilter, countryFilter
     // venues included for the Tour Map (ShowMapShare, same shape it already
     // reads off a user's attended/upcoming shows); artist_name only needed
     // for linking a Live Debut entry to its actual show page.
-    const selectCols = 'id, show_date, artist_name, is_cancelled, venues ( id, name, city, state_country, latitude, longitude )';
+    const selectCols = 'id, show_date, artist_name, is_cancelled, venues ( id, name, city, state, country, state_country, latitude, longitude )';
     let tourShows;
     if (tourName === ALL_SHOWS) {
         // No tour_name filter at all — includes one-off/benefit shows that
@@ -209,8 +208,8 @@ export async function fetchTourSongCounts(tourName, { stateFilter, countryFilter
 
     if (!tourShows?.length) return null;
 
-    if (stateFilter) tourShows = tourShows.filter(s => getStateName(s.venues?.state_country) === stateFilter);
-    if (countryFilter) tourShows = tourShows.filter(s => getCountry(s.venues?.state_country) === countryFilter);
+    if (stateFilter) tourShows = tourShows.filter(s => s.venues?.state === stateFilter);
+    if (countryFilter) tourShows = tourShows.filter(s => s.venues?.country === countryFilter);
     if (!tourShows.length) return null;
 
     // allTourShows (including canceled) backs pastShowsWithCanceled/

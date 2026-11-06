@@ -172,7 +172,7 @@ router.get('/attended-shows', async (req, res) => {
                     venues (
                         name,
                         city,
-                        state_country
+                        state, country, state_country
                     )
                 )
             `)
@@ -322,7 +322,7 @@ router.get('/stats', async (req, res) => {
                         id,
                         name,
                         city,
-                        state_country
+                        state, country, state_country
                     )
                 )
             `)
@@ -384,7 +384,7 @@ router.get('/stats', async (req, res) => {
 
             const { data: neededShows, error: neededShowsError } = await supabase
                 .from('shows')
-                .select('id, show_date, artist_name, venues ( name, city, state_country )')
+                .select('id, show_date, artist_name, venues ( name, city, state, country, state_country )')
                 .in('id', neededShowIds);
 
             if (neededShowsError) {
@@ -691,7 +691,7 @@ router.get('/profile/:username', async (req, res) => {
                     artist_name,
                     tour_name,
                     is_cancelled,
-                    venues ( id, name, city, state_country, latitude, longitude )
+                    venues ( id, name, city, state, country, state_country, latitude, longitude )
                 )
             `)
             .eq('user_id', profile.id);
@@ -718,7 +718,7 @@ router.get('/profile/:username', async (req, res) => {
         if (profile.favorite_show_id) {
             const { data } = await supabase
                 .from('shows')
-                .select('id, show_date, artist_name, tour_name, venues ( name, city, state_country )')
+                .select('id, show_date, artist_name, tour_name, venues ( name, city, state, country, state_country )')
                 .eq('id', profile.favorite_show_id)
                 .single();
             favoriteShow = data || null;
@@ -728,7 +728,7 @@ router.get('/profile/:username', async (req, res) => {
         if (profile.favorite_venue_id) {
             const { data } = await supabase
                 .from('venues')
-                .select('id, name, city, state_country')
+                .select('id, name, city, state, country, state_country')
                 .eq('id', profile.favorite_venue_id)
                 .single();
             favoriteVenue = data || null;
@@ -749,7 +749,7 @@ router.get('/profile/:username', async (req, res) => {
                     id,
                     poster_url,
                     is_foil,
-                    shows ( id, show_date, artist_name, tour_name, venues ( name, city, state_country ) )
+                    shows ( id, show_date, artist_name, tour_name, venues ( name, city, state, country, state_country ) )
                 )
             `)
             .eq('user_id', profile.id);
@@ -773,7 +773,7 @@ router.get('/profile/:username', async (req, res) => {
             .select(`
                 id,
                 variant,
-                shows ( id, show_date, artist_name, tour_name, venues ( name, city, state_country ) )
+                shows ( id, show_date, artist_name, tour_name, venues ( name, city, state, country, state_country ) )
             `)
             .eq('user_id', profile.id);
 

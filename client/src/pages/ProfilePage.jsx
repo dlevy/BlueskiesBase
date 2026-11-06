@@ -6,7 +6,6 @@ import { buildShowPath } from '../utils/showSlug';
 import { useAuth } from '../contexts/AuthContext';
 import SEO from '../components/SEO';
 import MainNavTabs from '../components/MainNavTabs';
-import ShowMapShare from '../components/ShowMapShare';
 import Avatar from '../components/Avatar';
 import SocialLinks from '../components/SocialLinks';
 import ExpressInterestForm from '../components/ExpressInterestForm';
@@ -218,6 +217,12 @@ function formatDate(dateString) {
     return new Date(year, month - 1, day).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
+// Short form for the compact Shows Attended cards (date/city/state only).
+function formatDateShort(dateString) {
+    const [year, month, day] = dateString.split('-');
+    return new Date(year, month - 1, day).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
 // For full ISO timestamps (e.g. profiles.created_at) — these already carry an
 // explicit UTC offset, so no manual y/m/d reconstruction is needed here.
 function formatDateTime(isoString) {
@@ -402,12 +407,7 @@ export default function ProfilePage() {
                 </div>
             )}
 
-            {/* Show map — full width, only present if this user opted in to sharing attendance */}
-            {profile.attendedShows && (
-                <ShowMapShare pastShows={profile.attendedShows} upcomingShows={profile.upcomingShows || []} title={`${displayLabel}'s Show Map`} />
-            )}
-
-            {/* Shows attended — full width, below the map */}
+            {/* Shows attended — compact date/city/state cards */}
             {profile.attendedShows && (
                 <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6">
                     <div className="flex items-center justify-between gap-2">
@@ -418,18 +418,17 @@ export default function ProfilePage() {
                             </Link>
                         )}
                     </div>
-                    <div className="mt-4 space-y-2">
+                    <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                         {profile.attendedShows.map(show => (
                             <Link
                                 key={show.id}
                                 to={buildShowPath(show)}
-                                className="block rounded-xl border border-white/5 bg-white/5 p-4 hover:bg-white/10 hover:border-white/20 transition-all"
+                                className="block rounded-lg border border-white/5 bg-white/5 px-3 py-2 hover:bg-white/10 hover:border-white/20 transition-all"
                             >
-                                <PText weight="semi-bold">{formatDate(show.show_date)}</PText>
-                                <PText size="sm" color="contrast-medium">{show.artist_name}</PText>
+                                <PText size="sm" weight="semi-bold">{formatDateShort(show.show_date)}</PText>
                                 {show.venues && (
                                     <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>
-                                        {show.venues.name} · {show.venues.city}, {show.venues.state_country}
+                                        {[show.venues.city, show.venues.state].filter(Boolean).join(', ')}
                                     </PText>
                                 )}
                             </Link>

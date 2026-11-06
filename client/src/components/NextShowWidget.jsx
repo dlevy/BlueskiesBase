@@ -32,7 +32,7 @@ export default function NextShowWidget({ onReady }) {
 
                 const { data: rawShows, error: showsError } = await supabase
                     .from('shows')
-                    .select('id, show_date, artist_name, tour_name, links, is_cancelled, venues(name, city, state_country)')
+                    .select('id, show_date, artist_name, tour_name, links, is_cancelled, venues(name, city, state, country, state_country)')
                     .gte('show_date', todayStr)
                     .order('show_date', { ascending: true })
                     .order('day_order', { ascending: true })

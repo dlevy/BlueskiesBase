@@ -196,6 +196,11 @@ class SetlistImporter:
         venue_dict = {
             'name': venue_data.get('name'),
             'city': city.get('name'),
+            # state/country are the real columns now (state_country is kept too,
+            # unused for display, since buildShowPath() still slugifies it into
+            # every show's URL).
+            'state': state,
+            'country': country_name,
             'state_country': state_country
         }
 

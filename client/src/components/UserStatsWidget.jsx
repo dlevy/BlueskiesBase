@@ -5,6 +5,7 @@ import {
 } from '@porsche-design-system/components-react';
 import { useCountUp } from '../hooks/useCountUp';
 import { buildShowPath } from '../utils/showSlug';
+import { formatVenueLocation } from '../utils/geography';
 import { getUserStats } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import ShowMapShare from './ShowMapShare';
@@ -172,7 +173,7 @@ export default function UserStatsWidget() {
             <PHeading size="xs" tag="h2">My Stats</PHeading>
 
             {/* Achievements */}
-            <AchievementsPanel showCount={pastShows.length} contributionCount={stats.contributionCounts?.total ?? 0} />
+            <AchievementsPanel showCount={pastShows.length} showCommunity={false} />
 
             {/* Summary */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -215,6 +216,9 @@ export default function UserStatsWidget() {
                             <div key={song.id} className="flex items-center gap-3">
                                 <span className="text-xs w-5 shrink-0 text-right" style={{ color: 'var(--p-color-contrast-medium)' }}>{i + 1}</span>
                                 <PText weight="semi-bold" className="flex-1 truncate">{song.title}</PText>
+                                {song.teaseOrPartialOnly && (
+                                    <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-300 whitespace-nowrap shrink-0">Tease/Partial</span>
+                                )}
                                 <PTag color="notification-warning-soft">{song.globalPlayCount}x all-time</PTag>
                             </div>
                         ))}
@@ -273,7 +277,7 @@ export default function UserStatsWidget() {
                                         <PText size="sm" color="contrast-medium">{show.artist_name}</PText>
                                         {show.venues && (
                                             <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>
-                                                {show.venues.name} · {show.venues.city}, {show.venues.state_country}
+                                                {show.venues.name} · {formatVenueLocation(show.venues)}
                                             </PText>
                                         )}
                                         <AttendeePills attendees={attendeesByShow[show.id]} />
@@ -298,7 +302,7 @@ export default function UserStatsWidget() {
                                         <PText size="sm" color="contrast-medium">{show.artist_name}</PText>
                                         {show.venues && (
                                             <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>
-                                                {show.venues.name} · {show.venues.city}, {show.venues.state_country}
+                                                {show.venues.name} · {formatVenueLocation(show.venues)}
                                             </PText>
                                         )}
                                         {show.tour_name && (
@@ -326,7 +330,7 @@ export default function UserStatsWidget() {
                                         <PText size="sm" color="contrast-medium">{show.artist_name}</PText>
                                         {show.venues && (
                                             <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>
-                                                {show.venues.name} · {show.venues.city}, {show.venues.state_country}
+                                                {show.venues.name} · {formatVenueLocation(show.venues)}
                                             </PText>
                                         )}
                                         <PTag color="notification-error-soft">Canceled</PTag>
@@ -352,7 +356,12 @@ export default function UserStatsWidget() {
                                             key={song.id}
                                             className="flex items-center justify-between gap-3 py-2 px-3 rounded-lg hover:bg-white/5 transition-colors"
                                         >
-                                            <PText weight="semi-bold">{song.title}</PText>
+                                            <div className="flex items-center gap-2 min-w-0">
+                                                <PText weight="semi-bold">{song.title}</PText>
+                                                {song.teaseOrPartialOnly && (
+                                                    <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-300 whitespace-nowrap">Tease/Partial</span>
+                                                )}
+                                            </div>
                                             <PText size="xs" color="contrast-medium" className="whitespace-nowrap shrink-0">
                                                 {song.playCount}x
                                             </PText>
@@ -378,7 +387,12 @@ export default function UserStatsWidget() {
                                             key={song.id}
                                             className="flex items-center justify-between gap-3 py-2 px-3 rounded-lg hover:bg-white/5 transition-colors"
                                         >
-                                            <PText weight="semi-bold">{song.title}</PText>
+                                            <div className="flex items-center gap-2 min-w-0">
+                                                <PText weight="semi-bold">{song.title}</PText>
+                                                {song.teaseOrPartialOnly && (
+                                                    <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-300 whitespace-nowrap">Tease/Partial</span>
+                                                )}
+                                            </div>
                                             <PText size="xs" color="contrast-medium" className="whitespace-nowrap shrink-0">
                                                 {song.playCount}x
                                             </PText>

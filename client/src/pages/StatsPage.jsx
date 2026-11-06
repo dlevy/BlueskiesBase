@@ -5,6 +5,7 @@ import {
 } from '@porsche-design-system/components-react';
 import { useCountUp } from '../hooks/useCountUp';
 import { buildShowPath } from '../utils/showSlug';
+import { formatVenueLocation } from '../utils/geography';
 import { getUserStats } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import SEO from '../components/SEO';
@@ -50,7 +51,8 @@ function computeFunStats(pastShows, songsSeen) {
         dowCounts[dow]     = (dowCounts[dow]     || 0) + 1;
         yearCounts[y]      = (yearCounts[y]       || 0) + 1;
         cities.add(city);
-        if (show.venues?.state_country) regions.add(show.venues.state_country);
+        const region = [show.venues?.state, show.venues?.country].filter(Boolean).join(', ');
+        if (region) regions.add(region);
     }
 
     const topCity  = Object.entries(cityCounts).sort((a, b) => b[1] - a[1])[0];
@@ -320,7 +322,7 @@ export default function StatsPage() {
                                         <PText size="sm" color="contrast-medium">{show.artist_name}</PText>
                                         {show.venues && (
                                             <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>
-                                                {show.venues.name} · {show.venues.city}, {show.venues.state_country}
+                                                {show.venues.name} · {formatVenueLocation(show.venues)}
                                             </PText>
                                         )}
                                         {show.tour_name && (
@@ -351,7 +353,7 @@ export default function StatsPage() {
                                         <PText size="sm" color="contrast-medium">{show.artist_name}</PText>
                                         {show.venues && (
                                             <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>
-                                                {show.venues.name} · {show.venues.city}, {show.venues.state_country}
+                                                {show.venues.name} · {formatVenueLocation(show.venues)}
                                             </PText>
                                         )}
                                         {show.tour_name && (
@@ -382,7 +384,7 @@ export default function StatsPage() {
                                         <PText size="sm" color="contrast-medium">{show.artist_name}</PText>
                                         {show.venues && (
                                             <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>
-                                                {show.venues.name} · {show.venues.city}, {show.venues.state_country}
+                                                {show.venues.name} · {formatVenueLocation(show.venues)}
                                             </PText>
                                         )}
                                         <PTag color="notification-error-soft">Canceled</PTag>

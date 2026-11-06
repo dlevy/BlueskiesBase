@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { PSpinner, PText, PHeading } from '@porsche-design-system/components-react';
 import { searchShowsForForum, getShowById } from '../services/api';
 import { buildShowPath } from '../utils/showSlug';
+import { formatVenueLocation } from '../utils/geography';
 
 const inputClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-transparent placeholder:text-gray-500";
 const btnSecondary = "inline-flex items-center gap-1.5 h-8 px-4 rounded-lg text-sm font-medium border border-white/15 hover:border-white/25 hover:bg-white/5 transition-all disabled:opacity-50 disabled:cursor-not-allowed";
@@ -15,12 +16,12 @@ function formatShowDate(dateString) {
 
 function venueLabel(venues) {
     if (!venues) return '';
-    return `${venues.name} — ${venues.city}${venues.state_country ? ', ' + venues.state_country : ''}`;
+    return `${venues.name} — ${formatVenueLocation(venues)}`;
 }
 
 function showLabel(show) {
     const parts = [show.artist_name];
-    if (show.venues) parts.push(`at ${show.venues.name}, ${show.venues.city}${show.venues.state_country ? ', ' + show.venues.state_country : ''}`);
+    if (show.venues) parts.push(`at ${show.venues.name}, ${formatVenueLocation(show.venues)}`);
     parts.push(`– ${formatShowDate(show.show_date)}`);
     return parts.join(' ');
 }

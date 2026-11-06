@@ -1,6 +1,7 @@
 import { forwardRef } from 'react';
 import { POST_WIDTH, POST_HEIGHT, STORY_WIDTH, STORY_HEIGHT, getStyleByKey } from '../../utils/instagramStyles';
 import { assignSetlistDisplayNumbers } from '../../utils/setlist';
+import { formatVenueLocation } from '../../utils/geography';
 
 function formatLongDate(dateString) {
     const [y, m, d] = dateString.split('-');
@@ -309,7 +310,7 @@ const InstagramPostGraphic = forwardRef(function InstagramPostGraphic({
     const { columns, songFontSize } = pickSongLayout(numberedSongs, availableHeight, columnWidth, tagContext, numberColumnTemplate);
     const numberColumnWidth = measureTextWidth(numberColumnTemplate, songFontSize, 400);
     const venueLine = show.venues
-        ? `${show.venues.name} — ${show.venues.city}${show.venues.state_country ? ', ' + show.venues.state_country : ''}`
+        ? `${show.venues.name} — ${formatVenueLocation(show.venues)}`
         : null;
 
     return (

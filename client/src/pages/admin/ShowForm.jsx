@@ -4,6 +4,7 @@ import { PHeading, PText, PButton, PButtonPure, PInlineNotification, PSpinner } 
 import { getShowById, createShow, updateShow, deleteShow, getVenues, updateSetlist, createVenue, getBands, createBand } from '../../services/api';
 import { fetchTourList } from '../../utils/tourSongCounts';
 import { buildShowPath } from '../../utils/showSlug';
+import { formatVenueLocation } from '../../utils/geography';
 import SetlistEditor from '../../components/SetlistEditor';
 import { useAuth } from '../../contexts/AuthContext';
 import { trackEvent } from '../../utils/analytics';
@@ -64,7 +65,7 @@ export default function ShowForm() {
         }
     }, []);
     const [showVenueForm, setShowVenueForm] = useState(false);
-    const [venueFormData, setVenueFormData] = useState({ name: '', city: '', state_country: '', address: '' });
+    const [venueFormData, setVenueFormData] = useState({ name: '', city: '', state: '', country: '', address: '' });
     const [venueFormError, setVenueFormError] = useState('');
     const [showOpenedForForm, setShowOpenedForForm] = useState(false);
     const [newBandName, setNewBandName] = useState('');
@@ -174,7 +175,7 @@ export default function ShowForm() {
             const newVenue = await createVenue(venueFormData);
             setVenues(prev => [...prev, newVenue].sort((a, b) => a.name.localeCompare(b.name)));
             setFormData(prev => ({ ...prev, venue_id: newVenue.id }));
-            setVenueFormData({ name: '', city: '', state_country: '', address: '' });
+            setVenueFormData({ name: '', city: '', state: '', country: '', address: '' });
             setShowVenueForm(false);
         } catch (err) {
             console.error('Error creating venue:', err);
@@ -185,7 +186,7 @@ export default function ShowForm() {
     const handleCancelVenueForm = () => {
         setShowVenueForm(false);
         setVenueFormError('');
-        setVenueFormData({ name: '', city: '', state_country: '', address: '' });
+        setVenueFormData({ name: '', city: '', state: '', country: '', address: '' });
     };
 
     const handleAddBand = async (field, closeForm) => {
@@ -346,7 +347,7 @@ export default function ShowForm() {
                                 <option value="">Select a venue</option>
                                 {venues.map(venue => (
                                     <option key={venue.id} value={venue.id}>
-                                        {venue.name} - {venue.city}, {venue.state_country}
+                                        {venue.name} - {formatVenueLocation(venue)}
                                     </option>
                                 ))}
                             </select>
@@ -360,7 +361,8 @@ export default function ShowForm() {
                                 {[
                                     { name: 'name', label: 'Venue Name', placeholder: 'e.g., Red Rocks Amphitheatre', required: true },
                                     { name: 'city', label: 'City', placeholder: 'e.g., Morrison', required: true },
-                                    { name: 'state_country', label: 'State/Country', placeholder: 'e.g., CO or United States', required: true },
+                                    { name: 'state', label: 'State/Province', placeholder: 'e.g., Colorado' },
+                                    { name: 'country', label: 'Country', placeholder: 'e.g., United States', required: true },
                                     { name: 'address', label: 'Address (Optional)', placeholder: 'e.g., 18300 W Alameda Pkwy' },
                                 ].map(({ name, label, placeholder, required }) => (
                                     <div key={name}>

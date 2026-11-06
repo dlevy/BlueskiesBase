@@ -10,6 +10,11 @@ const { computeDebutsForShows } = require('./debuts');
  * Excludes performance_type='dj'/'soundcheck' rows — a DJ spin or a soundcheck
  * song isn't a performance you "saw", for the same reason both are excluded
  * from debut/rarity stats.
+ *
+ * Each song also gets `teaseOrPartialOnly`: true only if every one of this
+ * person's performances of it (across all the given shows) was a tease or a
+ * partial — never a full performance. A song teased once and played in full
+ * another time is NOT flagged, since they've heard it fully.
  */
 async function computeSongsSeenForShows(showIds) {
     if (!showIds || showIds.length === 0) return [];
@@ -53,11 +58,13 @@ async function computeSongsSeenForShows(showIds) {
     const songPlayCount = new Map();
     allSetlistSongs.forEach(ss => {
         if (!ss.songs) return;
+        const isFull = ss.performance_type !== 'tease' && ss.performance_type !== 'partial';
         if (!songPlayCount.has(ss.song_id)) {
             songPlayCount.set(ss.song_id, {
                 ...ss.songs,
                 playCount: 1,
                 showIds: new Set([ss.show_id]),
+                hasFullPerformance: isFull,
             });
         } else {
             const existing = songPlayCount.get(ss.song_id);
@@ -65,12 +72,13 @@ async function computeSongsSeenForShows(showIds) {
                 existing.playCount++;
                 existing.showIds.add(ss.show_id);
             }
+            if (isFull) existing.hasFullPerformance = true;
         }
     });
 
     return Array.from(songPlayCount.values()).map(song => {
-        const { showIds: _showIds, ...songData } = song;
-        return songData;
+        const { showIds: _showIds, hasFullPerformance, ...songData } = song;
+        return { ...songData, teaseOrPartialOnly: !hasFullPerformance };
     });
 }
 

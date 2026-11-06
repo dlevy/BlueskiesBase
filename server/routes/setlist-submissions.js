@@ -56,7 +56,7 @@ router.get('/', requireEditorOrAdmin, async (req, res) => {
                 created_at,
                 updated_at,
                 profiles:user_id ( id, username ),
-                shows ( id, show_date, artist_name, venues ( name, city, state_country ) ),
+                shows ( id, show_date, artist_name, venues ( name, city, state, country, state_country ) ),
                 setlist_submission_songs (
                     id,
                     song_id,

@@ -29,7 +29,7 @@ export default function UpcomingShowsWidget({ onReady }) {
                 // where a canceled show stays visible for the record).
                 const { data, error } = await supabase
                     .from('shows')
-                    .select('id, show_date, artist_name, tour_name, is_cancelled, venues(name, city, state_country)')
+                    .select('id, show_date, artist_name, tour_name, is_cancelled, venues(name, city, state, country, state_country)')
                     .gt('show_date', todayStr)
                     .order('show_date', { ascending: true })
                     .order('day_order', { ascending: true })
@@ -52,7 +52,7 @@ export default function UpcomingShowsWidget({ onReady }) {
                     }
                     const { data: historyData, error: historyError } = await supabase
                         .from('shows')
-                        .select('id, show_date, artist_name, tour_name, venues(name, city, state_country)')
+                        .select('id, show_date, artist_name, tour_name, venues(name, city, state, country, state_country)')
                         .in('show_date', pastDates)
                         .order('show_date', { ascending: false });
                     if (!historyError) setOnThisDay(historyData || []);
@@ -113,7 +113,7 @@ export default function UpcomingShowsWidget({ onReady }) {
                         // "Upcoming Shows" layout this replaces would have had.
                         <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
                             {onThisDay.map(show => (
-                                <ShowListCard key={show.id} show={show} yearOnly />
+                                <ShowListCard key={show.id} show={show} yearOnly hideCountry inlineVenueName />
                             ))}
                         </div>
                     )}
@@ -139,7 +139,7 @@ export default function UpcomingShowsWidget({ onReady }) {
 
             <div className="space-y-2">
                 {upcoming.map(show => (
-                    <ShowListCard key={show.id} show={show} />
+                    <ShowListCard key={show.id} show={show} hideCountry />
                 ))}
             </div>
         </div>

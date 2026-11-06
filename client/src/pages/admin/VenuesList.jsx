@@ -56,9 +56,9 @@ export default function VenuesList() {
                     <table className="w-full">
                         <thead className="border-b border-white/10" style={{ background: 'var(--p-color-canvas)' }}>
                             <tr>
-                                {['Name', 'City', 'State/Country', 'Actions'].map((h, i) => (
+                                {['Name', 'City', 'State', 'Country', 'Actions'].map((h, i) => (
                                     <th key={h}
-                                        className={`px-4 py-3 text-xs font-medium uppercase tracking-wider ${i === 3 ? 'text-right' : 'text-left'}`}
+                                        className={`px-4 py-3 text-xs font-medium uppercase tracking-wider ${i === 4 ? 'text-right' : 'text-left'}`}
                                         style={{ color: 'var(--p-color-contrast-medium)' }}>
                                         {h}
                                     </th>
@@ -68,7 +68,7 @@ export default function VenuesList() {
                         <tbody className="divide-y divide-white/5">
                             {venues.length === 0 ? (
                                 <tr>
-                                    <td colSpan="4" className="px-4 py-8 text-center">
+                                    <td colSpan="5" className="px-4 py-8 text-center">
                                         <PText color="contrast-medium">No venues found. Click "Add Venue" to create one.</PText>
                                     </td>
                                 </tr>
@@ -85,7 +85,10 @@ export default function VenuesList() {
                                             <PText size="small" color="contrast-medium">{venue.city}</PText>
                                         </td>
                                         <td className="px-4 py-3">
-                                            <PText size="small" color="contrast-medium">{venue.state_country}</PText>
+                                            <PText size="small" color="contrast-medium">{venue.state}</PText>
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <PText size="small" color="contrast-medium">{venue.country}</PText>
                                         </td>
                                         <td className="px-4 py-3 text-right">
                                             <PButtonPure size="x-small" onClick={() => handleEdit(venue)}>Edit</PButtonPure>

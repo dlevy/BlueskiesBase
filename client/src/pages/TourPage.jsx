@@ -4,6 +4,7 @@ import { PHeading, PText, PButtonPure, PSpinner, PInlineNotification } from '@po
 import { fetchTourList, fetchTourSongCounts } from '../utils/tourSongCounts';
 import { buildTourPath, slugify } from '../utils/tourSlug';
 import { buildShowPath } from '../utils/showSlug';
+import { formatVenueLocation } from '../utils/geography';
 import SEO from '../components/SEO';
 import MainNavTabs from '../components/MainNavTabs';
 import ShowListCard from '../components/ShowListCard';
@@ -25,8 +26,7 @@ function formatShortDate(dateString) {
 
 function venueLabel(venues) {
     if (!venues) return '';
-    const cityState = [venues.city, venues.state_country].filter(Boolean).join(', ');
-    return [venues.name, cityState].filter(Boolean).join(' — ');
+    return [venues.name, formatVenueLocation(venues)].filter(Boolean).join(' — ');
 }
 
 // Same label shape as songLabel in server/utils/tourMeta.js — plain text, no

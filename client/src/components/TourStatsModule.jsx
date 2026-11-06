@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { PHeading, PText, PSpinner, PInlineNotification } from '@porsche-design-system/components-react';
 import { fetchTourList, fetchDefaultTourName, fetchTourSongCounts, ALL_SHOWS } from '../utils/tourSongCounts';
-import { fetchGeographyOptions } from '../utils/geography';
+import { fetchGeographyOptions, formatVenueLocation } from '../utils/geography';
 import { buildShowPath } from '../utils/showSlug';
 import { buildTourPath } from '../utils/tourSlug';
 import ShowMapShare from './ShowMapShare';
@@ -282,7 +282,7 @@ export default function TourStatsModule({ defaultTour = null }) {
                                                         style={{ color: 'var(--p-color-contrast-medium)' }}
                                                     >
                                                         {formatDate(d.showDate)}
-                                                        {d.venue?.city && <> &middot; {d.venue.city}{d.venue.state_country ? `, ${d.venue.state_country}` : ''}</>}
+                                                        {d.venue?.city && <> &middot; {formatVenueLocation(d.venue)}</>}
                                                     </Link>
                                                 </div>
                                             ))}

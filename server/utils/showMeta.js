@@ -21,7 +21,7 @@ function buildShowPath(show) {
 async function findShowByPathParams({ artist, date, location }) {
     const { data: shows, error } = await supabase
         .from('shows')
-        .select('id, artist_name, show_date, tour_name, is_cancelled, venues(name, city, state_country)')
+        .select('id, artist_name, show_date, tour_name, is_cancelled, venues(name, city, state, country, state_country)')
         .eq('show_date', date);
 
     if (error || !shows) return null;
@@ -73,7 +73,7 @@ async function findShowImageUrl(showId) {
 function buildShowHead(show, { imageUrl, canonicalUrl, baseUrl } = {}) {
     const venueName = show.venues?.name || '';
     const venueCity = show.venues
-        ? `${show.venues.city}${show.venues.state_country ? ', ' + show.venues.state_country : ''}`
+        ? [show.venues.city, show.venues.state, show.venues.country].filter(Boolean).join(', ')
         : '';
     const [y, m, d] = show.show_date.split('-');
     const longDate = new Date(y, m - 1, d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -117,7 +117,8 @@ function buildShowHead(show, { imageUrl, canonicalUrl, baseUrl } = {}) {
             address: {
                 '@type': 'PostalAddress',
                 addressLocality: show.venues?.city,
-                addressRegion: show.venues?.state_country,
+                addressRegion: show.venues?.state,
+                addressCountry: show.venues?.country,
             },
         },
         performer: { '@type': 'MusicGroup', name: show.artist_name },

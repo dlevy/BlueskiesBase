@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { PHeading, PText, PButton, PButtonPure, PInlineNotification, PSpinner } from '@porsche-design-system/components-react';
 import { getShows, searchShows, deleteShow } from '../../services/api';
 import { buildShowPath } from '../../utils/showSlug';
+import { formatVenueLocation } from '../../utils/geography';
 import { supabase } from '../../services/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { getLiveCoverTitles, getSundayValleyTitles } from '../../utils/coverSongs';
@@ -419,7 +420,7 @@ export default function ShowsList() {
                                             <div>
                                                 <PText size="small">{show.venues.name}</PText>
                                                 <PText size="x-small" color="contrast-medium">
-                                                    {show.venues.city}, {show.venues.state_country}
+                                                    {formatVenueLocation(show.venues)}
                                                 </PText>
                                             </div>
                                         ) : (

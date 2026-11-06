@@ -4,6 +4,7 @@ const { supabase } = require('../config/supabase');
 const { requireAdmin, requireEditorOrAdmin } = require('../middleware/requireRole');
 const { notifyForumReply, notifyMentions, notifyStaffOfForumReport, dismissForumReportNotifications } = require('../utils/notify');
 const { redactProfile } = require('../utils/privacy');
+const { formatVenueLocation } = require('../utils/venueLabel');
 
 const TITLE_MAX_LENGTH = 200;
 const BODY_MAX_LENGTH = 5000;
@@ -11,7 +12,7 @@ const REPORT_REASONS = ['spam', 'inappropriate'];
 const REPORT_NOTE_MAX_LENGTH = 280;
 
 const AUTHOR_SELECT = 'profiles:user_id ( id, username, display_name, hide_from_directory )';
-const SHOW_SELECT = 'shows ( id, show_date, artist_name, is_cancelled, venues ( name, city, state_country ) )';
+const SHOW_SELECT = 'shows ( id, show_date, artist_name, is_cancelled, venues ( name, city, state, country, state_country ) )';
 
 /**
  * Middleware to verify authentication — same shape as every other route
@@ -498,7 +499,7 @@ router.get('/shows-without-discussion', async (req, res) => {
         for (let rangeStart = 0; ; ) {
             const { data: page, error } = await supabase
                 .from('shows')
-                .select('id, show_date, artist_name, venues ( name, city, state_country )')
+                .select('id, show_date, artist_name, venues ( name, city, state, country, state_country )')
                 .order('show_date', { ascending: false })
                 .order('day_order', { ascending: false })
                 .range(rangeStart, rangeStart + 999);
@@ -544,7 +545,7 @@ router.get('/shows-search', async (req, res) => {
         for (let rangeStart = 0; ; ) {
             const { data: page, error } = await supabase
                 .from('shows')
-                .select('id, show_date, artist_name, venues ( name, city, state_country )')
+                .select('id, show_date, artist_name, venues ( name, city, state, country, state_country )')
                 .order('show_date', { ascending: false })
                 .order('day_order', { ascending: false })
                 .range(rangeStart, rangeStart + 999);
@@ -597,7 +598,7 @@ router.post('/threads/for-show', authenticate, async (req, res) => {
 
         const { data: show, error: showError } = await supabase
             .from('shows')
-            .select('artist_name, show_date, venues ( name, city, state_country )')
+            .select('artist_name, show_date, venues ( name, city, state, country, state_country )')
             .eq('id', show_id)
             .maybeSingle();
         if (showError || !show) return res.status(404).json({ error: 'Show not found' });
@@ -611,7 +612,7 @@ router.post('/threads/for-show', authenticate, async (req, res) => {
         const [y, m, d] = show.show_date.split('-');
         const longDate = new Date(y, m - 1, d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
         const venueLabel = show.venues
-            ? `${show.venues.name}, ${show.venues.city}${show.venues.state_country ? ', ' + show.venues.state_country : ''}`
+            ? `${show.venues.name}, ${formatVenueLocation(show.venues)}`
             : null;
         const title = (venueLabel ? `${show.artist_name} at ${venueLabel} – ${longDate}` : `${show.artist_name} – ${longDate}`).slice(0, TITLE_MAX_LENGTH);
         const body = "Share your thoughts on this show — setlist, performance, sound, whatever's on your mind.";

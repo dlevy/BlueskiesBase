@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { PSpinner, PText } from '@porsche-design-system/components-react';
 import { getAllPosters, getPostersForTrade, getWantedPostersSummary, getMyPosterCollection, addToPosterCollection, removeFromPosterCollection, getMyPosterWants, addPosterWant, removePosterWant } from '../services/api';
 import { buildShowPath } from '../utils/showSlug';
+import { formatVenueLocation } from '../utils/geography';
 import { useAuth } from '../contexts/AuthContext';
 import MainNavTabs from '../components/MainNavTabs';
 import SEO from '../components/SEO';
@@ -229,7 +230,7 @@ function PosterTile({ poster, onImageClick, isOwned, onToggleCollection, isWante
                     <p className="text-xs truncate" style={{ color: 'var(--p-color-contrast-medium)' }}>
                         {show.venues.name}
                         <span style={{ color: 'var(--p-color-contrast-low)' }}>
-                            {' — '}{show.venues.city}{show.venues.state_country ? `, ${show.venues.state_country}` : ''}
+                            {' — '}{formatVenueLocation(show.venues)}
                         </span>
                     </p>
                 )}
@@ -348,7 +349,7 @@ function MostWantedTile({ item }) {
                 </div>
                 {item.venues?.city && (
                     <p className="text-xs truncate" style={{ color: 'var(--p-color-contrast-medium)' }}>
-                        {item.venues.city}{item.venues.state_country ? `, ${item.venues.state_country}` : ''}
+                        {formatVenueLocation(item.venues)}
                     </p>
                 )}
                 <p className="text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>

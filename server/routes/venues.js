@@ -76,11 +76,15 @@ router.get('/:id', async (req, res) => {
  */
 router.post('/', requireEditorOrAdmin, async (req, res) => {
     try {
-        const { name, city, state_country, address } = req.body;
+        const { name, city, state, country, address } = req.body;
+        // state_country is kept in sync for every new venue too — buildShowPath()
+        // (client) slugifies it directly into the show URL, so every venue needs
+        // a value there even though the admin UI only collects state/country now.
+        const state_country = [state, country].filter(Boolean).join(', ');
 
         const { data: venue, error } = await supabase
             .from('venues')
-            .insert([{ name, city, state_country, address }])
+            .insert([{ name, city, state, country, state_country, address }])
             .select()
             .single();
 
@@ -104,13 +108,20 @@ router.post('/', requireEditorOrAdmin, async (req, res) => {
 router.put('/:id', requireEditorOrAdmin, async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, city, state_country, address } = req.body;
+        const { name, city, state, country, address } = req.body;
 
         const updates = {};
         if (name !== undefined) updates.name = name;
         if (city !== undefined) updates.city = city;
-        if (state_country !== undefined) updates.state_country = state_country;
+        if (state !== undefined) updates.state = state;
+        if (country !== undefined) updates.country = country;
         if (address !== undefined) updates.address = address;
+        // state_country is deliberately NEVER recomputed here, even when state/
+        // country are edited — it's frozen at whatever value the venue already
+        // has (set once, at creation, in POST above) because buildShowPath()
+        // (client) slugifies it directly into every show's URL. Changing it on
+        // an edit would change that venue's show URLs out from under anyone
+        // who already bookmarked/shared/indexed one.
 
         const { data: venue, error } = await supabase
             .from('venues')

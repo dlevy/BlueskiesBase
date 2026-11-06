@@ -3,18 +3,20 @@ import {
     COMMUNITY_TIERS, getHighestCommunityTier, getNextCommunityTier,
 } from '../utils/badges';
 
-function TierRow({ title, tiers, count, highest, next, unit }) {
+function TierRow({ title, tiers, count, highest, next, unitSingular, unitPlural }) {
     const earnedSet = new Set(tiers.filter(t => count >= t.threshold).map(t => t.id));
-    const progressPct = next ? Math.min(100, Math.round((count / next.threshold) * 100)) : 100;
+    const unitFor = (n) => n === 1 ? unitSingular : unitPlural;
 
     return (
         <div className="space-y-3">
-            <div className="flex items-center justify-between">
-                <h4 className="font-display font-bold text-xs uppercase tracking-widest" style={{ color: 'var(--p-color-contrast-low)' }}>
-                    {title}
-                </h4>
+            <div className={`flex items-center ${title ? 'justify-between' : 'justify-end'}`}>
+                {title && (
+                    <h4 className="font-display font-bold text-xs uppercase tracking-widest" style={{ color: 'var(--p-color-contrast-low)' }}>
+                        {title}
+                    </h4>
+                )}
                 <span className="text-xs font-medium" style={{ color: 'var(--p-color-contrast-medium)' }}>
-                    {count} {unit}
+                    {count} {unitFor(count)}
                 </span>
             </div>
 
@@ -28,6 +30,14 @@ function TierRow({ title, tiers, count, highest, next, unit }) {
                             title={tier.desc}
                             className="flex flex-col items-center gap-1.5 w-20 group cursor-default"
                         >
+                            <span
+                                className="text-center leading-tight"
+                                style={{ fontSize: 9, color: 'var(--p-color-contrast-low)', opacity: isEarned ? 0.8 : 0.5 }}
+                            >
+                                {tier.id === next?.id
+                                    ? `${tier.threshold - count} ${unitFor(tier.threshold - count)} needed`
+                                    : `${tier.threshold}+ ${unitFor(tier.threshold)}`}
+                            </span>
                             <div
                                 className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl transition-all duration-200 relative"
                                 style={{
@@ -79,21 +89,6 @@ function TierRow({ title, tiers, count, highest, next, unit }) {
                 })}
             </div>
 
-            {highest && next && (
-                <div className="space-y-1">
-                    <div className="flex justify-between text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>
-                        <span>{highest.name}</span>
-                        <span>{next.threshold - count} more to unlock the next badge</span>
-                    </div>
-                    <div className="rounded-full h-1.5 overflow-hidden" style={{ background: 'rgba(255,255,255,0.07)' }}>
-                        <div
-                            className="h-full rounded-full transition-all duration-700"
-                            style={{ width: `${progressPct}%`, background: 'linear-gradient(90deg, #b45309, #f59e0b)' }}
-                        />
-                    </div>
-                </div>
-            )}
-
             {highest && !next && (
                 <p className="text-xs" style={{ color: '#f59e0b' }}>
                     {highest.emoji} {highest.name} — maximum tier reached!
@@ -102,14 +97,17 @@ function TierRow({ title, tiers, count, highest, next, unit }) {
 
             {!highest && (
                 <p className="text-xs" style={{ color: 'var(--p-color-contrast-low)' }}>
-                    {tiers[0].desc} to unlock your first {title.toLowerCase()} achievement.
+                    {tiers[0].desc} to unlock your first {title ? `${title.toLowerCase()} achievement` : 'badge'}.
                 </p>
             )}
         </div>
     );
 }
 
-export default function AchievementsPanel({ showCount, contributionCount = 0 }) {
+// showCommunity lets the My Shows page drop the Community track (contribution
+// badges belong on the profile page, where they're public-facing; My Shows
+// stays focused on this viewer's own attendance).
+export default function AchievementsPanel({ showCount, contributionCount = 0, showCommunity = true }) {
     const highestAttendance = getHighestBadge(showCount);
     const nextAttendance = getNextBadge(showCount);
     const highestCommunity = getHighestCommunityTier(contributionCount);
@@ -118,31 +116,39 @@ export default function AchievementsPanel({ showCount, contributionCount = 0 }) 
     return (
         <div className="rounded-2xl border border-white/10 bg-[#1a1e26] p-6 space-y-6">
             <div>
-                <h3 className="font-display font-bold text-lg">Achievements</h3>
+                <h3 className="font-display font-bold text-lg">{showCommunity ? 'Achievements' : 'Attendance Badges'}</h3>
                 <p className="text-sm mt-0.5" style={{ color: 'var(--p-color-contrast-medium)' }}>
-                    Earn achievements by attending shows and contributing to the archive.
+                    {showCommunity
+                        ? 'Earn achievements by attending shows and contributing to the archive.'
+                        : 'Earn badges by attending more shows.'}
                 </p>
             </div>
 
             <TierRow
-                title="Attendance"
+                title={showCommunity ? 'Attendance' : ''}
                 tiers={BADGES}
                 count={showCount}
                 highest={highestAttendance}
                 next={nextAttendance}
-                unit={showCount === 1 ? 'show' : 'shows'}
+                unitSingular="show"
+                unitPlural="shows"
             />
 
-            <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }} />
+            {showCommunity && (
+                <>
+                    <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }} />
 
-            <TierRow
-                title="Community"
-                tiers={COMMUNITY_TIERS}
-                count={contributionCount}
-                highest={highestCommunity}
-                next={nextCommunity}
-                unit={contributionCount === 1 ? 'contribution' : 'contributions'}
-            />
+                    <TierRow
+                        title="Community"
+                        tiers={COMMUNITY_TIERS}
+                        count={contributionCount}
+                        highest={highestCommunity}
+                        next={nextCommunity}
+                        unitSingular="contribution"
+                        unitPlural="contributions"
+                    />
+                </>
+            )}
         </div>
     );
 }

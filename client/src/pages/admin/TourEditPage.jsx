@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { PHeading, PText, PButton, PButtonPure, PInlineNotification, PSpinner } from '@porsche-design-system/components-react';
 import { supabase } from '../../services/supabase';
 import { updateShowTour } from '../../services/api';
+import { formatVenueLocation } from '../../utils/geography';
 import { useAuth } from '../../contexts/AuthContext';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
@@ -22,7 +23,7 @@ async function fetchAllShows() {
     for (let rangeStart = 0; ;) {
         const { data: page, error } = await supabase
             .from('shows')
-            .select('id, show_date, artist_name, tour_name, venues(name, city, state_country)')
+            .select('id, show_date, artist_name, tour_name, venues(name, city, state, country, state_country)')
             .order('id')
             .range(rangeStart, rangeStart + 999);
         if (error) throw error;
@@ -180,7 +181,7 @@ export default function TourEditPage() {
                                 <PText size="small" weight="semi-bold">{formatDate(show.show_date)} — {show.artist_name}</PText>
                                 {show.venues && (
                                     <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>
-                                        {show.venues.name} &middot; {show.venues.city}, {show.venues.state_country}
+                                        {show.venues.name} &middot; {formatVenueLocation(show.venues)}
                                     </PText>
                                 )}
                             </div>
@@ -220,7 +221,7 @@ export default function TourEditPage() {
                                     <PText size="small" weight="semi-bold">{formatDate(show.show_date)} — {show.artist_name}</PText>
                                     {show.venues && (
                                         <PText size="xs" style={{ color: 'var(--p-color-contrast-low)' }}>
-                                            {show.venues.name} &middot; {show.venues.city}, {show.venues.state_country}
+                                            {show.venues.name} &middot; {formatVenueLocation(show.venues)}
                                             {show.tour_name && <> &middot; currently: {show.tour_name}</>}
                                         </PText>
                                     )}

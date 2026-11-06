@@ -1,4 +1,5 @@
 import { forwardRef } from 'react';
+import { formatVenueLocation } from '../utils/geography';
 
 // Fixed-pixel-size square graphic (1080x1080), captured via html-to-image —
 // a simpler sibling of InstagramPostGraphic.jsx: no setlist, no color-style
@@ -43,9 +44,7 @@ const ArtworkGraphic = forwardRef(function ArtworkGraphic({
     show, backgroundImageUrl, posterOpacity = 0.5, barOpacity = 0.7,
     bgPosX = 50, bgPosY = 50, bgZoom = 1, strokeColor = null,
 }, ref) {
-    const location = show.venues
-        ? [show.venues.city, show.venues.state_country].filter(Boolean).join(', ')
-        : null;
+    const location = show.venues ? formatVenueLocation(show.venues) : null;
 
     // Full-bleed solid bar behind a text group — one continuous rectangle
     // (not per-line) so there's no gap in the bar between the lines it

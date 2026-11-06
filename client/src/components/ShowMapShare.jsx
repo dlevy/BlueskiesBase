@@ -394,12 +394,12 @@ export async function buildTourMapImage({ pastShows, upcomingShows, attendedLabe
     const venueMap = new Map();
     const add = (show, type) => {
         if (!show.venues?.city) return;
-        const key = `${show.venues.city}|${show.venues.state_country || ''}`;
+        const key = `${show.venues.city}|${[show.venues.state, show.venues.country].filter(Boolean).join(", ")}`;
         const ex = venueMap.get(key);
         if (!ex) {
             venueMap.set(key, {
                 city: show.venues.city,
-                stateCountry: show.venues.state_country,
+                stateCountry: [show.venues.state, show.venues.country].filter(Boolean).join(', '),
                 types: new Set([type]),
                 lat: show.venues.latitude ?? null,
                 lng: show.venues.longitude ?? null,
@@ -564,12 +564,12 @@ export default function ShowMapShare({ pastShows, upcomingShows, title = 'My Sho
         const venueMap = new Map();
         const add = (show, type) => {
             if (!show.venues?.city) return;
-            const key = `${show.venues.city}|${show.venues.state_country || ''}`;
+            const key = `${show.venues.city}|${[show.venues.state, show.venues.country].filter(Boolean).join(", ")}`;
             const ex = venueMap.get(key);
             if (!ex) {
                 venueMap.set(key, {
                     city: show.venues.city,
-                    stateCountry: show.venues.state_country,
+                    stateCountry: [show.venues.state, show.venues.country].filter(Boolean).join(', '),
                     types: new Set([type]),
                     lat: show.venues.latitude ?? null,
                     lng: show.venues.longitude ?? null,

@@ -3,7 +3,6 @@ import { PHeading, PText, PDivider } from '@porsche-design-system/components-rea
 import { getSongs, getCommunityStats } from '../services/api';
 import { supabase } from '../services/supabase';
 import { useCountUp } from '../hooks/useCountUp';
-import { getCountry } from '../utils/geography';
 import TourStatsModule from './TourStatsModule';
 import SongEvidenceLinks from './SongEvidenceLinks';
 
@@ -45,7 +44,7 @@ export default function SongStatsWidget() {
                 for (let rangeStart = 0; ;) {
                     const { data: page, error: err } = await supabase
                         .from('shows')
-                        .select('show_date, is_cancelled, venues(city, state_country)')
+                        .select('show_date, is_cancelled, venues(city, country)')
                         .order('id')
                         .range(rangeStart, rangeStart + 999);
                     if (err) throw err;
@@ -72,8 +71,7 @@ export default function SongStatsWidget() {
                     yearCounts[y]      = (yearCounts[y]      || 0) + 1;
 
                     if (show.venues?.city) cities.add(show.venues.city);
-                    const country = getCountry(show.venues?.state_country);
-                    if (country) countries.add(country);
+                    if (show.venues?.country) countries.add(show.venues.country);
                 }
 
                 const topMonth = Object.entries(monthCounts).sort((a, b) => b[1] - a[1])[0];

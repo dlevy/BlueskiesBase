@@ -1,4 +1,5 @@
 import { buildShowPath } from './showSlug';
+import { formatVenueLocation } from './geography';
 
 // Shared between NotificationBell (header dropdown) and NotificationsPage
 // (full history) so both render the same text for the same row.
@@ -68,7 +69,7 @@ export function notificationText(n) {
 
 export function notificationShowLabel(n) {
     if (!n.shows) return null;
-    const venue = `${n.shows.venues?.city || ''}${n.shows.venues?.state_country ? `, ${n.shows.venues.state_country}` : ''}`;
+    const venue = formatVenueLocation(n.shows.venues);
     // show_date is a plain DATE column (YYYY-MM-DD) — parse the parts directly
     // rather than `new Date(dateString)`, which reads it as UTC midnight and
     // can print the wrong day in a timezone west of UTC.

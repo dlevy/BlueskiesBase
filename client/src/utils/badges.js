@@ -3,7 +3,7 @@ export const BADGES = [
         id: 'cheap-seat',
         threshold: 1,
         emoji: '🎟️',
-        name: 'Cheap Seat',
+        name: 'Situation',
         song: 'The Cheapest Seats',
         desc: 'Welcome to the show',
     },
@@ -90,11 +90,39 @@ export const COMMUNITY_TIERS = [
         desc: 'A steady hand around here',
     },
     {
+        id: 'archivist',
+        threshold: 10,
+        emoji: '📚',
+        name: 'Archivist',
+        desc: 'Building out the record, one entry at a time',
+    },
+    {
         id: 'pillar-of-the-archive',
         threshold: 20,
         emoji: '🏛️',
         name: 'Pillar of the Archive',
         desc: 'One of the archive\'s most dedicated builders',
+    },
+    {
+        id: 'cornerstone',
+        threshold: 35,
+        emoji: '🧱',
+        name: 'Cornerstone',
+        desc: 'Part of the archive\'s foundation',
+    },
+    {
+        id: 'master-archivist',
+        threshold: 50,
+        emoji: '🎓',
+        name: 'Master Archivist',
+        desc: 'A deep well of knowledge and effort',
+    },
+    {
+        id: 'legend-of-the-archive',
+        threshold: 100,
+        emoji: '👑',
+        name: 'Legend of the Archive',
+        desc: 'A defining contributor to this community',
     },
 ];
 

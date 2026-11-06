@@ -773,7 +773,7 @@ export default function SearchPage() {
                                                                     {show.venues.name}
                                                                 </p>
                                                                 <p className="text-xs text-left" style={{ color: 'var(--p-color-contrast-low)' }}>
-                                                                    {show.venues.city}{show.venues.state_country ? `, ${show.venues.state_country}` : ''}
+                                                                    {[show.venues.city, show.venues.state].filter(Boolean).join(', ')}
                                                                 </p>
                                                             </>
                                                         )}

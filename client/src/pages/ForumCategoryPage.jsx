@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { PSpinner, PText, PHeading, PInlineNotification } from '@porsche-design-system/components-react';
 import { getForumCategories, getForumThreads, createForumThread, getMentionableUsers, getShowsWithoutDiscussion, startShowDiscussion } from '../services/api';
 import { resolveCategoryBySlug, buildCategoryPath, buildThreadPath } from '../utils/forumSlug';
+import { formatVenueLocation } from '../utils/geography';
 import { useAuth } from '../contexts/AuthContext';
 import MainNavTabs from '../components/MainNavTabs';
 import SEO from '../components/SEO';
@@ -25,7 +26,7 @@ function formatShowDate(dateString) {
 
 function venueLabel(venues) {
     if (!venues) return '';
-    return `${venues.name} — ${venues.city}${venues.state_country ? ', ' + venues.state_country : ''}`;
+    return `${venues.name} — ${formatVenueLocation(venues)}`;
 }
 
 // The show picker shown in place of the normal new-thread form on the

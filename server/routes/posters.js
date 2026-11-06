@@ -97,7 +97,7 @@ router.get('/', async (req, res) => {
                     show_date,
                     artist_name,
                     tour_name,
-                    venues ( name, city, state_country )
+                    venues ( name, city, state, country, state_country )
                 )
             `);
 
@@ -461,7 +461,7 @@ router.get('/:posterId/shows', requireEditorOrAdmin, async (req, res) => {
 
         const { data: links, error } = await supabaseAdmin
             .from('poster_show_links')
-            .select('id, shows ( id, show_date, artist_name, venues ( name, city, state_country ) )')
+            .select('id, shows ( id, show_date, artist_name, venues ( name, city, state, country, state_country ) )')
             .eq('poster_id', posterId);
 
         if (error) {
@@ -517,7 +517,7 @@ router.post('/:posterId/link-range', requireEditorOrAdmin, async (req, res) => {
 
         const { data: candidateShows, error: showsError } = await supabaseAdmin
             .from('shows')
-            .select('id, show_date, artist_name, venues ( name, city, state_country )')
+            .select('id, show_date, artist_name, venues ( name, city, state, country, state_country )')
             .eq('artist_name', poster.shows.artist_name)
             .gte('show_date', startDate)
             .lte('show_date', endDate)
@@ -650,7 +650,7 @@ router.get('/collection', authenticate, async (req, res) => {
                         show_date,
                         artist_name,
                         tour_name,
-                        venues ( name, city, state_country )
+                        venues ( name, city, state, country, state_country )
                     )
                 )
             `)
@@ -817,7 +817,7 @@ router.get('/for-trade', async (req, res) => {
                         show_date,
                         artist_name,
                         tour_name,
-                        venues ( name, city, state_country )
+                        venues ( name, city, state, country, state_country )
                     )
                 )
             `)
@@ -1001,7 +1001,7 @@ router.get('/wants', authenticate, async (req, res) => {
                     show_date,
                     artist_name,
                     tour_name,
-                    venues ( name, city, state_country )
+                    venues ( name, city, state, country, state_country )
                 )
             `)
             .eq('user_id', req.user.id)
@@ -1057,7 +1057,7 @@ router.get('/wants/summary', async (req, res) => {
 
         const { data: shows, error: showsError } = await supabaseAdmin
             .from('shows')
-            .select('id, show_date, artist_name, tour_name, venues ( name, city, state_country )')
+            .select('id, show_date, artist_name, tour_name, venues ( name, city, state, country, state_country )')
             .in('id', showIds);
         if (showsError) {
             console.error('Error fetching shows for wants summary:', showsError);

@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const { supabase } = require('../config/supabase');
-const { getStateName, getCountry } = require('../utils/geography');
 
 /**
  * GET /api/search/shows
@@ -12,8 +11,8 @@ const { getStateName, getCountry } = require('../utils/geography');
  *   - day: Filter by day (1-31)
  *   - venue: Filter by venue name (partial match)
  *   - city: Filter by city (partial match)
- *   - state: Filter by US state (exact canonical match — see utils/geography)
- *   - country: Filter by country (exact canonical match — see utils/geography)
+ *   - state: Filter by venues.state (exact match)
+ *   - country: Filter by venues.country (exact match)
  *   - song: Filter by song title (shows containing this song)
  *   - source: Filter by source type (AUD, SBD, VIDEO, etc.)
  *   - hasNotes: Filter by shows with user notes (true/false)
@@ -121,7 +120,7 @@ router.get('/shows', async (req, res) => {
             .from('shows')
             .select(`
                 *,
-                venues (id, name, city, state_country, address),
+                venues (id, name, city, state, country, state_country, address),
                 opened_for:bands!shows_opened_for_id_fkey(id, name)
             `)
             .order('show_date', { ascending: false })
@@ -206,11 +205,11 @@ router.get('/shows', async (req, res) => {
         }
 
         if (state && filteredShows) {
-            filteredShows = filteredShows.filter(show => getStateName(show.venues?.state_country) === state);
+            filteredShows = filteredShows.filter(show => show.venues?.state === state);
         }
 
         if (country && filteredShows) {
-            filteredShows = filteredShows.filter(show => getCountry(show.venues?.state_country) === country);
+            filteredShows = filteredShows.filter(show => show.venues?.country === country);
         }
 
         // If searching by song, we need to join with setlist_songs

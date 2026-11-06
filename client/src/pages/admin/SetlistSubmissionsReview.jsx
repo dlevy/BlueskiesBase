@@ -4,6 +4,7 @@ import { PHeading, PText, PButtonPure, PInlineNotification, PSpinner } from '@po
 import { useAuth } from '../../contexts/AuthContext';
 import { getAllSetlistSubmissions, mergeSetlistSubmissionSong, mergeAllSetlistSubmissionSongs, deleteSetlistSubmission } from '../../services/api';
 import { buildShowPath } from '../../utils/showSlug';
+import { formatVenueLocation } from '../../utils/geography';
 
 const SET_LABELS = { set1: 'Set 1', set2: 'Set 2', set3: 'Set 3', encore: 'Encore' };
 const selectClass = "rounded-lg border border-white/10 py-1 px-2 text-xs focus:outline-none focus:ring-1 focus:ring-[var(--p-color-info)]";
@@ -186,7 +187,7 @@ export default function SetlistSubmissionsReview() {
                                     {submission.shows?.venues && (
                                         <PText size="xs" color="contrast-medium">
                                             {submission.shows.venues.name ? `${submission.shows.venues.name}, ` : ''}
-                                            {submission.shows.venues.city}{submission.shows.venues.state_country ? `, ${submission.shows.venues.state_country}` : ''}
+                                            {formatVenueLocation(submission.shows.venues)}
                                         </PText>
                                     )}
                                 </div>

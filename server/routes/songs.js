@@ -60,7 +60,7 @@ router.get('/', async (req, res) => {
         if (lastPlayedShowIds.length > 0) {
             const { data: lastPlayedShows, error: lastPlayedError } = await supabase
                 .from('shows')
-                .select('id, show_date, artist_name, tour_name, venues(name, city, state_country)')
+                .select('id, show_date, artist_name, tour_name, venues(name, city, state, country, state_country)')
                 .in('id', lastPlayedShowIds);
             if (lastPlayedError) {
                 console.error('Error fetching last-played shows:', lastPlayedError);
@@ -152,7 +152,7 @@ router.get('/:id', async (req, res) => {
                         venues (
                             name,
                             city,
-                            state_country
+                            state, country, state_country
                         )
                     )
                 `, { count: 'exact' })

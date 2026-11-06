@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { PSpinner, PText } from '@porsche-design-system/components-react';
 import { getAllPhotos } from '../services/api';
 import { buildShowPath } from '../utils/showSlug';
+import { formatVenueLocation } from '../utils/geography';
 import MainNavTabs from '../components/MainNavTabs';
 import SEO from '../components/SEO';
 import Lightbox from 'yet-another-react-lightbox';
@@ -33,7 +34,7 @@ function ShowPhotoSection({ show, photos, onPhotoClick }) {
                     <p className="text-xs" style={{ color: 'var(--p-color-contrast-medium)' }}>
                         {show.venues.name}
                         <span style={{ color: 'var(--p-color-contrast-low)' }}>
-                            {' — '}{show.venues.city}{show.venues.state_country ? `, ${show.venues.state_country}` : ''}
+                            {' — '}{formatVenueLocation(show.venues)}
                         </span>
                     </p>
                 )}
