@@ -657,7 +657,11 @@ router.get('/threads/:id', async (req, res) => {
             .eq('id', id)
             .maybeSingle();
 
-        if (threadError || !thread) {
+        if (threadError) {
+            console.error('Error fetching forum thread:', threadError);
+            return res.status(500).json({ error: 'Failed to fetch thread' });
+        }
+        if (!thread) {
             return res.status(404).json({ error: 'Thread not found' });
         }
 

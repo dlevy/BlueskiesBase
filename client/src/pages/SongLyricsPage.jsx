@@ -50,6 +50,7 @@ export default function SongLyricsPage() {
     const [resolving, setResolving] = useState(true);
     const [song, setSong] = useState(null);
     const [notFound, setNotFound] = useState(false);
+    const [resolveError, setResolveError] = useState(false);
 
     const [detail, setDetail] = useState(null);
     const [loadingDetail, setLoadingDetail] = useState(true);
@@ -58,7 +59,11 @@ export default function SongLyricsPage() {
     // Resolve the slug against every real song title. A slug matching more
     // than one distinct song (e.g. two different songs both titled
     // "Machine Gun") is treated as not found rather than guessed at — same
-    // posture as the show/tour slug collision handling.
+    // posture as the show/tour slug collision handling. A fetch failure
+    // (network blip, Supabase hiccup) is kept separate (resolveError) so it
+    // never gets treated as "not found" and noindexed — a crawler's renderer
+    // hitting a transient failure here was producing false-positive noindex
+    // flags in Search Console.
     useEffect(() => {
         let cancelled = false;
         getSongs()
@@ -77,7 +82,7 @@ export default function SongLyricsPage() {
             })
             .catch(err => {
                 console.error('[SongLyricsPage] Error loading songs:', err);
-                if (!cancelled) setNotFound(true);
+                if (!cancelled) setResolveError(true);
             })
             .finally(() => { if (!cancelled) setResolving(false); });
         return () => { cancelled = true; };
@@ -113,6 +118,18 @@ export default function SongLyricsPage() {
                 <div className="min-h-[40vh] flex items-center justify-center">
                     <PSpinner size="large" aria={{ 'aria-label': 'Loading song' }} />
                 </div>
+            </div>
+        );
+    }
+
+    // No <SEO noindex> here — a fetch failure doesn't mean the song doesn't
+    // exist, so the robots tag is left exactly as it already is rather than
+    // claiming a definite answer this component doesn't actually have.
+    if (resolveError) {
+        return (
+            <div className="px-4 pt-2 pb-4 md:pt-3 md:pb-6 max-w-3xl mx-auto space-y-4">
+                <MainNavTabs />
+                <PInlineNotification heading="Could not load song" description="Something went wrong loading this page. Please try refreshing." state="error" dismissButton={false} />
             </div>
         );
     }

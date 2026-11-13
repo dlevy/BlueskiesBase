@@ -128,6 +128,7 @@ export default function ForumCategoryPage() {
     const [resolving, setResolving] = useState(true);
     const [category, setCategory] = useState(null);
     const [notFound, setNotFound] = useState(false);
+    const [resolveError, setResolveError] = useState(false);
     const [threads, setThreads] = useState([]);
     const [loadingThreads, setLoadingThreads] = useState(true);
     const [error, setError] = useState(null);
@@ -157,7 +158,10 @@ export default function ForumCategoryPage() {
             })
             .catch(err => {
                 console.error('[ForumCategoryPage] Error loading categories:', err);
-                if (!cancelled) setNotFound(true);
+                // A fetch failure here doesn't mean the category doesn't exist —
+                // kept separate from notFound so a transient failure (exactly the
+                // kind a crawler's renderer can hit) never gets noindexed.
+                if (!cancelled) setResolveError(true);
             })
             .finally(() => { if (!cancelled) setResolving(false); });
         return () => { cancelled = true; };
@@ -197,6 +201,17 @@ export default function ForumCategoryPage() {
             <div className="px-4 pt-2 pb-4 md:pt-3 md:pb-6 max-w-4xl mx-auto">
                 <MainNavTabs />
                 <div className="flex justify-center py-16"><PSpinner size="medium" aria={{ 'aria-label': 'Loading' }} /></div>
+            </div>
+        );
+    }
+
+    // No <SEO noindex> here — a fetch failure doesn't mean the category
+    // doesn't exist, so the robots tag is left exactly as it already is.
+    if (resolveError) {
+        return (
+            <div className="px-4 pt-2 pb-4 md:pt-3 md:pb-6 max-w-4xl mx-auto space-y-4">
+                <MainNavTabs />
+                <PInlineNotification heading="Could not load category" description="Something went wrong loading this page. Please try refreshing." state="error" dismissButton={false} />
             </div>
         );
     }

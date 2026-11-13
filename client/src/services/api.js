@@ -2280,7 +2280,9 @@ export const getForumThread = async (threadId) => {
     const response = await fetch(`${API_BASE_URL}/api/forum/threads/${threadId}`);
     if (!response.ok) {
         const error = await response.json().catch(() => ({}));
-        throw new Error(error.error || 'Failed to fetch thread');
+        const err = new Error(error.error || 'Failed to fetch thread');
+        err.status = response.status;
+        throw err;
     }
     return response.json();
 };

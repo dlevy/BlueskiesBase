@@ -751,6 +751,30 @@ export default function ShowDetailPage() {
         ],
     };
 
+    // One VideoObject per embedded YouTube link below (Videos & Links
+    // section) — mirrors server/utils/showMeta.js's buildVideoJsonLd. No
+    // `uploadDate`: a fan-posted video's actual upload date isn't tracked
+    // anywhere, and the show's own date is usually wrong for it (uploads
+    // typically trail the show by weeks or years).
+    const videoJsonLd = (show.links || [])
+        .map(link => ({ link, ytId: getYouTubeId(link.url) }))
+        .filter(({ ytId }) => ytId)
+        .map(({ link, ytId }) => ({
+            '@context': 'https://schema.org',
+            '@type': 'VideoObject',
+            name: link.description
+                ? `${link.description} — ${show.artist_name} Live at ${venueLabel}`
+                : `${show.artist_name} Live at ${venueLabel} — ${longDate}`,
+            description: `Fan-recorded video from ${show.artist_name}'s show at ${venueLabel} on ${longDate}.`
+                + (link.description ? ` ${link.description}` : ''),
+            thumbnailUrl: [
+                `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`,
+                `https://img.youtube.com/vi/${ytId}/maxresdefault.jpg`,
+            ],
+            embedUrl: `https://www.youtube.com/embed/${ytId}`,
+            url: link.url,
+        }));
+
     const attendanceLabel = show.is_cancelled
         ? (attended ? 'I Planned to Go' : 'Planned to Go')
         : attended
@@ -762,7 +786,7 @@ export default function ShowDetailPage() {
 
     return (
         <div className="px-4 py-8 max-w-4xl mx-auto space-y-6">
-            <SEO title={seoTitle} description={seoDescription} jsonLd={[musicEventJsonLd, breadcrumbJsonLd]} path={buildShowPath(show)} />
+            <SEO title={seoTitle} description={seoDescription} jsonLd={[musicEventJsonLd, breadcrumbJsonLd, ...videoJsonLd]} path={buildShowPath(show)} />
 
             <MainNavTabs />
 

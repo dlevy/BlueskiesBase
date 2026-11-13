@@ -54,6 +54,7 @@ export default function TourPage() {
     const [resolving, setResolving] = useState(true);
     const [tourName, setTourName] = useState(null);
     const [notFound, setNotFound] = useState(false);
+    const [resolveError, setResolveError] = useState(false);
 
     const [tourData, setTourData] = useState(null);
     const [loadingData, setLoadingData] = useState(true);
@@ -63,6 +64,11 @@ export default function TourPage() {
     // Resolve the slug against real tour names — includes tours below the
     // public dropdown's 5-show floor (minShows: 0) so a direct link to a
     // small tour still works, same as the admin tour pages already rely on.
+    // A genuine zero/multiple-match result means the tour doesn't exist and
+    // correctly noindexes below; a fetch failure (network blip, Supabase
+    // hiccup — exactly the kind of thing a crawler's renderer can hit) is
+    // kept separate (resolveError) so it never gets treated as "not found"
+    // and noindexed — that false positive is what Search Console flagged.
     useEffect(() => {
         let cancelled = false;
         fetchTourList({ minShows: 0 })
@@ -80,7 +86,7 @@ export default function TourPage() {
             })
             .catch(err => {
                 console.error('[TourPage] Error loading tour list:', err);
-                if (!cancelled) setNotFound(true);
+                if (!cancelled) setResolveError(true);
             })
             .finally(() => { if (!cancelled) setResolving(false); });
         return () => { cancelled = true; };
@@ -121,6 +127,19 @@ export default function TourPage() {
                 <div className="min-h-[40vh] flex items-center justify-center">
                     <PSpinner size="large" aria={{ 'aria-label': 'Loading tour' }} />
                 </div>
+            </div>
+        );
+    }
+
+    // No <SEO noindex> here — a fetch failure doesn't mean the tour doesn't
+    // exist, so the robots tag is left exactly as the server prerendered it
+    // (or the default "index, follow" in the static shell) rather than
+    // claiming a definite answer this component doesn't actually have.
+    if (resolveError) {
+        return (
+            <div className="px-4 pt-2 pb-4 md:pt-3 md:pb-6 max-w-4xl mx-auto space-y-4">
+                <MainNavTabs />
+                <PInlineNotification heading="Could not load tour" description="Something went wrong loading this page. Please try refreshing." state="error" dismissButton={false} />
             </div>
         );
     }

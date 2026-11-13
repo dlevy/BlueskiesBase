@@ -21,7 +21,7 @@ function buildShowPath(show) {
 async function findShowByPathParams({ artist, date, location }) {
     const { data: shows, error } = await supabase
         .from('shows')
-        .select('id, artist_name, show_date, tour_name, is_cancelled, venues(name, city, state, country, state_country)')
+        .select('id, artist_name, show_date, tour_name, is_cancelled, links, venues(name, city, state, country, state_country)')
         .eq('show_date', date);
 
     if (error || !shows) return null;
@@ -37,6 +37,48 @@ async function findShowByPathParams({ artist, date, location }) {
 
 function escapeHtml(str) {
     return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// Mirrors getYouTubeId in client/src/pages/ShowDetailPage.jsx — keep in sync.
+function getYouTubeId(url) {
+    try {
+        const u = new URL(url);
+        if (u.hostname === 'youtu.be') return u.pathname.slice(1).split('?')[0];
+        if (u.hostname.includes('youtube.com')) {
+            if (u.pathname.startsWith('/shorts/')) return u.pathname.split('/')[2];
+            return u.searchParams.get('v');
+        }
+    } catch {}
+    return null;
+}
+
+// One VideoObject per embedded YouTube link (ShowDetailPage.jsx embeds an
+// <iframe> for each) — Search Console's Video indexing report wants this
+// structured data on any page that actually shows a video player, which
+// these pages do but never described. No `uploadDate`: a fan-posted video's
+// actual upload date isn't tracked anywhere, and the show's own date is
+// usually wrong for it (uploads typically trail the show by weeks or
+// years) — same "never fabricate a field we don't really know" posture
+// already established for ticketing/promoter data below.
+function buildVideoJsonLd(show, venueLabel, longDate) {
+    return (show.links || [])
+        .map(link => ({ link, ytId: getYouTubeId(link.url) }))
+        .filter(({ ytId }) => ytId)
+        .map(({ link, ytId }) => ({
+            '@context': 'https://schema.org',
+            '@type': 'VideoObject',
+            name: link.description
+                ? `${link.description} — ${show.artist_name} Live at ${venueLabel}`
+                : `${show.artist_name} Live at ${venueLabel} — ${longDate}`,
+            description: `Fan-recorded video from ${show.artist_name}'s show at ${venueLabel} on ${longDate}.`
+                + (link.description ? ` ${link.description}` : ''),
+            thumbnailUrl: [
+                `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`,
+                `https://img.youtube.com/vi/${ytId}/maxresdefault.jpg`,
+            ],
+            embedUrl: `https://www.youtube.com/embed/${ytId}`,
+            url: link.url,
+        }));
 }
 
 // An image for this show's JSON-LD (schema.org MusicEvent.image, which
@@ -140,7 +182,9 @@ function buildShowHead(show, { imageUrl, canonicalUrl, baseUrl } = {}) {
         ],
     };
 
-    return { title, description, jsonLd: [musicEventJsonLd, breadcrumbJsonLd] };
+    const videoJsonLd = buildVideoJsonLd(show, venueLabel, longDate);
+
+    return { title, description, jsonLd: [musicEventJsonLd, breadcrumbJsonLd, ...videoJsonLd] };
 }
 
 // Injects title/description/canonical/og/twitter/JSON-LD into the built

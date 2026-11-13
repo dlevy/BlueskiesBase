@@ -123,6 +123,7 @@ export default function ForumThreadPage() {
     const [replies, setReplies] = useState([]);
     const [loading, setLoading] = useState(true);
     const [notFound, setNotFound] = useState(false);
+    const [resolveError, setResolveError] = useState(false);
     const [error, setError] = useState(null);
     const [members, setMembers] = useState([]);
 
@@ -164,7 +165,13 @@ export default function ForumThreadPage() {
             setReplies(data.replies || []);
         } catch (err) {
             console.error('[ForumThreadPage] Error loading thread:', err);
-            setNotFound(true);
+            // A real 404 means the thread doesn't exist and correctly noindexes
+            // below; anything else (network blip, a 500) doesn't mean that, so
+            // it's kept separate (resolveError) rather than noindexed — a
+            // crawler's renderer hitting a transient failure here was producing
+            // false-positive noindex flags in Search Console.
+            if (err.status === 404) setNotFound(true);
+            else setResolveError(true);
         } finally {
             setLoading(false);
         }
@@ -317,6 +324,17 @@ export default function ForumThreadPage() {
             <div className="px-4 pt-2 pb-4 md:pt-3 md:pb-6 max-w-4xl mx-auto">
                 <MainNavTabs />
                 <div className="flex justify-center py-16"><PSpinner size="medium" aria={{ 'aria-label': 'Loading thread' }} /></div>
+            </div>
+        );
+    }
+
+    // No <SEO noindex> here — a fetch failure doesn't mean the thread doesn't
+    // exist, so the robots tag is left exactly as it already is.
+    if (resolveError) {
+        return (
+            <div className="px-4 pt-2 pb-4 md:pt-3 md:pb-6 max-w-4xl mx-auto space-y-4">
+                <MainNavTabs />
+                <PInlineNotification heading="Could not load thread" description="Something went wrong loading this page. Please try refreshing." state="error" dismissButton={false} />
             </div>
         );
     }
