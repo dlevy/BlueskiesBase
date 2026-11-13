@@ -6,6 +6,7 @@ import { buildTourPath, slugify } from '../utils/tourSlug';
 import { buildShowPath } from '../utils/showSlug';
 import { formatVenueLocation } from '../utils/geography';
 import SEO from '../components/SEO';
+import { SITE_URL } from '../utils/siteUrl';
 import MainNavTabs from '../components/MainNavTabs';
 import ShowListCard from '../components/ShowListCard';
 import TourStatsModule from '../components/TourStatsModule';
@@ -180,8 +181,8 @@ export default function TourPage() {
         '@context': 'https://schema.org',
         '@type': 'BreadcrumbList',
         itemListElement: [
-            { '@type': 'ListItem', position: 1, name: 'Home', item: `${window.location.origin}/` },
-            { '@type': 'ListItem', position: 2, name: `${tourName} Tour Setlist`, item: `${window.location.origin}${buildTourPath(tourName)}` },
+            { '@type': 'ListItem', position: 1, name: 'Home', item: `${SITE_URL}/` },
+            { '@type': 'ListItem', position: 2, name: `${tourName} Tour Setlist`, item: `${SITE_URL}${buildTourPath(tourName)}` },
         ],
     };
 

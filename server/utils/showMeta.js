@@ -1,5 +1,8 @@
 const { supabase } = require('../config/supabase');
 const { buildTourPath } = require('./tourMeta');
+const { buildSongPath } = require('./songMeta');
+
+const SET_KEYS = ['set1', 'set2', 'set3', 'encore'];
 
 // Must match client/src/utils/showSlug.js and server/routes/sitemap.js.
 function slugify(str) {
@@ -37,6 +40,52 @@ async function findShowByPathParams({ artist, date, location }) {
 
 function escapeHtml(str) {
     return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// This show's setlist grouped by set — same grouping and order as GET
+// /api/shows/:id (server/routes/shows.js), so the server-rendered setlist and
+// description match what ShowDetailPage.jsx shows. Soundcheck songs are left
+// out entirely, as they are from the page's main setlist.
+async function findShowSetlist(showId) {
+    const { data, error } = await supabase
+        .from('setlist_songs')
+        .select('set_number, song_order, is_encore, performance_type, jams_into, songs!setlist_songs_song_id_fkey ( title )')
+        .eq('show_id', showId)
+        .order('set_number')
+        .order('song_order');
+    if (error || !data) return {};
+
+    const sets = {};
+    data.forEach(row => {
+        if (row.performance_type === 'soundcheck' || !row.songs?.title) return;
+        const key = row.is_encore ? 'encore' : `set${row.set_number}`;
+        (sets[key] ||= []).push({ title: row.songs.title, performance_type: row.performance_type || 'full', jams_into: row.jams_into });
+    });
+    return sets;
+}
+
+// First five distinct songs actually played, for the description. Skips DJ'd
+// songs (a recording over the PA) and teases (a few bars inside another
+// song), and lists a song jammed out of and back into only once — a search
+// snippet should read like the setlist, not "Viridescent, Knight Rider
+// Theme, Viridescent". Mirrors the preview in
+// client/src/pages/ShowDetailPage.jsx — keep in sync.
+function setlistPreview(setlist) {
+    const titles = [...new Set(
+        SET_KEYS.flatMap(k => setlist?.[k] || [])
+            .filter(s => s.performance_type !== 'dj' && s.performance_type !== 'tease')
+            .map(s => s.title)
+    )];
+    return titles.length ? titles.slice(0, 5).join(', ') + (titles.length > 5 ? ', …' : '') : '';
+}
+
+function songLabel(song) {
+    let label = song.title;
+    if (song.performance_type === 'tease') label += ' (tease)';
+    else if (song.performance_type === 'partial') label += ' (partial)';
+    else if (song.performance_type === 'dj') label += " (DJ'd)";
+    if (song.jams_into) label += ' →';
+    return label;
 }
 
 // Mirrors getYouTubeId in client/src/pages/ShowDetailPage.jsx — keep in sync.
@@ -112,7 +161,7 @@ async function findShowImageUrl(showId) {
 // `imageUrl`/`canonicalUrl`/`baseUrl` are resolved by the caller (injectShowHead)
 // since they each need their own async fetch or request-derived base — this
 // function itself stays a plain sync builder.
-function buildShowHead(show, { imageUrl, canonicalUrl, baseUrl } = {}) {
+function buildShowHead(show, { imageUrl, canonicalUrl, baseUrl, setlist } = {}) {
     const venueName = show.venues?.name || '';
     const venueCity = show.venues
         ? [show.venues.city, show.venues.state, show.venues.country].filter(Boolean).join(', ')
@@ -128,9 +177,15 @@ function buildShowHead(show, { imageUrl, canonicalUrl, baseUrl } = {}) {
     const title = show.is_cancelled
         ? `${show.artist_name} at ${venueLabel} – ${longDate} (Canceled) | SkySets.org`
         : `${show.artist_name} at ${venueLabel} – ${longDate} Setlist | SkySets.org`;
+    // Leads with the songs when there's a setlist — Google shows the start of
+    // the description in results, and "Setlist: song, song, …" is what a
+    // setlist search is actually looking for. Keep in sync with
+    // seoDescription in client/src/pages/ShowDetailPage.jsx.
+    const preview = setlistPreview(setlist);
     const description = show.is_cancelled
         ? `${show.artist_name} was scheduled to perform at ${venueName} in ${venueCity} on ${longDate}, but the show was canceled.`
-        : `${show.artist_name} performed at ${venueName} in ${venueCity} on ${longDate}.`
+        : (preview ? `Setlist: ${preview} — ` : '')
+            + `${show.artist_name} performed at ${venueName} in ${venueCity} on ${longDate}.`
             + (show.tour_name ? ` Part of the ${show.tour_name} tour.` : '');
 
     // No ticketing/promoter data exists in this archive (it's a historical
@@ -198,8 +253,8 @@ function buildShowHead(show, { imageUrl, canonicalUrl, baseUrl } = {}) {
 // always matches whatever host actually served the sitemap too.
 async function injectShowHead(html, show, baseUrl) {
     const rawCanonicalUrl = baseUrl + buildShowPath(show);
-    const imageUrl = await findShowImageUrl(show.id);
-    const { title, description, jsonLd } = buildShowHead(show, { imageUrl, canonicalUrl: rawCanonicalUrl, baseUrl });
+    const [imageUrl, setlist] = await Promise.all([findShowImageUrl(show.id), findShowSetlist(show.id)]);
+    const { title, description, jsonLd } = buildShowHead(show, { imageUrl, canonicalUrl: rawCanonicalUrl, baseUrl, setlist });
     const escTitle = escapeHtml(title);
     const escDesc = escapeHtml(description);
     const canonicalUrl = escapeHtml(rawCanonicalUrl);
@@ -243,7 +298,41 @@ async function injectShowHead(html, show, baseUrl) {
     const jsonLdScript = `<script id="json-ld-seo" type="application/ld+json">${JSON.stringify(jsonLd).replace(/</g, '\\u003c')}</script>\n  </head>`;
     out = out.replace('</head>', jsonLdScript);
 
+    // The setlist itself as plain HTML, for crawlers that read the page
+    // without running its JavaScript (most AI crawlers, link previews) —
+    // same <noscript> approach and reasoning as tourMeta.js/faqMeta.js.
+    // Not prefilled into #root, since React replaces #root on mount and
+    // prefilled content would flash and shift layout for real visitors.
+    const body = buildShowNoscriptBody(show, title.replace(' | SkySets.org', ''), setlist);
+    out = out.replace('<div id="root"></div>', `<div id="root"></div>\n    <noscript><main>${body}</main></noscript>`);
+
     return out;
+}
+
+function buildShowNoscriptBody(show, heading, setlist) {
+    const venueName = show.venues?.name || '';
+    const venueCity = show.venues ? [show.venues.city, show.venues.state, show.venues.country].filter(Boolean).join(', ') : '';
+    const [y, m, d] = show.show_date.split('-');
+    const longDate = new Date(y, m - 1, d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+    let html = `<h1>${escapeHtml(heading)}</h1>`;
+    html += `<p>${escapeHtml(show.artist_name)} — ${escapeHtml([venueName, venueCity].filter(Boolean).join(', '))} — ${escapeHtml(longDate)}`;
+    if (show.tour_name) html += ` — <a href="${escapeHtml(buildTourPath(show.tour_name))}">${escapeHtml(show.tour_name)} tour</a>`;
+    html += '</p>';
+
+    if (show.is_cancelled) return html + '<p>This show was canceled.</p>';
+
+    const presentSets = SET_KEYS.filter(k => setlist?.[k]?.length);
+    if (!presentSets.length) return html + '<p>No setlist has been added for this show yet.</p>';
+
+    const numberedSets = presentSets.filter(k => k !== 'encore').length;
+    presentSets.forEach(k => {
+        const label = k === 'encore' ? 'Encore' : numberedSets > 1 ? `Set ${k.slice(3)}` : 'Setlist';
+        html += `<h2>${label}</h2><ol>${setlist[k].map(s =>
+            `<li><a href="${escapeHtml(buildSongPath(s.title))}">${escapeHtml(songLabel(s))}</a></li>`
+        ).join('')}</ol>`;
+    });
+    return html;
 }
 
 module.exports = { findShowByPathParams, buildShowHead, injectShowHead };

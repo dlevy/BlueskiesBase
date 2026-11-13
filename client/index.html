@@ -8,7 +8,7 @@
     <!-- Default SEO — overridden per-page client-side by client/src/components/SEO.jsx,
          and server-side for /show/* pages by server/utils/showMeta.js (see api/[...path].js) -->
     <title>SkySets.org – Johnny Blue Skies &amp; Sturgill Simpson Concert Setlists</title>
-    <meta name="description" content="The complete Johnny Blue Skies &amp; The Dark Clouds and Sturgill Simpson concert setlist archive — search 400+ shows from 2012 to present." />
+    <meta name="description" content="The complete Johnny Blue Skies &amp; The Dark Clouds and Sturgill Simpson concert setlist archive — search nearly 700 shows since 2005." />
     <meta name="keywords" content="Sturgill Simpson setlists, Johnny Blue Skies setlists, Johnny Blue Skies and the Dark Clouds setlists, Sturgill Simpson concert history, SkySets" />
     <meta name="robots" content="index, follow" />
     <link rel="canonical" href="https://www.skysets.org/" />
@@ -54,6 +54,30 @@
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:title" content="SkySets.org – Sturgill Simpson &amp; Johnny Blue Skies Setlists" />
     <meta name="twitter:description" content="The definitive Sturgill Simpson | Johnny Blue Skies &amp; The Dark Clouds concert setlist archive" />
+
+    <!-- Site-level identity: tells Google the site is "SkySets.org" (not the
+         old BlueskiesBase name) and ties it to the Instagram account. Its own
+         id so SEO.jsx, which manages the per-page #json-ld-seo block, never
+         removes it. -->
+    <script id="json-ld-site" type="application/ld+json">
+      [
+        {
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          "name": "SkySets.org",
+          "alternateName": "SkySets",
+          "url": "https://www.skysets.org/"
+        },
+        {
+          "@context": "https://schema.org",
+          "@type": "Organization",
+          "name": "SkySets.org",
+          "url": "https://www.skysets.org/",
+          "logo": "https://www.skysets.org/logo.png",
+          "sameAs": ["https://www.instagram.com/jbssetlists/"]
+        }
+      ]
+    </script>
   </head>
   <body>
     <div id="root"></div>

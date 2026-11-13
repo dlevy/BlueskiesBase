@@ -55,6 +55,9 @@ export default function SearchPage() {
     const [sortOrder, setSortOrder] = useState('newest');
 
     const [years, setYears] = useState([]);
+    // Played (past, not canceled) show count for the homepage intro — derived
+    // from the same years query, no extra request.
+    const [playedShowCount, setPlayedShowCount] = useState(null);
     // Gates the search tab's body: the "Browse by year" card only exists once
     // years load, and appearing late it pushed the filter bar and hero down.
     const [yearsLoaded, setYearsLoaded] = useState(false);
@@ -103,7 +106,7 @@ export default function SearchPage() {
             try {
                 const { data: showsData, error: showsError } = await supabase
                     .from('shows')
-                    .select('show_date, tour_name, day_order');
+                    .select('show_date, tour_name, day_order, is_cancelled');
                 if (showsError) {
                     setError('Failed to load search options. Please refresh the page.');
                     setRecentTourName(null);
@@ -113,6 +116,7 @@ export default function SearchPage() {
                     setYears([...new Set(showsData.map(s => parseInt(s.show_date.split('-')[0])))].sort((a, b) => b - a));
 
                     const todayStr = getLocalDateString();
+                    setPlayedShowCount(showsData.filter(s => s.show_date <= todayStr && !s.is_cancelled).length);
                     const past = showsData
                         // A non-tour side event (an afterparty, a one-off) has no
                         // tour_name — excluded here, not just left to fall through
@@ -447,7 +451,7 @@ export default function SearchPage() {
         <div className="px-4 pt-2 pb-4 md:pt-3 md:pb-6 max-w-6xl mx-auto">
             <SEO
                 title="Johnny Blue Skies &amp; Sturgill Simpson Concert Setlists"
-                description="The complete Johnny Blue Skies &amp; The Dark Clouds and Sturgill Simpson concert setlist archive — search 400+ shows from 2012 to present."
+                description="The complete Johnny Blue Skies &amp; The Dark Clouds and Sturgill Simpson concert setlist archive — search nearly 700 shows since 2005."
             />
 
             <MainNavTabs onHomeClick={handleHomeClick} />
@@ -459,6 +463,24 @@ export default function SearchPage() {
                 start fetching immediately instead of waiting on years. */}
             {activeTab === 'search' && (
                 <div className={yearsLoaded ? undefined : 'hidden'}>
+                    {/* The page's one <h1> plus a few sentences of real text —
+                        the homepage otherwise had no heading and almost no
+                        indexable copy, just widgets. Inside the yearsLoaded
+                        gate so it appears with everything else (no layout
+                        shift), and the numbers come from that same query. */}
+                    <div className="mb-4 px-1">
+                        <h1 className="font-display font-bold text-2xl md:text-3xl leading-tight" style={{ color: 'var(--p-color-primary)' }}>
+                            Johnny Blue Skies &amp; Sturgill Simpson Setlists
+                        </h1>
+                        <p className="text-sm mt-2 max-w-3xl" style={{ color: 'var(--p-color-contrast-medium)' }}>
+                            Every known setlist from Sturgill Simpson&rsquo;s live career —{' '}
+                            {playedShowCount ? `${playedShowCount.toLocaleString()} shows` : 'hundreds of shows'}
+                            {years.length > 0 && ` since ${Math.min(...years)}`}, through Johnny Blue Skies &amp; The Dark Clouds.
+                            Look up any show&rsquo;s full setlist, follow a song&rsquo;s complete performance history, and browse
+                            photos, posters and tour stats from fans who were there.
+                        </p>
+                    </div>
+
                     {/* Browse by year — always visible above filters */}
                     {years.length > 0 && (
                         <div className="rounded-2xl border border-white/10 bg-[#1a1e26] px-5 py-4 mb-4">

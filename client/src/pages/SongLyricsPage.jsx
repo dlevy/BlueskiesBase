@@ -5,6 +5,7 @@ import { getSongs, getSongById } from '../services/api';
 import { buildSongPath, slugify } from '../utils/songSlug';
 import { buildShowPath } from '../utils/showSlug';
 import SEO from '../components/SEO';
+import { SITE_URL } from '../utils/siteUrl';
 import MainNavTabs from '../components/MainNavTabs';
 import SongEvidenceLinks from '../components/SongEvidenceLinks';
 
@@ -166,9 +167,9 @@ export default function SongLyricsPage() {
         '@context': 'https://schema.org',
         '@type': 'BreadcrumbList',
         itemListElement: [
-            { '@type': 'ListItem', position: 1, name: 'Home', item: `${window.location.origin}/` },
-            { '@type': 'ListItem', position: 2, name: 'Discography', item: `${window.location.origin}/discography` },
-            { '@type': 'ListItem', position: 3, name: `${song.title} Lyrics`, item: `${window.location.origin}${buildSongPath(song.title)}` },
+            { '@type': 'ListItem', position: 1, name: 'Home', item: `${SITE_URL}/` },
+            { '@type': 'ListItem', position: 2, name: 'Discography', item: `${SITE_URL}/discography` },
+            { '@type': 'ListItem', position: 3, name: `${song.title} Lyrics`, item: `${SITE_URL}${buildSongPath(song.title)}` },
         ],
     };
 

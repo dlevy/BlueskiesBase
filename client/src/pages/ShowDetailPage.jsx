@@ -18,6 +18,7 @@ import PhotosSection from '../components/PhotosSection';
 import PostersSection from '../components/PostersSection';
 import SetlistSubmissionSection from '../components/SetlistSubmissionSection';
 import SEO from '../components/SEO';
+import { SITE_URL } from '../utils/siteUrl';
 import MainNavTabs from '../components/MainNavTabs';
 
 function getYouTubeId(url) {
@@ -704,10 +705,23 @@ export default function ShowDetailPage() {
     // treatment as a DJ'd song, just split into its own section instead of
     // flagged inline.
     const soundcheckSongs = show.setlist?.soundcheck || [];
-    const firstFive = allSongsFlat.slice(0, 5).map(s => s.title).filter(Boolean).join(', ');
+    // Leads with the songs — Google shows the start of the description in
+    // results. Skips DJ'd songs and teases, and lists a song jammed out of
+    // and back into only once. Mirrors setlistPreview()/description in
+    // server/utils/showMeta.js — keep in sync.
+    const previewTitles = [...new Set(
+        allSongsFlat
+            .filter(s => s.title && s.performance_type !== 'dj' && s.performance_type !== 'tease')
+            .map(s => s.title)
+    )];
+    const setlistPreview = previewTitles.length
+        ? previewTitles.slice(0, 5).join(', ') + (previewTitles.length > 5 ? ', …' : '')
+        : '';
     const seoDescription = show.is_cancelled
         ? `${show.artist_name} was scheduled to perform at ${venueName} in ${venueCity} on ${longDate}, but the show was canceled.`
-        : `${show.artist_name} performed at ${venueName} in ${venueCity} on ${longDate}.${firstFive ? ' Setlist: ' + firstFive + '.' : ''}`;
+        : (setlistPreview ? `Setlist: ${setlistPreview} — ` : '')
+            + `${show.artist_name} performed at ${venueName} in ${venueCity} on ${longDate}.`
+            + (show.tour_name ? ` Part of the ${show.tour_name} tour.` : '');
     // Keep in sync with server/utils/showMeta.js buildShowHead — that's what
     // crawlers actually see (prerendered into index.html for /show/* before
     // this client-side version would ever run); this copy covers in-app
@@ -726,7 +740,7 @@ export default function ShowDetailPage() {
         endDate: show.show_date,
         eventStatus: show.is_cancelled ? 'https://schema.org/EventCancelled' : 'https://schema.org/EventScheduled',
         eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
-        description: seoDescription + (show.tour_name ? ` Part of the ${show.tour_name} tour.` : ''),
+        description: seoDescription,
         location: {
             '@type': 'MusicVenue',
             name: venueName,
@@ -740,13 +754,13 @@ export default function ShowDetailPage() {
         '@context': 'https://schema.org',
         '@type': 'BreadcrumbList',
         itemListElement: [
-            { '@type': 'ListItem', position: 1, name: 'Home', item: `${window.location.origin}/` },
-            ...(show.tour_name ? [{ '@type': 'ListItem', position: 2, name: show.tour_name, item: `${window.location.origin}${buildTourPath(show.tour_name)}` }] : []),
+            { '@type': 'ListItem', position: 1, name: 'Home', item: `${SITE_URL}/` },
+            ...(show.tour_name ? [{ '@type': 'ListItem', position: 2, name: show.tour_name, item: `${SITE_URL}${buildTourPath(show.tour_name)}` }] : []),
             {
                 '@type': 'ListItem',
                 position: show.tour_name ? 3 : 2,
                 name: seoTitle,
-                item: `${window.location.origin}${buildShowPath(show)}`,
+                item: `${SITE_URL}${buildShowPath(show)}`,
             },
         ],
     };

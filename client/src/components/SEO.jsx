@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
+import { SITE_URL } from '../utils/siteUrl';
 
 const SITE_NAME = 'SkySets.org';
 const DEFAULT_TITLE = `${SITE_NAME} – Johnny Blue Skies & Sturgill Simpson Concert Setlists`;
-const DEFAULT_DESC = 'The complete Johnny Blue Skies & The Dark Clouds and Sturgill Simpson concert setlist archive — search 400+ shows from 2012 to present.';
+const DEFAULT_DESC = 'The complete Johnny Blue Skies & The Dark Clouds and Sturgill Simpson concert setlist archive — search nearly 700 shows since 2005.';
 
 function setMeta(selector, attr, value) {
     const el = document.querySelector(selector);
@@ -29,7 +30,7 @@ export default function SEO({ title, description, jsonLd, path, noindex = false 
     const desc = description || DEFAULT_DESC;
 
     useEffect(() => {
-        const canonicalUrl = `${window.location.origin}${cleanPath(path || window.location.pathname)}`;
+        const canonicalUrl = `${SITE_URL}${cleanPath(path || window.location.pathname)}`;
 
         document.title = fullTitle;
         setMeta('meta[name="robots"]', 'content', noindex ? 'noindex, nofollow' : 'index, follow');
