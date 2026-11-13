@@ -33,7 +33,11 @@ export default function SEO({ title, description, jsonLd, path, noindex = false 
         const canonicalUrl = `${SITE_URL}${cleanPath(path || window.location.pathname)}`;
 
         document.title = fullTitle;
-        setMeta('meta[name="robots"]', 'content', noindex ? 'noindex, nofollow' : 'index, follow');
+        // "follow" even when noindexed: a hidden page's links (e.g. a
+        // no-setlist show page linking its tour and neighbouring shows) still
+        // lead Google to pages that should be indexed. Matches the server
+        // prerender's tag (server/utils/showMeta.js).
+        setMeta('meta[name="robots"]', 'content', noindex ? 'noindex, follow' : 'index, follow');
         setMeta('meta[name="description"]', 'content', desc);
         setMeta('meta[property="og:title"]', 'content', fullTitle);
         setMeta('meta[property="og:description"]', 'content', desc);

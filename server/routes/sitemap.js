@@ -2,6 +2,25 @@ const express = require('express');
 const router = express.Router();
 const { supabaseAdmin } = require('../config/supabase');
 const { baseUrlFor } = require('../utils/baseUrl');
+const { isHiddenFromSearch } = require('../utils/showMeta');
+
+// Every show id with at least one non-soundcheck setlist row — paginated,
+// since setlist_songs is far past PostgREST's 1000-row default.
+async function fetchShowIdsWithSetlist() {
+    const ids = new Set();
+    for (let rangeStart = 0; ; rangeStart += 1000) {
+        const { data, error } = await supabaseAdmin
+            .from('setlist_songs')
+            .select('show_id')
+            .neq('performance_type', 'soundcheck')
+            .order('id')
+            .range(rangeStart, rangeStart + 999);
+        if (error) throw error;
+        data.forEach(r => ids.add(r.show_id));
+        if (data.length < 1000) break;
+    }
+    return ids;
+}
 
 // Must match client/src/utils/showSlug.js and the slugify in server/routes/shows.js.
 function slugify(str) {
@@ -43,10 +62,13 @@ router.get('/', async (req, res) => {
     try {
         const BASE_URL = baseUrlFor(req);
 
-        const { data: shows, error } = await supabaseAdmin
-            .from('shows')
-            .select('show_date, updated_at, artist_name, tour_name, is_cancelled, venues(city, state_country)')
-            .order('show_date', { ascending: false });
+        const [{ data: shows, error }, showIdsWithSetlist] = await Promise.all([
+            supabaseAdmin
+                .from('shows')
+                .select('id, show_date, updated_at, artist_name, tour_name, is_cancelled, venues(city, state_country)')
+                .order('show_date', { ascending: false }),
+            fetchShowIdsWithSetlist(),
+        ]);
 
         if (error) throw error;
 
@@ -69,6 +91,7 @@ router.get('/', async (req, res) => {
         // the URL scheme disambiguates them.
         const byPath = new Map();
         let unmappable = 0;
+        let hiddenNoSetlist = 0;
 
         for (const show of shows || []) {
             const url = buildShowPath(show);
@@ -89,6 +112,14 @@ router.get('/', async (req, res) => {
                 continue;
             }
             const [show] = matches;
+            // Same rule as the page's own noindex (see showMeta.js) — a page
+            // Google is told not to index shouldn't be advertised here either.
+            // Checked after the collision skip above, so a hidden show still
+            // blocks a shared path rather than letting its twin be listed.
+            if (isHiddenFromSearch(show.show_date, showIdsWithSetlist.has(show.id))) {
+                hiddenNoSetlist++;
+                continue;
+            }
             showUrls.push({
                 url,
                 priority: '0.8',
@@ -97,6 +128,9 @@ router.get('/', async (req, res) => {
             });
         }
 
+        if (hiddenNoSetlist) {
+            console.log(`Sitemap: left out ${hiddenNoSetlist} past show(s) with no setlist yet`);
+        }
         if (unmappable) {
             console.warn(`Sitemap: skipped ${unmappable} show(s) with no artist or venue location`);
         }

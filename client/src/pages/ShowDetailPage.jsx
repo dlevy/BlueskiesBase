@@ -21,6 +21,17 @@ import SEO from '../components/SEO';
 import { SITE_URL } from '../utils/siteUrl';
 import MainNavTabs from '../components/MainNavTabs';
 
+// A past show with no setlist yet is kept out of Google — thin content that
+// dilutes the setlist pages. Upcoming shows stay indexed, and the cutoff
+// trails today by a full day in UTC so a show is never hidden on its own
+// night. Uses UTC (not the viewer's local date) so every visitor — and
+// Googlebot — gets the same answer as the server. Mirrors isHiddenFromSearch
+// in server/utils/showMeta.js — keep in sync.
+function isHiddenFromSearch(showDate, hasSetlist) {
+    const cutoff = new Date(Date.now() - 24 * 3600 * 1000).toISOString().slice(0, 10);
+    return !hasSetlist && showDate < cutoff;
+}
+
 function getYouTubeId(url) {
     try {
         const u = new URL(url);
@@ -800,7 +811,13 @@ export default function ShowDetailPage() {
 
     return (
         <div className="px-4 py-8 max-w-4xl mx-auto space-y-6">
-            <SEO title={seoTitle} description={seoDescription} jsonLd={[musicEventJsonLd, breadcrumbJsonLd, ...videoJsonLd]} path={buildShowPath(show)} />
+            <SEO
+                title={seoTitle}
+                description={seoDescription}
+                jsonLd={[musicEventJsonLd, breadcrumbJsonLd, ...videoJsonLd]}
+                path={buildShowPath(show)}
+                noindex={isHiddenFromSearch(show.show_date, allSongsFlat.length > 0)}
+            />
 
             <MainNavTabs />
 

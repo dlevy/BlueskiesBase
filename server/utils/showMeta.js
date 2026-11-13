@@ -4,6 +4,19 @@ const { buildSongPath } = require('./songMeta');
 
 const SET_KEYS = ['set1', 'set2', 'set3', 'encore'];
 
+// A show page is kept out of Google (noindex + left out of the sitemap) once
+// the show is over and still has no setlist — a page with only a date and a
+// venue is thin content that dilutes the setlist pages Google should be
+// spending its attention on. Upcoming shows stay indexed (they're eligible
+// for event listings), and the cutoff trails today by a full day in UTC so a
+// show is never hidden on its own night, in any US time zone, while people
+// are searching "setlist tonight". Mirrors isHiddenFromSearch in
+// client/src/pages/ShowDetailPage.jsx — keep in sync.
+function isHiddenFromSearch(showDate, hasSetlist) {
+    const cutoff = new Date(Date.now() - 24 * 3600 * 1000).toISOString().slice(0, 10);
+    return !hasSetlist && showDate < cutoff;
+}
+
 // Must match client/src/utils/showSlug.js and server/routes/sitemap.js.
 function slugify(str) {
     return (str || '').toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
@@ -293,6 +306,14 @@ async function injectShowHead(html, show, baseUrl) {
             `<meta name="twitter:description" content="${escDesc}" />`
         );
 
+    const hasSetlist = SET_KEYS.some(k => setlist?.[k]?.length);
+    if (isHiddenFromSearch(show.show_date, hasSetlist)) {
+        out = out.replace(
+            /<meta name="robots" content="[^"]*" \/>/,
+            '<meta name="robots" content="noindex, follow" />'
+        );
+    }
+
     // id matches SEO.jsx's, so once React mounts it updates this tag in place
     // instead of appending a second copy of the same MusicEvent/BreadcrumbList.
     const jsonLdScript = `<script id="json-ld-seo" type="application/ld+json">${JSON.stringify(jsonLd).replace(/</g, '\\u003c')}</script>\n  </head>`;
@@ -335,4 +356,4 @@ function buildShowNoscriptBody(show, heading, setlist) {
     return html;
 }
 
-module.exports = { findShowByPathParams, buildShowHead, injectShowHead };
+module.exports = { findShowByPathParams, buildShowHead, injectShowHead, isHiddenFromSearch };
