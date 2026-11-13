@@ -74,6 +74,8 @@ export default function ShowForm() {
     const [newLinkUrl, setNewLinkUrl] = useState('');
     const [newLinkDescription, setNewLinkDescription] = useState('');
     const [linkFormError, setLinkFormError] = useState('');
+    // Index of the link being edited in place; null while adding a new one.
+    const [editingLinkIndex, setEditingLinkIndex] = useState(null);
     const [advancedOpen, setAdvancedOpen] = useState(false);
 
     const [formData, setFormData] = useState({
@@ -207,14 +209,62 @@ export default function ShowForm() {
         if (!url) { setLinkFormError('URL is required'); return; }
         try { new URL(url); } catch { setLinkFormError('Please enter a valid URL'); return; }
         setLinkFormError('');
-        setFormData(prev => ({ ...prev, links: [...prev.links, { url, description: newLinkDescription.trim() }] }));
+        const link = { url, description: newLinkDescription.trim() };
+        setFormData(prev => ({
+            ...prev,
+            links: editingLinkIndex === null
+                ? [...prev.links, link]
+                : prev.links.map((l, i) => (i === editingLinkIndex ? { ...l, ...link } : l)),
+        }));
+        closeLinkForm();
+    };
+
+    const openLinkForm = (index = null) => {
+        const link = index === null ? null : formData.links[index];
+        setEditingLinkIndex(index);
+        setNewLinkUrl(link?.url || '');
+        setNewLinkDescription(link?.description || '');
+        setLinkFormError('');
+        setShowLinkForm(true);
+    };
+
+    const closeLinkForm = () => {
+        setShowLinkForm(false);
+        setEditingLinkIndex(null);
         setNewLinkUrl('');
         setNewLinkDescription('');
-        setShowLinkForm(false);
+        setLinkFormError('');
+    };
+
+    // Shared by "+ Add Link" (shown below the list) and Edit (shown in place
+    // of the row being edited).
+    const renderLinkForm = () => {
+        const isEditing = editingLinkIndex !== null;
+        return (
+            <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
+                <PHeading size="sm" tag="h4">{isEditing ? 'Edit Link' : 'Add Link'}</PHeading>
+                {linkFormError && <PInlineNotification heading="Error" description={linkFormError} state="error" dismissButton={false} />}
+                <div>
+                    <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>URL</label>
+                    <input type="url" value={newLinkUrl} onChange={e => setNewLinkUrl(e.target.value)}
+                        placeholder="https://youtube.com/watch?v=..." className={inputClass} />
+                </div>
+                <div>
+                    <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>Description <span style={{ color: 'var(--p-color-contrast-medium)', fontWeight: 'normal' }}>(optional for YouTube)</span></label>
+                    <input type="text" value={newLinkDescription} onChange={e => setNewLinkDescription(e.target.value)}
+                        placeholder="e.g. Full show recording" className={inputClass} />
+                </div>
+                <div className="flex gap-2">
+                    <PButton type="button" size="small" onClick={handleAddLink}>{isEditing ? 'Save' : 'Add'}</PButton>
+                    <PButton type="button" variant="secondary" size="small" onClick={closeLinkForm}>Cancel</PButton>
+                </div>
+            </div>
+        );
     };
 
     const removeLink = (index) => {
         setFormData(prev => ({ ...prev, links: prev.links.filter((_, i) => i !== index) }));
+        if (editingLinkIndex !== null) closeLinkForm();
     };
 
     const handleDelete = async () => {
@@ -532,7 +582,7 @@ export default function ShowForm() {
                 <div className="flex justify-between items-center mb-4">
                     <PHeading size="lg" tag="h3">Links</PHeading>
                     {!showLinkForm && (
-                        <PButtonPure type="button" size="x-small" onClick={() => { setShowLinkForm(true); setNewLinkUrl(''); setNewLinkDescription(''); setLinkFormError(''); }}>
+                        <PButtonPure type="button" size="x-small" onClick={() => openLinkForm()}>
                             + Add Link
                         </PButtonPure>
                     )}
@@ -541,42 +591,36 @@ export default function ShowForm() {
                 {formData.links.length > 0 && (
                     <div className="space-y-2 mb-3">
                         {formData.links.map((link, i) => (
-                            <div key={i} className="flex items-start justify-between gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
-                                <div className="min-w-0">
-                                    <p className="text-xs text-amber-400 truncate">{link.url}</p>
-                                    {link.description && (
-                                        <p className="text-xs mt-0.5" style={{ color: 'var(--p-color-contrast-medium)' }}>{link.description}</p>
+                            showLinkForm && editingLinkIndex === i ? (
+                                <div key={i}>{renderLinkForm()}</div>
+                            ) : (
+                                <div key={i} className="flex items-start justify-between gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+                                    <div className="min-w-0">
+                                        <p className="text-xs text-amber-400 truncate">{link.url}</p>
+                                        {link.description && (
+                                            <p className="text-xs mt-0.5" style={{ color: 'var(--p-color-contrast-medium)' }}>{link.description}</p>
+                                        )}
+                                    </div>
+                                    {!showLinkForm && (
+                                        <div className="flex gap-3" style={{ flexShrink: 0 }}>
+                                            <PButtonPure type="button" size="x-small" onClick={() => openLinkForm(i)}>
+                                                Edit
+                                            </PButtonPure>
+                                            <PButtonPure type="button" size="x-small" onClick={() => removeLink(i)}
+                                                style={{ color: 'var(--p-color-notification-error)' }}>
+                                                Remove
+                                            </PButtonPure>
+                                        </div>
                                     )}
                                 </div>
-                                <PButtonPure type="button" size="x-small" onClick={() => removeLink(i)}
-                                    style={{ color: 'var(--p-color-notification-error)', flexShrink: 0 }}>
-                                    Remove
-                                </PButtonPure>
-                            </div>
+                            )
                         ))}
                     </div>
                 )}
 
-                {showLinkForm ? (
-                    <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
-                        <PHeading size="sm" tag="h4">Add Link</PHeading>
-                        {linkFormError && <PInlineNotification heading="Error" description={linkFormError} state="error" dismissButton={false} />}
-                        <div>
-                            <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>URL</label>
-                            <input type="url" value={newLinkUrl} onChange={e => setNewLinkUrl(e.target.value)}
-                                placeholder="https://youtube.com/watch?v=..." className={inputClass} />
-                        </div>
-                        <div>
-                            <label className={labelClass} style={{ color: 'var(--p-color-contrast-medium)' }}>Description <span style={{ color: 'var(--p-color-contrast-medium)', fontWeight: 'normal' }}>(optional for YouTube)</span></label>
-                            <input type="text" value={newLinkDescription} onChange={e => setNewLinkDescription(e.target.value)}
-                                placeholder="e.g. Full show recording" className={inputClass} />
-                        </div>
-                        <div className="flex gap-2">
-                            <PButton type="button" size="small" onClick={handleAddLink}>Add</PButton>
-                            <PButton type="button" variant="secondary" size="small" onClick={() => { setShowLinkForm(false); setLinkFormError(''); }}>Cancel</PButton>
-                        </div>
-                    </div>
-                ) : formData.links.length === 0 && (
+                {showLinkForm && editingLinkIndex === null ? (
+                    renderLinkForm()
+                ) : !showLinkForm && formData.links.length === 0 && (
                     <PText size="small" color="contrast-medium">No links added yet.</PText>
                 )}
             </div>
