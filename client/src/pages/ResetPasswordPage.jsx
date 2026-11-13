@@ -2,11 +2,20 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { PHeading, PText, PButton, PInlineNotification, PSpinner } from '@porsche-design-system/components-react';
 import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../services/supabase';
 
 const inputClass = "w-full rounded-lg border border-white/10 bg-white/5 py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--p-color-info)] focus:border-transparent placeholder:text-gray-500";
 
 export default function ResetPasswordPage() {
     const { user, loading, updatePassword } = useAuth();
+    // Admin-generated links carry a one-time token_hash in the query string
+    // (server/routes/admin.js). It's redeemed only on submit, so a link
+    // preview or email scanner opening the page can't use it up first.
+    // Read once on mount: the token stays valid until submitted.
+    const [tokenHash] = useState(() => new URLSearchParams(window.location.search).get('token_hash'));
+    // Set once the token has been redeemed, so a retry after a failed
+    // password update doesn't try to spend the same one-time token again.
+    const [tokenRedeemed, setTokenRedeemed] = useState(false);
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [error, setError] = useState('');
@@ -22,6 +31,14 @@ export default function ResetPasswordPage() {
 
         setSaving(true);
         try {
+            if (tokenHash && !tokenRedeemed) {
+                const { error: otpError } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: 'recovery' });
+                if (otpError) {
+                    setError('This password reset link has expired or was already used. Contact an admin to have a new one sent.');
+                    return;
+                }
+                setTokenRedeemed(true);
+            }
             await updatePassword(password);
             setSuccess(true);
         } catch (err) {
@@ -39,7 +56,7 @@ export default function ResetPasswordPage() {
                     <PText size="sm" color="contrast-medium" align="center">SkySets.org</PText>
                 </div>
 
-                {loading ? (
+                {loading && !tokenHash ? (
                     <div className="flex justify-center py-4"><PSpinner size="medium" /></div>
                 ) : success ? (
                     <div className="space-y-4">
@@ -53,7 +70,7 @@ export default function ResetPasswordPage() {
                             <PButton className="w-full">Continue to SkySets.org</PButton>
                         </Link>
                     </div>
-                ) : !user ? (
+                ) : !user && !tokenHash ? (
                     <div className="space-y-4">
                         <PInlineNotification
                             heading="Link expired or invalid"

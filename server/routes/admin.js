@@ -128,17 +128,22 @@ router.post('/users/:userId/send-password-reset', requireAdmin, async (req, res)
         const { data, error } = await supabase.auth.admin.generateLink({
             type: 'recovery',
             email,
-            options: {
-                redirectTo: `${process.env.FRONTEND_URL || 'https://www.skysets.org'}/reset-password`,
-            },
         });
 
-        if (error || !data?.properties?.action_link) {
+        if (error || !data?.properties?.hashed_token) {
             console.error('[admin/send-password-reset] error:', error);
             return res.status(500).json({ error: 'Failed to generate password reset link' });
         }
 
-        res.json({ success: true, email, link: data.properties.action_link });
+        // Not Supabase's own action_link: that's a one-time GET that's spent
+        // the moment anything opens it — and text/Slack/email link previews
+        // and safe-link scanners open it before the person ever taps it,
+        // leaving them on "Link expired or invalid". This points at our own
+        // page instead, which only redeems the token (verifyOtp) when the
+        // person actually submits a new password.
+        const link = `${process.env.FRONTEND_URL || 'https://www.skysets.org'}/reset-password?token_hash=${encodeURIComponent(data.properties.hashed_token)}&type=recovery`;
+
+        res.json({ success: true, email, link });
     } catch (err) {
         console.error('[admin/send-password-reset] error:', err);
         res.status(500).json({ error: 'Internal server error' });
