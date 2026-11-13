@@ -690,7 +690,7 @@ export default function ShowMapShare({ pastShows, upcomingShows, title = 'My Sho
 
         if (navigator.share && navigator.canShare?.({ files: [file] })) {
             try {
-                await navigator.share({ files: [file], text: 'Track your shows at skysets.org', url: 'https://skysets.org' });
+                await navigator.share({ files: [file], text: 'Track your shows at skysets.org', url: 'https://www.skysets.org/' });
                 return;
             } catch {}
         }
