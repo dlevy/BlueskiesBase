@@ -1,6 +1,7 @@
 const { supabase } = require('../config/supabase');
 const { buildTourPath } = require('./tourMeta');
 const { buildSongPath } = require('./songMeta');
+const { getYouTubeId, uploadDateFor } = require('./youtube');
 
 const SET_KEYS = ['set1', 'set2', 'set3', 'encore'];
 
@@ -101,32 +102,19 @@ function songLabel(song) {
     return label;
 }
 
-// Mirrors getYouTubeId in client/src/pages/ShowDetailPage.jsx — keep in sync.
-function getYouTubeId(url) {
-    try {
-        const u = new URL(url);
-        if (u.hostname === 'youtu.be') return u.pathname.slice(1).split('?')[0];
-        if (u.hostname.includes('youtube.com')) {
-            if (u.pathname.startsWith('/shorts/')) return u.pathname.split('/')[2];
-            return u.searchParams.get('v');
-        }
-    } catch {}
-    return null;
-}
-
 // One VideoObject per embedded YouTube link (ShowDetailPage.jsx embeds an
 // <iframe> for each) — Search Console's Video indexing report wants this
-// structured data on any page that actually shows a video player, which
-// these pages do but never described. No `uploadDate`: a fan-posted video's
-// actual upload date isn't tracked anywhere, and the show's own date is
-// usually wrong for it (uploads typically trail the show by weeks or
-// years) — same "never fabricate a field we don't really know" posture
-// already established for ticketing/promoter data below.
+// structured data on any page that actually shows a video player. Google
+// requires `uploadDate`, so a video is only described once its real publish
+// date has been fetched from YouTube (routes/shows.js does that on save) —
+// never the show's own date, which is usually wrong for a fan upload. A video
+// without one is left out rather than published as an invalid item.
 function buildVideoJsonLd(show, venueLabel, longDate) {
     return (show.links || [])
         .map(link => ({ link, ytId: getYouTubeId(link.url) }))
-        .filter(({ ytId }) => ytId)
-        .map(({ link, ytId }) => ({
+        .map(({ link, ytId }) => ({ link, ytId, uploadDate: ytId && uploadDateFor(link, ytId) }))
+        .filter(({ uploadDate }) => uploadDate)
+        .map(({ link, ytId, uploadDate }) => ({
             '@context': 'https://schema.org',
             '@type': 'VideoObject',
             name: link.description
@@ -138,6 +126,7 @@ function buildVideoJsonLd(show, venueLabel, longDate) {
                 `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`,
                 `https://img.youtube.com/vi/${ytId}/maxresdefault.jpg`,
             ],
+            uploadDate,
             embedUrl: `https://www.youtube.com/embed/${ytId}`,
             url: link.url,
         }));

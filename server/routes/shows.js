@@ -6,6 +6,7 @@ const { invalidateSetlistIndex } = require('../utils/setlistIndex');
 const { requireAdmin, requireEditorOrAdmin } = require('../middleware/requireRole');
 const { notifySetlistUpdated } = require('../utils/notify');
 const { redactProfile } = require('../utils/privacy');
+const { withYouTubeUploadDates } = require('../utils/youtube');
 
 // Sorted, song_order-independent signature for a set of setlist rows — used
 // to tell "a real correction" (song/set/encore/notes/performance_type
@@ -482,7 +483,10 @@ router.get('/:id', async (req, res) => {
  */
 router.post('/', requireEditorOrAdmin, async (req, res) => {
     try {
-        const { venue_id, show_date, artist_name, tour_name, notes, source_types, opened_for_id, links, day_order, is_cancelled } = req.body;
+        const { venue_id, show_date, artist_name, tour_name, notes, source_types, opened_for_id, day_order, is_cancelled } = req.body;
+        // Each YouTube link gets its real upload date (Google requires it for
+        // the show page's VideoObject schema) — see utils/youtube.js.
+        const links = await withYouTubeUploadDates(req.body.links);
 
         const { data: show, error } = await supabase
             .from('shows')
@@ -562,7 +566,9 @@ router.patch('/:id/tour', requireEditorOrAdmin, async (req, res) => {
 router.put('/:id', requireEditorOrAdmin, async (req, res) => {
     try {
         const { id } = req.params;
-        const { venue_id, show_date, artist_name, tour_name, notes, source_types, opened_for_id, links, day_order, is_cancelled } = req.body;
+        const { venue_id, show_date, artist_name, tour_name, notes, source_types, opened_for_id, day_order, is_cancelled } = req.body;
+        // Same as POST: fetch upload dates for any new or changed YouTube link.
+        const links = await withYouTubeUploadDates(req.body.links);
 
         const { data: show, error } = await supabase
             .from('shows')

@@ -777,14 +777,17 @@ export default function ShowDetailPage() {
     };
 
     // One VideoObject per embedded YouTube link below (Videos & Links
-    // section) — mirrors server/utils/showMeta.js's buildVideoJsonLd. No
-    // `uploadDate`: a fan-posted video's actual upload date isn't tracked
-    // anywhere, and the show's own date is usually wrong for it (uploads
-    // typically trail the show by weeks or years).
+    // section) — mirrors server/utils/showMeta.js's buildVideoJsonLd. Google
+    // requires `uploadDate`, so only videos whose real YouTube publish date
+    // was fetched on save (server/utils/youtube.js) are described.
     const videoJsonLd = (show.links || [])
         .map(link => ({ link, ytId: getYouTubeId(link.url) }))
-        .filter(({ ytId }) => ytId)
         .map(({ link, ytId }) => ({
+            link, ytId,
+            uploadDate: ytId && link.upload_date && link.upload_video_id === ytId ? link.upload_date : null,
+        }))
+        .filter(({ uploadDate }) => uploadDate)
+        .map(({ link, ytId, uploadDate }) => ({
             '@context': 'https://schema.org',
             '@type': 'VideoObject',
             name: link.description
@@ -796,6 +799,7 @@ export default function ShowDetailPage() {
                 `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`,
                 `https://img.youtube.com/vi/${ytId}/maxresdefault.jpg`,
             ],
+            uploadDate,
             embedUrl: `https://www.youtube.com/embed/${ytId}`,
             url: link.url,
         }));
