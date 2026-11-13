@@ -55,9 +55,6 @@ export default function SearchPage() {
     const [sortOrder, setSortOrder] = useState('newest');
 
     const [years, setYears] = useState([]);
-    // Played (past, not canceled) show count for the homepage intro — derived
-    // from the same years query, no extra request.
-    const [playedShowCount, setPlayedShowCount] = useState(null);
     // Gates the search tab's body: the "Browse by year" card only exists once
     // years load, and appearing late it pushed the filter bar and hero down.
     const [yearsLoaded, setYearsLoaded] = useState(false);
@@ -106,7 +103,7 @@ export default function SearchPage() {
             try {
                 const { data: showsData, error: showsError } = await supabase
                     .from('shows')
-                    .select('show_date, tour_name, day_order, is_cancelled');
+                    .select('show_date, tour_name, day_order');
                 if (showsError) {
                     setError('Failed to load search options. Please refresh the page.');
                     setRecentTourName(null);
@@ -116,7 +113,6 @@ export default function SearchPage() {
                     setYears([...new Set(showsData.map(s => parseInt(s.show_date.split('-')[0])))].sort((a, b) => b - a));
 
                     const todayStr = getLocalDateString();
-                    setPlayedShowCount(showsData.filter(s => s.show_date <= todayStr && !s.is_cancelled).length);
                     const past = showsData
                         // A non-tour side event (an afterparty, a one-off) has no
                         // tour_name — excluded here, not just left to fall through
@@ -473,10 +469,8 @@ export default function SearchPage() {
                             Johnny Blue Skies &amp; Sturgill Simpson Setlists
                         </h1>
                         <p className="text-sm mt-2 max-w-3xl" style={{ color: 'var(--p-color-contrast-medium)' }}>
-                            Every known setlist from Sturgill Simpson&rsquo;s live career —{' '}
-                            {playedShowCount ? `${playedShowCount.toLocaleString()} shows` : 'hundreds of shows'}
-                            {years.length > 0 && ` since ${Math.min(...years)}`}, through Johnny Blue Skies &amp; The Dark Clouds.
-                            Look up any show&rsquo;s full setlist, follow a song&rsquo;s complete performance history, and browse
+                            We are doing our best to document every known setlist from Sturgill Simpson&rsquo;s live career
+                            from 2005 through Johnny Blue Skies &amp; The Dark Clouds. Look up any show&rsquo;s full setlist, follow a song&rsquo;s complete performance history, and browse
                             photos, posters and tour stats from fans who were there.
                         </p>
                     </div>
