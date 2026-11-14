@@ -349,8 +349,11 @@ function PublicLayout() {
 
       <AnnouncementBanner banner={banner} />
 
-      {/* Main content */}
-      <main className="flex-1">
+      {/* Main content — at least a screen tall, so the footer always starts
+          below the fold. A page that shows a short loading state first would
+          otherwise have the footer in view, then shove it down once its
+          content arrives — counted as a layout shift (CLS) on every page. */}
+      <main className="flex-1 min-h-screen">
         <Outlet />
       </main>
 

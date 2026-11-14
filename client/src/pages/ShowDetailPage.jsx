@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
     PHeading, PText, PButtonPure, PTag, PSpinner,
     PInlineNotification
 } from '@porsche-design-system/components-react';
-import { getShowBySlug, getTourRarity, getShowDebuts, getAdjacentShows, checkShowAttendance, markShowAttended, unmarkShowAttended, getShowThanks, getShowPoster, getShowPhotos } from '../services/api';
+import { getShowBySlug, getTourRarity, getShowDebuts, getAdjacentShows, getShowAttendees, checkShowAttendance, markShowAttended, unmarkShowAttended, getShowThanks, getShowPoster, getShowPhotos } from '../services/api';
 import { buildShowPath } from '../utils/showSlug';
 import { buildTourPath } from '../utils/tourSlug';
 import { buildSongPath } from '../utils/songSlug';
@@ -27,6 +27,16 @@ import MainNavTabs from '../components/MainNavTabs';
 // night. Uses UTC (not the viewer's local date) so every visitor — and
 // Googlebot — gets the same answer as the server. Mirrors isHiddenFromSearch
 // in server/utils/showMeta.js — keep in sync.
+const PREFETCH_WAIT_MS = 2500;
+const TIMED_OUT = Symbol('timed out');
+// Resolves to the promise's value, null if it rejects, or TIMED_OUT after ms.
+function withTimeout(promise, ms) {
+    return Promise.race([
+        promise.catch(err => { console.error('[ShowDetail] prefetch failed:', err); return null; }),
+        new Promise(resolve => setTimeout(() => resolve(TIMED_OUT), ms)),
+    ]);
+}
+
 function isHiddenFromSearch(showDate, hasSetlist) {
     const cutoff = new Date(Date.now() - 24 * 3600 * 1000).toISOString().slice(0, 10);
     return !hasSetlist && showDate < cutoff;
@@ -462,7 +472,6 @@ export default function ShowDetailPage() {
     const [error, setError] = useState(null);
     const [attended, setAttended] = useState(false);
     const [attendanceLoading, setAttendanceLoading] = useState(false);
-    const [songStats, setSongStats] = useState({ originals: 0, covers: 0 });
     const [tourRarity, setTourRarity] = useState(null);
     const [liveDebutSongIds, setLiveDebutSongIds] = useState(null);
     const [tourDebutSongIds, setTourDebutSongIds] = useState(null);
@@ -470,6 +479,10 @@ export default function ShowDetailPage() {
     const [thanksRows, setThanksRows] = useState([]);
     const [seoImageUrl, setSeoImageUrl] = useState(null);
     const initialLoad = useRef(true);
+    // "Who Was There" list fetched together with the show (see fetchShow) so
+    // it renders in the same paint as the header card instead of growing it
+    // afterwards. null = not prefetched; WhoWasThereSection then loads it itself.
+    const [initialAttendees, setInitialAttendees] = useState(null);
     // Which {artist, date, locationSlug} the current `show` state was actually
     // fetched for — not just whatever show_date happens to be on it. Two shows
     // sharing a date (e.g. an official show and its same-night afterparty) both
@@ -528,6 +541,25 @@ export default function ShowDetailPage() {
                 setTourDebutSongIds(null);
                 const data = await getShowBySlug(date, artist, locationSlug);
                 if (cancelled) return;
+                // The prev/next bar (above the header card) and the "Who Was
+                // There" list (inside it) used to load after the page appeared,
+                // pushing everything below them down — the show page's main
+                // layout shift (CLS). Fetch both before revealing the page, but
+                // never wait on them longer than PREFETCH_WAIT_MS: a slow one
+                // falls back to arriving late rather than holding the page.
+                const adjacentP = getAdjacentShows(data.id);
+                const attendeesP = getShowAttendees(data.id);
+                const [adj, att] = await Promise.all([
+                    withTimeout(adjacentP, PREFETCH_WAIT_MS),
+                    withTimeout(attendeesP, PREFETCH_WAIT_MS),
+                ]);
+                if (cancelled) return;
+                if (adj === TIMED_OUT) {
+                    adjacentP.then(d => { if (!cancelled) setAdjacent(d); }).catch(() => {});
+                } else if (adj) {
+                    setAdjacent(adj);
+                }
+                setInitialAttendees(att && att !== TIMED_OUT ? att : null);
                 setShow(data);
                 fetchedForRef.current = { artist, date, locationSlug };
             } catch (err) {
@@ -559,12 +591,11 @@ export default function ShowDetailPage() {
         }
     }, [show, artist, date, locationSlug, navigate]);
 
-    // Calculate song stats when setlist loads
-    useEffect(() => {
-        if (!show?.setlist) {
-            setSongStats({ originals: 0, covers: 0 });
-            return;
-        }
+    // Originals/Covers tag counts — computed during render rather than in an
+    // effect, which set them one render after the page painted and popped the
+    // tags into the header card a moment later (a small layout shift).
+    const songStats = useMemo(() => {
+        if (!show?.setlist) return { originals: 0, covers: 0 };
         const allSongs = [
             ...(show.setlist.set1 || []),
             ...(show.setlist.set2 || []),
@@ -584,7 +615,7 @@ export default function ShowDetailPage() {
             if (song.is_original === true) originals++;
             else covers++;
         });
-        setSongStats({ originals, covers });
+        return { originals, covers };
     }, [show]);
 
     // Fetch tour rarity data once show is loaded and has a tour
@@ -606,14 +637,6 @@ export default function ShowDetailPage() {
                 setTourDebutSongIds(new Set(data.tour_debut_song_ids || []));
             })
             .catch(err => console.error('[ShowDetail] debuts fetch failed:', err));
-    }, [show?.id]);
-
-    // Fetch previous/next show
-    useEffect(() => {
-        if (!show?.id) return;
-        getAdjacentShows(show.id)
-            .then(data => setAdjacent(data))
-            .catch(err => console.error('[ShowDetail] adjacent shows fetch failed:', err));
     }, [show?.id]);
 
     // Check attendance after show loads
@@ -1016,7 +1039,7 @@ export default function ShowDetailPage() {
                 )}
 
                 {/* Who Was There */}
-                <WhoWasThereSection showId={show.id} refreshOn={attended} isFutureShow={isFutureShow} isCancelled={show.is_cancelled} />
+                <WhoWasThereSection key={show.id} initial={initialAttendees} showId={show.id} refreshOn={attended} isFutureShow={isFutureShow} isCancelled={show.is_cancelled} />
             </div>
 
             {/* Sound Check — shown above the Setlist card, only when there's anything

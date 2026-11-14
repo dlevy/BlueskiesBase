@@ -1,5 +1,5 @@
-﻿import { useState, useEffect } from 'react';
-import { PHeading, PText, PDivider } from '@porsche-design-system/components-react';
+﻿import { useState, useEffect, useRef, useCallback } from 'react';
+import { PHeading, PText, PDivider, PSpinner } from '@porsche-design-system/components-react';
 import { getSongs, getCommunityStats } from '../services/api';
 import { supabase } from '../services/supabase';
 import { useCountUp } from '../hooks/useCountUp';
@@ -33,6 +33,21 @@ export default function SongStatsWidget() {
     const [confirmedUndated, setConfirmedUndated] = useState([]);
     const [showStats, setShowStats] = useState(null);
     const [communityStats, setCommunityStats] = useState(null);
+
+    // Each section loads independently with a data-dependent height, so
+    // revealing them as they arrived pushed the ones below down in stages —
+    // the Stats tab's layout shift (CLS). Everything mounts (and fetches)
+    // hidden behind one spinner and appears at once when all four sources
+    // (three fetches here + the Tour Stats module) have settled. A Set, not a
+    // counter, so StrictMode's double-run effects can't count one twice.
+    const READY_KEYS = 4;
+    const readyKeys = useRef(new Set());
+    const [ready, setReady] = useState(false);
+    const markReady = useCallback(key => {
+        readyKeys.current.add(key);
+        if (readyKeys.current.size === READY_KEYS) setReady(true);
+    }, []);
+    const markTourReady = useCallback(() => markReady('tour'), [markReady]);
 
     useEffect(() => {
         const fetchShowStats = async () => {
@@ -89,6 +104,8 @@ export default function SongStatsWidget() {
                 });
             } catch (err) {
                 console.error('Error fetching show stats:', err);
+            } finally {
+                markReady('shows');
             }
         };
 
@@ -146,6 +163,8 @@ export default function SongStatsWidget() {
             } catch (err) {
                 console.error('Error fetching holy grails:', err);
                 // Holy Grails failing silently — stats still show
+            } finally {
+                markReady('songs');
             }
         };
 
@@ -156,13 +175,15 @@ export default function SongStatsWidget() {
             } catch (err) {
                 console.error('Error fetching community stats:', err);
                 // Community stats failing silently — core stats still show
+            } finally {
+                markReady('community');
             }
         };
 
         fetchShowStats();
         fetchHolyGrails();
         fetchCommunityStats();
-    }, []);
+    }, [markReady]);
 
     const formatDate = (dateString) => {
         // Called with both a plain DATE string (song.lastPlayed, e.g.
@@ -176,7 +197,14 @@ export default function SongStatsWidget() {
 
 
     return (
-        <div className="space-y-6">
+        <>
+        {/* At least a screen tall, so the footer stays below the fold. */}
+        {!ready && (
+            <div className="min-h-screen flex justify-center pt-16">
+                <PSpinner size="medium" aria={{ 'aria-label': 'Loading stats' }} />
+            </div>
+        )}
+        <div className={`space-y-6${ready ? '' : ' hidden'}`}>
 
             {/* By the Numbers */}
             {showStats && (
@@ -257,7 +285,7 @@ export default function SongStatsWidget() {
                 particular balloons to an unhelpful wall of songs. */}
             <div className="space-y-4">
                 <PHeading size="md" tag="h2">Tour Stats</PHeading>
-                <TourStatsModule />
+                <TourStatsModule onReady={markTourReady} />
             </div>
 
             {/* Holy Grails */}
@@ -326,5 +354,6 @@ export default function SongStatsWidget() {
                 Data as of {formatDate(new Date().toISOString())}
             </PText>
         </div>
+        </>
     );
 }

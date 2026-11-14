@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { PHeading, PText, PSpinner, PInlineNotification } from '@porsche-design-system/components-react';
 import { fetchTourList, fetchDefaultTourName, fetchTourSongCounts, ALL_SHOWS } from '../utils/tourSongCounts';
@@ -72,7 +72,11 @@ function RareTag({ count, total }) {
 // showing the whole archive rather than one specific tour). Page-level
 // chrome (SEO, back button, page heading) stays with whichever caller
 // renders this, since only the standalone page needs it.
-export default function TourStatsModule({ defaultTour = null }) {
+// `onReady` fires once, the first time the tour list, its State/Country
+// options and its song counts have all settled (loaded or failed) — lets a
+// host like SongStatsWidget reveal everything in one paint instead of this
+// module growing in stages and pushing what's below it down (CLS).
+export default function TourStatsModule({ defaultTour = null, onReady }) {
     const navigate = useNavigate();
     const location = useLocation();
     const { isEditorOrAdmin } = useAuth();
@@ -87,6 +91,8 @@ export default function TourStatsModule({ defaultTour = null }) {
     const [error, setError] = useState(null);
     const [showAllOpeners, setShowAllOpeners] = useState(false);
     const [showAllClosers, setShowAllClosers] = useState(false);
+    const [geoLoaded, setGeoLoaded] = useState(false);
+    const readyFired = useRef(false);
 
     // Load the tour list once, then pick the default tour — the caller's
     // `defaultTour` (e.g. "All Shows" for the homepage Stats tab) if given,
@@ -130,7 +136,8 @@ export default function TourStatsModule({ defaultTour = null }) {
         let cancelled = false;
         fetchGeographyOptions(selectedTour === ALL_SHOWS ? undefined : selectedTour)
             .then(geo => { if (!cancelled) setGeoOptions(geo); })
-            .catch(err => console.error('[TourStatsModule] Error loading geography options:', err));
+            .catch(err => console.error('[TourStatsModule] Error loading geography options:', err))
+            .finally(() => { if (!cancelled) setGeoLoaded(true); });
         setStateFilter('');
         setCountryFilter('');
         return () => { cancelled = true; };
@@ -153,6 +160,14 @@ export default function TourStatsModule({ defaultTour = null }) {
             .finally(() => { if (!cancelled) setLoadingSongs(false); });
         return () => { cancelled = true; };
     }, [selectedTour, stateFilter, countryFilter]);
+
+    useEffect(() => {
+        if (readyFired.current || !onReady || loadingTours) return;
+        const settled = !selectedTour || error || (!loadingSongs && tourData !== null && geoLoaded);
+        if (!settled) return;
+        readyFired.current = true;
+        onReady();
+    }, [onReady, loadingTours, loadingSongs, selectedTour, tourData, geoLoaded, error]);
 
     const maxCount = tourData?.songCounts?.[0]?.count || 0;
 

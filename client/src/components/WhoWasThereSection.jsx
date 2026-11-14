@@ -1,15 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { PText } from '@porsche-design-system/components-react';
 import { getShowAttendees } from '../services/api';
 
 // Usernames only — never emails. Falls back to a bare "+N more" count for any
 // attendee rows whose profile has no username set, rather than skipping them silently.
-export default function WhoWasThereSection({ showId, refreshOn, isFutureShow, isCancelled }) {
-    const [attendees, setAttendees] = useState([]);
-    const [count, setCount] = useState(0);
+// `initial` (attendees prefetched by ShowDetailPage alongside the show itself)
+// renders the list in the same paint as the rest of the header card — fetching
+// it only after mount made the card grow and pushed the setlist down (CLS).
+export default function WhoWasThereSection({ showId, refreshOn, isFutureShow, isCancelled, initial = null }) {
+    const [attendees, setAttendees] = useState(initial?.attendees || []);
+    const [count, setCount] = useState(initial?.count || 0);
+    const skipInitialFetch = useRef(!!initial);
 
     useEffect(() => {
+        if (skipInitialFetch.current) { skipInitialFetch.current = false; return; }
         let cancelled = false;
         getShowAttendees(showId)
             .then(data => {
