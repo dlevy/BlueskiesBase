@@ -212,7 +212,8 @@ export default function PhotosSection({ showId, thanksRows = [], onThanksChanged
             {photos.length > 0 ? (
                 <div className="space-y-3">
                     <div className="relative cursor-pointer group h-96 rounded-xl overflow-hidden bg-black/20 flex items-center justify-center" onClick={() => setLightboxOpen(true)}>
-                        <img src={photos[currentPhotoIndex].photo_url}
+                        {/* 1200px display copy — the lightbox opens the full original. */}
+                        <img src={photos[currentPhotoIndex].display_url || photos[currentPhotoIndex].photo_url}
                             alt={photos[currentPhotoIndex].caption || 'Show photo'}
                             className="max-w-full max-h-full w-auto h-auto object-contain" />
                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all rounded-xl flex items-center justify-center">

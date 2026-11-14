@@ -194,6 +194,10 @@ function Spinner() {
 function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, isEditorOrAdmin, onImageClick, onChanged, additional = false, onMove, canMoveUp, canMoveDown, isOwned, onToggleCollection, isWanted, onToggleWant }) {
     const [uploading, setUploading] = useState(false);
     const [error, setError] = useState(null);
+    // Poster dimensions aren't stored, so until the image loads it holds a
+    // typical 3:4 poster-shaped box instead of collapsing to zero height and
+    // then pushing everything below it down (an "unsized image" layout shift).
+    const [imgLoadedUrl, setImgLoadedUrl] = useState(null);
     const [selectedFile, setSelectedFile] = useState(null);
     const [caption, setCaption] = useState('');
     const [uploadArtistName, setUploadArtistName] = useState('');
@@ -387,8 +391,11 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
             {poster ? (
                 <div className="space-y-3">
                     <div className="relative group cursor-pointer" onClick={onImageClick}>
-                        <img src={poster.poster_url} alt={poster.caption || label}
-                            className="w-full max-w-md mx-auto rounded-xl shadow-lg hover:opacity-90 transition-opacity" />
+                        {/* The 1200px display copy, not the full-size original (often
+                            1MB+) — the lightbox still opens the original. */}
+                        <img src={poster.display_url || poster.poster_url} alt={poster.caption || label}
+                            onLoad={() => setImgLoadedUrl(poster.id)}
+                            className={`w-full max-w-md mx-auto rounded-xl shadow-lg hover:opacity-90 transition-opacity ${imgLoadedUrl === poster.id ? '' : 'aspect-[3/4] bg-white/5'}`} />
                         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 rounded-xl pointer-events-none">
                             <PText>Click to view full size</PText>
                         </div>
@@ -551,8 +558,12 @@ function PosterSlot({ label, poster, isFoil, showId, showDate, user, isAdmin, is
 // alongside the two primary (regular/foil) slots, unconstrained.
 function AddAdditionalPosterForm({ showId, onChanged, isEditorOrAdmin }) {
     const [open, setOpen] = useState(false);
-    const [uploading, setUploading] = useState(false);
+     const [uploading, setUploading] = useState(false);
     const [error, setError] = useState(null);
+    // Poster dimensions aren't stored, so until the image loads it holds a
+    // typical 3:4 poster-shaped box instead of collapsing to zero height and
+    // then pushing everything below it down (an "unsized image" layout shift).
+    const [imgLoadedUrl, setImgLoadedUrl] = useState(null);
     const [selectedFile, setSelectedFile] = useState(null);
     const [caption, setCaption] = useState('');
     const [isFoil, setIsFoil] = useState(false);

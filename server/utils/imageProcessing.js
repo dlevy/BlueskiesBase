@@ -8,6 +8,12 @@ const MAX_FULL_DIMENSION = 2400;
 const FULL_JPEG_QUALITY = 85; // visually lossless for photographic content
 const THUMBNAIL_MAX_DIMENSION = 600;
 const THUMBNAIL_WEBP_QUALITY = 80; // fine at thumbnail scale, never used at full size
+// Mid-size copy for the show page's poster slot and main photo viewer, which
+// display at roughly 330-450 CSS px — 1200px covers that on a 2-3x phone
+// screen. Lossy is invisible at that scale; the full-size original is still
+// what the lightbox opens.
+const DISPLAY_MAX_DIMENSION = 1200;
+const DISPLAY_WEBP_QUALITY = 82;
 
 const PHOTO_MIME_TYPES = new Set(['image/jpeg', 'image/jpg', 'image/heic', 'image/heif']);
 
@@ -55,4 +61,17 @@ async function generateThumbnail(buffer) {
     return { buffer: outBuffer, contentType: 'image/webp', ext: 'webp' };
 }
 
-module.exports = { optimizeFullImage, generateThumbnail, MAX_FULL_DIMENSION, THUMBNAIL_MAX_DIMENSION };
+/**
+ * Mid-size derived image (see DISPLAY_MAX_DIMENSION) for in-page display
+ * where the thumbnail is too small and the full-size original far too heavy.
+ */
+async function generateDisplayImage(buffer) {
+    const outBuffer = await sharp(buffer, { failOn: 'none' })
+        .rotate()
+        .resize({ width: DISPLAY_MAX_DIMENSION, height: DISPLAY_MAX_DIMENSION, fit: 'inside', withoutEnlargement: true })
+        .webp({ quality: DISPLAY_WEBP_QUALITY })
+        .toBuffer();
+    return { buffer: outBuffer, contentType: 'image/webp', ext: 'webp' };
+}
+
+module.exports = { optimizeFullImage, generateThumbnail, generateDisplayImage, MAX_FULL_DIMENSION, THUMBNAIL_MAX_DIMENSION, DISPLAY_MAX_DIMENSION };

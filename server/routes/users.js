@@ -748,6 +748,7 @@ router.get('/profile/:username', async (req, res) => {
                 user_posters (
                     id,
                     poster_url,
+                    thumbnail_url,
                     is_foil,
                     shows ( id, show_date, artist_name, tour_name, venues ( name, city, state, country, state_country ) )
                 )
@@ -759,7 +760,7 @@ router.get('/profile/:username', async (req, res) => {
             .map(row => ({
                 id: row.id,
                 hasFoil: row.user_posters.is_foil,
-                posterUrl: row.user_posters.poster_url,
+                posterUrl: row.user_posters.thumbnail_url || row.user_posters.poster_url,
                 show: row.user_posters.shows,
                 forTrade: row.for_trade,
                 tradeComment: row.trade_comment,
@@ -788,7 +789,7 @@ router.get('/profile/:username', async (req, res) => {
         if (wantedShowIds.length > 0) {
             const { data: linkRows } = await supabase
                 .from('poster_show_links')
-                .select('show_id, user_posters ( poster_url, is_foil )')
+                .select('show_id, user_posters ( poster_url, thumbnail_url, is_foil )')
                 .in('show_id', wantedShowIds);
             (linkRows || []).forEach(row => {
                 if (!row.user_posters) return;
@@ -811,7 +812,7 @@ router.get('/profile/:username', async (req, res) => {
                     id: row.id,
                     variant: row.variant,
                     show: row.shows,
-                    posterUrl: poster?.poster_url,
+                    posterUrl: poster?.thumbnail_url || poster?.poster_url,
                 };
             })
             .sort((a, b) => b.show.show_date.localeCompare(a.show.show_date));

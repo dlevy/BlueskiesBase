@@ -180,12 +180,13 @@ router.delete('/users/:userId', requireAdmin, async (req, res) => {
 
         // Remove uploaded photo/poster files from storage before deleting the rows
         // that point to them.
-        const { data: photos } = await supabase.from('user_photos').select('photo_url').eq('user_id', userId);
-        const photoPaths = (photos || []).map(p => p.photo_url?.split('/show-photos/')[1]).filter(Boolean);
+        // Includes each image's derived thumbnail/display copies, not just the original.
+        const { data: photos } = await supabase.from('user_photos').select('photo_url, thumbnail_url, display_url').eq('user_id', userId);
+        const photoPaths = (photos || []).flatMap(p => [p.photo_url, p.thumbnail_url, p.display_url]).map(u => u?.split('/show-photos/')[1]).filter(Boolean);
         if (photoPaths.length) await supabase.storage.from('show-photos').remove(photoPaths);
 
-        const { data: posters } = await supabase.from('user_posters').select('poster_url').eq('user_id', userId);
-        const posterPaths = (posters || []).map(p => p.poster_url?.split('/show-posters/')[1]).filter(Boolean);
+        const { data: posters } = await supabase.from('user_posters').select('poster_url, thumbnail_url, display_url').eq('user_id', userId);
+        const posterPaths = (posters || []).flatMap(p => [p.poster_url, p.thumbnail_url, p.display_url]).map(u => u?.split('/show-posters/')[1]).filter(Boolean);
         if (posterPaths.length) await supabase.storage.from('show-posters').remove(posterPaths);
 
         const { data: submissions } = await supabase.from('setlist_submissions').select('id').eq('user_id', userId);

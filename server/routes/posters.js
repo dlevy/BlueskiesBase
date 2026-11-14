@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const { supabase, supabaseAdmin } = require('../config/supabase');
-const { optimizeFullImage, generateThumbnail } = require('../utils/imageProcessing');
+const { optimizeFullImage, generateThumbnail, generateDisplayImage } = require('../utils/imageProcessing');
 const { requireEditorOrAdmin } = require('../middleware/requireRole');
 const { notifyShowAttendees, notifyPosterLinkedToShows } = require('../utils/notify');
 const { redactProfile, resolveDisplayName } = require('../utils/privacy');
@@ -267,7 +267,7 @@ router.post('/upload', authenticate, upload.single('poster'), async (req, res) =
         if (isPrimary) {
             const { data: existingLink } = await supabaseAdmin
                 .from('poster_show_links')
-                .select('user_posters ( id, poster_url, thumbnail_url, user_id )')
+                .select('user_posters ( id, poster_url, thumbnail_url, display_url, user_id )')
                 .eq('show_id', show_id)
                 .eq('is_foil', isFoil)
                 .eq('is_primary', true)
@@ -314,10 +314,13 @@ router.post('/upload', authenticate, upload.single('poster'), async (req, res) =
         // from the original bytes.
         const optimized = await optimizeFullImage(file.buffer, file.mimetype);
         const thumbnail = await generateThumbnail(file.buffer);
+        // Mid-size copy the show page displays instead of the full original.
+        const display = await generateDisplayImage(file.buffer);
 
         const base = `${userId}/${show_id}/${Date.now()}`;
         const fileName = `${base}.${optimized.ext}`;
         const thumbFileName = `${base}_thumb.${thumbnail.ext}`;
+        const displayFileName = `${base}_display.${display.ext}`;
 
         // Upload full image + thumbnail to Supabase Storage
         const { error: uploadError } = await supabaseAdmin.storage
@@ -344,6 +347,18 @@ router.post('/upload', authenticate, upload.single('poster'), async (req, res) =
             console.error('Error uploading poster thumbnail:', thumbUploadError);
         }
 
+        const { error: displayUploadError } = await supabaseAdmin.storage
+            .from('show-posters')
+            .upload(displayFileName, display.buffer, {
+                contentType: display.contentType,
+                upsert: false
+            });
+        if (displayUploadError) {
+            // Non-fatal, same as the thumbnail — the page falls back to the
+            // full image when display_url is null.
+            console.error('Error uploading poster display image:', displayUploadError);
+        }
+
         // Get public URLs
         const { data: { publicUrl } } = supabaseAdmin.storage
             .from('show-posters')
@@ -351,13 +366,17 @@ router.post('/upload', authenticate, upload.single('poster'), async (req, res) =
         const thumbnailUrl = thumbUploadError ? null : supabaseAdmin.storage
             .from('show-posters')
             .getPublicUrl(thumbFileName).data.publicUrl;
+        const displayUrl = displayUploadError ? null : supabaseAdmin.storage
+            .from('show-posters')
+            .getPublicUrl(displayFileName).data.publicUrl;
 
         // If poster exists, delete old file(s) and update record
         if (existingPoster) {
             // Extract old file paths from their URLs
             const oldFileName = existingPoster.poster_url.split('/show-posters/')[1];
             const oldThumbFileName = existingPoster.thumbnail_url?.split('/show-posters/')[1];
-            const toRemove = [oldFileName, oldThumbFileName].filter(Boolean);
+            const oldDisplayFileName = existingPoster.display_url?.split('/show-posters/')[1];
+            const toRemove = [oldFileName, oldThumbFileName, oldDisplayFileName].filter(Boolean);
             if (toRemove.length > 0) {
                 await supabaseAdmin.storage.from('show-posters').remove(toRemove);
             }
@@ -369,6 +388,7 @@ router.post('/upload', authenticate, upload.single('poster'), async (req, res) =
                     user_id: userId,
                     poster_url: publicUrl,
                     thumbnail_url: thumbnailUrl,
+                display_url: displayUrl,
                     caption: caption || null,
                     updated_at: new Date().toISOString(),
                     ...artistCreditFields
@@ -386,7 +406,7 @@ router.post('/upload', authenticate, upload.single('poster'), async (req, res) =
 
             if (dbError) {
                 console.error('Error updating poster record:', dbError);
-                await supabaseAdmin.storage.from('show-posters').remove([fileName, thumbFileName]);
+                await supabaseAdmin.storage.from('show-posters').remove([fileName, thumbFileName, displayFileName]);
                 return res.status(500).json({ error: 'Failed to update poster record' });
             }
 
@@ -401,6 +421,7 @@ router.post('/upload', authenticate, upload.single('poster'), async (req, res) =
                 show_id,
                 poster_url: publicUrl,
                 thumbnail_url: thumbnailUrl,
+                display_url: displayUrl,
                 caption: caption || null,
                 is_foil: isFoil,
                 is_primary: isPrimary,
@@ -419,7 +440,7 @@ router.post('/upload', authenticate, upload.single('poster'), async (req, res) =
         if (dbError) {
             console.error('Error saving poster record:', dbError);
             // Try to delete the uploaded files
-            await supabaseAdmin.storage.from('show-posters').remove([fileName, thumbFileName]);
+            await supabaseAdmin.storage.from('show-posters').remove([fileName, thumbFileName, displayFileName]);
             return res.status(500).json({ error: 'Failed to save poster record' });
         }
 
@@ -435,7 +456,7 @@ router.post('/upload', authenticate, upload.single('poster'), async (req, res) =
         if (linkError) {
             console.error('Error linking new poster to its show:', linkError);
             await supabaseAdmin.from('user_posters').delete().eq('id', poster.id);
-            await supabaseAdmin.storage.from('show-posters').remove([fileName, thumbFileName]);
+            await supabaseAdmin.storage.from('show-posters').remove([fileName, thumbFileName, displayFileName]);
             return res.status(500).json({ error: 'Failed to save poster record' });
         }
 
@@ -644,6 +665,7 @@ router.get('/collection', authenticate, async (req, res) => {
                 user_posters (
                     id,
                     poster_url,
+                    thumbnail_url,
                     is_foil,
                     shows (
                         id,
@@ -1387,7 +1409,7 @@ router.delete('/:posterId', authenticate, async (req, res) => {
         // Get the poster to check ownership and get file path
         const { data: poster } = await supabaseAdmin
             .from('user_posters')
-            .select('user_id, poster_url, thumbnail_url')
+            .select('user_id, poster_url, thumbnail_url, display_url')
             .eq('id', posterId)
             .single();
 
@@ -1414,7 +1436,8 @@ router.delete('/:posterId', authenticate, async (req, res) => {
         // Delete file(s) from storage
         const fileName = poster.poster_url.split('/show-posters/')[1];
         const thumbFileName = poster.thumbnail_url?.split('/show-posters/')[1];
-        const toRemove = [fileName, thumbFileName].filter(Boolean);
+        const displayFileName = poster.display_url?.split('/show-posters/')[1];
+        const toRemove = [fileName, thumbFileName, displayFileName].filter(Boolean);
         if (toRemove.length > 0) {
             const { error: storageError } = await supabaseAdmin.storage
                 .from('show-posters')

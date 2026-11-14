@@ -488,7 +488,7 @@ export default function EditProfilePage() {
                             return (
                                 <div key={entry.id} className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/5 p-3">
                                     {poster?.poster_url && (
-                                        <img src={poster.poster_url} alt="" className="w-12 h-16 object-cover rounded shrink-0 border border-white/10" />
+                                        <img src={poster.thumbnail_url || poster.poster_url} alt="" className="w-12 h-16 object-cover rounded shrink-0 border border-white/10" />
                                     )}
                                     <div className="min-w-0 flex-1">
                                         {show ? (
@@ -569,7 +569,7 @@ export default function EditProfilePage() {
                             return (
                                 <div key={entry.id} className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/5 p-3">
                                     {poster?.poster_url && (
-                                        <img src={poster.poster_url} alt="" className="w-12 h-16 object-cover rounded shrink-0 border border-white/10" />
+                                        <img src={poster.thumbnail_url || poster.poster_url} alt="" className="w-12 h-16 object-cover rounded shrink-0 border border-white/10" />
                                     )}
                                     <div className="min-w-0 flex-1">
                                         {show ? (

@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const { supabase, supabaseAdmin } = require('../config/supabase');
-const { optimizeFullImage, generateThumbnail } = require('../utils/imageProcessing');
+const { optimizeFullImage, generateThumbnail, generateDisplayImage } = require('../utils/imageProcessing');
 const { notifyShowAttendees, notifyStaffOfPhotoReport, dismissPhotoReportNotifications } = require('../utils/notify');
 
 const REPORT_REASONS = ['inaccurate', 'inappropriate'];
@@ -263,10 +263,13 @@ router.post('/upload', authenticate, upload.single('photo'), async (req, res) =>
         // from the original bytes.
         const optimized = await optimizeFullImage(file.buffer, file.mimetype);
         const thumbnail = await generateThumbnail(file.buffer);
+        // Mid-size copy the show page displays instead of the full original.
+        const display = await generateDisplayImage(file.buffer);
 
         const base = `${userId}/${show_id}/${Date.now()}`;
         const fileName = `${base}.${optimized.ext}`;
         const thumbFileName = `${base}_thumb.${thumbnail.ext}`;
+        const displayFileName = `${base}_display.${display.ext}`;
 
         // Upload full image + thumbnail to Supabase Storage
         const { error: uploadError } = await supabaseAdmin.storage
@@ -293,6 +296,18 @@ router.post('/upload', authenticate, upload.single('photo'), async (req, res) =>
             console.error('Error uploading photo thumbnail:', thumbUploadError);
         }
 
+        const { error: displayUploadError } = await supabaseAdmin.storage
+            .from('show-photos')
+            .upload(displayFileName, display.buffer, {
+                contentType: display.contentType,
+                upsert: false
+            });
+        if (displayUploadError) {
+            // Non-fatal, same as the thumbnail — the page falls back to the
+            // full image when display_url is null.
+            console.error('Error uploading photo display image:', displayUploadError);
+        }
+
         // Get public URLs
         const { data: { publicUrl } } = supabaseAdmin.storage
             .from('show-photos')
@@ -300,6 +315,9 @@ router.post('/upload', authenticate, upload.single('photo'), async (req, res) =>
         const thumbnailUrl = thumbUploadError ? null : supabaseAdmin.storage
             .from('show-photos')
             .getPublicUrl(thumbFileName).data.publicUrl;
+        const displayUrl = displayUploadError ? null : supabaseAdmin.storage
+            .from('show-photos')
+            .getPublicUrl(displayFileName).data.publicUrl;
 
         // Get the next display order
         const { data: existingPhotos } = await supabaseAdmin
@@ -321,6 +339,7 @@ router.post('/upload', authenticate, upload.single('photo'), async (req, res) =>
                 show_id,
                 photo_url: publicUrl,
                 thumbnail_url: thumbnailUrl,
+                display_url: displayUrl,
                 caption: caption || null,
                 display_order: nextOrder
             })
@@ -337,7 +356,7 @@ router.post('/upload', authenticate, upload.single('photo'), async (req, res) =>
         if (dbError) {
             console.error('Error saving photo record:', dbError);
             // Try to delete the uploaded files
-            await supabaseAdmin.storage.from('show-photos').remove([fileName, thumbFileName]);
+            await supabaseAdmin.storage.from('show-photos').remove([fileName, thumbFileName, displayFileName]);
             return res.status(500).json({ error: 'Failed to save photo record' });
         }
 
@@ -508,7 +527,7 @@ router.delete('/:photoId', authenticate, async (req, res) => {
         // Get the photo to check ownership and get URL
         const { data: photo, error: fetchError } = await supabaseAdmin
             .from('user_photos')
-            .select('user_id, photo_url, thumbnail_url')
+            .select('user_id, photo_url, thumbnail_url, display_url')
             .eq('id', photoId)
             .single();
 
@@ -525,6 +544,7 @@ router.delete('/:photoId', authenticate, async (req, res) => {
         const urlParts = photo.photo_url.split('/show-photos/');
         const filePath = urlParts.length > 1 ? urlParts[1] : null;
         const thumbFilePath = photo.thumbnail_url?.split('/show-photos/')[1];
+        const displayFilePath = photo.display_url?.split('/show-photos/')[1];
 
         // Delete from database
         const { error: deleteError } = await supabaseAdmin
@@ -540,7 +560,7 @@ router.delete('/:photoId', authenticate, async (req, res) => {
         await dismissPhotoReportNotifications(photoId);
 
         // Delete from storage
-        const toRemove = [filePath, thumbFilePath].filter(Boolean);
+        const toRemove = [filePath, thumbFilePath, displayFilePath].filter(Boolean);
         if (toRemove.length > 0) {
             const { error: storageError } = await supabaseAdmin.storage
                 .from('show-photos')
